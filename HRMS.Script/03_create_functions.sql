@@ -1,4 +1,128 @@
 
+-- =====================================================================
+-- auth FUNCTIONS
+-- =====================================================================
+
+
+-- FUNCTION: auth.fn_authenticate_user(character varying, character varying)
+
+-- DROP FUNCTION IF EXISTS auth.fn_authenticate_user(character varying, character varying);
+
+CREATE OR REPLACE FUNCTION auth.fn_authenticate_user(
+	p_email character varying,
+	p_password_hash character varying)
+    RETURNS TABLE(user_id uuid, organization_id uuid, email character varying, first_name character varying, last_name character varying, role_name character varying, permissions jsonb, organization_name character varying, is_active boolean) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
+AS $BODY$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        u.user_id,
+        u.organization_id,
+        u.email,
+        u.first_name,
+        u.last_name,
+        r.role_name,
+        r.permissions,
+        o.name AS organization_name,
+        u.is_active
+    FROM auth.users u
+    INNER JOIN auth.roles r ON u.role_id = r.role_id
+    INNER JOIN auth.organizations o ON u.organization_id = o.organization_id
+    WHERE u.email = p_email 
+      AND u.password_hash = p_password_hash 
+      AND u.is_active = true
+      AND o.status = 'active';
+END;
+$BODY$;
+
+ALTER FUNCTION auth.fn_authenticate_user(character varying, character varying)
+    OWNER TO postgres;
+
+    -- FUNCTION: auth.fn_create_organization(character varying, character varying, character varying)
+
+-- DROP FUNCTION IF EXISTS auth.fn_create_organization(character varying, character varying, character varying);
+
+CREATE OR REPLACE FUNCTION auth.fn_create_organization(
+	p_name character varying,
+	p_domain character varying DEFAULT NULL::character varying,
+	p_subscription_type character varying DEFAULT 'basic'::character varying)
+    RETURNS uuid
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    new_org_id UUID;
+BEGIN
+    INSERT INTO auth.organizations (name, domain, subscription_type)
+    VALUES (p_name, p_domain, p_subscription_type)
+    RETURNING organization_id INTO new_org_id;
+    
+    -- Create default roles for the organization
+    INSERT INTO auth.roles (organization_id, role_name, permissions, is_system_role)
+    VALUES 
+        (new_org_id, 'Super Admin', '{"all": true}', true),
+        (new_org_id, 'HR Manager', '{"employees": "all", "payroll": "all", "attendance": "all", "performance": "all"}', true),
+        (new_org_id, 'Manager', '{"employees": "read", "attendance": "manage_team", "performance": "manage_team"}', true),
+        (new_org_id, 'Employee', '{"employees": "self", "attendance": "self", "performance": "self"}', true);
+    
+    RETURN new_org_id;
+END;
+$BODY$;
+
+ALTER FUNCTION auth.fn_create_organization(character varying, character varying, character varying)
+    OWNER TO postgres;
+
+    -- FUNCTION: auth.fn_create_user(uuid, character varying, character varying, character varying, character varying, character varying)
+
+-- DROP FUNCTION IF EXISTS auth.fn_create_user(uuid, character varying, character varying, character varying, character varying, character varying);
+
+CREATE OR REPLACE FUNCTION auth.fn_create_user(
+	p_organization_id uuid,
+	p_email character varying,
+	p_password_hash character varying,
+	p_first_name character varying,
+	p_last_name character varying,
+	p_role_name character varying DEFAULT 'Employee'::character varying)
+    RETURNS uuid
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    new_user_id UUID;
+    role_id_var UUID;
+BEGIN
+    -- Get role ID
+    SELECT role_id INTO role_id_var 
+    FROM auth.roles 
+    WHERE organization_id = p_organization_id AND role_name = p_role_name;
+    
+    IF role_id_var IS NULL THEN
+        RAISE EXCEPTION 'Role % not found for organization', p_role_name;
+    END IF;
+    
+    INSERT INTO auth.users (organization_id, email, password_hash, first_name, last_name, role_id)
+    VALUES (p_organization_id, p_email, p_password_hash, p_first_name, p_last_name, role_id_var)
+    RETURNING user_id INTO new_user_id;
+    
+    RETURN new_user_id;
+END;
+$BODY$;
+
+ALTER FUNCTION auth.fn_create_user(uuid, character varying, character varying, character varying, character varying, character varying)
+    OWNER TO postgres;
+
+-- =====================================================================
+-- employee FUNCTIONS
+-- =====================================================================
+
+
 CREATE OR REPLACE FUNCTION employee.fn_get_employee_by_id(p_employee_id UUID)
 RETURNS TABLE (
     employee_id UUID,
