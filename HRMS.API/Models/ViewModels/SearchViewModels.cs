@@ -1,0 +1,41 @@
+namespace HRMS.API.Models.ViewModels;
+
+public class EmployeeSearchViewModel
+{
+    public string? SearchTerm { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? Status { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+    public string? SortBy { get; set; }
+    public string? SortOrder { get; set; } = "asc";
+}
+
+public class AttendanceSearchViewModel
+{
+    public Guid? EmployeeId { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public string? Status { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+}
+
+public class LeaveRequestSearchViewModel
+{
+    public Guid? EmployeeId { get; set; }
+    public Guid? LeaveTypeId { get; set; }
+    public string? Status { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+}
+
+public class PayrollSearchViewModel
+{
+    public Guid? PeriodId { get; set; }
+    public string? Status { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+}

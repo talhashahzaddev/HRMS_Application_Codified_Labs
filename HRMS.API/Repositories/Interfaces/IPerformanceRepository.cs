@@ -1,0 +1,17 @@
+using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
+
+namespace HRMS.API.Repositories.Interfaces;
+
+public interface IPerformanceRepository
+{
+    Task<AppraisalCycle> CreateAppraisalCycleAsync(Guid organizationId, string cycleName, DateTime startDate, DateTime endDate, string? description = null);
+    Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId);
+    Task<EmployeeAppraisal> CreateEmployeeAppraisalAsync(EmployeeAppraisal appraisal);
+    Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null);
+    Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId);
+    Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId);
+    Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(Guid organizationId, Guid? cycleId = null);
+    Task<bool> UpdateAppraisalStatusAsync(Guid appraisalId, string status);
+    Task<List<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10);
+}
