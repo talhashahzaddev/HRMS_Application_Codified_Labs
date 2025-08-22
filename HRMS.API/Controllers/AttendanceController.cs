@@ -174,17 +174,448 @@ public class AttendanceController : ControllerBase
         }
     }
 
+    [HttpGet("current-session")]
+    public async Task<ActionResult<ApiResponse<TimeTrackingSessionDto>>> GetCurrentSession()
+    {
+        try
+        {
+            var employeeId = GetCurrentEmployeeId();
+            var session = await _attendanceService.GetCurrentSessionAsync(employeeId);
+            
+            return Ok(new ApiResponse<TimeTrackingSessionDto>
+            {
+                Success = true,
+                Data = session
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving current session");
+            return StatusCode(500, new ApiResponse<TimeTrackingSessionDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving current session"
+            });
+        }
+    }
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<ApiResponse<AttendanceDto>>> GetAttendance(Guid id)
+    {
+        try
+        {
+            var attendance = await _attendanceService.GetAttendanceByIdAsync(id);
+            if (attendance == null)
+            {
+                return NotFound(new ApiResponse<AttendanceDto>
+                {
+                    Success = false,
+                    Message = "Attendance record not found"
+                });
+            }
+
+            return Ok(new ApiResponse<AttendanceDto>
+            {
+                Success = true,
+                Data = attendance
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving attendance {AttendanceId}", id);
+            return StatusCode(500, new ApiResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving attendance record"
+            });
+        }
+    }
+
+    [HttpPost("manual")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ApiResponse<AttendanceDto>>> CreateManualAttendance([FromBody] ManualAttendanceRequest request)
+    {
+        try
+        {
+            var attendance = await _attendanceService.CreateManualAttendanceAsync(request);
+            
+            return CreatedAtAction(nameof(GetAttendance), new { id = attendance.AttendanceId }, new ApiResponse<AttendanceDto>
+            {
+                Success = true,
+                Message = "Manual attendance record created successfully",
+                Data = attendance
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating manual attendance");
+            return StatusCode(500, new ApiResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating manual attendance record"
+            });
+        }
+    }
+
+    [HttpPut("{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ApiResponse<AttendanceDto>>> UpdateAttendance(Guid id, [FromBody] ManualAttendanceRequest request)
+    {
+        try
+        {
+            var attendance = await _attendanceService.UpdateAttendanceAsync(id, request);
+            
+            return Ok(new ApiResponse<AttendanceDto>
+            {
+                Success = true,
+                Message = "Attendance record updated successfully",
+                Data = attendance
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ApiResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating attendance {AttendanceId}", id);
+            return StatusCode(500, new ApiResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating attendance record"
+            });
+        }
+    }
+
+    [HttpDelete("{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ApiResponse<bool>>> DeleteAttendance(Guid id)
+    {
+        try
+        {
+            var result = await _attendanceService.DeleteAttendanceAsync(id);
+            
+            return Ok(new ApiResponse<bool>
+            {
+                Success = true,
+                Message = "Attendance record deleted successfully",
+                Data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ApiResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting attendance {AttendanceId}", id);
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting attendance record"
+            });
+        }
+    }
+
+    [HttpGet("my-attendance")]
+    public async Task<ActionResult<ApiResponse<List<AttendanceDto>>>> GetMyAttendance([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    {
+        try
+        {
+            var employeeId = GetCurrentEmployeeId();
+            var attendance = await _attendanceService.GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
+            
+            return Ok(new ApiResponse<List<AttendanceDto>>
+            {
+                Success = true,
+                Data = attendance
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my attendance");
+            return StatusCode(500, new ApiResponse<List<AttendanceDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving attendance records"
+            });
+        }
+    }
+
+    [HttpGet("my-summary")]
+    public async Task<ActionResult<ApiResponse<AttendanceSummaryDto>>> GetMyAttendanceSummary([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    {
+        try
+        {
+            var employeeId = GetCurrentEmployeeId();
+            var summary = await _attendanceService.GetAttendanceSummaryAsync(employeeId, startDate, endDate);
+            
+            return Ok(new ApiResponse<AttendanceSummaryDto>
+            {
+                Success = true,
+                Data = summary
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my attendance summary");
+            return StatusCode(500, new ApiResponse<AttendanceSummaryDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving attendance summary"
+            });
+        }
+    }
+
+    [HttpGet("employee/{employeeId}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ApiResponse<List<AttendanceDto>>>> GetEmployeeAttendance(Guid employeeId, [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    {
+        try
+        {
+            var attendance = await _attendanceService.GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
+            
+            return Ok(new ApiResponse<List<AttendanceDto>>
+            {
+                Success = true,
+                Data = attendance
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee attendance");
+            return StatusCode(500, new ApiResponse<List<AttendanceDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee attendance"
+            });
+        }
+    }
+
+    [HttpGet("calendar/employee/{employeeId}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ApiResponse<List<AttendanceCalendarDto>>>> GetEmployeeAttendanceCalendar(Guid employeeId, [FromQuery] int year, [FromQuery] int month)
+    {
+        try
+        {
+            var calendar = await _attendanceService.GetAttendanceCalendarAsync(employeeId, year, month);
+            
+            return Ok(new ApiResponse<List<AttendanceCalendarDto>>
+            {
+                Success = true,
+                Data = calendar
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee attendance calendar");
+            return StatusCode(500, new ApiResponse<List<AttendanceCalendarDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving attendance calendar"
+            });
+        }
+    }
+
+    [HttpGet("my-calendar")]
+    public async Task<ActionResult<ApiResponse<List<AttendanceCalendarDto>>>> GetMyAttendanceCalendar([FromQuery] int year, [FromQuery] int month)
+    {
+        try
+        {
+            var employeeId = GetCurrentEmployeeId();
+            var calendar = await _attendanceService.GetAttendanceCalendarAsync(employeeId, year, month);
+            
+            return Ok(new ApiResponse<List<AttendanceCalendarDto>>
+            {
+                Success = true,
+                Data = calendar
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my attendance calendar");
+            return StatusCode(500, new ApiResponse<List<AttendanceCalendarDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving attendance calendar"
+            });
+        }
+    }
+
+    [HttpGet("daily-stats")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ApiResponse<DailyAttendanceStatsDto>>> GetDailyAttendanceStats([FromQuery] DateTime? date)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var stats = await _attendanceService.GetDailyAttendanceStatsAsync(organizationId, date ?? DateTime.Today);
+            
+            return Ok(new ApiResponse<DailyAttendanceStatsDto>
+            {
+                Success = true,
+                Data = stats
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving daily attendance stats");
+            return StatusCode(500, new ApiResponse<DailyAttendanceStatsDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving daily attendance statistics"
+            });
+        }
+    }
+
+    [HttpGet("reports")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ApiResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate, employeeId, departmentId);
+            
+            return Ok(new ApiResponse<AttendanceReportDto>
+            {
+                Success = true,
+                Data = report
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating attendance report");
+            return StatusCode(500, new ApiResponse<AttendanceReportDto>
+            {
+                Success = false,
+                Message = "An error occurred while generating attendance report"
+            });
+        }
+    }
+
+    [HttpGet("export")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> ExportAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] string format = "xlsx")
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var fileBytes = await _attendanceService.ExportAttendanceReportAsync(organizationId, startDate, endDate, format, employeeId);
+            
+            var contentType = format.ToLower() == "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            var fileName = $"attendance-report-{startDate:yyyy-MM-dd}-to-{endDate:yyyy-MM-dd}.{format}";
+            
+            return File(fileBytes, contentType, fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting attendance report");
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while exporting attendance report"
+            });
+        }
+    }
+
+    [HttpPatch("bulk/approve")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ApiResponse<bool>>> BulkApproveAttendance([FromBody] BulkAttendanceRequest request)
+    {
+        try
+        {
+            var result = await _attendanceService.BulkApproveAttendanceAsync(request.AttendanceIds);
+            
+            return Ok(new ApiResponse<bool>
+            {
+                Success = true,
+                Message = $"Successfully approved {request.AttendanceIds.Count} attendance records",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error bulk approving attendance");
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while approving attendance records"
+            });
+        }
+    }
+
+    [HttpPatch("bulk/reject")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ApiResponse<bool>>> BulkRejectAttendance([FromBody] BulkAttendanceRejectRequest request)
+    {
+        try
+        {
+            var result = await _attendanceService.BulkRejectAttendanceAsync(request.AttendanceIds, request.Reason);
+            
+            return Ok(new ApiResponse<bool>
+            {
+                Success = true,
+                Message = $"Successfully rejected {request.AttendanceIds.Count} attendance records",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error bulk rejecting attendance");
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while rejecting attendance records"
+            });
+        }
+    }
+
     private Guid GetCurrentEmployeeId()
     {
         // This would typically query the database to get employee ID from user ID
         // For now, using user ID as placeholder
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.Parse(userIdClaim!);
+        
+        if (string.IsNullOrEmpty(userIdClaim))
+        {
+            _logger.LogError("User ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("User ID not found in token");
+        }
+        
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
+            throw new UnauthorizedAccessException("Invalid user ID format");
+        }
+        
+        return userId;
     }
 
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");
-        return Guid.Parse(orgIdClaim!);
+        
+        if (string.IsNullOrEmpty(orgIdClaim))
+        {
+            _logger.LogError("Organization ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("Organization ID not found in token");
+        }
+        
+        if (!Guid.TryParse(orgIdClaim, out var organizationId))
+        {
+            _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
+            throw new UnauthorizedAccessException("Invalid organization ID format");
+        }
+        
+        return organizationId;
     }
 }

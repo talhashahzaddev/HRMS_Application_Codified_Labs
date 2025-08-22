@@ -14,6 +14,8 @@ public interface IEmployeeRepository
     Task<bool> DeleteEmployeeAsync(Guid employeeId);
     Task<List<Department>> GetDepartmentsAsync(Guid organizationId);
     Task<Department> CreateDepartmentAsync(Department department);
+    Task<Department?> GetDepartmentByIdAsync(Guid departmentId);
     Task<List<Position>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null);
     Task<Position> CreatePositionAsync(Position position);
+    Task<Position?> GetPositionByIdAsync(Guid positionId);
 }

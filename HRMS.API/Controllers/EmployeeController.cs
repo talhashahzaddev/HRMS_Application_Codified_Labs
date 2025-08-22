@@ -285,9 +285,278 @@ public class EmployeeController : ControllerBase
         }
     }
 
+    [HttpPatch("{id}/activate")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ApiResponse<EmployeeDto>>> ActivateEmployee(Guid id)
+    {
+        try
+        {
+            var employee = await _employeeService.ActivateEmployeeAsync(id);
+            return Ok(new ApiResponse<EmployeeDto>
+            {
+                Success = true,
+                Message = "Employee activated successfully",
+                Data = employee
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ApiResponse<EmployeeDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error activating employee {EmployeeId}", id);
+            return StatusCode(500, new ApiResponse<EmployeeDto>
+            {
+                Success = false,
+                Message = "An error occurred while activating employee"
+            });
+        }
+    }
+
+    [HttpPatch("{id}/deactivate")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ApiResponse<EmployeeDto>>> DeactivateEmployee(Guid id)
+    {
+        try
+        {
+            var employee = await _employeeService.DeactivateEmployeeAsync(id);
+            return Ok(new ApiResponse<EmployeeDto>
+            {
+                Success = true,
+                Message = "Employee deactivated successfully",
+                Data = employee
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ApiResponse<EmployeeDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deactivating employee {EmployeeId}", id);
+            return StatusCode(500, new ApiResponse<EmployeeDto>
+            {
+                Success = false,
+                Message = "An error occurred while deactivating employee"
+            });
+        }
+    }
+
+    [HttpGet("departments/{id}")]
+    public async Task<ActionResult<ApiResponse<DepartmentDto>>> GetDepartment(Guid id)
+    {
+        try
+        {
+            var department = await _employeeService.GetDepartmentByIdAsync(id);
+            if (department == null)
+            {
+                return NotFound(new ApiResponse<DepartmentDto>
+                {
+                    Success = false,
+                    Message = "Department not found"
+                });
+            }
+
+            return Ok(new ApiResponse<DepartmentDto>
+            {
+                Success = true,
+                Data = department
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving department {DepartmentId}", id);
+            return StatusCode(500, new ApiResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving department"
+            });
+        }
+    }
+
+    [HttpGet("positions/{id}")]
+    public async Task<ActionResult<ApiResponse<PositionDto>>> GetPosition(Guid id)
+    {
+        try
+        {
+            var position = await _employeeService.GetPositionByIdAsync(id);
+            if (position == null)
+            {
+                return NotFound(new ApiResponse<PositionDto>
+                {
+                    Success = false,
+                    Message = "Position not found"
+                });
+            }
+
+            return Ok(new ApiResponse<PositionDto>
+            {
+                Success = true,
+                Data = position
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving position {PositionId}", id);
+            return StatusCode(500, new ApiResponse<PositionDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving position"
+            });
+        }
+    }
+
+    [HttpGet("statistics")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ApiResponse<EmployeeStatisticsDto>>> GetEmployeeStatistics()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var statistics = await _employeeService.GetEmployeeStatisticsAsync(organizationId);
+            
+            return Ok(new ApiResponse<EmployeeStatisticsDto>
+            {
+                Success = true,
+                Data = statistics
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee statistics");
+            return StatusCode(500, new ApiResponse<EmployeeStatisticsDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee statistics"
+            });
+        }
+    }
+
+    [HttpGet("managers")]
+    public async Task<ActionResult<ApiResponse<List<EmployeeDto>>>> GetManagers()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var managers = await _employeeService.GetManagersAsync(organizationId);
+            
+            return Ok(new ApiResponse<List<EmployeeDto>>
+            {
+                Success = true,
+                Data = managers
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving managers");
+            return StatusCode(500, new ApiResponse<List<EmployeeDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving managers"
+            });
+        }
+    }
+
+    [HttpPatch("bulk/activate")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ApiResponse<bool>>> BulkActivateEmployees([FromBody] BulkEmployeeRequest request)
+    {
+        try
+        {
+            var result = await _employeeService.BulkActivateEmployeesAsync(request.EmployeeIds);
+            return Ok(new ApiResponse<bool>
+            {
+                Success = true,
+                Message = $"Successfully activated {request.EmployeeIds.Count} employees",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error bulk activating employees");
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while activating employees"
+            });
+        }
+    }
+
+    [HttpPatch("bulk/deactivate")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ApiResponse<bool>>> BulkDeactivateEmployees([FromBody] BulkEmployeeRequest request)
+    {
+        try
+        {
+            var result = await _employeeService.BulkDeactivateEmployeesAsync(request.EmployeeIds);
+            return Ok(new ApiResponse<bool>
+            {
+                Success = true,
+                Message = $"Successfully deactivated {request.EmployeeIds.Count} employees",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error bulk deactivating employees");
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deactivating employees"
+            });
+        }
+    }
+
+    [HttpGet("export")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<IActionResult> ExportEmployees([FromQuery] string format = "xlsx")
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var fileBytes = await _employeeService.ExportEmployeesAsync(organizationId, format);
+            
+            var contentType = format.ToLower() == "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+            var fileName = $"employees-{DateTime.Now:yyyy-MM-dd}.{format}";
+            
+            return File(fileBytes, contentType, fileName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting employees");
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while exporting employees"
+            });
+        }
+    }
+
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");
-        return Guid.Parse(orgIdClaim!);
+        
+        if (string.IsNullOrEmpty(orgIdClaim))
+        {
+            _logger.LogError("Organization ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("Organization ID not found in token");
+        }
+        
+        if (!Guid.TryParse(orgIdClaim, out var organizationId))
+        {
+            _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
+            throw new UnauthorizedAccessException("Invalid organization ID format");
+        }
+        
+        return organizationId;
     }
 }

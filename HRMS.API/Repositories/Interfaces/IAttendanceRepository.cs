@@ -11,4 +11,10 @@ public interface IAttendanceRepository
     Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<bool> UpdateAttendanceAsync(Guid attendanceId, Attendance attendance);
     Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date);
+    
+    // New missing methods
+    Task<Attendance?> GetAttendanceByIdAsync(Guid attendanceId);
+    Task<Attendance> CreateAttendanceAsync(Attendance attendance);
+    Task<bool> DeleteAttendanceAsync(Guid attendanceId);
+    Task<List<Attendance>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate);
 }

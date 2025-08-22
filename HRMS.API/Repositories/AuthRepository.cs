@@ -1,8 +1,9 @@
+using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using System.Data;
-using Dapper;
+using System.Text.Json;
 
 namespace HRMS.API.Repositories;
 
@@ -13,30 +14,40 @@ public class AuthRepository : BaseRepository, IAuthRepository
     public async Task<User?> AuthenticateAsync(string email, string passwordHash)
     {
         var sql = "SELECT * FROM auth.fn_authenticate_user(@email, @passwordHash)";
-        var result = await QuerySingleOrDefaultAsync<User?>(sql, new { email, passwordHash });
-        
-        if (result == null) return null;
+        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { email, passwordHash });
 
-        //var data= new User
-        //{
-        //    UserId = result.UserId,
-        //    OrganizationId = result.OrganizationId,
-        //    Email = result.Email,
-        //    FirstName = result.FirstName,
-        //    LastName = result.LastName,
-        //    IsActive = result.IsActive,
-        //    Role = new Role 
-        //    { 
-        //        RoleName = result?.Role.RoleName,
-        //        Permissions = result?.Role.Permissions
-        //    },
-        //    Organization = new Organization 
-        //    { 
-        //        Name = result?.Organization.Name 
-        //    }
-        //};
-        return result;
+        if (result == null) return null;
+        try
+        {
+            return new User
+            {
+                UserId = result.user_id,
+                OrganizationId = result.organization_id,
+                Email = result.email,
+                FirstName = result.first_name,
+                LastName = result.last_name,
+                IsActive = result.is_active,
+                Role = new Role
+                {
+                    RoleName = result.role_name,
+                    Permissions = string.IsNullOrEmpty(result.permissions)
+                        ? new Dictionary<string, object>()
+                        : JsonSerializer.Deserialize<Dictionary<string, object>>(result.permissions)
+                },
+                Organization = new Organization
+                {
+                    Name = result.organization_name
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            // Log the exception
+            Console.WriteLine($"Error mapping user data: {ex.Message}");
+            return null;
+        }
     }
+
 
     public async Task<User?> GetUserByIdAsync(Guid userId)
     {

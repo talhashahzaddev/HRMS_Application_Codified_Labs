@@ -24,13 +24,18 @@ public class EmployeeListItemDto
 {
     public Guid EmployeeId { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public DateTime HireDate { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
     public string? DepartmentName { get; set; }
+    public string Position { get; set; } = string.Empty;
     public string? PositionTitle { get; set; }
+    public bool IsActive { get; set; }
 }
 
 public class CreateEmployeeRequest
@@ -62,11 +67,14 @@ public class UpdateEmployeeRequest
 public class DepartmentDto
 {
     public Guid DepartmentId { get; set; }
+    public Guid OrganizationId { get; set; }
     public string DepartmentName { get; set; } = string.Empty;
     public string? Description { get; set; }
+    public Guid? ManagerId { get; set; }
     public string? ManagerName { get; set; }
     public bool IsActive { get; set; }
     public int EmployeeCount { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class CreateDepartmentRequest
@@ -79,11 +87,14 @@ public class CreateDepartmentRequest
 public class PositionDto
 {
     public Guid PositionId { get; set; }
+    public Guid OrganizationId { get; set; }
     public string PositionTitle { get; set; } = string.Empty;
-    public string? Description { get; set; }
+    public Guid? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
+    public string? Description { get; set; }
     public bool IsActive { get; set; }
     public int EmployeeCount { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class CreatePositionRequest
@@ -91,4 +102,29 @@ public class CreatePositionRequest
     public string PositionTitle { get; set; } = string.Empty;
     public string? Description { get; set; }
     public Guid? DepartmentId { get; set; }
+}
+
+public class EmployeeStatisticsDto
+{
+    public int TotalEmployees { get; set; }
+    public int ActiveEmployees { get; set; }
+    public int InactiveEmployees { get; set; }
+    public int NewEmployeesThisMonth { get; set; }
+    public int EmployeesTurnedoverThisMonth { get; set; }
+    public decimal AverageTenure { get; set; }
+    public List<DepartmentStatsDto> DepartmentBreakdown { get; set; } = new();
+    public List<EmploymentTypeStatsDto> EmploymentTypeBreakdown { get; set; } = new();
+}
+
+public class EmploymentTypeStatsDto
+{
+    public string EmploymentType { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public int EmployeeCount { get; set; }
+    public decimal Percentage { get; set; }
+}
+
+public class BulkEmployeeRequest
+{
+    public List<Guid> EmployeeIds { get; set; } = new();
 }

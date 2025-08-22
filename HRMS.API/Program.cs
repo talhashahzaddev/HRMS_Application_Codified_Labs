@@ -60,6 +60,9 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+// Configure Dapper
+DapperConfiguration.Configure();
+
 // Add database connection
 builder.Services.AddSingleton<IDatabaseConnectionFactory>(provider =>
     new DatabaseConnectionFactory(builder.Configuration.GetConnectionString("DefaultConnection")!));

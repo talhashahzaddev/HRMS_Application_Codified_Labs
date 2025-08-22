@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
+using HRMS.API.Models.Entities;
 
 namespace HRMS.API.Controllers;
 
@@ -25,6 +26,10 @@ public class AuthController : ControllerBase
         try
         {
             var response = await _authService.AuthenticateAsync(request);
+            
+            // Debug: Log the token to see what claims it contains
+            _logger.LogInformation("Generated JWT Token: {Token}", response.Token);
+            
             return Ok(new ApiResponse<AuthResponse>
             {
                 Success = true,
@@ -204,15 +209,291 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpPost("register")]
+    public async Task<ActionResult<ApiResponse<AuthResponse>>> Register([FromBody] RegisterRequest request)
+    {
+        try
+        {
+            var response = await _authService.RegisterAsync(request);
+            return Ok(new ApiResponse<AuthResponse>
+            {
+                Success = true,
+                Message = "Registration successful",
+                Data = response
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ApiResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Registration failed for email: {Email}", request.Email);
+            return StatusCode(500, new ApiResponse<AuthResponse>
+            {
+                Success = false,
+                Message = "An error occurred during registration"
+            });
+        }
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult<ApiResponse<bool>>> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    {
+        try
+        {
+            var result = await _authService.ForgotPasswordAsync(request);
+            return Ok(new ApiResponse<bool>
+            {
+                Success = true,
+                Message = "Password reset email sent successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Forgot password failed for email: {Email}", request.Email);
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while processing password reset request"
+            });
+        }
+    }
+
+    [HttpPut("profile")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<UserDto>>> UpdateProfile([FromBody] UpdateProfileRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var user = await _authService.UpdateProfileAsync(userId, request);
+            
+            return Ok(new ApiResponse<UserDto>
+            {
+                Success = true,
+                Message = "Profile updated successfully",
+                Data = user
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ApiResponse<UserDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Profile update failed for user: {UserId}", GetCurrentUserId());
+            return StatusCode(500, new ApiResponse<UserDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating profile"
+            });
+        }
+    }
+
+    [HttpPut("change-password")]
+    [Authorize]
+    public async Task<ActionResult<ApiResponse<bool>>> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var result = await _authService.ChangePasswordAsync(userId, request);
+            
+            return Ok(new ApiResponse<bool>
+            {
+                Success = true,
+                Message = "Password changed successfully",
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ApiResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Password change failed for user: {UserId}", GetCurrentUserId());
+            return StatusCode(500, new ApiResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while changing password"
+            });
+        }
+    }
+
     private Guid GetCurrentUserId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.Parse(userIdClaim!);
+        
+        if (string.IsNullOrEmpty(userIdClaim))
+        {
+            _logger.LogError("User ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("User ID not found in token");
+        }
+        
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
+            throw new UnauthorizedAccessException("Invalid user ID format");
+        }
+        
+        return userId;
     }
 
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");
-        return Guid.Parse(orgIdClaim!);
+        
+        if (string.IsNullOrEmpty(orgIdClaim))
+        {
+            _logger.LogError("Organization ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("Organization ID not found in token");
+        }
+        
+        if (!Guid.TryParse(orgIdClaim, out var organizationId))
+        {
+            _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
+            throw new UnauthorizedAccessException("Invalid organization ID format");
+        }
+        
+        return organizationId;
+    }
+
+    [HttpGet("debug-claims")]
+    [Authorize]
+    public IActionResult DebugClaims()
+    {
+        var claims = User.Claims.Select(c => new { Type = c.Type, Value = c.Value }).ToList();
+        
+        // Debug specific claim lookups
+        var orgIdDirect = User.FindFirstValue("organizationId");
+        var orgIdHttp = User.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/organizationId");
+        var orgIdCustom = User.FindFirstValue("http://schemas.microsoft.com/ws/2008/06/identity/claims/organizationId");
+        
+        return Ok(new ApiResponse<object>
+        {
+            Success = true,
+            Message = "JWT Claims retrieved",
+            Data = new { 
+                Claims = claims,
+                DirectOrgId = orgIdDirect,
+                HttpOrgId = orgIdHttp,
+                CustomOrgId = orgIdCustom,
+                TotalClaims = claims.Count
+            }
+        });
+    }
+
+    [HttpPost("test-auth")]
+    public async Task<IActionResult> TestAuth([FromBody] LoginRequest request)
+    {
+        try
+        {
+            _logger.LogInformation("=== TESTING AUTHENTICATION FLOW ===");
+            
+            // Step 1: Check if user exists
+            var hashedPassword = await _authService.GetHashedPasswordAsync(request.Email);
+            _logger.LogInformation("Step 1 - Found hashed password: {Found}", !string.IsNullOrEmpty(hashedPassword));
+            
+            // Step 2: Test password verification
+            var passwordValid = BCrypt.Net.BCrypt.Verify(request.Password, hashedPassword);
+            _logger.LogInformation("Step 2 - Password valid: {Valid}", passwordValid);
+            
+            if (!passwordValid)
+            {
+                return BadRequest("Invalid password");
+            }
+
+            // Step 3: Get user from database
+            var user = await _authService.GetUserForTestingAsync(request.Email, hashedPassword);
+            if (user == null)
+            {
+                return BadRequest("User not found");
+            }
+
+            _logger.LogInformation("Step 3 - User found: UserId={UserId}, OrganizationId={OrganizationId}, Email={Email}", 
+                user.UserId, user.OrganizationId, user.Email);
+
+            return Ok(new
+            {
+                Message = "Authentication test completed",
+                User = new
+                {
+                    UserId = user.UserId,
+                    OrganizationId = user.OrganizationId,
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    RoleName = user.Role?.RoleName,
+                    OrganizationName = user.Organization?.Name
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Test authentication failed");
+            return StatusCode(500, ex.Message);
+        }
+    }
+
+    [HttpPost("test-hardcoded-token")]
+    public async Task<IActionResult> TestHardcodedToken()
+    {
+        try
+        {
+            // Create a hardcoded user object to test token generation
+            var testUser = new User
+            {
+                UserId = Guid.Parse("40000000-0000-0000-0000-000000000001"),
+                OrganizationId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
+                Email = "admin@demo.company.com",
+                FirstName = "System",
+                LastName = "Administrator",
+                IsActive = true,
+                Role = new Role { RoleName = "Super Admin" },
+                Organization = new Organization { Name = "Demo Company Ltd." }
+            };
+
+            _logger.LogInformation("=== TESTING HARDCODED TOKEN GENERATION ===");
+            _logger.LogInformation("Test User: UserId={UserId}, OrganizationId={OrganizationId}", 
+                testUser.UserId, testUser.OrganizationId);
+
+            // Generate token directly
+            var response = await _authService.CreateTestTokenAsync(testUser);
+            
+            return Ok(new
+            {
+                Message = "Hardcoded token test completed",
+                Token = response.Token,
+                User = new
+                {
+                    testUser.UserId,
+                    testUser.OrganizationId,
+                    testUser.Email,
+                    testUser.FirstName,
+                    testUser.LastName
+                },
+                AuthResponse = response
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Hardcoded token test failed");
+            return StatusCode(500, ex.Message);
+        }
     }
 }

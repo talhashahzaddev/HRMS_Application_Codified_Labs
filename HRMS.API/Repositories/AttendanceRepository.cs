@@ -29,7 +29,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         var sql = @"
             SELECT attendance_id, employee_id, work_date, check_in_time, check_out_time,
-                   total_hours, overtime_hours, status, notes, created_at
+                   break_start_time, break_end_time, total_hours, overtime_hours, break_hours,
+                   status, location, notes, approved_by, approved_at, created_at, updated_at
             FROM attendance.attendance 
             WHERE employee_id = @employeeId AND work_date = CURRENT_DATE";
 
@@ -150,5 +151,51 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             TotalHours = r.total_hours,
             Status = r.status
         }).ToList();
+    }
+
+    // New missing methods implementation
+    public async Task<Attendance?> GetAttendanceByIdAsync(Guid attendanceId)
+    {
+        var sql = @"
+            SELECT attendance_id, employee_id, work_date, check_in_time, check_out_time,
+                   total_hours, overtime_hours, status, notes, created_at
+            FROM attendance.attendance 
+            WHERE attendance_id = @attendanceId";
+
+        return await QuerySingleOrDefaultAsync<Attendance>(sql, new { attendanceId });
+    }
+
+    public async Task<Attendance> CreateAttendanceAsync(Attendance attendance)
+    {
+        var sql = @"
+            INSERT INTO attendance.attendance 
+            (employee_id, work_date, check_in_time, check_out_time, status, notes, total_hours, overtime_hours, created_at)
+            VALUES (@EmployeeId, @WorkDate, @CheckInTime, @CheckOutTime, @Status, @Notes, @TotalHours, @OvertimeHours, @CreatedAt)
+            RETURNING attendance_id, employee_id, work_date, check_in_time, check_out_time, total_hours, overtime_hours, status, notes, created_at";
+
+        var result = await QuerySingleAsync<Attendance>(sql, attendance);
+        return result;
+    }
+
+    public async Task<bool> DeleteAttendanceAsync(Guid attendanceId)
+    {
+        var sql = "DELETE FROM attendance.attendance WHERE attendance_id = @attendanceId";
+        var rowsAffected = await ExecuteAsync(sql, new { attendanceId });
+        return rowsAffected > 0;
+    }
+
+    public async Task<List<Attendance>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    {
+        var sql = @"
+            SELECT attendance_id, employee_id, work_date, check_in_time, check_out_time,
+                   total_hours, overtime_hours, status, notes, created_at
+            FROM attendance.attendance 
+            WHERE employee_id = @employeeId 
+            AND work_date >= @startDate 
+            AND work_date <= @endDate
+            ORDER BY work_date DESC";
+
+        var results = await QueryAsync<Attendance>(sql, new { employeeId, startDate, endDate });
+        return results.ToList();
     }
 }
