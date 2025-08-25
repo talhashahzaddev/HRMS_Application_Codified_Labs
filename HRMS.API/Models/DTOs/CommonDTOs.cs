@@ -26,19 +26,12 @@ public class PagedResult<T>
     public bool HasPreviousPage => Page > 1;
 }
 
-public class ApiResponse<T>
+public class ServiceResponse<T>
 {
-    [JsonPropertyName("success")]
-    public bool Success { get; set; }
-    
-    [JsonPropertyName("message")]
-    public string Message { get; set; } = string.Empty;
-    
-    [JsonPropertyName("data")]
     public T? Data { get; set; }
-    
-    [JsonPropertyName("errors")]
-    public List<string> Errors { get; set; } = new();
+    public bool Success { get; set; } = true;
+    public string Message { get; set; } = "";
+    public List<string>? Errors { get; set; }
 }
 
 public class DashboardStatsDto

@@ -47,3 +47,4 @@ public static class DapperConfiguration
         _isConfigured = true;
     }
 }
+

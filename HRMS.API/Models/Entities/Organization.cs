@@ -8,10 +8,10 @@ public class Organization : BaseEntity
 {
     [Key]
     [Column("organization_id")]
-    public Guid OrganizationId { get; set; }
+    public Guid? OrganizationId { get; set; }
     
     [Column("name")]
-    public string Name { get; set; } = string.Empty;
+    public string Name { get; set; } 
     
     [Column("domain")]
     public string? Domain { get; set; }
@@ -20,11 +20,11 @@ public class Organization : BaseEntity
     public string? LogoUrl { get; set; }
     
     [Column("subscription_type")]
-    public string SubscriptionType { get; set; } = "basic";
+    public string? SubscriptionType { get; set; } 
     
     [Column("status")]
-    public string Status { get; set; } = "active";
+    public string? Status { get; set; }
     
     [Column("settings")]
-    public Dictionary<string, object> Settings { get; set; } = new();
+    public Dictionary<string, object>? Settings { get; set; } = new();
 }

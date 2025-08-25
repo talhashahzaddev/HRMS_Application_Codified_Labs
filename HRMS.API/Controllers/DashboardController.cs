@@ -21,14 +21,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("stats")]
-    public async Task<ActionResult<ApiResponse<DashboardStatsDto>>> GetDashboardStats()
+    public async Task<ActionResult<ServiceResponse<DashboardStatsDto>>> GetDashboardStats()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stats = await _dashboardService.GetDashboardStatsAsync(organizationId);
             
-            return Ok(new ApiResponse<DashboardStatsDto>
+            return Ok(new ServiceResponse<DashboardStatsDto>
             {
                 Success = true,
                 Data = stats
@@ -37,7 +37,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving dashboard stats");
-            return StatusCode(500, new ApiResponse<DashboardStatsDto>
+            return StatusCode(500, new ServiceResponse<DashboardStatsDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving dashboard statistics"
@@ -46,14 +46,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("recent-activities")]
-    public async Task<ActionResult<ApiResponse<List<RecentActivityDto>>>> GetRecentActivities([FromQuery] int limit = 10)
+    public async Task<ActionResult<ServiceResponse<List<RecentActivityDto>>>> GetRecentActivities([FromQuery] int limit = 10)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var activities = await _dashboardService.GetRecentActivitiesAsync(organizationId, limit);
             
-            return Ok(new ApiResponse<List<RecentActivityDto>>
+            return Ok(new ServiceResponse<List<RecentActivityDto>>
             {
                 Success = true,
                 Data = activities
@@ -62,7 +62,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving recent activities");
-            return StatusCode(500, new ApiResponse<List<RecentActivityDto>>
+            return StatusCode(500, new ServiceResponse<List<RecentActivityDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving recent activities"
@@ -71,14 +71,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("summary")]
-    public async Task<ActionResult<ApiResponse<DashboardSummaryDto>>> GetDashboardSummary()
+    public async Task<ActionResult<ServiceResponse<DashboardSummaryDto>>> GetDashboardSummary()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var summary = await _dashboardService.GetDashboardSummaryAsync(organizationId);
             
-            return Ok(new ApiResponse<DashboardSummaryDto>
+            return Ok(new ServiceResponse<DashboardSummaryDto>
             {
                 Success = true,
                 Data = summary
@@ -87,7 +87,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving dashboard summary");
-            return StatusCode(500, new ApiResponse<DashboardSummaryDto>
+            return StatusCode(500, new ServiceResponse<DashboardSummaryDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving dashboard summary"
@@ -96,14 +96,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("attendance-stats")]
-    public async Task<ActionResult<ApiResponse<AttendanceStatsDto>>> GetAttendanceStats([FromQuery] string period = "month")
+    public async Task<ActionResult<ServiceResponse<AttendanceStatsDto>>> GetAttendanceStats([FromQuery] string period = "month")
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stats = await _dashboardService.GetAttendanceStatsAsync(organizationId, period);
             
-            return Ok(new ApiResponse<AttendanceStatsDto>
+            return Ok(new ServiceResponse<AttendanceStatsDto>
             {
                 Success = true,
                 Data = stats
@@ -112,7 +112,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving attendance stats");
-            return StatusCode(500, new ApiResponse<AttendanceStatsDto>
+            return StatusCode(500, new ServiceResponse<AttendanceStatsDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving attendance statistics"
@@ -121,14 +121,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("leave-stats")]
-    public async Task<ActionResult<ApiResponse<LeaveStatsDto>>> GetLeaveStats([FromQuery] string period = "month")
+    public async Task<ActionResult<ServiceResponse<LeaveStatsDto>>> GetLeaveStats([FromQuery] string period = "month")
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stats = await _dashboardService.GetLeaveStatsAsync(organizationId, period);
             
-            return Ok(new ApiResponse<LeaveStatsDto>
+            return Ok(new ServiceResponse<LeaveStatsDto>
             {
                 Success = true,
                 Data = stats
@@ -137,7 +137,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave stats");
-            return StatusCode(500, new ApiResponse<LeaveStatsDto>
+            return StatusCode(500, new ServiceResponse<LeaveStatsDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave statistics"
@@ -146,14 +146,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("payroll-stats")]
-    public async Task<ActionResult<ApiResponse<PayrollStatsDto>>> GetPayrollStats([FromQuery] string period = "month")
+    public async Task<ActionResult<ServiceResponse<PayrollStatsDto>>> GetPayrollStats([FromQuery] string period = "month")
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stats = await _dashboardService.GetPayrollStatsAsync(organizationId, period);
             
-            return Ok(new ApiResponse<PayrollStatsDto>
+            return Ok(new ServiceResponse<PayrollStatsDto>
             {
                 Success = true,
                 Data = stats
@@ -162,7 +162,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving payroll stats");
-            return StatusCode(500, new ApiResponse<PayrollStatsDto>
+            return StatusCode(500, new ServiceResponse<PayrollStatsDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving payroll statistics"
@@ -171,14 +171,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("performance-stats")]
-    public async Task<ActionResult<ApiResponse<PerformanceStatsDto>>> GetPerformanceStats()
+    public async Task<ActionResult<ServiceResponse<PerformanceStatsDto>>> GetPerformanceStats()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stats = await _dashboardService.GetPerformanceStatsAsync(organizationId);
             
-            return Ok(new ApiResponse<PerformanceStatsDto>
+            return Ok(new ServiceResponse<PerformanceStatsDto>
             {
                 Success = true,
                 Data = stats
@@ -187,7 +187,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving performance stats");
-            return StatusCode(500, new ApiResponse<PerformanceStatsDto>
+            return StatusCode(500, new ServiceResponse<PerformanceStatsDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving performance statistics"
@@ -198,14 +198,14 @@ public class DashboardController : ControllerBase
 
 
     [HttpGet("employee-growth")]
-    public async Task<ActionResult<ApiResponse<EmployeeGrowthDto>>> GetEmployeeGrowth([FromQuery] string period = "12m")
+    public async Task<ActionResult<ServiceResponse<EmployeeGrowthDto>>> GetEmployeeGrowth([FromQuery] string period = "12m")
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var growth = await _dashboardService.GetEmployeeGrowthAsync(organizationId, period);
             
-            return Ok(new ApiResponse<EmployeeGrowthDto>
+            return Ok(new ServiceResponse<EmployeeGrowthDto>
             {
                 Success = true,
                 Data = growth
@@ -214,7 +214,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee growth");
-            return StatusCode(500, new ApiResponse<EmployeeGrowthDto>
+            return StatusCode(500, new ServiceResponse<EmployeeGrowthDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee growth data"
@@ -223,14 +223,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("department-stats")]
-    public async Task<ActionResult<ApiResponse<List<DepartmentStatsDto>>>> GetDepartmentStats()
+    public async Task<ActionResult<ServiceResponse<List<DepartmentStatsDto>>>> GetDepartmentStats()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stats = await _dashboardService.GetDepartmentStatsAsync(organizationId);
             
-            return Ok(new ApiResponse<List<DepartmentStatsDto>>
+            return Ok(new ServiceResponse<List<DepartmentStatsDto>>
             {
                 Success = true,
                 Data = stats
@@ -239,7 +239,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving department stats");
-            return StatusCode(500, new ApiResponse<List<DepartmentStatsDto>>
+            return StatusCode(500, new ServiceResponse<List<DepartmentStatsDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving department statistics"
@@ -248,14 +248,14 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("upcoming-events")]
-    public async Task<ActionResult<ApiResponse<List<UpcomingEventDto>>>> GetUpcomingEvents([FromQuery] int limit = 5)
+    public async Task<ActionResult<ServiceResponse<List<UpcomingEventDto>>>> GetUpcomingEvents([FromQuery] int limit = 5)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var events = await _dashboardService.GetUpcomingEventsAsync(organizationId, limit);
             
-            return Ok(new ApiResponse<List<UpcomingEventDto>>
+            return Ok(new ServiceResponse<List<UpcomingEventDto>>
             {
                 Success = true,
                 Data = events
@@ -264,7 +264,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving upcoming events");
-            return StatusCode(500, new ApiResponse<List<UpcomingEventDto>>
+            return StatusCode(500, new ServiceResponse<List<UpcomingEventDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving upcoming events"
@@ -274,7 +274,7 @@ public class DashboardController : ControllerBase
 
     // Additional Dashboard endpoints that frontend expects
     [HttpGet("attendance-trends")]
-    public async Task<ActionResult<ApiResponse<object>>> GetAttendanceTrends([FromQuery] string period = "30d")
+    public async Task<ActionResult<ServiceResponse<object>>> GetAttendanceTrends([FromQuery] string period = "30d")
     {
         try
         {
@@ -286,7 +286,7 @@ public class DashboardController : ControllerBase
                 absentCounts = new[] { 15, 10, 12 }
             };
             
-            return Ok(new ApiResponse<object>
+            return Ok(new ServiceResponse<object>
             {
                 Success = true,
                 Data = trends
@@ -295,7 +295,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving attendance trends");
-            return StatusCode(500, new ApiResponse<object>
+            return StatusCode(500, new ServiceResponse<object>
             {
                 Success = false,
                 Message = "An error occurred while retrieving attendance trends"
@@ -304,7 +304,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("leave-trends")]
-    public async Task<ActionResult<ApiResponse<object>>> GetLeaveTrends([FromQuery] string period = "12m")
+    public async Task<ActionResult<ServiceResponse<object>>> GetLeaveTrends([FromQuery] string period = "12m")
     {
         try
         {
@@ -315,7 +315,7 @@ public class DashboardController : ControllerBase
                 leaveCounts = new[] { 25, 30, 28 }
             };
             
-            return Ok(new ApiResponse<object>
+            return Ok(new ServiceResponse<object>
             {
                 Success = true,
                 Data = trends
@@ -324,7 +324,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave trends");
-            return StatusCode(500, new ApiResponse<object>
+            return StatusCode(500, new ServiceResponse<object>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave trends"
@@ -333,7 +333,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("payroll-trends")]
-    public async Task<ActionResult<ApiResponse<object>>> GetPayrollTrends([FromQuery] string period = "12m")
+    public async Task<ActionResult<ServiceResponse<object>>> GetPayrollTrends([FromQuery] string period = "12m")
     {
         try
         {
@@ -344,7 +344,7 @@ public class DashboardController : ControllerBase
                 payrollCosts = new[] { 150000, 155000, 152000 }
             };
             
-            return Ok(new ApiResponse<object>
+            return Ok(new ServiceResponse<object>
             {
                 Success = true,
                 Data = trends
@@ -353,7 +353,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving payroll trends");
-            return StatusCode(500, new ApiResponse<object>
+            return StatusCode(500, new ServiceResponse<object>
             {
                 Success = false,
                 Message = "An error occurred while retrieving payroll trends"
@@ -362,7 +362,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("top-performers")]
-    public async Task<ActionResult<ApiResponse<List<object>>>> GetTopPerformers([FromQuery] int limit = 5)
+    public async Task<ActionResult<ServiceResponse<List<object>>>> GetTopPerformers([FromQuery] int limit = 5)
     {
         try
         {
@@ -374,7 +374,7 @@ public class DashboardController : ControllerBase
                 new { name = "Jane Smith", rating = 4.7, department = "Marketing" }
             };
             
-            return Ok(new ApiResponse<List<object>>
+            return Ok(new ServiceResponse<List<object>>
             {
                 Success = true,
                 Data = performers
@@ -383,7 +383,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving top performers");
-            return StatusCode(500, new ApiResponse<List<object>>
+            return StatusCode(500, new ServiceResponse<List<object>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving top performers"
@@ -392,7 +392,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("reminders")]
-    public async Task<ActionResult<ApiResponse<object>>> GetReminders()
+    public async Task<ActionResult<ServiceResponse<object>>> GetReminders()
     {
         try
         {
@@ -403,7 +403,7 @@ public class DashboardController : ControllerBase
                 anniversaries = new[] { new { name = "Jane Smith", date = "2024-01-20", years = 3 } }
             };
             
-            return Ok(new ApiResponse<object>
+            return Ok(new ServiceResponse<object>
             {
                 Success = true,
                 Data = reminders
@@ -412,7 +412,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving reminders");
-            return StatusCode(500, new ApiResponse<object>
+            return StatusCode(500, new ServiceResponse<object>
             {
                 Success = false,
                 Message = "An error occurred while retrieving reminders"
@@ -421,7 +421,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("quick-stats")]
-    public async Task<ActionResult<ApiResponse<object>>> GetQuickStats()
+    public async Task<ActionResult<ServiceResponse<object>>> GetQuickStats()
     {
         try
         {
@@ -434,7 +434,7 @@ public class DashboardController : ControllerBase
                 pendingApprovals = 12
             };
             
-            return Ok(new ApiResponse<object>
+            return Ok(new ServiceResponse<object>
             {
                 Success = true,
                 Data = stats
@@ -443,7 +443,7 @@ public class DashboardController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving quick stats");
-            return StatusCode(500, new ApiResponse<object>
+            return StatusCode(500, new ServiceResponse<object>
             {
                 Success = false,
                 Message = "An error occurred while retrieving quick stats"
