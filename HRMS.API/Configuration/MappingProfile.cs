@@ -16,6 +16,11 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Token, opt => opt.Ignore())
             .ForMember(dest => dest.RefreshToken, opt => opt.Ignore());
 
+        // Organization mappings
+        CreateMap<Organization, OrganizationDTO>();
+            CreateMap<CreateOrganizationDTO, Organization>();
+            CreateMap<UpdateOrganizationDTO, Organization>();
+
         // Employee mappings
         CreateMap<Employee, EmployeeDto>()
             .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"));

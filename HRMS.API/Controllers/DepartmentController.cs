@@ -21,14 +21,14 @@ public class DepartmentController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<DepartmentDto>>>> GetDepartments()
+    public async Task<ActionResult<ServiceResponse<List<DepartmentDto>>>> GetDepartments()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var departments = await _employeeService.GetDepartmentsAsync(organizationId);
             
-            return Ok(new ApiResponse<List<DepartmentDto>>
+            return Ok(new ServiceResponse<List<DepartmentDto>>
             {
                 Success = true,
                 Data = departments
@@ -37,7 +37,7 @@ public class DepartmentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving departments");
-            return StatusCode(500, new ApiResponse<List<DepartmentDto>>
+            return StatusCode(500, new ServiceResponse<List<DepartmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving departments"
@@ -46,21 +46,21 @@ public class DepartmentController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiResponse<DepartmentDto>>> GetDepartment(Guid id)
+    public async Task<ActionResult<ServiceResponse<DepartmentDto>>> GetDepartment(Guid id)
     {
         try
         {
             var department = await _employeeService.GetDepartmentByIdAsync(id);
             if (department == null)
             {
-                return NotFound(new ApiResponse<DepartmentDto>
+                return NotFound(new ServiceResponse<DepartmentDto>
                 {
                     Success = false,
                     Message = "Department not found"
                 });
             }
 
-            return Ok(new ApiResponse<DepartmentDto>
+            return Ok(new ServiceResponse<DepartmentDto>
             {
                 Success = true,
                 Data = department
@@ -69,7 +69,7 @@ public class DepartmentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving department {DepartmentId}", id);
-            return StatusCode(500, new ApiResponse<DepartmentDto>
+            return StatusCode(500, new ServiceResponse<DepartmentDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving the department"

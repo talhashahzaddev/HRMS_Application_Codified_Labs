@@ -22,14 +22,14 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<PagedResult<EmployeeListItemDto>>>> GetEmployees([FromQuery] EmployeeSearchViewModel searchModel)
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeListItemDto>>>> GetEmployees([FromQuery] EmployeeSearchViewModel searchModel)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employees = await _employeeService.GetEmployeesAsync(searchModel, organizationId);
             
-            return Ok(new ApiResponse<PagedResult<EmployeeListItemDto>>
+            return Ok(new ServiceResponse<PagedResult<EmployeeListItemDto>>
             {
                 Success = true,
                 Data = employees
@@ -38,7 +38,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employees");
-            return StatusCode(500, new ApiResponse<PagedResult<EmployeeListItemDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeListItemDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employees"
@@ -47,21 +47,21 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiResponse<EmployeeDto>>> GetEmployee(Guid id)
+    public async Task<ActionResult<ServiceResponse<EmployeeDto>>> GetEmployee(Guid id)
     {
         try
         {
             var employee = await _employeeService.GetEmployeeByIdAsync(id);
             if (employee == null)
             {
-                return NotFound(new ApiResponse<EmployeeDto>
+                return NotFound(new ServiceResponse<EmployeeDto>
                 {
                     Success = false,
                     Message = "Employee not found"
                 });
             }
 
-            return Ok(new ApiResponse<EmployeeDto>
+            return Ok(new ServiceResponse<EmployeeDto>
             {
                 Success = true,
                 Data = employee
@@ -70,7 +70,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee {EmployeeId}", id);
-            return StatusCode(500, new ApiResponse<EmployeeDto>
+            return StatusCode(500, new ServiceResponse<EmployeeDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee"
@@ -80,14 +80,14 @@ public class EmployeeController : ControllerBase
 
     [HttpPost]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<EmployeeDto>>> CreateEmployee([FromBody] CreateEmployeeRequest request)
+    public async Task<ActionResult<ServiceResponse<EmployeeDto>>> CreateEmployee([FromBody] CreateEmployeeRequest request)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employee = await _employeeService.CreateEmployeeAsync(request, organizationId);
             
-            return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, new ApiResponse<EmployeeDto>
+            return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, new ServiceResponse<EmployeeDto>
             {
                 Success = true,
                 Message = "Employee created successfully",
@@ -96,7 +96,7 @@ public class EmployeeController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ApiResponse<EmployeeDto>
+            return BadRequest(new ServiceResponse<EmployeeDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -105,7 +105,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating employee");
-            return StatusCode(500, new ApiResponse<EmployeeDto>
+            return StatusCode(500, new ServiceResponse<EmployeeDto>
             {
                 Success = false,
                 Message = "An error occurred while creating employee"
@@ -115,13 +115,13 @@ public class EmployeeController : ControllerBase
 
     [HttpPut("{id}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<bool>>> UpdateEmployee(Guid id, [FromBody] UpdateEmployeeRequest request)
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateEmployee(Guid id, [FromBody] UpdateEmployeeRequest request)
     {
         try
         {
             var result = await _employeeService.UpdateEmployeeAsync(id, request);
             
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Employee updated successfully",
@@ -130,7 +130,7 @@ public class EmployeeController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new ApiResponse<bool>
+            return NotFound(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message
@@ -139,7 +139,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating employee {EmployeeId}", id);
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while updating employee"
@@ -149,13 +149,13 @@ public class EmployeeController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<bool>>> DeleteEmployee(Guid id)
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployee(Guid id)
     {
         try
         {
             var result = await _employeeService.DeleteEmployeeAsync(id);
             
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Employee deleted successfully",
@@ -164,7 +164,7 @@ public class EmployeeController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new ApiResponse<bool>
+            return NotFound(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message
@@ -173,7 +173,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting employee {EmployeeId}", id);
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while deleting employee"
@@ -182,14 +182,14 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("departments")]
-    public async Task<ActionResult<ApiResponse<List<DepartmentDto>>>> GetDepartments()
+    public async Task<ActionResult<ServiceResponse<List<DepartmentDto>>>> GetDepartments()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var departments = await _employeeService.GetDepartmentsAsync(organizationId);
             
-            return Ok(new ApiResponse<List<DepartmentDto>>
+            return Ok(new ServiceResponse<List<DepartmentDto>>
             {
                 Success = true,
                 Data = departments
@@ -198,7 +198,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving departments");
-            return StatusCode(500, new ApiResponse<List<DepartmentDto>>
+            return StatusCode(500, new ServiceResponse<List<DepartmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving departments"
@@ -208,14 +208,14 @@ public class EmployeeController : ControllerBase
 
     [HttpPost("departments")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<DepartmentDto>>> CreateDepartment([FromBody] CreateDepartmentRequest request)
+    public async Task<ActionResult<ServiceResponse<DepartmentDto>>> CreateDepartment([FromBody] CreateDepartmentRequest request)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var department = await _employeeService.CreateDepartmentAsync(request, organizationId);
             
-            return Ok(new ApiResponse<DepartmentDto>
+            return Ok(new ServiceResponse<DepartmentDto>
             {
                 Success = true,
                 Message = "Department created successfully",
@@ -225,7 +225,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating department");
-            return StatusCode(500, new ApiResponse<DepartmentDto>
+            return StatusCode(500, new ServiceResponse<DepartmentDto>
             {
                 Success = false,
                 Message = "An error occurred while creating department"
@@ -234,14 +234,14 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("positions")]
-    public async Task<ActionResult<ApiResponse<List<PositionDto>>>> GetPositions([FromQuery] Guid? departmentId = null)
+    public async Task<ActionResult<ServiceResponse<List<PositionDto>>>> GetPositions([FromQuery] Guid? departmentId = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var positions = await _employeeService.GetPositionsAsync(organizationId, departmentId);
             
-            return Ok(new ApiResponse<List<PositionDto>>
+            return Ok(new ServiceResponse<List<PositionDto>>
             {
                 Success = true,
                 Data = positions
@@ -250,7 +250,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving positions");
-            return StatusCode(500, new ApiResponse<List<PositionDto>>
+            return StatusCode(500, new ServiceResponse<List<PositionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving positions"
@@ -260,14 +260,14 @@ public class EmployeeController : ControllerBase
 
     [HttpPost("positions")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<PositionDto>>> CreatePosition([FromBody] CreatePositionRequest request)
+    public async Task<ActionResult<ServiceResponse<PositionDto>>> CreatePosition([FromBody] CreatePositionRequest request)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var position = await _employeeService.CreatePositionAsync(request, organizationId);
             
-            return Ok(new ApiResponse<PositionDto>
+            return Ok(new ServiceResponse<PositionDto>
             {
                 Success = true,
                 Message = "Position created successfully",
@@ -277,7 +277,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating position");
-            return StatusCode(500, new ApiResponse<PositionDto>
+            return StatusCode(500, new ServiceResponse<PositionDto>
             {
                 Success = false,
                 Message = "An error occurred while creating position"
@@ -287,12 +287,12 @@ public class EmployeeController : ControllerBase
 
     [HttpPatch("{id}/activate")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<EmployeeDto>>> ActivateEmployee(Guid id)
+    public async Task<ActionResult<ServiceResponse<EmployeeDto>>> ActivateEmployee(Guid id)
     {
         try
         {
             var employee = await _employeeService.ActivateEmployeeAsync(id);
-            return Ok(new ApiResponse<EmployeeDto>
+            return Ok(new ServiceResponse<EmployeeDto>
             {
                 Success = true,
                 Message = "Employee activated successfully",
@@ -301,7 +301,7 @@ public class EmployeeController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new ApiResponse<EmployeeDto>
+            return NotFound(new ServiceResponse<EmployeeDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -310,7 +310,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error activating employee {EmployeeId}", id);
-            return StatusCode(500, new ApiResponse<EmployeeDto>
+            return StatusCode(500, new ServiceResponse<EmployeeDto>
             {
                 Success = false,
                 Message = "An error occurred while activating employee"
@@ -320,12 +320,12 @@ public class EmployeeController : ControllerBase
 
     [HttpPatch("{id}/deactivate")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<EmployeeDto>>> DeactivateEmployee(Guid id)
+    public async Task<ActionResult<ServiceResponse<EmployeeDto>>> DeactivateEmployee(Guid id)
     {
         try
         {
             var employee = await _employeeService.DeactivateEmployeeAsync(id);
-            return Ok(new ApiResponse<EmployeeDto>
+            return Ok(new ServiceResponse<EmployeeDto>
             {
                 Success = true,
                 Message = "Employee deactivated successfully",
@@ -334,7 +334,7 @@ public class EmployeeController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new ApiResponse<EmployeeDto>
+            return NotFound(new ServiceResponse<EmployeeDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -343,7 +343,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deactivating employee {EmployeeId}", id);
-            return StatusCode(500, new ApiResponse<EmployeeDto>
+            return StatusCode(500, new ServiceResponse<EmployeeDto>
             {
                 Success = false,
                 Message = "An error occurred while deactivating employee"
@@ -352,21 +352,21 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("departments/{id}")]
-    public async Task<ActionResult<ApiResponse<DepartmentDto>>> GetDepartment(Guid id)
+    public async Task<ActionResult<ServiceResponse<DepartmentDto>>> GetDepartment(Guid id)
     {
         try
         {
             var department = await _employeeService.GetDepartmentByIdAsync(id);
             if (department == null)
             {
-                return NotFound(new ApiResponse<DepartmentDto>
+                return NotFound(new ServiceResponse<DepartmentDto>
                 {
                     Success = false,
                     Message = "Department not found"
                 });
             }
 
-            return Ok(new ApiResponse<DepartmentDto>
+            return Ok(new ServiceResponse<DepartmentDto>
             {
                 Success = true,
                 Data = department
@@ -375,7 +375,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving department {DepartmentId}", id);
-            return StatusCode(500, new ApiResponse<DepartmentDto>
+            return StatusCode(500, new ServiceResponse<DepartmentDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving department"
@@ -384,21 +384,21 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("positions/{id}")]
-    public async Task<ActionResult<ApiResponse<PositionDto>>> GetPosition(Guid id)
+    public async Task<ActionResult<ServiceResponse<PositionDto>>> GetPosition(Guid id)
     {
         try
         {
             var position = await _employeeService.GetPositionByIdAsync(id);
             if (position == null)
             {
-                return NotFound(new ApiResponse<PositionDto>
+                return NotFound(new ServiceResponse<PositionDto>
                 {
                     Success = false,
                     Message = "Position not found"
                 });
             }
 
-            return Ok(new ApiResponse<PositionDto>
+            return Ok(new ServiceResponse<PositionDto>
             {
                 Success = true,
                 Data = position
@@ -407,7 +407,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving position {PositionId}", id);
-            return StatusCode(500, new ApiResponse<PositionDto>
+            return StatusCode(500, new ServiceResponse<PositionDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving position"
@@ -417,14 +417,14 @@ public class EmployeeController : ControllerBase
 
     [HttpGet("statistics")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<EmployeeStatisticsDto>>> GetEmployeeStatistics()
+    public async Task<ActionResult<ServiceResponse<EmployeeStatisticsDto>>> GetEmployeeStatistics()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var statistics = await _employeeService.GetEmployeeStatisticsAsync(organizationId);
             
-            return Ok(new ApiResponse<EmployeeStatisticsDto>
+            return Ok(new ServiceResponse<EmployeeStatisticsDto>
             {
                 Success = true,
                 Data = statistics
@@ -433,7 +433,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee statistics");
-            return StatusCode(500, new ApiResponse<EmployeeStatisticsDto>
+            return StatusCode(500, new ServiceResponse<EmployeeStatisticsDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee statistics"
@@ -442,14 +442,14 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("managers")]
-    public async Task<ActionResult<ApiResponse<List<EmployeeDto>>>> GetManagers()
+    public async Task<ActionResult<ServiceResponse<List<EmployeeDto>>>> GetManagers()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var managers = await _employeeService.GetManagersAsync(organizationId);
             
-            return Ok(new ApiResponse<List<EmployeeDto>>
+            return Ok(new ServiceResponse<List<EmployeeDto>>
             {
                 Success = true,
                 Data = managers
@@ -458,7 +458,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving managers");
-            return StatusCode(500, new ApiResponse<List<EmployeeDto>>
+            return StatusCode(500, new ServiceResponse<List<EmployeeDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving managers"
@@ -468,12 +468,12 @@ public class EmployeeController : ControllerBase
 
     [HttpPatch("bulk/activate")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<bool>>> BulkActivateEmployees([FromBody] BulkEmployeeRequest request)
+    public async Task<ActionResult<ServiceResponse<bool>>> BulkActivateEmployees([FromBody] BulkEmployeeRequest request)
     {
         try
         {
             var result = await _employeeService.BulkActivateEmployeesAsync(request.EmployeeIds);
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = $"Successfully activated {request.EmployeeIds.Count} employees",
@@ -483,7 +483,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error bulk activating employees");
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while activating employees"
@@ -493,12 +493,12 @@ public class EmployeeController : ControllerBase
 
     [HttpPatch("bulk/deactivate")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<bool>>> BulkDeactivateEmployees([FromBody] BulkEmployeeRequest request)
+    public async Task<ActionResult<ServiceResponse<bool>>> BulkDeactivateEmployees([FromBody] BulkEmployeeRequest request)
     {
         try
         {
             var result = await _employeeService.BulkDeactivateEmployeesAsync(request.EmployeeIds);
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = $"Successfully deactivated {request.EmployeeIds.Count} employees",
@@ -508,7 +508,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error bulk deactivating employees");
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while deactivating employees"
@@ -533,7 +533,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting employees");
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while exporting employees"

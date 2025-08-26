@@ -21,14 +21,14 @@ public class PositionController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<List<PositionDto>>>> GetPositions()
+    public async Task<ActionResult<ServiceResponse<List<PositionDto>>>> GetPositions()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var positions = await _employeeService.GetPositionsAsync(organizationId);
             
-            return Ok(new ApiResponse<List<PositionDto>>
+            return Ok(new ServiceResponse<List<PositionDto>>
             {
                 Success = true,
                 Data = positions
@@ -37,7 +37,7 @@ public class PositionController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving positions");
-            return StatusCode(500, new ApiResponse<List<PositionDto>>
+            return StatusCode(500, new ServiceResponse<List<PositionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving positions"
@@ -46,21 +46,21 @@ public class PositionController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ApiResponse<PositionDto>>> GetPosition(Guid id)
+    public async Task<ActionResult<ServiceResponse<PositionDto>>> GetPosition(Guid id)
     {
         try
         {
             var position = await _employeeService.GetPositionByIdAsync(id);
             if (position == null)
             {
-                return NotFound(new ApiResponse<PositionDto>
+                return NotFound(new ServiceResponse<PositionDto>
                 {
                     Success = false,
                     Message = "Position not found"
                 });
             }
 
-            return Ok(new ApiResponse<PositionDto>
+            return Ok(new ServiceResponse<PositionDto>
             {
                 Success = true,
                 Data = position
@@ -69,7 +69,7 @@ public class PositionController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving position {PositionId}", id);
-            return StatusCode(500, new ApiResponse<PositionDto>
+            return StatusCode(500, new ServiceResponse<PositionDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving the position"

@@ -21,7 +21,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
-    public async Task<ActionResult<ApiResponse<AuthResponse>>> Login([FromBody] LoginRequest request)
+    public async Task<ActionResult<ServiceResponse<AuthResponse>>> Login([FromBody] LoginRequest request)
     {
         try
         {
@@ -30,7 +30,7 @@ public class AuthController : ControllerBase
             // Debug: Log the token to see what claims it contains
             _logger.LogInformation("Generated JWT Token: {Token}", response.Token);
             
-            return Ok(new ApiResponse<AuthResponse>
+            return Ok(new ServiceResponse<AuthResponse>
             {
                 Success = true,
                 Message = "Login successful",
@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Unauthorized(new ApiResponse<AuthResponse>
+            return Unauthorized(new ServiceResponse<AuthResponse>
             {
                 Success = false,
                 Message = ex.Message
@@ -48,7 +48,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Login failed for email: {Email}", request.Email);
-            return StatusCode(500, new ApiResponse<AuthResponse>
+            return StatusCode(500, new ServiceResponse<AuthResponse>
             {
                 Success = false,
                 Message = "An error occurred during login"
@@ -57,12 +57,12 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("refresh")]
-    public async Task<ActionResult<ApiResponse<AuthResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
+    public async Task<ActionResult<ServiceResponse<AuthResponse>>> RefreshToken([FromBody] RefreshTokenRequest request)
     {
         try
         {
             var response = await _authService.RefreshTokenAsync(request);
-            return Ok(new ApiResponse<AuthResponse>
+            return Ok(new ServiceResponse<AuthResponse>
             {
                 Success = true,
                 Message = "Token refreshed successfully",
@@ -71,7 +71,7 @@ public class AuthController : ControllerBase
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Unauthorized(new ApiResponse<AuthResponse>
+            return Unauthorized(new ServiceResponse<AuthResponse>
             {
                 Success = false,
                 Message = ex.Message
@@ -80,7 +80,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Token refresh failed");
-            return StatusCode(500, new ApiResponse<AuthResponse>
+            return StatusCode(500, new ServiceResponse<AuthResponse>
             {
                 Success = false,
                 Message = "An error occurred during token refresh"
@@ -90,14 +90,14 @@ public class AuthController : ControllerBase
 
     [HttpPost("logout")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<bool>>> Logout()
+    public async Task<ActionResult<ServiceResponse<bool>>> Logout()
     {
         try
         {
             var userId = GetCurrentUserId();
             var result = await _authService.LogoutAsync(userId);
             
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Logout successful",
@@ -107,7 +107,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Logout failed");
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred during logout"
@@ -117,14 +117,14 @@ public class AuthController : ControllerBase
 
     [HttpPost("users")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<UserDto>>> CreateUser([FromBody] CreateUserRequest request)
+    public async Task<ActionResult<ServiceResponse<UserDto>>> CreateUser([FromBody] CreateUserRequest request)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var user = await _authService.CreateUserAsync(request, organizationId);
             
-            return CreatedAtAction(nameof(GetUser), new { id = user.UserId }, new ApiResponse<UserDto>
+            return CreatedAtAction(nameof(GetUser), new { id = user.UserId }, new ServiceResponse<UserDto>
             {
                 Success = true,
                 Message = "User created successfully",
@@ -133,7 +133,7 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ApiResponse<UserDto>
+            return BadRequest(new ServiceResponse<UserDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -142,7 +142,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "User creation failed");
-            return StatusCode(500, new ApiResponse<UserDto>
+            return StatusCode(500, new ServiceResponse<UserDto>
             {
                 Success = false,
                 Message = "An error occurred while creating user"
@@ -152,21 +152,21 @@ public class AuthController : ControllerBase
 
     [HttpGet("users/{id}")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<UserDto>>> GetUser(Guid id)
+    public async Task<ActionResult<ServiceResponse<UserDto>>> GetUser(Guid id)
     {
         try
         {
             var user = await _authService.GetUserByIdAsync(id);
             if (user == null)
             {
-                return NotFound(new ApiResponse<UserDto>
+                return NotFound(new ServiceResponse<UserDto>
                 {
                     Success = false,
                     Message = "User not found"
                 });
             }
 
-            return Ok(new ApiResponse<UserDto>
+            return Ok(new ServiceResponse<UserDto>
             {
                 Success = true,
                 Data = user
@@ -175,7 +175,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving user {UserId}", id);
-            return StatusCode(500, new ApiResponse<UserDto>
+            return StatusCode(500, new ServiceResponse<UserDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving user"
@@ -185,14 +185,14 @@ public class AuthController : ControllerBase
 
     [HttpGet("me")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<UserDto>>> GetCurrentUser()
+    public async Task<ActionResult<ServiceResponse<UserDto>>> GetCurrentUser()
     {
         try
         {
             var userId = GetCurrentUserId();
             var user = await _authService.GetUserByIdAsync(userId);
             
-            return Ok(new ApiResponse<UserDto>
+            return Ok(new ServiceResponse<UserDto>
             {
                 Success = true,
                 Data = user
@@ -201,7 +201,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving current user");
-            return StatusCode(500, new ApiResponse<UserDto>
+            return StatusCode(500, new ServiceResponse<UserDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving user information"
@@ -210,12 +210,12 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
-    public async Task<ActionResult<ApiResponse<AuthResponse>>> Register([FromBody] RegisterRequest request)
+    public async Task<ActionResult<ServiceResponse<AuthResponse>>> Register([FromBody] RegisterRequest request)
     {
         try
         {
             var response = await _authService.RegisterAsync(request);
-            return Ok(new ApiResponse<AuthResponse>
+            return Ok(new ServiceResponse<AuthResponse>
             {
                 Success = true,
                 Message = "Registration successful",
@@ -224,7 +224,7 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ApiResponse<AuthResponse>
+            return BadRequest(new ServiceResponse<AuthResponse>
             {
                 Success = false,
                 Message = ex.Message
@@ -233,7 +233,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Registration failed for email: {Email}", request.Email);
-            return StatusCode(500, new ApiResponse<AuthResponse>
+            return StatusCode(500, new ServiceResponse<AuthResponse>
             {
                 Success = false,
                 Message = "An error occurred during registration"
@@ -242,12 +242,12 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("forgot-password")]
-    public async Task<ActionResult<ApiResponse<bool>>> ForgotPassword([FromBody] ForgotPasswordRequest request)
+    public async Task<ActionResult<ServiceResponse<bool>>> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
         try
         {
             var result = await _authService.ForgotPasswordAsync(request);
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Password reset email sent successfully",
@@ -257,7 +257,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Forgot password failed for email: {Email}", request.Email);
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while processing password reset request"
@@ -267,14 +267,14 @@ public class AuthController : ControllerBase
 
     [HttpPut("profile")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<UserDto>>> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<ActionResult<ServiceResponse<UserDto>>> UpdateProfile([FromBody] UpdateProfileRequest request)
     {
         try
         {
             var userId = GetCurrentUserId();
             var user = await _authService.UpdateProfileAsync(userId, request);
             
-            return Ok(new ApiResponse<UserDto>
+            return Ok(new ServiceResponse<UserDto>
             {
                 Success = true,
                 Message = "Profile updated successfully",
@@ -283,7 +283,7 @@ public class AuthController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new ApiResponse<UserDto>
+            return NotFound(new ServiceResponse<UserDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -292,7 +292,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Profile update failed for user: {UserId}", GetCurrentUserId());
-            return StatusCode(500, new ApiResponse<UserDto>
+            return StatusCode(500, new ServiceResponse<UserDto>
             {
                 Success = false,
                 Message = "An error occurred while updating profile"
@@ -302,14 +302,14 @@ public class AuthController : ControllerBase
 
     [HttpPut("change-password")]
     [Authorize]
-    public async Task<ActionResult<ApiResponse<bool>>> ChangePassword([FromBody] ChangePasswordRequest request)
+    public async Task<ActionResult<ServiceResponse<bool>>> ChangePassword([FromBody] ChangePasswordRequest request)
     {
         try
         {
             var userId = GetCurrentUserId();
             var result = await _authService.ChangePasswordAsync(userId, request);
             
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Password changed successfully",
@@ -318,7 +318,7 @@ public class AuthController : ControllerBase
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Unauthorized(new ApiResponse<bool>
+            return Unauthorized(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message
@@ -327,7 +327,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Password change failed for user: {UserId}", GetCurrentUserId());
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while changing password"
@@ -384,7 +384,7 @@ public class AuthController : ControllerBase
         var orgIdHttp = User.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/organizationId");
         var orgIdCustom = User.FindFirstValue("http://schemas.microsoft.com/ws/2008/06/identity/claims/organizationId");
         
-        return Ok(new ApiResponse<object>
+        return Ok(new ServiceResponse<object>
         {
             Success = true,
             Message = "JWT Claims retrieved",

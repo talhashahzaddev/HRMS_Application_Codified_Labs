@@ -21,14 +21,14 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("cycles")]
-    public async Task<ActionResult<ApiResponse<List<AppraisalCycleDto>>>> GetAppraisalCycles()
+    public async Task<ActionResult<ServiceResponse<List<AppraisalCycleDto>>>> GetAppraisalCycles()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var cycles = await _performanceService.GetAppraisalCyclesAsync(organizationId);
             
-            return Ok(new ApiResponse<List<AppraisalCycleDto>>
+            return Ok(new ServiceResponse<List<AppraisalCycleDto>>
             {
                 Success = true,
                 Data = cycles
@@ -37,7 +37,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving appraisal cycles");
-            return StatusCode(500, new ApiResponse<List<AppraisalCycleDto>>
+            return StatusCode(500, new ServiceResponse<List<AppraisalCycleDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving appraisal cycles"
@@ -47,7 +47,7 @@ public class PerformanceController : ControllerBase
 
     [HttpPost("cycles")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ApiResponse<AppraisalCycleDto>>> CreateAppraisalCycle([FromBody] CreateAppraisalCycleRequest request)
+    public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> CreateAppraisalCycle([FromBody] CreateAppraisalCycleRequest request)
     {
         try
         {
@@ -55,7 +55,7 @@ public class PerformanceController : ControllerBase
             var cycle = await _performanceService.CreateAppraisalCycleAsync(
                 request.CycleName, request.StartDate, request.EndDate, organizationId, request.Description);
             
-            return Ok(new ApiResponse<AppraisalCycleDto>
+            return Ok(new ServiceResponse<AppraisalCycleDto>
             {
                 Success = true,
                 Message = "Appraisal cycle created successfully",
@@ -65,7 +65,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating appraisal cycle");
-            return StatusCode(500, new ApiResponse<AppraisalCycleDto>
+            return StatusCode(500, new ServiceResponse<AppraisalCycleDto>
             {
                 Success = false,
                 Message = "An error occurred while creating appraisal cycle"
@@ -74,13 +74,13 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("cycles/{cycleId}/appraisals")]
-    public async Task<ActionResult<ApiResponse<List<EmployeeAppraisalDto>>>> GetEmployeeAppraisals(Guid cycleId, [FromQuery] Guid? employeeId = null)
+    public async Task<ActionResult<ServiceResponse<List<EmployeeAppraisalDto>>>> GetEmployeeAppraisals(Guid cycleId, [FromQuery] Guid? employeeId = null)
     {
         try
         {
             var appraisals = await _performanceService.GetEmployeeAppraisalsAsync(cycleId, employeeId);
             
-            return Ok(new ApiResponse<List<EmployeeAppraisalDto>>
+            return Ok(new ServiceResponse<List<EmployeeAppraisalDto>>
             {
                 Success = true,
                 Data = appraisals
@@ -89,7 +89,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee appraisals for cycle {CycleId}", cycleId);
-            return StatusCode(500, new ApiResponse<List<EmployeeAppraisalDto>>
+            return StatusCode(500, new ServiceResponse<List<EmployeeAppraisalDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee appraisals"
@@ -98,14 +98,14 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("appraisals")]
-    public async Task<ActionResult<ApiResponse<EmployeeAppraisalDto>>> CreateEmployeeAppraisal([FromBody] CreateAppraisalRequest request)
+    public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> CreateEmployeeAppraisal([FromBody] CreateAppraisalRequest request)
     {
         try
         {
             var reviewerId = GetCurrentEmployeeId();
             var appraisal = await _performanceService.CreateEmployeeAppraisalAsync(request, reviewerId);
             
-            return Ok(new ApiResponse<EmployeeAppraisalDto>
+            return Ok(new ServiceResponse<EmployeeAppraisalDto>
             {
                 Success = true,
                 Message = "Employee appraisal created successfully",
@@ -115,7 +115,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating employee appraisal");
-            return StatusCode(500, new ApiResponse<EmployeeAppraisalDto>
+            return StatusCode(500, new ServiceResponse<EmployeeAppraisalDto>
             {
                 Success = false,
                 Message = "An error occurred while creating employee appraisal"
@@ -124,14 +124,14 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("skills")]
-    public async Task<ActionResult<ApiResponse<List<SkillSetDto>>>> GetSkillSets()
+    public async Task<ActionResult<ServiceResponse<List<SkillSetDto>>>> GetSkillSets()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var skills = await _performanceService.GetSkillSetsAsync(organizationId);
             
-            return Ok(new ApiResponse<List<SkillSetDto>>
+            return Ok(new ServiceResponse<List<SkillSetDto>>
             {
                 Success = true,
                 Data = skills
@@ -140,7 +140,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving skill sets");
-            return StatusCode(500, new ApiResponse<List<SkillSetDto>>
+            return StatusCode(500, new ServiceResponse<List<SkillSetDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving skill sets"
@@ -149,13 +149,13 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employees/{employeeId}/skills")]
-    public async Task<ActionResult<ApiResponse<List<EmployeeSkillDto>>>> GetEmployeeSkills(Guid employeeId)
+    public async Task<ActionResult<ServiceResponse<List<EmployeeSkillDto>>>> GetEmployeeSkills(Guid employeeId)
     {
         try
         {
             var skills = await _performanceService.GetEmployeeSkillsAsync(employeeId);
             
-            return Ok(new ApiResponse<List<EmployeeSkillDto>>
+            return Ok(new ServiceResponse<List<EmployeeSkillDto>>
             {
                 Success = true,
                 Data = skills
@@ -164,7 +164,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee skills for {EmployeeId}", employeeId);
-            return StatusCode(500, new ApiResponse<List<EmployeeSkillDto>>
+            return StatusCode(500, new ServiceResponse<List<EmployeeSkillDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee skills"
@@ -174,14 +174,14 @@ public class PerformanceController : ControllerBase
 
     [HttpGet("summary")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ApiResponse<PerformanceSummaryDto>>> GetPerformanceSummary([FromQuery] Guid? cycleId = null)
+    public async Task<ActionResult<ServiceResponse<PerformanceSummaryDto>>> GetPerformanceSummary([FromQuery] Guid? cycleId = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var summary = await _performanceService.GetPerformanceSummaryAsync(organizationId, cycleId);
             
-            return Ok(new ApiResponse<PerformanceSummaryDto>
+            return Ok(new ServiceResponse<PerformanceSummaryDto>
             {
                 Success = true,
                 Data = summary
@@ -190,7 +190,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving performance summary");
-            return StatusCode(500, new ApiResponse<PerformanceSummaryDto>
+            return StatusCode(500, new ServiceResponse<PerformanceSummaryDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving performance summary"
@@ -200,14 +200,14 @@ public class PerformanceController : ControllerBase
 
     [HttpGet("top-performers")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ApiResponse<List<TopPerformerDto>>>> GetTopPerformers([FromQuery] int count = 10)
+    public async Task<ActionResult<ServiceResponse<List<TopPerformerDto>>>> GetTopPerformers([FromQuery] int count = 10)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var topPerformers = await _performanceService.GetTopPerformersAsync(organizationId, count);
             
-            return Ok(new ApiResponse<List<TopPerformerDto>>
+            return Ok(new ServiceResponse<List<TopPerformerDto>>
             {
                 Success = true,
                 Data = topPerformers
@@ -216,7 +216,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving top performers");
-            return StatusCode(500, new ApiResponse<List<TopPerformerDto>>
+            return StatusCode(500, new ServiceResponse<List<TopPerformerDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving top performers"
