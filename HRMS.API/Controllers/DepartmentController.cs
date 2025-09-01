@@ -77,6 +77,33 @@ public class DepartmentController : ControllerBase
         }
     }
 
+    [HttpPost]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<DepartmentDto>>> CreateDepartment([FromBody] CreateDepartmentRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var department = await _employeeService.CreateDepartmentAsync(request, organizationId);
+            
+            return Ok(new ServiceResponse<DepartmentDto>
+            {
+                Success = true,
+                Message = "Department created successfully",
+                Data = department
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating department");
+            return StatusCode(500, new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating department"
+            });
+        }
+    }
+
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");
