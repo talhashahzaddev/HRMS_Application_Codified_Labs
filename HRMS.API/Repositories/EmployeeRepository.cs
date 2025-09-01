@@ -41,27 +41,15 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<Employee?> GetEmployeeByIdAsync(Guid employeeId)
     {
-        var result = await QuerySingleOrDefaultAsync<dynamic>(
-            "SELECT * FROM employee.fn_get_employee_by_id(@employeeId)",
-            new { employeeId });
+        var sql = @"
+            SELECT employee_id, organization_id, user_id, employee_code, first_name, last_name,
+                   email, phone, address, date_of_birth, gender, nationality, marital_status,
+                   emergency_contact, hire_date, termination_date, status, profile_picture_url,
+                   created_at, updated_at
+            FROM employee.employees 
+            WHERE employee_id = @employeeId";
 
-        if (result == null) return null;
-
-        return new Employee
-        {
-            EmployeeId = result.employee_id,
-            OrganizationId = result.organization_id,
-            UserId = result.user_id,
-            EmployeeCode = result.employee_code,
-            FirstName = result.first_name,
-            LastName = result.last_name,
-            Email = result.email,
-            Phone = result.phone,
-            DateOfBirth = result.date_of_birth,
-            HireDate = result.hire_date,
-            Status = result.status,
-            CreatedAt = result.created_at
-        };
+        return await QuerySingleOrDefaultAsync<Employee>(sql, new { employeeId });
     }
 
     public async Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode)
@@ -164,7 +152,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     {
         var sql = @"
             SELECT department_id, organization_id, department_name, description, 
-                   manager_id, is_active, created_at
+                   manager_id, parent_department_id, budget, is_active, created_at, updated_at
             FROM employee.departments 
             WHERE organization_id = @organizationId AND is_active = true
             ORDER BY department_name";
@@ -196,7 +184,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     {
         var sql = @"
             SELECT position_id, organization_id, position_title, department_id, 
-                   description, is_active, created_at
+                   description, requirements, salary_range, is_active, created_at, updated_at
             FROM employee.positions 
             WHERE organization_id = @organizationId 
               AND (@departmentId IS NULL OR department_id = @departmentId)
@@ -224,5 +212,27 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
         position.PositionId = positionId;
         return position;
+    }
+
+    public async Task<Department?> GetDepartmentByIdAsync(Guid departmentId)
+    {
+        var sql = @"
+            SELECT department_id, organization_id, department_name, description, 
+                   manager_id, is_active, created_at
+            FROM employee.departments 
+            WHERE department_id = @departmentId";
+
+        return await QuerySingleOrDefaultAsync<Department>(sql, new { departmentId });
+    }
+
+    public async Task<Position?> GetPositionByIdAsync(Guid positionId)
+    {
+        var sql = @"
+            SELECT position_id, organization_id, position_title, department_id, 
+                   description, is_active, created_at
+            FROM employee.positions 
+            WHERE position_id = @positionId";
+
+        return await QuerySingleOrDefaultAsync<Position>(sql, new { positionId });
     }
 }

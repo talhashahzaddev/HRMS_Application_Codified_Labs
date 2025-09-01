@@ -22,14 +22,14 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("requests")]
-    public async Task<ActionResult<ApiResponse<PagedResult<LeaveRequestDto>>>> GetLeaveRequests([FromQuery] LeaveRequestSearchViewModel searchModel)
+    public async Task<ActionResult<ServiceResponse<PagedResult<LeaveRequestDto>>>> GetLeaveRequests([FromQuery] LeaveRequestSearchViewModel searchModel)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var requests = await _leaveService.GetLeaveRequestsAsync(searchModel, organizationId);
             
-            return Ok(new ApiResponse<PagedResult<LeaveRequestDto>>
+            return Ok(new ServiceResponse<PagedResult<LeaveRequestDto>>
             {
                 Success = true,
                 Data = requests
@@ -38,7 +38,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave requests");
-            return StatusCode(500, new ApiResponse<PagedResult<LeaveRequestDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<LeaveRequestDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave requests"
@@ -47,21 +47,21 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("requests/{id}")]
-    public async Task<ActionResult<ApiResponse<LeaveRequestDto>>> GetLeaveRequest(Guid id)
+    public async Task<ActionResult<ServiceResponse<LeaveRequestDto>>> GetLeaveRequest(Guid id)
     {
         try
         {
             var request = await _leaveService.GetLeaveRequestByIdAsync(id);
             if (request == null)
             {
-                return NotFound(new ApiResponse<LeaveRequestDto>
+                return NotFound(new ServiceResponse<LeaveRequestDto>
                 {
                     Success = false,
                     Message = "Leave request not found"
                 });
             }
 
-            return Ok(new ApiResponse<LeaveRequestDto>
+            return Ok(new ServiceResponse<LeaveRequestDto>
             {
                 Success = true,
                 Data = request
@@ -70,7 +70,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave request {RequestId}", id);
-            return StatusCode(500, new ApiResponse<LeaveRequestDto>
+            return StatusCode(500, new ServiceResponse<LeaveRequestDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave request"
@@ -79,14 +79,14 @@ public class LeaveController : ControllerBase
     }
 
     [HttpPost("requests")]
-    public async Task<ActionResult<ApiResponse<LeaveRequestDto>>> CreateLeaveRequest([FromBody] CreateLeaveRequest request)
+    public async Task<ActionResult<ServiceResponse<LeaveRequestDto>>> CreateLeaveRequest([FromBody] CreateLeaveRequest request)
     {
         try
         {
             var employeeId = GetCurrentEmployeeId();
             var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, employeeId);
             
-            return CreatedAtAction(nameof(GetLeaveRequest), new { id = leaveRequest.RequestId }, new ApiResponse<LeaveRequestDto>
+            return CreatedAtAction(nameof(GetLeaveRequest), new { id = leaveRequest.RequestId }, new ServiceResponse<LeaveRequestDto>
             {
                 Success = true,
                 Message = "Leave request submitted successfully",
@@ -95,7 +95,7 @@ public class LeaveController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ApiResponse<LeaveRequestDto>
+            return BadRequest(new ServiceResponse<LeaveRequestDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -104,7 +104,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating leave request");
-            return StatusCode(500, new ApiResponse<LeaveRequestDto>
+            return StatusCode(500, new ServiceResponse<LeaveRequestDto>
             {
                 Success = false,
                 Message = "An error occurred while creating leave request"
@@ -114,7 +114,7 @@ public class LeaveController : ControllerBase
 
     [HttpPut("requests/{id}/approve")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ApiResponse<bool>>> ApproveLeaveRequest(Guid id)
+    public async Task<ActionResult<ServiceResponse<bool>>> ApproveLeaveRequest(Guid id)
     {
         try
         {
@@ -122,7 +122,7 @@ public class LeaveController : ControllerBase
             var request = new UpdateLeaveRequestStatusRequest { Status = "approved" };
             var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
             
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Leave request approved successfully",
@@ -132,7 +132,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error approving leave request {RequestId}", id);
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while approving leave request"
@@ -142,7 +142,7 @@ public class LeaveController : ControllerBase
 
     [HttpPut("requests/{id}/reject")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ApiResponse<bool>>> RejectLeaveRequest(Guid id, [FromBody] UpdateLeaveRequestStatusRequest request)
+    public async Task<ActionResult<ServiceResponse<bool>>> RejectLeaveRequest(Guid id, [FromBody] UpdateLeaveRequestStatusRequest request)
     {
         try
         {
@@ -150,7 +150,7 @@ public class LeaveController : ControllerBase
             request.Status = "rejected";
             var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
             
-            return Ok(new ApiResponse<bool>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Leave request rejected successfully",
@@ -160,7 +160,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error rejecting leave request {RequestId}", id);
-            return StatusCode(500, new ApiResponse<bool>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while rejecting leave request"
@@ -169,14 +169,14 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("types")]
-    public async Task<ActionResult<ApiResponse<List<LeaveTypeDto>>>> GetLeaveTypes()
+    public async Task<ActionResult<ServiceResponse<List<LeaveTypeDto>>>> GetLeaveTypes()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var leaveTypes = await _leaveService.GetLeaveTypesAsync(organizationId);
             
-            return Ok(new ApiResponse<List<LeaveTypeDto>>
+            return Ok(new ServiceResponse<List<LeaveTypeDto>>
             {
                 Success = true,
                 Data = leaveTypes
@@ -185,7 +185,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave types");
-            return StatusCode(500, new ApiResponse<List<LeaveTypeDto>>
+            return StatusCode(500, new ServiceResponse<List<LeaveTypeDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave types"
@@ -194,7 +194,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("entitlements")]
-    public async Task<ActionResult<ApiResponse<List<LeaveEntitlementDto>>>> GetLeaveEntitlements([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
+    public async Task<ActionResult<ServiceResponse<List<LeaveEntitlementDto>>>> GetLeaveEntitlements([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
     {
         try
         {
@@ -202,7 +202,7 @@ public class LeaveController : ControllerBase
             var entitlementYear = year ?? DateTime.Now.Year;
             var entitlements = await _leaveService.GetLeaveEntitlementsAsync(empId, entitlementYear);
             
-            return Ok(new ApiResponse<List<LeaveEntitlementDto>>
+            return Ok(new ServiceResponse<List<LeaveEntitlementDto>>
             {
                 Success = true,
                 Data = entitlements
@@ -211,7 +211,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave entitlements");
-            return StatusCode(500, new ApiResponse<List<LeaveEntitlementDto>>
+            return StatusCode(500, new ServiceResponse<List<LeaveEntitlementDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave entitlements"
@@ -220,7 +220,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("balance")]
-    public async Task<ActionResult<ApiResponse<List<LeaveBalanceDto>>>> GetLeaveBalance([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
+    public async Task<ActionResult<ServiceResponse<List<LeaveBalanceDto>>>> GetLeaveBalance([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
     {
         try
         {
@@ -228,7 +228,7 @@ public class LeaveController : ControllerBase
             var balanceYear = year ?? DateTime.Now.Year;
             var balance = await _leaveService.GetLeaveBalanceAsync(empId, balanceYear);
             
-            return Ok(new ApiResponse<List<LeaveBalanceDto>>
+            return Ok(new ServiceResponse<List<LeaveBalanceDto>>
             {
                 Success = true,
                 Data = balance
@@ -237,7 +237,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave balance");
-            return StatusCode(500, new ApiResponse<List<LeaveBalanceDto>>
+            return StatusCode(500, new ServiceResponse<List<LeaveBalanceDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave balance"
@@ -248,12 +248,38 @@ public class LeaveController : ControllerBase
     private Guid GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        return Guid.Parse(userIdClaim!);
+        
+        if (string.IsNullOrEmpty(userIdClaim))
+        {
+            _logger.LogError("User ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("User ID not found in token");
+        }
+        
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
+            throw new UnauthorizedAccessException("Invalid user ID format");
+        }
+        
+        return userId;
     }
 
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");
-        return Guid.Parse(orgIdClaim!);
+        
+        if (string.IsNullOrEmpty(orgIdClaim))
+        {
+            _logger.LogError("Organization ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("Organization ID not found in token");
+        }
+        
+        if (!Guid.TryParse(orgIdClaim, out var organizationId))
+        {
+            _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
+            throw new UnauthorizedAccessException("Invalid organization ID format");
+        }
+        
+        return organizationId;
     }
 }

@@ -100,6 +100,12 @@ public class EmployeeService : IEmployeeService
         return _mapper.Map<List<PositionDto>>(positions);
     }
 
+    public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId)
+    {
+        var positions = await _employeeRepository.GetPositionsAsync(organizationId, null);
+        return _mapper.Map<List<PositionDto>>(positions);
+    }
+
     public async Task<PositionDto> CreatePositionAsync(CreatePositionRequest request, Guid organizationId)
     {
         var position = _mapper.Map<Position>(request);
@@ -107,5 +113,156 @@ public class EmployeeService : IEmployeeService
 
         var createdPosition = await _employeeRepository.CreatePositionAsync(position);
         return _mapper.Map<PositionDto>(createdPosition);
+    }
+
+    // New missing methods implementation
+    public async Task<EmployeeDto> ActivateEmployeeAsync(Guid employeeId)
+    {
+        _logger.LogInformation("Activating employee: {EmployeeId}", employeeId);
+        
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        if (employee == null)
+            throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
+
+        employee.Status = "active";
+        await _employeeRepository.UpdateEmployeeAsync(employee);
+        
+        _logger.LogInformation("Employee {EmployeeId} activated successfully", employeeId);
+        return _mapper.Map<EmployeeDto>(employee);
+    }
+
+    public async Task<EmployeeDto> DeactivateEmployeeAsync(Guid employeeId)
+    {
+        _logger.LogInformation("Deactivating employee: {EmployeeId}", employeeId);
+        
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        if (employee == null)
+            throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
+
+        employee.Status = "inactive";
+        await _employeeRepository.UpdateEmployeeAsync(employee);
+        
+        _logger.LogInformation("Employee {EmployeeId} deactivated successfully", employeeId);
+        return _mapper.Map<EmployeeDto>(employee);
+    }
+
+    public async Task<DepartmentDto?> GetDepartmentByIdAsync(Guid departmentId)
+    {
+        _logger.LogInformation("Retrieving department: {DepartmentId}", departmentId);
+        
+        var department = await _employeeRepository.GetDepartmentByIdAsync(departmentId);
+        return department != null ? _mapper.Map<DepartmentDto>(department) : null;
+    }
+
+    public async Task<PositionDto?> GetPositionByIdAsync(Guid positionId)
+    {
+        _logger.LogInformation("Retrieving position: {PositionId}", positionId);
+        
+        var position = await _employeeRepository.GetPositionByIdAsync(positionId);
+        return position != null ? _mapper.Map<PositionDto>(position) : null;
+    }
+
+    public async Task<EmployeeStatisticsDto> GetEmployeeStatisticsAsync(Guid organizationId)
+    {
+        _logger.LogInformation("Retrieving employee statistics for organization: {OrganizationId}", organizationId);
+        
+        // Mock implementation - in a real app, this would calculate from database
+        var statistics = new EmployeeStatisticsDto
+        {
+            TotalEmployees = 150,
+            ActiveEmployees = 142,
+            InactiveEmployees = 8,
+            NewEmployeesThisMonth = 5,
+            EmployeesTurnedoverThisMonth = 2,
+            AverageTenure = 2.5m,
+            DepartmentBreakdown = new List<DepartmentStatsDto>
+            {
+                new() { DepartmentName = "Engineering", EmployeeCount = 60, Percentage = 40.0m },
+                new() { DepartmentName = "Sales", EmployeeCount = 30, Percentage = 20.0m },
+                new() { DepartmentName = "Marketing", EmployeeCount = 25, Percentage = 16.7m },
+                new() { DepartmentName = "HR", EmployeeCount = 15, Percentage = 10.0m },
+                new() { DepartmentName = "Finance", EmployeeCount = 20, Percentage = 13.3m }
+            },
+            EmploymentTypeBreakdown = new List<EmploymentTypeStatsDto>
+            {
+                new() { EmploymentType = "Full-time", EmployeeCount = 120, Percentage = 80.0m },
+                new() { EmploymentType = "Part-time", EmployeeCount = 20, Percentage = 13.3m },
+                new() { EmploymentType = "Contract", EmployeeCount = 10, Percentage = 6.7m }
+            }
+        };
+        
+        return statistics;
+    }
+
+    public async Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId)
+    {
+        _logger.LogInformation("Retrieving managers for organization: {OrganizationId}", organizationId);
+        
+        // Mock implementation - in a real app, this would filter employees by role/position
+        var employees = await _employeeRepository.GetEmployeesAsync(organizationId, null, null, "Active", 1, 100);
+        
+        // Filter to only managers (mock)
+        var managers = employees.Data.Take(10).ToList();
+        return _mapper.Map<List<EmployeeDto>>(managers);
+    }
+
+    public async Task<bool> BulkActivateEmployeesAsync(List<Guid> employeeIds)
+    {
+        _logger.LogInformation("Bulk activating {Count} employees", employeeIds.Count);
+        
+        var successCount = 0;
+        foreach (var employeeId in employeeIds)
+        {
+            try
+            {
+                await ActivateEmployeeAsync(employeeId);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to activate employee {EmployeeId}", employeeId);
+            }
+        }
+        
+        _logger.LogInformation("Successfully activated {SuccessCount} out of {TotalCount} employees", successCount, employeeIds.Count);
+        return successCount == employeeIds.Count;
+    }
+
+    public async Task<bool> BulkDeactivateEmployeesAsync(List<Guid> employeeIds)
+    {
+        _logger.LogInformation("Bulk deactivating {Count} employees", employeeIds.Count);
+        
+        var successCount = 0;
+        foreach (var employeeId in employeeIds)
+        {
+            try
+            {
+                await DeactivateEmployeeAsync(employeeId);
+                successCount++;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to deactivate employee {EmployeeId}", employeeId);
+            }
+        }
+        
+        _logger.LogInformation("Successfully deactivated {SuccessCount} out of {TotalCount} employees", successCount, employeeIds.Count);
+        return successCount == employeeIds.Count;
+    }
+
+    public async Task<byte[]> ExportEmployeesAsync(Guid organizationId, string format)
+    {
+        _logger.LogInformation("Exporting employees for organization: {OrganizationId} in format: {Format}", organizationId, format);
+        
+        var employees = await _employeeRepository.GetEmployeesAsync(organizationId, null, null, null, 1, 1000);
+        
+        // Mock implementation - generate simple CSV or Excel data
+        var csvData = "EmployeeCode,FirstName,LastName,Email,Department,Position,HireDate,Status\n";
+        foreach (var employee in employees.Data)
+        {
+            csvData += $"{employee.EmployeeCode},{employee.FirstName},{employee.LastName},{employee.Email},{employee.Department},{employee.Position},{employee.HireDate:yyyy-MM-dd},{(employee.IsActive ? "Active" : "Inactive")}\n";
+        }
+        
+        return System.Text.Encoding.UTF8.GetBytes(csvData);
     }
 }

@@ -12,4 +12,34 @@ public interface IPerformanceService
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId);
     Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(Guid organizationId, Guid? cycleId = null);
     Task<List<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10);
+    
+    // Additional methods based on frontend consumption
+    Task<PerformanceSummaryDto> GetPerformanceDashboardSummaryAsync(Guid organizationId);
+    Task<PagedResult<SkillSetDto>> GetSkillSetsPagedAsync(Guid organizationId, SkillSetFilterRequest filter, int page, int limit);
+    Task<SkillSetDto?> GetSkillSetByIdAsync(Guid skillSetId);
+    Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId);
+    Task<SkillSetDto> UpdateSkillSetAsync(Guid skillSetId, UpdateSkillSetRequest request);
+    Task<bool> DeleteSkillSetAsync(Guid skillSetId);
+    Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit);
+    Task<List<EmployeeSkillDto>> GetEmployeeSkillsByEmployeeAsync(Guid employeeId);
+    Task<EmployeeSkillDto?> GetEmployeeSkillByIdAsync(Guid employeeSkillId);
+    Task<EmployeeSkillDto> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request);
+    Task<EmployeeSkillDto> UpdateEmployeeSkillAsync(Guid employeeSkillId, UpdateEmployeeSkillRequest request);
+    Task<bool> DeleteEmployeeSkillAsync(Guid employeeSkillId);
+    Task<PagedResult<KRADto>> GetKRAsAsync(Guid organizationId, int page, int limit, string? search);
+    Task<KRADto?> GetKRAByIdAsync(Guid kraId);
+    Task<KRADto> CreateKRAAsync(CreateKRARequest request, Guid organizationId);
+    Task<KRADto> UpdateKRAAsync(Guid kraId, UpdateKRARequest request);
+    Task<bool> DeleteKRAAsync(Guid kraId);
+    Task<PagedResult<AppraisalCycleDto>> GetAppraisalCyclesPagedAsync(Guid organizationId, int page, int limit, string? search);
+    Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId);
+    Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request);
+    Task<bool> DeleteAppraisalCycleAsync(Guid cycleId);
+    Task<PagedResult<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit);
+    Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId);
+    Task<EmployeeAppraisalDto?> GetEmployeeAppraisalByIdAsync(Guid appraisalId);
+    Task<EmployeeAppraisalDto> SubmitAppraisalAsync(Guid appraisalId, SubmitAppraisalRequest request);
+    Task<EmployeeAppraisalDto> ReviewAppraisalAsync(Guid appraisalId, ReviewAppraisalRequest request);
+    Task<PerformanceReportDto> GeneratePerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
+    Task<byte[]> ExportPerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
 }

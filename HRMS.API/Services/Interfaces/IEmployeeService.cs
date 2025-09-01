@@ -13,5 +13,17 @@ public interface IEmployeeService
     Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId);
     Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId);
     Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null);
+    Task<List<PositionDto>> GetPositionsAsync(Guid organizationId);
     Task<PositionDto> CreatePositionAsync(CreatePositionRequest request, Guid organizationId);
+    
+    // New missing methods
+    Task<EmployeeDto> ActivateEmployeeAsync(Guid employeeId);
+    Task<EmployeeDto> DeactivateEmployeeAsync(Guid employeeId);
+    Task<DepartmentDto?> GetDepartmentByIdAsync(Guid departmentId);
+    Task<PositionDto?> GetPositionByIdAsync(Guid positionId);
+    Task<EmployeeStatisticsDto> GetEmployeeStatisticsAsync(Guid organizationId);
+    Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId);
+    Task<bool> BulkActivateEmployeesAsync(List<Guid> employeeIds);
+    Task<bool> BulkDeactivateEmployeesAsync(List<Guid> employeeIds);
+    Task<byte[]> ExportEmployeesAsync(Guid organizationId, string format);
 }
