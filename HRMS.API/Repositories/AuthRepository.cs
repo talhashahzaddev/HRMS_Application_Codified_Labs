@@ -78,27 +78,33 @@ public class AuthRepository : BaseRepository, IAuthRepository
     public async Task<User?> GetUserByEmailAsync(string email)
     {
         var sql = @"
-    SELECT COALESCE(u.user_id, '00000000-0000-0000-0000-000000000000') AS UserId,
-    COALESCE(u.organization_id, '00000000-0000-0000-0000-000000000000') AS OrganizationId, 
+    SELECT u.userid,
+           u.organizationid, 
            u.email AS Email, 
-           u.first_name AS FirstName, 
-           u.last_name AS LastName, 
-           u.is_active AS IsActive, 
-           u.last_login_at AS LastLoginAt, 
-           u.created_at AS CreatedAt,
-           r.role_name AS RoleName, 
+           u.FirstName, 
+           u.LastName , 
+           u.IsActive , 
+           u.LastLoginAt, 
+           u.CreatedAt,
+           r.RoleName, 
            r.permissions AS Permissions,
            o.name AS OrganizationName
     FROM auth.users u
-    INNER JOIN auth.roles r ON u.role_id = r.role_id
-    INNER JOIN auth.organizations o ON u.organization_id = o.organization_id
+    INNER JOIN auth.roles r ON u.roleid = r.roleid
+    INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
     WHERE u.email = @email";
 
-
+        try
+        {
         var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { email });
         if (result == null) return null;
 
         return MapToUser(result);
+        }
+        catch(Exception ex)
+        {
+            throw new Exception("An error occured", ex.InnerException);
+        }
     }
 
     public async Task<User> CreateUserAsync(User user)

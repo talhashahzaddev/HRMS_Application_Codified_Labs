@@ -116,13 +116,13 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("users")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    //[Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<UserDto>>> CreateUser([FromBody] CreateUserRequest request)
     {
         try
         {
-            var organizationId = GetCurrentOrganizationId();
-            var user = await _authService.CreateUserAsync(request, organizationId);
+            //var organizationId = GetCurrentOrganizationId();
+            var user = await _authService.CreateUserAsync(request, request.OrganizationId);
             
             return CreatedAtAction(nameof(GetUser), new { id = user.UserId }, new ServiceResponse<UserDto>
             {
