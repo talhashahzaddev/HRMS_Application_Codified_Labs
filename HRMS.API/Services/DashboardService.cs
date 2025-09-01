@@ -291,4 +291,68 @@ public class DashboardService : IDashboardService
 
         return events.Take(count).ToList();
     }
+
+    public async Task<object> GetAttendanceTrendsAsync(Guid organizationId, string period = "30d")
+    {
+        // Mock implementation - replace with actual service call
+        var trends = new {
+            dates = new[] { "2024-01-01", "2024-01-02", "2024-01-03" },
+            presentCounts = new[] { 85, 90, 88 },
+            absentCounts = new[] { 15, 10, 12 }
+        };
+        return await Task.FromResult(trends);
+    }
+
+    public async Task<object> GetLeaveTrendsAsync(Guid organizationId, string period = "12m")
+    {
+        // Mock implementation
+        var trends = new {
+            months = new[] { "Jan", "Feb", "Mar" },
+            leaveCounts = new[] { 25, 30, 28 }
+        };
+        return await Task.FromResult(trends);
+    }
+
+    public async Task<object> GetPayrollTrendsAsync(Guid organizationId, string period = "12m")
+    {
+        // Mock implementation
+        var trends = new {
+            months = new[] { "Jan", "Feb", "Mar" },
+            payrollCosts = new[] { 150000, 155000, 152000 }
+        };
+        return await Task.FromResult(trends);
+    }
+
+    public async Task<List<object>> GetTopPerformersAsync(Guid organizationId, int limit = 5)
+    {
+        // Mock implementation
+        var performers = new List<object>
+        {
+            new { name = "John Doe", rating = 4.8, department = "Engineering" },
+            new { name = "Jane Smith", rating = 4.7, department = "Marketing" }
+        };
+        return await Task.FromResult(performers);
+    }
+
+    public async Task<object> GetRemindersAsync(Guid organizationId)
+    {
+        // Mock implementation
+        var reminders = new {
+            birthdays = new[] { new { name = "John Doe", date = "2024-01-15" } },
+            anniversaries = new[] { new { name = "Jane Smith", date = "2024-01-20", years = 3 } }
+        };
+        return await Task.FromResult(reminders);
+    }
+
+    public async Task<object> GetQuickStatsAsync(Guid organizationId)
+    {
+        // Mock implementation
+        var stats = new {
+            todayPresent = 85,
+            todayAbsent = 15,
+            onLeave = 5,
+            pendingApprovals = 12
+        };
+        return await Task.FromResult(stats);
+    }
 }
