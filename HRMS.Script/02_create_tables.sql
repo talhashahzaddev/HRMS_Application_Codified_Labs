@@ -2,383 +2,369 @@
 
 
 -- Organizations (Multi-tenant support)
-CREATE TABLE auth.organizations (
-    organization_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    subscription_type VARCHAR(50) DEFAULT 'basic',
-    domain VARCHAR(255),
-    logo_url VARCHAR(500),
-    status VARCHAR(20) DEFAULT 'active',
-    settings JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- ==============================
+-- AUTH SCHEMA
+-- ==============================
+
+CREATE TABLE auth.Organizations (
+    OrganizationId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    Name VARCHAR(255) NOT NULL,
+    SubscriptionType VARCHAR(50) DEFAULT 'basic',
+    Domain VARCHAR(255),
+    LogoUrl VARCHAR(500),
+    Status VARCHAR(20) DEFAULT 'active',
+    Settings JSONB DEFAULT '{}',
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Roles & Permissions
-CREATE TABLE auth.roles (
-    role_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    role_name VARCHAR(100) NOT NULL,
-    description TEXT,
-    permissions JSONB DEFAULT '{}',
-    is_system_role BOOLEAN DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(organization_id, role_name)
+CREATE TABLE auth.Roles (
+    RoleId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    RoleName VARCHAR(100) NOT NULL,
+    Description TEXT,
+    Permissions JSONB DEFAULT '{}',
+    IsSystemRole BOOLEAN DEFAULT false,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_Roles UNIQUE(OrganizationId, RoleName)
 );
 
--- Users & Authentication
-CREATE TABLE auth.users (
-    user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    role_id UUID REFERENCES auth.roles(role_id),
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
-    is_active BOOLEAN DEFAULT true,
-    email_verified BOOLEAN DEFAULT false,
-    last_login_at TIMESTAMP WITH TIME ZONE,
-    password_changed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    refresh_token VARCHAR(500),
-    refresh_token_expires_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE auth.Users (
+    UserId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    Email VARCHAR(255) UNIQUE NOT NULL,
+    PasswordHash VARCHAR(255) NOT NULL,
+    RoleId UUID,
+    FirstName VARCHAR(100),
+    LastName VARCHAR(100),
+    IsActive BOOLEAN DEFAULT true,
+    EmailVerified BOOLEAN DEFAULT false,
+    LastLoginAt TIMESTAMP WITH TIME ZONE,
+    PasswordChangedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    RefreshToken VARCHAR(500),
+    RefreshTokenExpiresAt TIMESTAMP WITH TIME ZONE,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Departments
-CREATE TABLE employee.departments (
-    department_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    department_name VARCHAR(100) NOT NULL,
-    description TEXT,
-    manager_id UUID,
-    parent_department_id UUID REFERENCES employee.departments(department_id),
-    budget DECIMAL(15, 2),
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(organization_id, department_name)
+-- ==============================
+-- EMPLOYEE SCHEMA
+-- ==============================
+
+CREATE TABLE employee.Departments (
+    DepartmentId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    DepartmentName VARCHAR(100) NOT NULL,
+    Description TEXT,
+    ManagerId UUID,
+    ParentDepartmentId UUID,
+    Budget DECIMAL(15, 2),
+    IsActive BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_Departments UNIQUE(OrganizationId, DepartmentName)
 );
 
--- Positions
-CREATE TABLE employee.positions (
-    position_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    position_title VARCHAR(100) NOT NULL,
-    department_id UUID REFERENCES employee.departments(department_id),
-    description TEXT,
-    requirements JSONB DEFAULT '{}',
-    salary_range JSONB DEFAULT '{}',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE employee.Positions (
+    PositionId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    PositionTitle VARCHAR(100) NOT NULL,
+    DepartmentId UUID,
+    Description TEXT,
+    Requirements JSONB DEFAULT '{}',
+    SalaryRange JSONB DEFAULT '{}',
+    IsActive BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Employee Personal Information
-CREATE TABLE employee.employees (
-    employee_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    user_id UUID REFERENCES auth.users(user_id) ON DELETE SET NULL,
-    employee_code VARCHAR(50) NOT NULL,
-    first_name VARCHAR(100) NOT NULL,
-    last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL,
-    phone VARCHAR(20),
-    address JSONB DEFAULT '{}',
-    date_of_birth DATE,
-    gender VARCHAR(20),
-    nationality VARCHAR(50),
-    marital_status VARCHAR(20),
-    emergency_contact JSONB DEFAULT '{}',
-    hire_date DATE NOT NULL,
-    termination_date DATE,
-    status VARCHAR(20) DEFAULT 'active',
-    profile_picture_url VARCHAR(500),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(organization_id, employee_code),
-    UNIQUE(organization_id, email)
+CREATE TABLE employee.Employees (
+    EmployeeId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    UserId UUID,
+    EmployeeCode VARCHAR(50) NOT NULL,
+    FirstName VARCHAR(100) NOT NULL,
+    LastName VARCHAR(100) NOT NULL,
+    Email VARCHAR(255) NOT NULL,
+    Phone VARCHAR(20),
+    Address JSONB DEFAULT '{}',
+    DateOfBirth DATE,
+    Gender VARCHAR(20),
+    Nationality VARCHAR(50),
+    MaritalStatus VARCHAR(20),
+    EmergencyContact JSONB DEFAULT '{}',
+    HireDate DATE NOT NULL,
+    TerminationDate DATE,
+    Status VARCHAR(20) DEFAULT 'active',
+    ProfilePictureUrl VARCHAR(500),
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_EmployeeCode UNIQUE(OrganizationId, EmployeeCode),
+    CONSTRAINT UQ_EmployeeEmail UNIQUE(OrganizationId, Email)
 );
 
--- Employment Details
-CREATE TABLE employee.employment_details (
-    detail_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    employee_id UUID REFERENCES employee.employees(employee_id) ON DELETE CASCADE,
-    department_id UUID REFERENCES employee.departments(department_id),
-    position_id UUID REFERENCES employee.positions(position_id),
-    shift_id UUID,
-    employment_type VARCHAR(50) DEFAULT 'full_time',
-    pay_type VARCHAR(20) DEFAULT 'salary',
-    basic_salary DECIMAL(15, 2),
-    currency VARCHAR(3) DEFAULT 'USD',
-    work_location VARCHAR(100),
-    reporting_manager_id UUID REFERENCES employee.employees(employee_id),
-    effective_date DATE NOT NULL,
-    end_date DATE,
-    is_current BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE employee.EmploymentDetails (
+    DetailId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    EmployeeId UUID,
+    DepartmentId UUID,
+    PositionId UUID,
+    ShiftId UUID,
+    EmploymentType VARCHAR(50) DEFAULT 'full_time',
+    PayType VARCHAR(20) DEFAULT 'salary',
+    BasicSalary DECIMAL(15, 2),
+    Currency VARCHAR(3) DEFAULT 'USD',
+    WorkLocation VARCHAR(100),
+    ReportingManagerId UUID,
+    EffectiveDate DATE NOT NULL,
+    EndDate DATE,
+    IsCurrent BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Shifts Management
-CREATE TABLE attendance.shifts (
-    shift_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    shift_name VARCHAR(100) NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    break_duration INTEGER DEFAULT 0, -- minutes
-    days_of_week INTEGER[] DEFAULT '{1,2,3,4,5}', -- 0=Sunday, 6=Saturday
-    timezone VARCHAR(50) DEFAULT 'UTC',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(organization_id, shift_name)
+CREATE TABLE employee.Documents (
+    DocumentId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    EmployeeId UUID,
+    DocumentType VARCHAR(100) NOT NULL,
+    DocumentName VARCHAR(255) NOT NULL,
+    FileUrl VARCHAR(500) NOT NULL,
+    FileSize BIGINT,
+    MimeType VARCHAR(100),
+    UploadedBy UUID,
+    IsConfidential BOOLEAN DEFAULT false,
+    ExpiryDate DATE,
+    Status VARCHAR(20) DEFAULT 'active',
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Update employment_details to reference shifts
-ALTER TABLE employee.employment_details 
-ADD CONSTRAINT fk_shift_id FOREIGN KEY (shift_id) REFERENCES attendance.shifts(shift_id);
+-- ==============================
+-- ATTENDANCE SCHEMA
+-- ==============================
 
--- Attendance Records
-CREATE TABLE attendance.attendance (
-    attendance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    employee_id UUID REFERENCES employee.employees(employee_id) ON DELETE CASCADE,
-    work_date DATE NOT NULL,
-    check_in_time TIMESTAMP WITH TIME ZONE,
-    check_out_time TIMESTAMP WITH TIME ZONE,
-    break_start_time TIMESTAMP WITH TIME ZONE,
-    break_end_time TIMESTAMP WITH TIME ZONE,
-    total_hours DECIMAL(5, 2) DEFAULT 0,
-    overtime_hours DECIMAL(5, 2) DEFAULT 0,
-    break_hours DECIMAL(5, 2) DEFAULT 0,
-    status VARCHAR(20) DEFAULT 'absent',
-    location JSONB DEFAULT '{}',
-    notes TEXT,
-    approved_by UUID REFERENCES employee.employees(employee_id),
-    approved_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(employee_id, work_date)
+CREATE TABLE attendance.Shifts (
+    ShiftId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    ShiftName VARCHAR(100) NOT NULL,
+    StartTime TIME NOT NULL,
+    EndTime TIME NOT NULL,
+    BreakDuration INTEGER DEFAULT 0,
+    DaysOfWeek INTEGER[] DEFAULT '{1,2,3,4,5}',
+    Timezone VARCHAR(50) DEFAULT 'UTC',
+    IsActive BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_Shifts UNIQUE(OrganizationId, ShiftName)
 );
 
--- Leave Types
-CREATE TABLE attendance.leave_types (
-    leave_type_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    type_name VARCHAR(100) NOT NULL,
-    description TEXT,
-    max_days_per_year INTEGER DEFAULT 0,
-    is_paid BOOLEAN DEFAULT true,
-    carry_forward_allowed BOOLEAN DEFAULT false,
-    max_carry_forward_days INTEGER DEFAULT 0,
-    requires_approval BOOLEAN DEFAULT true,
-    advance_notice_days INTEGER DEFAULT 0,
-    color VARCHAR(7) DEFAULT '#2196F3',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(organization_id, type_name)
+CREATE TABLE attendance.Attendance (
+    AttendanceId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    EmployeeId UUID,
+    WorkDate DATE NOT NULL,
+    CheckInTime TIMESTAMP WITH TIME ZONE,
+    CheckOutTime TIMESTAMP WITH TIME ZONE,
+    BreakStartTime TIMESTAMP WITH TIME ZONE,
+    BreakEndTime TIMESTAMP WITH TIME ZONE,
+    TotalHours DECIMAL(5, 2) DEFAULT 0,
+    OvertimeHours DECIMAL(5, 2) DEFAULT 0,
+    BreakHours DECIMAL(5, 2) DEFAULT 0,
+    Status VARCHAR(20) DEFAULT 'absent',
+    Location JSONB DEFAULT '{}',
+    Notes TEXT,
+    ApprovedBy UUID,
+    ApprovedAt TIMESTAMP WITH TIME ZONE,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_Attendance UNIQUE(EmployeeId, WorkDate)
 );
 
--- Leave Entitlements
-CREATE TABLE attendance.leave_entitlements (
-    entitlement_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    employee_id UUID REFERENCES employee.employees(employee_id) ON DELETE CASCADE,
-    leave_type_id UUID REFERENCES attendance.leave_types(leave_type_id) ON DELETE CASCADE,
-    year INTEGER NOT NULL,
-    total_days DECIMAL(5, 2) DEFAULT 0,
-    used_days DECIMAL(5, 2) DEFAULT 0,
-    remaining_days DECIMAL(5, 2) DEFAULT 0,
-    carry_forward_days DECIMAL(5, 2) DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(employee_id, leave_type_id, year)
+CREATE TABLE attendance.LeaveTypes (
+    LeaveTypeId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    TypeName VARCHAR(100) NOT NULL,
+    Description TEXT,
+    MaxDaysPerYear INTEGER DEFAULT 0,
+    IsPaid BOOLEAN DEFAULT true,
+    CarryForwardAllowed BOOLEAN DEFAULT false,
+    MaxCarryForwardDays INTEGER DEFAULT 0,
+    RequiresApproval BOOLEAN DEFAULT true,
+    AdvanceNoticeDays INTEGER DEFAULT 0,
+    Color VARCHAR(7) DEFAULT '#2196F3',
+    IsActive BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_LeaveTypes UNIQUE(OrganizationId, TypeName)
 );
 
--- Leave Requests
-CREATE TABLE attendance.leave_requests (
-    request_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    employee_id UUID REFERENCES employee.employees(employee_id) ON DELETE CASCADE,
-    leave_type_id UUID REFERENCES attendance.leave_types(leave_type_id) ON DELETE CASCADE,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    days_requested DECIMAL(5, 2) NOT NULL,
-    reason TEXT,
-    attachment_url VARCHAR(500),
-    status VARCHAR(20) DEFAULT 'pending',
-    submitted_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    approved_by UUID REFERENCES employee.employees(employee_id),
-    approved_at TIMESTAMP WITH TIME ZONE,
-    rejection_reason TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE attendance.LeaveEntitlements (
+    EntitlementId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    EmployeeId UUID,
+    LeaveTypeId UUID,
+    Year INTEGER NOT NULL,
+    TotalDays DECIMAL(5, 2) DEFAULT 0,
+    UsedDays DECIMAL(5, 2) DEFAULT 0,
+    RemainingDays DECIMAL(5, 2) DEFAULT 0,
+    CarryForwardDays DECIMAL(5, 2) DEFAULT 0,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_LeaveEntitlements UNIQUE(EmployeeId, LeaveTypeId, Year)
 );
 
--- Payroll Periods
-CREATE TABLE payroll.payroll_periods (
-    period_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    period_name VARCHAR(100) NOT NULL,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    pay_date DATE,
-    status VARCHAR(20) DEFAULT 'draft',
-    total_employees INTEGER DEFAULT 0,
-    total_gross_amount DECIMAL(15, 2) DEFAULT 0,
-    total_tax_amount DECIMAL(15, 2) DEFAULT 0,
-    total_net_amount DECIMAL(15, 2) DEFAULT 0,
-    processed_by UUID REFERENCES employee.employees(employee_id),
-    processed_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(organization_id, period_name)
+CREATE TABLE attendance.LeaveRequests (
+    RequestId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    EmployeeId UUID,
+    LeaveTypeId UUID,
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    DaysRequested DECIMAL(5, 2) NOT NULL,
+    Reason TEXT,
+    AttachmentUrl VARCHAR(500),
+    Status VARCHAR(20) DEFAULT 'pending',
+    SubmittedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    ApprovedBy UUID,
+    ApprovedAt TIMESTAMP WITH TIME ZONE,
+    RejectionReason TEXT,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Payroll Entries
-CREATE TABLE payroll.payroll_entries (
-    entry_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    period_id UUID REFERENCES payroll.payroll_periods(period_id) ON DELETE CASCADE,
-    employee_id UUID REFERENCES employee.employees(employee_id) ON DELETE CASCADE,
-    basic_salary DECIMAL(15, 2) DEFAULT 0,
-    allowances JSONB DEFAULT '{}',
-    deductions JSONB DEFAULT '{}',
-    overtime_amount DECIMAL(15, 2) DEFAULT 0,
-    bonus_amount DECIMAL(15, 2) DEFAULT 0,
-    gross_salary DECIMAL(15, 2) DEFAULT 0,
-    tax_amount DECIMAL(15, 2) DEFAULT 0,
-    other_deductions DECIMAL(15, 2) DEFAULT 0,
-    net_salary DECIMAL(15, 2) DEFAULT 0,
-    currency VARCHAR(3) DEFAULT 'USD',
-    status VARCHAR(20) DEFAULT 'draft',
-    calculated_at TIMESTAMP WITH TIME ZONE,
-    paid_at TIMESTAMP WITH TIME ZONE,
-    payment_method VARCHAR(50),
-    payment_reference VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(period_id, employee_id)
+-- ==============================
+-- PAYROLL SCHEMA
+-- ==============================
+
+CREATE TABLE payroll.PayrollPeriods (
+    PeriodId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    PeriodName VARCHAR(100) NOT NULL,
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    PayDate DATE,
+    Status VARCHAR(20) DEFAULT 'draft',
+    TotalEmployees INTEGER DEFAULT 0,
+    TotalGrossAmount DECIMAL(15, 2) DEFAULT 0,
+    TotalTaxAmount DECIMAL(15, 2) DEFAULT 0,
+    TotalNetAmount DECIMAL(15, 2) DEFAULT 0,
+    ProcessedBy UUID,
+    ProcessedAt TIMESTAMP WITH TIME ZONE,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_PayrollPeriods UNIQUE(OrganizationId, PeriodName)
 );
 
--- Skill Sets
-CREATE TABLE performance.skill_sets (
-    skill_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    skill_name VARCHAR(100) NOT NULL,
-    category VARCHAR(100),
-    description TEXT,
-    skill_level_scale JSONB DEFAULT '[1,2,3,4,5]',
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(organization_id, skill_name)
+CREATE TABLE payroll.PayrollEntries (
+    EntryId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    PeriodId UUID,
+    EmployeeId UUID,
+    BasicSalary DECIMAL(15, 2) DEFAULT 0,
+    Allowances JSONB DEFAULT '{}',
+    Deductions JSONB DEFAULT '{}',
+    OvertimeAmount DECIMAL(15, 2) DEFAULT 0,
+    BonusAmount DECIMAL(15, 2) DEFAULT 0,
+    GrossSalary DECIMAL(15, 2) DEFAULT 0,
+    TaxAmount DECIMAL(15, 2) DEFAULT 0,
+    OtherDeductions DECIMAL(15, 2) DEFAULT 0,
+    NetSalary DECIMAL(15, 2) DEFAULT 0,
+    Currency VARCHAR(3) DEFAULT 'USD',
+    Status VARCHAR(20) DEFAULT 'draft',
+    CalculatedAt TIMESTAMP WITH TIME ZONE,
+    PaidAt TIMESTAMP WITH TIME ZONE,
+    PaymentMethod VARCHAR(50),
+    PaymentReference VARCHAR(100),
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_PayrollEntries UNIQUE(PeriodId, EmployeeId)
 );
 
--- Employee Skills
-CREATE TABLE performance.employee_skills (
-    employee_skill_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    employee_id UUID REFERENCES employee.employees(employee_id) ON DELETE CASCADE,
-    skill_id UUID REFERENCES performance.skill_sets(skill_id) ON DELETE CASCADE,
-    proficiency_level INTEGER DEFAULT 1,
-    assessed_by UUID REFERENCES employee.employees(employee_id),
-    last_assessed DATE,
-    notes TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(employee_id, skill_id)
+-- ==============================
+-- PERFORMANCE SCHEMA
+-- ==============================
+
+CREATE TABLE performance.SkillSets (
+    SkillId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    SkillName VARCHAR(100) NOT NULL,
+    Category VARCHAR(100),
+    Description TEXT,
+    SkillLevelScale JSONB DEFAULT '[1,2,3,4,5]',
+    IsActive BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_SkillSets UNIQUE(OrganizationId, SkillName)
 );
 
--- KRA (Key Result Areas)
-CREATE TABLE performance.kras (
-    kra_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    position_id UUID REFERENCES employee.positions(position_id),
-    kra_title VARCHAR(255) NOT NULL,
-    description TEXT,
-    weight_percentage INTEGER DEFAULT 0,
-    measurement_criteria TEXT,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE performance.EmployeeSkills (
+    EmployeeSkillId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    EmployeeId UUID,
+    SkillId UUID,
+    ProficiencyLevel INTEGER DEFAULT 1,
+    AssessedBy UUID,
+    LastAssessed DATE,
+    Notes TEXT,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_EmployeeSkills UNIQUE(EmployeeId, SkillId)
 );
 
--- Appraisal Cycles
-CREATE TABLE performance.appraisal_cycles (
-    cycle_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id) ON DELETE CASCADE,
-    cycle_name VARCHAR(100) NOT NULL,
-    description TEXT,
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    review_period_start DATE,
-    review_period_end DATE,
-    status VARCHAR(20) DEFAULT 'active',
-    rating_scale JSONB DEFAULT '{"type": "5-point", "scale": [1,2,3,4,5]}',
-    self_review_enabled BOOLEAN DEFAULT true,
-    peer_review_enabled BOOLEAN DEFAULT false,
-    manager_review_enabled BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(organization_id, cycle_name)
+CREATE TABLE performance.KRAs (
+    KraId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    PositionId UUID,
+    KraTitle VARCHAR(255) NOT NULL,
+    Description TEXT,
+    WeightPercentage INTEGER DEFAULT 0,
+    MeasurementCriteria TEXT,
+    IsActive BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Employee Appraisals
-CREATE TABLE performance.employee_appraisals (
-    appraisal_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    cycle_id UUID REFERENCES performance.appraisal_cycles(cycle_id) ON DELETE CASCADE,
-    employee_id UUID REFERENCES employee.employees(employee_id) ON DELETE CASCADE,
-    reviewer_id UUID REFERENCES employee.employees(employee_id),
-    review_type VARCHAR(20) DEFAULT 'manager', -- self, peer, manager
-    overall_rating DECIMAL(3, 2),
-    kra_ratings JSONB DEFAULT '{}',
-    skill_ratings JSONB DEFAULT '{}',
-    goals_achieved JSONB DEFAULT '{}',
-    feedback TEXT,
-    improvement_areas TEXT,
-    development_plan TEXT,
-    status VARCHAR(20) DEFAULT 'draft',
-    submitted_at TIMESTAMP WITH TIME ZONE,
-    reviewed_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE(cycle_id, employee_id, reviewer_id, review_type)
+CREATE TABLE performance.AppraisalCycles (
+    CycleId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    CycleName VARCHAR(100) NOT NULL,
+    Description TEXT,
+    StartDate DATE NOT NULL,
+    EndDate DATE NOT NULL,
+    ReviewPeriodStart DATE,
+    ReviewPeriodEnd DATE,
+    Status VARCHAR(20) DEFAULT 'active',
+    RatingScale JSONB DEFAULT '{"type": "5-point", "scale": [1,2,3,4,5]}',
+    SelfReviewEnabled BOOLEAN DEFAULT true,
+    PeerReviewEnabled BOOLEAN DEFAULT false,
+    ManagerReviewEnabled BOOLEAN DEFAULT true,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_AppraisalCycles UNIQUE(OrganizationId, CycleName)
 );
 
--- Document Management
-CREATE TABLE employee.documents (
-    document_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    employee_id UUID REFERENCES employee.employees(employee_id) ON DELETE CASCADE,
-    document_type VARCHAR(100) NOT NULL,
-    document_name VARCHAR(255) NOT NULL,
-    file_url VARCHAR(500) NOT NULL,
-    file_size BIGINT,
-    mime_type VARCHAR(100),
-    uploaded_by UUID REFERENCES employee.employees(employee_id),
-    is_confidential BOOLEAN DEFAULT false,
-    expiry_date DATE,
-    status VARCHAR(20) DEFAULT 'active',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE performance.EmployeeAppraisals (
+    AppraisalId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    CycleId UUID,
+    EmployeeId UUID,
+    ReviewerId UUID,
+    ReviewType VARCHAR(20) DEFAULT 'manager',
+    OverallRating DECIMAL(3, 2),
+    KraRatings JSONB DEFAULT '{}',
+    SkillRatings JSONB DEFAULT '{}',
+    GoalsAchieved JSONB DEFAULT '{}',
+    Feedback TEXT,
+    ImprovementAreas TEXT,
+    DevelopmentPlan TEXT,
+    Status VARCHAR(20) DEFAULT 'draft',
+    SubmittedAt TIMESTAMP WITH TIME ZONE,
+    ReviewedAt TIMESTAMP WITH TIME ZONE,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT UQ_EmployeeAppraisals UNIQUE(CycleId, EmployeeId, ReviewerId, ReviewType)
 );
 
--- Audit Log for tracking changes
-CREATE TABLE admin.audit_logs (
-    log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    organization_id UUID REFERENCES auth.organizations(organization_id),
-    user_id UUID REFERENCES auth.users(user_id),
-    table_name VARCHAR(100) NOT NULL,
-    record_id UUID NOT NULL,
-    action VARCHAR(20) NOT NULL, -- INSERT, UPDATE, DELETE
-    old_values JSONB,
-    new_values JSONB,
-    ip_address INET,
-    user_agent TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+-- ==============================
+-- ADMIN SCHEMA
+-- ==============================
+
+CREATE TABLE admin.AuditLogs (
+    LogId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    OrganizationId UUID,
+    UserId UUID,
+    TableName VARCHAR(100) NOT NULL,
+    RecordId UUID NOT NULL,
+    Action VARCHAR(20) NOT NULL,
+    OldValues JSONB,
+    NewValues JSONB,
+    IpAddress INET,
+    UserAgent TEXT,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
-
--- Add department manager foreign key constraint
-ALTER TABLE employee.departments 
-ADD CONSTRAINT fk_department_manager FOREIGN KEY (manager_id) REFERENCES employee.employees(employee_id);
-
--- Create indexes for better performance
-CREATE INDEX idx_users_organization ON auth.users(organization_id);
-CREATE INDEX idx_users_email ON auth.users(email);
-CREATE INDEX idx_employees_organization ON employee.employees(organization_id);
-CREATE INDEX idx_employees_code ON employee.employees(employee_code);
-CREATE INDEX idx_attendance_employee_date ON attendance.attendance(employee_id, work_date);
-CREATE INDEX idx_leave_requests_employee ON attendance.leave_requests(employee_id);
-CREATE INDEX idx_payroll_entries_period ON payroll.payroll_entries(period_id);
-CREATE INDEX idx_audit_logs_table_record ON admin.audit_logs(table_name, record_id);

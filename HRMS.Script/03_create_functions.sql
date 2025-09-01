@@ -4,38 +4,47 @@
 -- =====================================================================
 
 
--- FUNCTION: auth.fn_authenticate_user(character varying, character varying)
-
--- DROP FUNCTION IF EXISTS auth.fn_authenticate_user(character varying, character varying);
-
+-- ======================================================
+-- Function: fn_authenticate_user
+-- ======================================================
 CREATE OR REPLACE FUNCTION auth.fn_authenticate_user(
-	p_email character varying,
-	p_password_hash character varying)
-    RETURNS TABLE(user_id uuid, organization_id uuid, email character varying, first_name character varying, last_name character varying, role_name character varying, permissions jsonb, organization_name character varying, is_active boolean) 
-    LANGUAGE 'plpgsql'
-    COST 100
-    VOLATILE PARALLEL UNSAFE
-    ROWS 1000
-
+    p_email character varying,
+    p_password_hash character varying
+)
+RETURNS TABLE(
+    userId uuid, 
+    organizationId uuid, 
+    email character varying, 
+    firstName character varying, 
+    lastName character varying, 
+    roleName character varying, 
+    permissions jsonb, 
+    organizationName character varying, 
+    isActive boolean
+) 
+LANGUAGE 'plpgsql'
+COST 100
+VOLATILE PARALLEL UNSAFE
+ROWS 1000
 AS $BODY$
 BEGIN
     RETURN QUERY
     SELECT 
-        u.user_id,
-        u.organization_id,
+        u.userId,
+        u.organizationId,
         u.email,
-        u.first_name,
-        u.last_name,
-        r.role_name,
+        u.firstName,
+        u.lastName,
+        r.roleName,
         r.permissions,
-        o.name AS organization_name,
-        u.is_active
+        o.name AS organizationName,
+        u.isActive
     FROM auth.users u
-    INNER JOIN auth.roles r ON u.role_id = r.role_id
-    INNER JOIN auth.organizations o ON u.organization_id = o.organization_id
+    INNER JOIN auth.roles r ON u.roleId = r.roleId
+    INNER JOIN auth.organizations o ON u.organizationId = o.organizationId
     WHERE u.email = p_email 
-      AND u.password_hash = p_password_hash 
-      AND u.is_active = true
+      AND u.passwordHash = p_password_hash 
+      AND u.isActive = true
       AND o.status = 'active';
 END;
 $BODY$;
@@ -43,136 +52,144 @@ $BODY$;
 ALTER FUNCTION auth.fn_authenticate_user(character varying, character varying)
     OWNER TO postgres;
 
-    -- FUNCTION: auth.fn_create_organization(character varying, character varying, character varying)
 
--- DROP FUNCTION IF EXISTS auth.fn_create_organization(character varying, character varying, character varying);
-
+-- ======================================================
+-- Function: fn_create_organization
+-- ======================================================
 CREATE OR REPLACE FUNCTION auth.fn_create_organization(
-	p_name character varying,
-	p_domain character varying DEFAULT NULL::character varying,
-	p_subscription_type character varying DEFAULT 'basic'::character varying)
-    RETURNS uuid
-    LANGUAGE 'plpgsql'
-    COST 100
-    VOLATILE PARALLEL UNSAFE
+    p_name character varying,
+    p_domain character varying DEFAULT NULL::character varying,
+    p_subscription_type character varying DEFAULT 'basic'::character varying
+)
+RETURNS uuid
+LANGUAGE 'plpgsql'
+COST 100
+VOLATILE PARALLEL UNSAFE
 AS $BODY$
 DECLARE
-    new_org_id UUID;
+    newOrgId UUID;
 BEGIN
-    INSERT INTO auth.organizations (name, domain, subscription_type)
+    INSERT INTO auth.organizations (name, domain, subscriptionType)
     VALUES (p_name, p_domain, p_subscription_type)
-    RETURNING organization_id INTO new_org_id;
+    RETURNING organizationId INTO newOrgId;
     
     -- Create default roles for the organization
-    INSERT INTO auth.roles (organization_id, role_name, permissions, is_system_role)
+    INSERT INTO auth.roles (organizationId, roleName, permissions, isSystemRole)
     VALUES 
-        (new_org_id, 'Super Admin', '{"all": true}', true),
-        (new_org_id, 'HR Manager', '{"employees": "all", "payroll": "all", "attendance": "all", "performance": "all"}', true),
-        (new_org_id, 'Manager', '{"employees": "read", "attendance": "manage_team", "performance": "manage_team"}', true),
-        (new_org_id, 'Employee', '{"employees": "self", "attendance": "self", "performance": "self"}', true);
+        (newOrgId, 'Super Admin', '{"all": true}', true),
+        (newOrgId, 'HR Manager', '{"employees": "all", "payroll": "all", "attendance": "all", "performance": "all"}', true),
+        (newOrgId, 'Manager', '{"employees": "read", "attendance": "manage_team", "performance": "manage_team"}', true),
+        (newOrgId, 'Employee', '{"employees": "self", "attendance": "self", "performance": "self"}', true);
     
-    RETURN new_org_id;
+    RETURN newOrgId;
 END;
 $BODY$;
 
 ALTER FUNCTION auth.fn_create_organization(character varying, character varying, character varying)
     OWNER TO postgres;
 
-    -- FUNCTION: auth.fn_create_user(uuid, character varying, character varying, character varying, character varying, character varying)
 
--- DROP FUNCTION IF EXISTS auth.fn_create_user(uuid, character varying, character varying, character varying, character varying, character varying);
-
+-- ======================================================
+-- Function: fn_create_user
+-- ======================================================
 CREATE OR REPLACE FUNCTION auth.fn_create_user(
-	p_organization_id uuid,
-	p_email character varying,
-	p_password_hash character varying,
-	p_first_name character varying,
-	p_last_name character varying,
-	p_role_name character varying DEFAULT 'Employee'::character varying)
-    RETURNS uuid
-    LANGUAGE 'plpgsql'
-    COST 100
-    VOLATILE PARALLEL UNSAFE
+    p_organization_id uuid,
+    p_email character varying,
+    p_password_hash character varying,
+    p_first_name character varying,
+    p_last_name character varying,
+    p_role_name character varying DEFAULT 'Employee'::character varying
+)
+RETURNS uuid
+LANGUAGE 'plpgsql'
+COST 100
+VOLATILE PARALLEL UNSAFE
 AS $BODY$
 DECLARE
-    new_user_id UUID;
-    role_id_var UUID;
+    newUserId UUID;
+    roleIdVar UUID;
 BEGIN
     -- Get role ID
-    SELECT role_id INTO role_id_var 
+    SELECT roleId INTO roleIdVar 
     FROM auth.roles 
-    WHERE organization_id = p_organization_id AND role_name = p_role_name;
+    WHERE organizationId = p_organization_id AND roleName = p_role_name;
     
-    IF role_id_var IS NULL THEN
+    IF roleIdVar IS NULL THEN
         RAISE EXCEPTION 'Role % not found for organization', p_role_name;
     END IF;
     
-    INSERT INTO auth.users (organization_id, email, password_hash, first_name, last_name, role_id)
-    VALUES (p_organization_id, p_email, p_password_hash, p_first_name, p_last_name, role_id_var)
-    RETURNING user_id INTO new_user_id;
+    INSERT INTO auth.users (organizationId, email, passwordHash, firstName, lastName, roleId)
+    VALUES (p_organization_id, p_email, p_password_hash, p_first_name, p_last_name, roleIdVar)
+    RETURNING userId INTO newUserId;
     
-    RETURN new_user_id;
+    RETURN newUserId;
 END;
 $BODY$;
 
 ALTER FUNCTION auth.fn_create_user(uuid, character varying, character varying, character varying, character varying, character varying)
     OWNER TO postgres;
 
+
 -- =====================================================================
 -- employee FUNCTIONS
 -- =====================================================================
 
-
+-- Function: Get Employee By Id
 CREATE OR REPLACE FUNCTION employee.fn_get_employee_by_id(p_employee_id UUID)
 RETURNS TABLE (
-    employee_id UUID,
-    organization_id UUID,
-    user_id UUID,
-    employee_code VARCHAR(50),
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
+    employeeId UUID,
+    organizationId UUID,
+    userId UUID,
+    employeeCode VARCHAR(50),
+    firstName VARCHAR(100),
+    lastName VARCHAR(100),
     email VARCHAR(255),
     phone VARCHAR(20),
     address JSONB,
-    date_of_birth DATE,
-    hire_date DATE,
+    dateOfBirth DATE,
+    hireDate DATE,
     status VARCHAR(20),
-    department_name VARCHAR(100),
-    position_title VARCHAR(100),
-    basic_salary DECIMAL(15,2),
-    manager_name VARCHAR(201),
-    created_at TIMESTAMP WITH TIME ZONE
+    departmentName VARCHAR(100),
+    positionTitle VARCHAR(100),
+    basicSalary DECIMAL(15,2),
+    managerName VARCHAR(201),
+    createdAt TIMESTAMP WITH TIME ZONE
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-        e.employee_id,
-        e.organization_id,
-        e.user_id,
-        e.employee_code,
-        e.first_name,
-        e.last_name,
+        e.employee_id AS "employeeId",
+        e.organization_id AS "organizationId",
+        e.user_id AS "userId",
+        e.employee_code AS "employeeCode",
+        e.first_name AS "firstName",
+        e.last_name AS "lastName",
         e.email,
         e.phone,
         e.address,
-        e.date_of_birth,
-        e.hire_date,
+        e.date_of_birth AS "dateOfBirth",
+        e.hire_date AS "hireDate",
         e.status,
-        d.department_name,
-        p.position_title,
-        ed.basic_salary,
-        CONCAT(m.first_name, ' ', m.last_name) AS manager_name,
-        e.created_at
+        d.department_name AS "departmentName",
+        p.position_title AS "positionTitle",
+        ed.basic_salary AS "basicSalary",
+        CONCAT(m.first_name, ' ', m.last_name) AS "managerName",
+        e.created_at AS "createdAt"
     FROM employee.employees e
-    LEFT JOIN employee.employment_details ed ON e.employee_id = ed.employee_id AND ed.is_current = true
-    LEFT JOIN employee.departments d ON ed.department_id = d.department_id
-    LEFT JOIN employee.positions p ON ed.position_id = p.position_id
-    LEFT JOIN employee.employees m ON ed.reporting_manager_id = m.employee_id
+    LEFT JOIN employee.employment_details ed 
+           ON e.employee_id = ed.employee_id AND ed.is_current = true
+    LEFT JOIN employee.departments d 
+           ON ed.department_id = d.department_id
+    LEFT JOIN employee.positions p 
+           ON ed.position_id = p.position_id
+    LEFT JOIN employee.employees m 
+           ON ed.reporting_manager_id = m.employee_id
     WHERE e.employee_id = p_employee_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get employees with pagination and filters
+
+-- Function: Get Employees (with pagination & filters)
 CREATE OR REPLACE FUNCTION employee.fn_get_employees(
     p_organization_id UUID,
     p_search_term VARCHAR(255) DEFAULT NULL,
@@ -182,17 +199,17 @@ CREATE OR REPLACE FUNCTION employee.fn_get_employees(
     p_offset INTEGER DEFAULT 0
 )
 RETURNS TABLE (
-    employee_id UUID,
-    employee_code VARCHAR(50),
-    first_name VARCHAR(100),
-    last_name VARCHAR(100),
+    employeeId UUID,
+    employeeCode VARCHAR(50),
+    firstName VARCHAR(100),
+    lastName VARCHAR(100),
     email VARCHAR(255),
     phone VARCHAR(20),
-    hire_date DATE,
+    hireDate DATE,
     status VARCHAR(20),
-    department_name VARCHAR(100),
-    position_title VARCHAR(100),
-    total_count BIGINT
+    departmentName VARCHAR(100),
+    positionTitle VARCHAR(100),
+    totalCount BIGINT
 ) AS $$
 DECLARE
     total_records BIGINT;
@@ -200,8 +217,10 @@ BEGIN
     -- Get total count
     SELECT COUNT(*) INTO total_records
     FROM employee.employees e
-    LEFT JOIN employee.employment_details ed ON e.employee_id = ed.employee_id AND ed.is_current = true
-    LEFT JOIN employee.departments d ON ed.department_id = d.department_id
+    LEFT JOIN employee.employment_details ed 
+           ON e.employee_id = ed.employee_id AND ed.is_current = true
+    LEFT JOIN employee.departments d 
+           ON ed.department_id = d.department_id
     WHERE e.organization_id = p_organization_id
       AND (p_search_term IS NULL OR 
            LOWER(CONCAT(e.first_name, ' ', e.last_name, ' ', e.email, ' ', e.employee_code)) 
@@ -212,21 +231,24 @@ BEGIN
     -- Return paginated results
     RETURN QUERY
     SELECT 
-        e.employee_id,
-        e.employee_code,
-        e.first_name,
-        e.last_name,
+        e.employee_id AS "employeeId",
+        e.employee_code AS "employeeCode",
+        e.first_name AS "firstName",
+        e.last_name AS "lastName",
         e.email,
         e.phone,
-        e.hire_date,
+        e.hire_date AS "hireDate",
         e.status,
-        d.department_name,
-        p.position_title,
-        total_records
+        d.department_name AS "departmentName",
+        pos.position_title AS "positionTitle",
+        total_records AS "totalCount"
     FROM employee.employees e
-    LEFT JOIN employee.employment_details ed ON e.employee_id = ed.employee_id AND ed.is_current = true
-    LEFT JOIN employee.departments d ON ed.department_id = d.department_id
-    LEFT JOIN employee.positions pos ON ed.position_id = pos.position_id
+    LEFT JOIN employee.employment_details ed 
+           ON e.employee_id = ed.employee_id AND ed.is_current = true
+    LEFT JOIN employee.departments d 
+           ON ed.department_id = d.department_id
+    LEFT JOIN employee.positions pos 
+           ON ed.position_id = pos.position_id
     WHERE e.organization_id = p_organization_id
       AND (p_search_term IS NULL OR 
            LOWER(CONCAT(e.first_name, ' ', e.last_name, ' ', e.email, ' ', e.employee_code)) 
@@ -238,11 +260,12 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
 -- =====================================================================
 -- ATTENDANCE FUNCTIONS
 -- =====================================================================
 
--- Function to check in/out
+-- Function to clock in/out
 CREATE OR REPLACE FUNCTION attendance.fn_clock_in_out(
     p_employee_id UUID,
     p_action VARCHAR(10), -- 'in' or 'out'
@@ -251,34 +274,34 @@ CREATE OR REPLACE FUNCTION attendance.fn_clock_in_out(
 )
 RETURNS BOOLEAN AS $$
 DECLARE
-    today_date DATE := p_timestamp::DATE;
-    attendance_record RECORD;
+    todayDate DATE := p_timestamp::DATE;
+    attendanceRecord RECORD;
 BEGIN
     -- Get or create today's attendance record
-    SELECT * INTO attendance_record 
-    FROM attendance.attendance 
-    WHERE employee_id = p_employee_id AND work_date = today_date;
+    SELECT * INTO attendanceRecord 
+    FROM attendance.Attendance 
+    WHERE employeeId = p_employee_id AND workDate = todayDate;
     
-    IF attendance_record IS NULL THEN
+    IF attendanceRecord IS NULL THEN
         -- Create new attendance record
-        INSERT INTO attendance.attendance (employee_id, work_date, location)
-        VALUES (p_employee_id, today_date, COALESCE(p_location, '{}'));
+        INSERT INTO attendance.Attendance (employeeId, workDate, location)
+        VALUES (p_employee_id, todayDate, COALESCE(p_location, '{}'));
     END IF;
     
     IF p_action = 'in' THEN
-        UPDATE attendance.attendance 
-        SET check_in_time = p_timestamp,
+        UPDATE attendance.Attendance 
+        SET checkInTime = p_timestamp,
             status = 'present',
             location = COALESCE(p_location, location),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE employee_id = p_employee_id AND work_date = today_date;
+            updatedAt = CURRENT_TIMESTAMP
+        WHERE employeeId = p_employee_id AND workDate = todayDate;
     ELSIF p_action = 'out' THEN
-        UPDATE attendance.attendance 
-        SET check_out_time = p_timestamp,
-            total_hours = EXTRACT(EPOCH FROM (p_timestamp - check_in_time)) / 3600,
+        UPDATE attendance.Attendance 
+        SET checkOutTime = p_timestamp,
+            totalHours = EXTRACT(EPOCH FROM (p_timestamp - checkInTime)) / 3600,
             location = COALESCE(p_location, location),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE employee_id = p_employee_id AND work_date = today_date;
+            updatedAt = CURRENT_TIMESTAMP
+        WHERE employeeId = p_employee_id AND workDate = todayDate;
     END IF;
     
     RETURN TRUE;
@@ -295,48 +318,48 @@ CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
     p_offset INTEGER DEFAULT 0
 )
 RETURNS TABLE (
-    attendance_id UUID,
-    employee_id UUID,
-    employee_name VARCHAR(201),
-    work_date DATE,
-    check_in_time TIMESTAMP WITH TIME ZONE,
-    check_out_time TIMESTAMP WITH TIME ZONE,
-    total_hours DECIMAL(5,2),
-    overtime_hours DECIMAL(5,2),
+    attendanceId UUID,
+    employeeId UUID,
+    employeeName VARCHAR(201),
+    workDate DATE,
+    checkInTime TIMESTAMP WITH TIME ZONE,
+    checkOutTime TIMESTAMP WITH TIME ZONE,
+    totalHours DECIMAL(5,2),
+    overtimeHours DECIMAL(5,2),
     status VARCHAR(20),
-    total_count BIGINT
+    totalCount BIGINT
 ) AS $$
 DECLARE
-    total_records BIGINT;
+    totalRecords BIGINT;
 BEGIN
     -- Get total count
-    SELECT COUNT(*) INTO total_records
-    FROM attendance.attendance a
-    INNER JOIN employee.employees e ON a.employee_id = e.employee_id
-    WHERE (p_employee_id IS NULL OR a.employee_id = p_employee_id)
-      AND (p_organization_id IS NULL OR e.organization_id = p_organization_id)
-      AND (p_start_date IS NULL OR a.work_date >= p_start_date)
-      AND (p_end_date IS NULL OR a.work_date <= p_end_date);
+    SELECT COUNT(*) INTO totalRecords
+    FROM attendance.Attendance a
+    INNER JOIN employee.Employees e ON a.employeeId = e.employeeId
+    WHERE (p_employee_id IS NULL OR a.employeeId = p_employee_id)
+      AND (p_organization_id IS NULL OR e.organizationId = p_organization_id)
+      AND (p_start_date IS NULL OR a.workDate >= p_start_date)
+      AND (p_end_date IS NULL OR a.workDate <= p_end_date);
 
     RETURN QUERY
     SELECT 
-        a.attendance_id,
-        a.employee_id,
-        CONCAT(e.first_name, ' ', e.last_name) AS employee_name,
-        a.work_date,
-        a.check_in_time,
-        a.check_out_time,
-        a.total_hours,
-        a.overtime_hours,
+        a.attendanceId,
+        a.employeeId,
+        CONCAT(e.firstName, ' ', e.lastName) AS employeeName,
+        a.workDate,
+        a.checkInTime,
+        a.checkOutTime,
+        a.totalHours,
+        a.overtimeHours,
         a.status,
-        total_records
-    FROM attendance.attendance a
-    INNER JOIN employee.employees e ON a.employee_id = e.employee_id
-    WHERE (p_employee_id IS NULL OR a.employee_id = p_employee_id)
-      AND (p_organization_id IS NULL OR e.organization_id = p_organization_id)
-      AND (p_start_date IS NULL OR a.work_date >= p_start_date)
-      AND (p_end_date IS NULL OR a.work_date <= p_end_date)
-    ORDER BY a.work_date DESC, e.first_name
+        totalRecords
+    FROM attendance.Attendance a
+    INNER JOIN employee.Employees e ON a.employeeId = e.employeeId
+    WHERE (p_employee_id IS NULL OR a.employeeId = p_employee_id)
+      AND (p_organization_id IS NULL OR e.organizationId = p_organization_id)
+      AND (p_start_date IS NULL OR a.workDate >= p_start_date)
+      AND (p_end_date IS NULL OR a.workDate <= p_end_date)
+    ORDER BY a.workDate DESC, e.firstName
     LIMIT p_limit OFFSET p_offset;
 END;
 $$ LANGUAGE plpgsql;
@@ -369,10 +392,10 @@ BEGIN
     INTO days_requested;
     
     -- Check available leave balance
-    SELECT remaining_days INTO available_days
+    SELECT remainingDays INTO available_days
     FROM attendance.leave_entitlements 
-    WHERE employee_id = p_employee_id 
-      AND leave_type_id = p_leave_type_id 
+    WHERE employeeId = p_employee_id 
+      AND leaveTypeId = p_leave_type_id 
       AND year = current_year;
       
     IF available_days < days_requested THEN
@@ -381,18 +404,19 @@ BEGIN
     
     -- Create leave request
     INSERT INTO attendance.leave_requests (
-        employee_id, leave_type_id, start_date, end_date, 
-        days_requested, reason
+        employeeId, leaveTypeId, startDate, endDate, 
+        daysRequested, reason
     )
     VALUES (
         p_employee_id, p_leave_type_id, p_start_date, p_end_date,
         days_requested, p_reason
     )
-    RETURNING request_id INTO new_request_id;
+    RETURNING requestId INTO new_request_id;
     
     RETURN new_request_id;
 END;
 $$ LANGUAGE plpgsql;
+
 
 -- Function to approve/reject leave request
 CREATE OR REPLACE FUNCTION attendance.fn_update_leave_request_status(
@@ -409,31 +433,31 @@ BEGIN
     -- Get leave request details
     SELECT * INTO leave_request 
     FROM attendance.leave_requests 
-    WHERE request_id = p_request_id;
+    WHERE requestId = p_request_id;
     
     IF leave_request IS NULL THEN
         RAISE EXCEPTION 'Leave request not found';
     END IF;
     
-    current_year := EXTRACT(YEAR FROM leave_request.start_date);
+    current_year := EXTRACT(YEAR FROM leave_request.startDate);
     
     -- Update request status
     UPDATE attendance.leave_requests 
     SET status = p_status,
-        approved_by = p_approved_by,
-        approved_at = CASE WHEN p_status = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
-        rejection_reason = p_rejection_reason,
-        updated_at = CURRENT_TIMESTAMP
-    WHERE request_id = p_request_id;
+        approvedBy = p_approved_by,
+        approvedAt = CASE WHEN p_status = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
+        rejectionReason = p_rejection_reason,
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE requestId = p_request_id;
     
     -- If approved, update leave entitlements
     IF p_status = 'approved' THEN
         UPDATE attendance.leave_entitlements 
-        SET used_days = used_days + leave_request.days_requested,
-            remaining_days = remaining_days - leave_request.days_requested,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE employee_id = leave_request.employee_id 
-          AND leave_type_id = leave_request.leave_type_id 
+        SET usedDays = usedDays + leave_request.daysRequested,
+            remainingDays = remainingDays - leave_request.daysRequested,
+            updatedAt = CURRENT_TIMESTAMP
+        WHERE employeeId = leave_request.employeeId 
+          AND leaveTypeId = leave_request.leaveTypeId 
           AND year = current_year;
     END IF;
     
@@ -445,7 +469,9 @@ $$ LANGUAGE plpgsql;
 -- PAYROLL FUNCTIONS
 -- =====================================================================
 
--- Function to create payroll period
+-- ============================
+-- Function: Create Payroll Period
+-- ============================
 CREATE OR REPLACE FUNCTION payroll.fn_create_payroll_period(
     p_organization_id UUID,
     p_period_name VARCHAR(100),
@@ -457,19 +483,21 @@ RETURNS UUID AS $$
 DECLARE
     new_period_id UUID;
 BEGIN
-    INSERT INTO payroll.payroll_periods (
-        organization_id, period_name, start_date, end_date, pay_date
+    INSERT INTO payroll.payrollPeriods (
+        organizationId, periodName, startDate, endDate, payDate
     )
     VALUES (
         p_organization_id, p_period_name, p_start_date, p_end_date, p_pay_date
     )
-    RETURNING period_id INTO new_period_id;
+    RETURNING periodId INTO new_period_id;
     
     RETURN new_period_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to calculate payroll for a period
+-- ============================
+-- Function: Calculate Payroll
+-- ============================
 CREATE OR REPLACE FUNCTION payroll.fn_calculate_payroll(
     p_period_id UUID
 )
@@ -488,28 +516,27 @@ DECLARE
 BEGIN
     -- Get payroll period details
     SELECT * INTO payroll_period 
-    FROM payroll.payroll_periods 
-    WHERE period_id = p_period_id;
+    FROM payroll.payrollPeriods 
+    WHERE periodId = p_period_id;
     
-    -- Loop through all active employees for the organization
+    -- Loop through all employees (independent, no FK required)
     FOR employee_record IN 
-        SELECT e.employee_id, ed.basic_salary
+        SELECT e.employeeId, ed.basicSalary
         FROM employee.employees e
-        INNER JOIN employee.employment_details ed ON e.employee_id = ed.employee_id
-        WHERE e.organization_id = payroll_period.organization_id
-          AND e.status = 'active'
-          AND ed.is_current = true
+        LEFT JOIN employee.employmentDetails ed ON e.employeeId = ed.employeeId
+        WHERE e.status = 'active'
+          AND ed.isCurrent = true
     LOOP
-        basic_salary := COALESCE(employee_record.basic_salary, 0);
+        basic_salary := COALESCE(employee_record.basicSalary, 0);
         
         -- Calculate total hours worked in the period
         SELECT 
-            COALESCE(SUM(total_hours), 0),
-            COALESCE(SUM(overtime_hours), 0)
+            COALESCE(SUM(totalHours), 0),
+            COALESCE(SUM(overtimeHours), 0)
         INTO total_hours, overtime_hours
         FROM attendance.attendance
-        WHERE employee_id = employee_record.employee_id
-          AND work_date BETWEEN payroll_period.start_date AND payroll_period.end_date;
+        WHERE employeeId = employee_record.employeeId
+          AND workDate BETWEEN payroll_period.startDate AND payroll_period.endDate;
         
         -- Calculate gross salary (basic + overtime)
         gross_salary := basic_salary + (overtime_hours * (basic_salary / 160) * overtime_rate);
@@ -523,35 +550,35 @@ BEGIN
         net_salary := gross_salary - tax_amount;
         
         -- Insert or update payroll entry
-        INSERT INTO payroll.payroll_entries (
-            period_id, employee_id, basic_salary, overtime_amount,
-            gross_salary, tax_amount, net_salary, calculated_at
+        INSERT INTO payroll.payrollEntries (
+            periodId, employeeId, basicSalary, overtimeAmount,
+            grossSalary, taxAmount, netSalary, calculatedAt
         )
         VALUES (
-            p_period_id, employee_record.employee_id, basic_salary,
+            p_period_id, employee_record.employeeId, basic_salary,
             overtime_hours * (basic_salary / 160) * overtime_rate,
             gross_salary, tax_amount, net_salary, CURRENT_TIMESTAMP
         )
-        ON CONFLICT (period_id, employee_id) 
+        ON CONFLICT (periodId, employeeId) 
         DO UPDATE SET 
-            basic_salary = EXCLUDED.basic_salary,
-            overtime_amount = EXCLUDED.overtime_amount,
-            gross_salary = EXCLUDED.gross_salary,
-            tax_amount = EXCLUDED.tax_amount,
-            net_salary = EXCLUDED.net_salary,
-            calculated_at = CURRENT_TIMESTAMP;
+            basicSalary = EXCLUDED.basicSalary,
+            overtimeAmount = EXCLUDED.overtimeAmount,
+            grossSalary = EXCLUDED.grossSalary,
+            taxAmount = EXCLUDED.taxAmount,
+            netSalary = EXCLUDED.netSalary,
+            calculatedAt = CURRENT_TIMESTAMP;
         
         entries_created := entries_created + 1;
     END LOOP;
     
     -- Update payroll period totals
-    UPDATE payroll.payroll_periods 
-    SET total_employees = entries_created,
-        total_gross_amount = (SELECT SUM(gross_salary) FROM payroll.payroll_entries WHERE period_id = p_period_id),
-        total_tax_amount = (SELECT SUM(tax_amount) FROM payroll.payroll_entries WHERE period_id = p_period_id),
-        total_net_amount = (SELECT SUM(net_salary) FROM payroll.payroll_entries WHERE period_id = p_period_id),
-        updated_at = CURRENT_TIMESTAMP
-    WHERE period_id = p_period_id;
+    UPDATE payroll.payrollPeriods 
+    SET totalEmployees = entries_created,
+        totalGrossAmount = (SELECT SUM(grossSalary) FROM payroll.payrollEntries WHERE periodId = p_period_id),
+        totalTaxAmount = (SELECT SUM(taxAmount) FROM payroll.payrollEntries WHERE periodId = p_period_id),
+        totalNetAmount = (SELECT SUM(netSalary) FROM payroll.payrollEntries WHERE periodId = p_period_id),
+        updatedAt = CURRENT_TIMESTAMP
+    WHERE periodId = p_period_id;
     
     RETURN entries_created;
 END;
@@ -561,7 +588,9 @@ $$ LANGUAGE plpgsql;
 -- PERFORMANCE MANAGEMENT FUNCTIONS
 -- =====================================================================
 
--- Function to create appraisal cycle
+-- ============================
+-- Function: Create Appraisal Cycle
+-- ============================
 CREATE OR REPLACE FUNCTION performance.fn_create_appraisal_cycle(
     p_organization_id UUID,
     p_cycle_name VARCHAR(100),
@@ -573,40 +602,65 @@ RETURNS UUID AS $$
 DECLARE
     new_cycle_id UUID;
 BEGIN
-    INSERT INTO performance.appraisal_cycles (
-        organization_id, cycle_name, start_date, end_date, description
+    INSERT INTO performance.appraisalCycles (
+        organizationId, cycleName, startDate, endDate, description
     )
     VALUES (
         p_organization_id, p_cycle_name, p_start_date, p_end_date, p_description
     )
-    RETURNING cycle_id INTO new_cycle_id;
+    RETURNING cycleId INTO new_cycle_id;
     
     RETURN new_cycle_id;
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get dashboard statistics
+-- ============================
+-- Function: Get Dashboard Stats
+-- ============================
 CREATE OR REPLACE FUNCTION admin.fn_get_dashboard_stats(p_organization_id UUID)
 RETURNS TABLE (
-    total_employees BIGINT,
-    active_employees BIGINT,
-    pending_leave_requests BIGINT,
-    present_today BIGINT,
-    total_departments BIGINT
+    totalEmployees BIGINT,
+    activeEmployees BIGINT,
+    pendingLeaveRequests BIGINT,
+    presentToday BIGINT,
+    totalDepartments BIGINT
 ) AS $$
 BEGIN
     RETURN QUERY
     SELECT 
-        (SELECT COUNT(*) FROM employee.employees WHERE organization_id = p_organization_id) AS total_employees,
-        (SELECT COUNT(*) FROM employee.employees WHERE organization_id = p_organization_id AND status = 'active') AS active_employees,
-        (SELECT COUNT(*) FROM attendance.leave_requests lr 
-         INNER JOIN employee.employees e ON lr.employee_id = e.employee_id 
-         WHERE e.organization_id = p_organization_id AND lr.status = 'pending') AS pending_leave_requests,
-        (SELECT COUNT(*) FROM attendance.attendance a 
-         INNER JOIN employee.employees e ON a.employee_id = e.employee_id 
-         WHERE e.organization_id = p_organization_id 
-           AND a.work_date = CURRENT_DATE 
-           AND a.status = 'present') AS present_today,
-        (SELECT COUNT(*) FROM employee.departments WHERE organization_id = p_organization_id AND is_active = true) AS total_departments;
+        -- Total employees
+        (SELECT COUNT(*) 
+         FROM employee.employees 
+         WHERE organizationId = p_organization_id) AS totalEmployees,
+
+        -- Active employees
+        (SELECT COUNT(*) 
+         FROM employee.employees 
+         WHERE organizationId = p_organization_id 
+           AND status = 'active') AS activeEmployees,
+
+        -- Pending leave requests
+        (SELECT COUNT(*) 
+         FROM attendance.leaveRequests lr 
+         LEFT JOIN employee.employees e 
+                ON lr.employeeId = e.employeeId 
+         WHERE e.organizationId = p_organization_id 
+           AND lr.status = 'pending') AS pendingLeaveRequests,
+
+        -- Employees present today
+        (SELECT COUNT(*) 
+         FROM attendance.attendance a 
+         LEFT JOIN employee.employees e 
+                ON a.employeeId = e.employeeId 
+         WHERE e.organizationId = p_organization_id 
+           AND a.workDate = CURRENT_DATE 
+           AND a.status = 'present') AS presentToday,
+
+        -- Active departments
+        (SELECT COUNT(*) 
+         FROM employee.departments 
+         WHERE organizationId = p_organization_id 
+           AND isActive = true) AS totalDepartments;
 END;
 $$ LANGUAGE plpgsql;
+
