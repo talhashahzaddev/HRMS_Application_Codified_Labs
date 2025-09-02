@@ -134,6 +134,56 @@ ALTER FUNCTION auth.fn_create_user(uuid, character varying, character varying, c
 -- employee FUNCTIONS
 -- =====================================================================
 
+CREATE OR REPLACE FUNCTION employee.fn_create_employee(
+    p_organization_id UUID,
+    p_user_id UUID,
+    p_employee_code VARCHAR,
+    p_first_name VARCHAR,
+    p_last_name VARCHAR,
+    p_email VARCHAR,
+    p_phone VARCHAR,
+    p_date_of_birth TIMESTAMPTZ,
+    p_hire_date TIMESTAMPTZ,
+    p_department_id UUID,
+    p_position_id UUID,
+    p_basic_salary NUMERIC,
+    p_address JSONB
+)
+RETURNS UUID AS $$
+DECLARE
+    v_employee_id UUID;
+BEGIN
+    INSERT INTO employee.employees (
+        organizationid,
+        userid,
+        employeecode,
+        firstname,
+        lastname,
+        email,
+        phone,
+        address,
+        dateofbirth,
+        hiredate
+    )
+    VALUES (
+        p_organization_id,
+        p_user_id,
+        p_employee_code,
+        p_first_name,
+        p_last_name,
+        p_email,
+        p_phone,
+        COALESCE(p_address, '{}'::jsonb),
+        p_date_of_birth::date,
+        p_hire_date::date
+    )
+    RETURNING employeeid INTO v_employee_id;
+
+    RETURN v_employee_id;
+END;
+$$ LANGUAGE plpgsql;
+
+
 -- Function: Get Employee By Id
 CREATE OR REPLACE FUNCTION employee.fn_get_employee_by_id(p_employee_id UUID)
 RETURNS TABLE (
@@ -191,26 +241,28 @@ $$ LANGUAGE plpgsql;
 
 -- Function: Get Employees (with pagination & filters)
 CREATE OR REPLACE FUNCTION employee.fn_get_employees(
-    p_organization_id UUID,
-    p_search_term VARCHAR(255) DEFAULT NULL,
-    p_department_id UUID DEFAULT NULL,
-    p_status VARCHAR(20) DEFAULT NULL,
-    p_limit INTEGER DEFAULT 50,
-    p_offset INTEGER DEFAULT 0
+    p_organization_id uuid,
+    p_search_term character varying DEFAULT NULL,
+    p_department_id uuid DEFAULT NULL,
+    p_status character varying DEFAULT NULL,
+    p_limit integer DEFAULT 50,
+    p_offset integer DEFAULT 0
 )
-RETURNS TABLE (
-    employeeId UUID,
-    employeeCode VARCHAR(50),
-    firstName VARCHAR(100),
-    lastName VARCHAR(100),
-    email VARCHAR(255),
-    phone VARCHAR(20),
-    hireDate DATE,
-    status VARCHAR(20),
-    departmentName VARCHAR(100),
-    positionTitle VARCHAR(100),
-    totalCount BIGINT
-) AS $$
+RETURNS TABLE(
+    employeeid uuid,
+    employeecode character varying,
+    firstname character varying,
+    lastname character varying,
+    email character varying,
+    phone character varying,
+    hiredate date,
+    status character varying,
+    departmentname character varying,
+    positiontitle character varying,
+    totalcount bigint
+) 
+LANGUAGE plpgsql
+AS $BODY$
 DECLARE
     total_records BIGINT;
 BEGIN
@@ -218,47 +270,50 @@ BEGIN
     SELECT COUNT(*) INTO total_records
     FROM employee.employees e
     LEFT JOIN employee.employment_details ed 
-           ON e.employee_id = ed.employee_id AND ed.is_current = true
+           ON e.employeeid = ed.employeeid AND ed.is_current = true
     LEFT JOIN employee.departments d 
-           ON ed.department_id = d.department_id
-    WHERE e.organization_id = p_organization_id
+           ON ed.departmentid = d.departmentid
+    WHERE e.organizationid = p_organization_id
       AND (p_search_term IS NULL OR 
-           LOWER(CONCAT(e.first_name, ' ', e.last_name, ' ', e.email, ' ', e.employee_code)) 
+           LOWER(CONCAT(e.firstname, ' ', e.lastname, ' ', e.email, ' ', e.employeecode)) 
            LIKE LOWER('%' || p_search_term || '%'))
-      AND (p_department_id IS NULL OR ed.department_id = p_department_id)
+      AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
       AND (p_status IS NULL OR e.status = p_status);
 
     -- Return paginated results
     RETURN QUERY
     SELECT 
-        e.employee_id AS "employeeId",
-        e.employee_code AS "employeeCode",
-        e.first_name AS "firstName",
-        e.last_name AS "lastName",
+        e.employeeid,
+        e.employeecode,
+        e.firstname,
+        e.lastname,
         e.email,
         e.phone,
-        e.hire_date AS "hireDate",
+        e.hiredate,
         e.status,
-        d.department_name AS "departmentName",
-        pos.position_title AS "positionTitle",
-        total_records AS "totalCount"
+        d.departmentname,
+        pos.positiontitle,
+        total_records
     FROM employee.employees e
     LEFT JOIN employee.employment_details ed 
-           ON e.employee_id = ed.employee_id AND ed.is_current = true
+           ON e.employeeid = ed.employeeid AND ed.is_current = true
     LEFT JOIN employee.departments d 
-           ON ed.department_id = d.department_id
+           ON ed.departmentid = d.departmentid
     LEFT JOIN employee.positions pos 
-           ON ed.position_id = pos.position_id
-    WHERE e.organization_id = p_organization_id
+           ON ed.positionid = pos.positionid
+    WHERE e.organizationid = p_organization_id
       AND (p_search_term IS NULL OR 
-           LOWER(CONCAT(e.first_name, ' ', e.last_name, ' ', e.email, ' ', e.employee_code)) 
+           LOWER(CONCAT(e.firstname, ' ', e.lastname, ' ', e.email, ' ', e.employeecode)) 
            LIKE LOWER('%' || p_search_term || '%'))
-      AND (p_department_id IS NULL OR ed.department_id = p_department_id)
+      AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
       AND (p_status IS NULL OR e.status = p_status)
-    ORDER BY e.first_name, e.last_name
+    ORDER BY e.firstname, e.lastname
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$;
+
+ALTER FUNCTION employee.fn_get_employees(uuid, character varying, uuid, character varying, integer, integer)
+    OWNER TO postgres;
 
 
 -- =====================================================================
