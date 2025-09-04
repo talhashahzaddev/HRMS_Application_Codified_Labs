@@ -9,7 +9,9 @@ public interface IEmployeeRepository
     Task<Employee?> GetEmployeeByIdAsync(Guid employeeId);
     Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode);
     Task<Employee?> GetEmployeeByEmailAsync(Guid organizationId, string email);
-    Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(Guid organizationId, string? searchTerm = null, Guid? departmentId = null, string? status = null, int page = 1, int pageSize = 50);
+    Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
+    Guid? organizationId = null, string? searchTerm = null, Guid? departmentId = null,
+    string? status = null, int page = 1, int pageSize = 50);
     Task<bool> UpdateEmployeeAsync(Employee employee);
     Task<bool> DeleteEmployeeAsync(Guid employeeId);
     Task<List<Department>> GetDepartmentsAsync(Guid organizationId);

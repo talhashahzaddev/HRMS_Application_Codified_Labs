@@ -60,6 +60,12 @@ public class Employee : BaseEntity
     
     [Column("profile_picture_url")]
     public string? ProfilePictureUrl { get; set; }
+    [Column("departmentid")]
+    public Guid? DepartmentId { get; set; }
+    [Column("positionid")]
+    public Guid? PositionId { get; set; }
+    [Column("basicsalary")]
+    public decimal? BasicSalary { get; set; }
 
     // Navigation properties
     [NotMapped]
