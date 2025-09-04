@@ -260,7 +260,7 @@ public class EmployeeService : IEmployeeService
         var csvData = "EmployeeCode,FirstName,LastName,Email,Department,Position,HireDate,Status\n";
         foreach (var employee in employees.Data)
         {
-            csvData += $"{employee.EmployeeCode},{employee.FirstName},{employee.LastName},{employee.Email},{employee.Department},{employee.Position},{employee.HireDate:yyyy-MM-dd},{(employee.IsActive ? "Active" : "Inactive")}\n";
+            csvData += $"{employee.EmployeeCode},{employee.FirstName},{employee.LastName},{employee.Email},{employee.Department},{employee.Position},{employee.HireDate:yyyy-MM-dd},{((bool)employee.IsActive ? "Active" : "Inactive")}\n";
         }
         
         return System.Text.Encoding.UTF8.GetBytes(csvData);

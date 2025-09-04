@@ -31,9 +31,9 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 phone = employee.Phone,
                 dateOfBirth = employee.DateOfBirth,
                 hireDate = employee.HireDate,
-                departmentId = (Guid?)null,
-                positionId = (Guid?)null,
-                basicSalary = (decimal?)null,
+                departmentId = employee.DepartmentId,
+                positionId = employee.PositionId,     
+                basicSalary = employee.BasicSalary,
                 address = System.Text.Json.JsonSerializer.Serialize(employee.Address)
             });
 
@@ -84,38 +84,44 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     }
 
     public async Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
-        Guid organizationId, string? searchTerm = null, Guid? departmentId = null, 
-        string? status = null, int page = 1, int pageSize = 50)
+    Guid? organizationId = null, string? searchTerm = null, Guid? departmentId = null,
+    string? status = null, int page = 1, int pageSize = 50)
+{
+    try
     {
-        try
-        {
-
         var results = await QueryAsync<dynamic>(
-            "SELECT * FROM employee.fn_get_employees(@organizationId, @searchTerm, @departmentId, @status, @limit, @offset)",
-            new 
-            { 
-                organizationId, 
-                searchTerm, 
-                departmentId, 
-                status, 
-                limit = pageSize, 
-                offset = (page - 1) * pageSize 
+            @"SELECT * 
+              FROM employee.fn_get_employees(
+                   @organizationId, 
+                   @searchTerm, 
+                   @departmentId, 
+                   @status, 
+                   @limit, 
+                   @offset)",
+            new
+            {
+                organizationId = organizationId == Guid.Empty ? null : organizationId,
+                searchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+                departmentId = departmentId == Guid.Empty ? null : departmentId,
+                status = string.IsNullOrWhiteSpace(status) ? null : status,
+                limit = pageSize,
+                offset = (page - 1) * pageSize
             });
 
         var employees = results.Select(r => new EmployeeListItemDto
         {
-            EmployeeId = r.employee_id,
-            EmployeeCode = r.employee_code,
-            FullName = $"{r.first_name} {r.last_name}",
+            EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
+            EmployeeCode = r.employeecode,
+            FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
             Email = r.email,
             Phone = r.phone,
-            HireDate = r.hire_date,
+            HireDate = r.hiredate,
             Status = r.status,
-            DepartmentName = r.department_name,
-            PositionTitle = r.position_title
+            DepartmentName = r.departmentname,
+            PositionTitle = r.positiontitle
         }).ToList();
 
-        var totalCount = results.FirstOrDefault()?.total_count ?? 0;
+        var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
 
         return new PagedResult<EmployeeListItemDto>
         {
@@ -124,12 +130,14 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             Page = page,
             PageSize = pageSize
         };
-        }
-        catch (Exception ex)
-        {
-            throw;
-        }
     }
+    catch (Exception ex)
+    {
+        // You can log ex here if needed
+        throw;
+    }
+}
+
 
     public async Task<bool> UpdateEmployeeAsync(Employee employee)
     {
@@ -165,15 +173,23 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<List<Department>> GetDepartmentsAsync(Guid organizationId)
     {
+        try
+        {
         var sql = @"
             SELECT departmentid, organizationid, departmentname, description, 
                    managerid, parentdepartmentid, budget, isactive, createdat, updatedat
             FROM employee.departments 
-            WHERE organizationid = @organizationId AND is_active = true
+            WHERE organizationid = @organizationId AND isactive = true
             ORDER BY departmentname";
 
         var results = await QueryAsync<Department>(sql, new { organizationId });
         return results.ToList();
+
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<Department> CreateDepartmentAsync(Department department)
