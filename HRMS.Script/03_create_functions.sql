@@ -397,27 +397,24 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get attendance records
+-- FUNCTION: attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer)
+
+-- DROP FUNCTION IF EXISTS attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer);
+
 CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
-    p_employee_id UUID DEFAULT NULL,
-    p_organization_id UUID DEFAULT NULL,
-    p_start_date DATE DEFAULT NULL,
-    p_end_date DATE DEFAULT NULL,
-    p_limit INTEGER DEFAULT 100,
-    p_offset INTEGER DEFAULT 0
-)
-RETURNS TABLE (
-    attendanceId UUID,
-    employeeId UUID,
-    employeeName VARCHAR(201),
-    workDate DATE,
-    checkInTime TIMESTAMP WITH TIME ZONE,
-    checkOutTime TIMESTAMP WITH TIME ZONE,
-    totalHours DECIMAL(5,2),
-    overtimeHours DECIMAL(5,2),
-    status VARCHAR(20),
-    totalCount BIGINT
-) AS $$
+	p_employee_id uuid DEFAULT NULL::uuid,
+	p_organization_id uuid DEFAULT NULL::uuid,
+	p_start_date date DEFAULT NULL::date,
+	p_end_date date DEFAULT NULL::date,
+	p_limit integer DEFAULT 100,
+	p_offset integer DEFAULT 0)
+    RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, totalcount bigint) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
+AS $BODY$
 DECLARE
     totalRecords BIGINT;
 BEGIN
@@ -434,7 +431,7 @@ BEGIN
     SELECT 
         a.attendanceId,
         a.employeeId,
-        CONCAT(e.firstName, ' ', e.lastName) AS employeeName,
+        CONCAT(e.firstName, ' ', e.lastName)::varchar AS employeeName,
         a.workDate,
         a.checkInTime,
         a.checkOutTime,
@@ -451,7 +448,10 @@ BEGIN
     ORDER BY a.workDate DESC, e.firstName
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$;
+
+ALTER FUNCTION attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer)
+    OWNER TO postgres;
 
 -- =====================================================================
 -- LEAVE MANAGEMENT FUNCTIONS
