@@ -68,10 +68,10 @@ public class RecentActivityDto
 // Dashboard-specific DTOs
 public class DashboardSummaryDto
 {
-    public long TotalEmployees { get; set; }
-    public long PresentToday { get; set; }
-    public long OnLeaveToday { get; set; }
-    public long PendingApprovals { get; set; }
+    public long? TotalEmployees { get; set; }
+    public long? PresentToday { get; set; }
+    public long? OnLeaveToday { get; set; }
+    public long? PendingApprovals { get; set; }
     public decimal? EmployeeGrowth { get; set; }
 }
 

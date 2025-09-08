@@ -4,6 +4,7 @@ using HRMS.API.Services.Interfaces;
 using System.Data;
 using Dapper;
 using HRMS.API.Configuration;
+using System.Linq.Expressions;
 
 namespace HRMS.API.Services;
 
@@ -30,11 +31,11 @@ public class DashboardService : IDashboardService
 
         return new DashboardStatsDto
         {
-            TotalEmployees = result.total_employees,
-            ActiveEmployees = result.active_employees,
-            PendingLeaveRequests = result.pending_leave_requests,
-            PresentToday = result.present_today,
-            TotalDepartments = result.total_departments
+            TotalEmployees = result.totalemployees,
+            ActiveEmployees = result.activeemployees,
+            PendingLeaveRequests = result.pendingleaverequests,
+            PresentToday = result.presenttoday,
+            TotalDepartments = result.totaldepartments
         };
     }
 
@@ -76,20 +77,29 @@ public class DashboardService : IDashboardService
     public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(Guid organizationId)
     {
         using var connection = _connectionFactory.CreateConnection();
-        
-        // Use existing function for now, can be optimized later
-        var result = await connection.QuerySingleAsync<dynamic>(
-            "SELECT * FROM admin.fn_get_dashboard_stats(@organizationId)",
-            new { organizationId });
-
-        return new DashboardSummaryDto
+        try
         {
-            TotalEmployees = result.total_employees,
-            PresentToday = result.present_today,
-            OnLeaveToday = result.total_employees - result.present_today, // Mock calculation
-            PendingApprovals = result.pending_leave_requests,
-            EmployeeGrowth = 5.2m // Mock growth percentage
-        };
+            // Use existing function for now, can be optimized later
+            var result = await connection.QuerySingleAsync<dynamic>(
+                "SELECT * FROM admin.fn_get_dashboard_stats(@organizationId)",
+                new { organizationId });
+
+            return new DashboardSummaryDto
+            {
+                TotalEmployees = result.totalemployees,
+                PresentToday = result.present_oday,
+                OnLeaveToday = result.totalemployees - result.presenttoday, // Mock calculation
+                PendingApprovals = result.pendingleaverequests,
+                EmployeeGrowth = 5.2m // Mock growth percentage
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching dashboard summary for organization {OrganizationId}", organizationId);
+            throw;
+        }
+        ;
+        
     }
 
     public async Task<AttendanceStatsDto> GetAttendanceStatsAsync(Guid organizationId, string period = "month")
