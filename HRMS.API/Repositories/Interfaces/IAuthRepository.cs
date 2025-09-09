@@ -14,4 +14,5 @@ public interface IAuthRepository
     
     Task<Role?> GetRoleByNameAsync(Guid? organizationId, string roleName);
     Task<List<Role>> GetOrganizationRolesAsync(Guid? organizationId);
+    Task<Role> CreateRoleAsync(Role role);
 }

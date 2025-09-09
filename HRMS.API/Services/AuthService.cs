@@ -393,4 +393,48 @@ public class AuthService : IAuthService
             TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
         };
     }
+
+    public async Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, Guid organizationId)
+    {
+        // Validate role name uniqueness within organization
+        var existingRole = await _authRepository.GetRoleByNameAsync(organizationId, request.RoleName);
+        if (existingRole != null)
+        {
+            throw new InvalidOperationException($"Role '{request.RoleName}' already exists in this organization.");
+        }
+
+        var role = new Role
+        {
+            RoleId = Guid.NewGuid(),
+            OrganizationId = organizationId,
+            RoleName = request.RoleName,
+            Description = request.Description,
+            Permissions = request.Permissions ?? new Dictionary<string, object>(),
+            IsSystemRole = request.IsSystemRole,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var createdRole = await _authRepository.CreateRoleAsync(role);
+        return MapToRoleDto(createdRole);
+    }
+
+    public async Task<List<RoleDto>> GetOrganizationRolesAsync(Guid organizationId)
+    {
+        var roles = await _authRepository.GetOrganizationRolesAsync(organizationId);
+        return roles.Select(MapToRoleDto).ToList();
+    }
+
+    private static RoleDto MapToRoleDto(Role role)
+    {
+        return new RoleDto
+        {
+            RoleId = role.RoleId ?? Guid.Empty,
+            OrganizationId = role.OrganizationId ?? Guid.Empty,
+            RoleName = role.RoleName ?? string.Empty,
+            Description = role.Description ?? string.Empty,
+            Permissions = role.Permissions,
+            IsSystemRole = role.IsSystemRole ?? false,
+            CreatedAt = role.CreatedAt ?? DateTime.UtcNow
+        };
+    }
 }
