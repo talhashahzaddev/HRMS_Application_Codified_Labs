@@ -496,4 +496,78 @@ public class AuthController : ControllerBase
             return StatusCode(500, ex.Message);
         }
     }
+
+    [HttpPost("roles")]
+    [Authorize]
+    public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
+    {
+        try
+        {
+            var organizationId = GetOrganizationIdFromClaims();
+            if (organizationId == null)
+                return BadRequest("Organization ID not found in claims");
+
+            var role = await _authService.CreateRoleAsync(request, organizationId.Value);
+            return Ok(new ServiceResponse<RoleDto>
+            {
+                Success = true,
+                Data = role,
+                Message = "Role created successfully"
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<RoleDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ServiceResponse<RoleDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating the role"
+            });
+        }
+    }
+
+    [HttpGet("roles")]
+    [Authorize]
+    public async Task<IActionResult> GetOrganizationRoles()
+    {
+        try
+        {
+            var organizationId = GetOrganizationIdFromClaims();
+            if (organizationId == null)
+                return BadRequest("Organization ID not found in claims");
+
+            var roles = await _authService.GetOrganizationRolesAsync(organizationId.Value);
+            return Ok(new ServiceResponse<List<RoleDto>>
+            {
+                Success = true,
+                Data = roles,
+                Message = "Roles retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new ServiceResponse<List<RoleDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving roles"
+            });
+        }
+    }
+
+    private Guid? GetOrganizationIdFromClaims()
+    {
+        var organizationIdClaim = User.FindFirst("OrganizationId");
+        if (organizationIdClaim != null && Guid.TryParse(organizationIdClaim.Value, out var organizationId))
+        {
+            return organizationId;
+        }
+        return null;
+    }
 }
