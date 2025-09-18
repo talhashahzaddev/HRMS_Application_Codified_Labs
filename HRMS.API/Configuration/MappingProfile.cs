@@ -57,5 +57,12 @@ public class MappingProfile : Profile
         CreateMap<EmployeeSkill, EmployeeSkillDto>();
         CreateMap<AppraisalCycle, AppraisalCycleDto>();
         CreateMap<EmployeeAppraisal, EmployeeAppraisalDto>();
+
+        // Role mappings
+        CreateMap<Role, RoleDto>();
+        CreateMap<CreateRoleRequest, Role>();
+
+        // Additional attendance mappings
+        CreateMap<ManualAttendanceRequest, Attendance>();
     }
 }

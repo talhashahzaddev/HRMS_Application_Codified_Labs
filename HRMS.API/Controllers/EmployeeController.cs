@@ -233,6 +233,82 @@ public class EmployeeController : ControllerBase
         }
     }
 
+    [HttpPut("departments/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<DepartmentDto>>> UpdateDepartment(Guid id, [FromBody] CreateDepartmentRequest request)
+    {
+        try
+        {
+            var department = await _employeeService.UpdateDepartmentAsync(id, request);
+            
+            return Ok(new ServiceResponse<DepartmentDto>
+            {
+                Success = true,
+                Message = "Department updated successfully",
+                Data = department
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating department {DepartmentId}", id);
+            return StatusCode(500, new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating department"
+            });
+        }
+    }
+
+    [HttpDelete("departments/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteDepartment(Guid id)
+    {
+        try
+        {
+            var result = await _employeeService.DeleteDepartmentAsync(id);
+            
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Department deleted successfully",
+                Data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting department {DepartmentId}", id);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting department"
+            });
+        }
+    }
+
     [HttpGet("positions")]
     public async Task<ActionResult<ServiceResponse<List<PositionDto>>>> GetPositions([FromQuery] Guid? departmentId = null)
     {
@@ -281,6 +357,82 @@ public class EmployeeController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while creating position"
+            });
+        }
+    }
+
+    [HttpPut("positions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PositionDto>>> UpdatePosition(Guid id, [FromBody] CreatePositionRequest request)
+    {
+        try
+        {
+            var position = await _employeeService.UpdatePositionAsync(id, request);
+            
+            return Ok(new ServiceResponse<PositionDto>
+            {
+                Success = true,
+                Message = "Position updated successfully",
+                Data = position
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating position {PositionId}", id);
+            return StatusCode(500, new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating position"
+            });
+        }
+    }
+
+    [HttpDelete("positions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeletePosition(Guid id)
+    {
+        try
+        {
+            var result = await _employeeService.DeletePositionAsync(id);
+            
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Position deleted successfully",
+                Data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting position {PositionId}", id);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting position"
             });
         }
     }

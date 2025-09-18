@@ -17,7 +17,7 @@ public class Employee : BaseEntity
     public Guid? UserId { get; set; }
     
     [Column("employee_code")]
-    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeNumber { get; set; } = string.Empty;
     
     [Column("first_name")]
     public string FirstName { get; set; } = string.Empty;
