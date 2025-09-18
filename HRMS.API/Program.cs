@@ -113,6 +113,12 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 // Add FluentValidation
 builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
+// Register additional services and repositories (commented out until implementations are ready)
+// builder.Services.AddScoped<IDepartmentService, DepartmentService>();
+// builder.Services.AddScoped<IPositionService, PositionService>();
+// builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
+// builder.Services.AddScoped<IPositionRepository, PositionRepository>();
+
 // Add Services
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();

@@ -24,7 +24,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             {
                 organizationId = employee.OrganizationId,
                 userId = employee.UserId,
-                employeeCode = employee.EmployeeCode,
+                employeeCode = employee.EmployeeNumber,
                 firstName = employee.FirstName,
                 lastName = employee.LastName,
                 email = employee.Email,
@@ -271,5 +271,133 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             WHERE positionid = @positionId";
 
         return await QuerySingleOrDefaultAsync<Position>(sql, new { positionId });
+    }
+
+    public async Task<Department> UpdateDepartmentAsync(Department department)
+    {
+        var sql = @"
+            UPDATE employee.departments 
+            SET departmentname = @departmentName, 
+                description = @description, 
+                managerid = @managerId,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE departmentid = @departmentId
+            RETURNING departmentid, organizationid, departmentname, description, 
+                     managerid, isactive, createdat, updatedat";
+
+        var updatedDepartment = await QuerySingleAsync<Department>(sql, new
+        {
+            departmentName = department.DepartmentName,
+            description = department.Description,
+            managerId = department.ManagerId,
+            departmentId = department.DepartmentId
+        });
+
+        return updatedDepartment;
+    }
+
+    public async Task<bool> DeleteDepartmentAsync(Guid departmentId)
+    {
+        var sql = @"
+            UPDATE employee.departments 
+            SET isactive = false, updatedat = CURRENT_TIMESTAMP 
+            WHERE departmentid = @departmentId";
+
+        var affected = await ExecuteAsync(sql, new { departmentId });
+        return affected > 0;
+    }
+
+    public async Task<int> GetEmployeeCountByDepartmentAsync(Guid departmentId)
+    {
+        var sql = @"
+            SELECT COUNT(*) 
+            FROM employee.employees e
+            INNER JOIN employee.employment_details ed ON e.employeeid = ed.employeeid
+            WHERE ed.departmentid = @departmentId AND e.status != 'deleted'";
+
+        return await ExecuteScalarAsync<int>(sql, new { departmentId });
+    }
+
+    public async Task<Position> UpdatePositionAsync(Position position)
+    {
+        var sql = @"
+            UPDATE employee.positions 
+            SET positiontitle = @positionTitle, 
+                departmentid = @departmentId,
+                description = @description,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE positionid = @positionId
+            RETURNING positionid, organizationid, positiontitle, departmentid, 
+                     description, isactive, createdat, updatedat";
+
+        var updatedPosition = await QuerySingleAsync<Position>(sql, new
+        {
+            positionTitle = position.PositionTitle,
+            departmentId = position.DepartmentId,
+            description = position.Description,
+            positionId = position.PositionId
+        });
+
+        return updatedPosition;
+    }
+
+    public async Task<bool> DeletePositionAsync(Guid positionId)
+    {
+        var sql = @"
+            UPDATE employee.positions 
+            SET isactive = false, updatedat = CURRENT_TIMESTAMP 
+            WHERE positionid = @positionId";
+
+        var affected = await ExecuteAsync(sql, new { positionId });
+        return affected > 0;
+    }
+
+    public async Task<int> GetEmployeeCountByPositionAsync(Guid positionId)
+    {
+        var sql = @"
+            SELECT COUNT(*) 
+            FROM employee.employees e
+            INNER JOIN employee.employment_details ed ON e.employeeid = ed.employeeid
+            WHERE ed.positionid = @positionId AND e.status != 'deleted'";
+
+        return await ExecuteScalarAsync<int>(sql, new { positionId });
+    }
+
+    public async Task<List<Employee>> GetManagersAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT DISTINCT 
+                e.employeeid, e.organizationid, e.userid, e.employeecode,
+                e.firstname, e.lastname, e.email, e.phone, e.address,
+                e.dateofbirth, e.hiredate, e.status, e.createdat
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.positions p ON ed.positionid = p.positionid
+            LEFT JOIN auth.users u ON e.userid = u.userid
+            LEFT JOIN auth.roles r ON u.roleid = r.roleid
+            WHERE e.organizationid = @organizationId 
+              AND e.status = 'active'
+              AND (
+                  -- Department managers
+                  e.employeeid IN (SELECT managerid FROM employee.departments WHERE managerid IS NOT NULL AND isactive = true)
+                  -- Position-based managers
+                  OR p.positiontitle ILIKE '%manager%' 
+                  OR p.positiontitle ILIKE '%lead%'
+                  OR p.positiontitle ILIKE '%supervisor%'
+                  OR p.positiontitle ILIKE '%director%'
+                  -- Role-based managers
+                  OR r.rolename ILIKE '%manager%'
+                  OR r.rolename = 'Manager'
+                  -- Reporting managers
+                  OR e.employeeid IN (
+                      SELECT DISTINCT reportingmanagerid 
+                      FROM employee.employmentdetails 
+                      WHERE reportingmanagerid IS NOT NULL AND iscurrent = true
+                  )
+              )
+            ORDER BY e.firstname, e.lastname";
+
+        var results = await QueryAsync<Employee>(sql, new { organizationId });
+        return results.ToList();
     }
 }

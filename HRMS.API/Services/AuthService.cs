@@ -432,7 +432,7 @@ public class AuthService : IAuthService
             OrganizationId = role.OrganizationId ?? Guid.Empty,
             RoleName = role.RoleName ?? string.Empty,
             Description = role.Description ?? string.Empty,
-            Permissions = role.Permissions,
+            Permissions = role.Permissions ?? new Dictionary<string, object>(),
             IsSystemRole = role.IsSystemRole ?? false,
             CreatedAt = role.CreatedAt ?? DateTime.UtcNow
         };
