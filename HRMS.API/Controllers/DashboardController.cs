@@ -20,56 +20,6 @@ public class DashboardController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("stats")]
-    public async Task<ActionResult<ServiceResponse<DashboardStatsDto>>> GetDashboardStats()
-    {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            var stats = await _dashboardService.GetDashboardStatsAsync(organizationId);
-            
-            return Ok(new ServiceResponse<DashboardStatsDto>
-            {
-                Success = true,
-                Data = stats
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving dashboard stats");
-            return StatusCode(500, new ServiceResponse<DashboardStatsDto>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving dashboard statistics"
-            });
-        }
-    }
-
-    [HttpGet("recent-activities")]
-    public async Task<ActionResult<ServiceResponse<List<RecentActivityDto>>>> GetRecentActivities([FromQuery] int limit = 10)
-    {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            var activities = await _dashboardService.GetRecentActivitiesAsync(organizationId, limit);
-            
-            return Ok(new ServiceResponse<List<RecentActivityDto>>
-            {
-                Success = true,
-                Data = activities
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving recent activities");
-            return StatusCode(500, new ServiceResponse<List<RecentActivityDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving recent activities"
-            });
-        }
-    }
-
     [HttpGet("summary")]
     public async Task<ActionResult<ServiceResponse<DashboardSummaryDto>>> GetDashboardSummary()
     {
@@ -95,8 +45,33 @@ public class DashboardController : ControllerBase
         }
     }
 
+    [HttpGet("stats")]
+    public async Task<ActionResult<ServiceResponse<DashboardStatsDto>>> GetDashboardStats()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var stats = await _dashboardService.GetDashboardStatsAsync(organizationId);
+            
+            return Ok(new ServiceResponse<DashboardStatsDto>
+            {
+                Success = true,
+                Data = stats
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving dashboard stats");
+            return StatusCode(500, new ServiceResponse<DashboardStatsDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving dashboard statistics"
+            });
+        }
+    }
+
     [HttpGet("attendance-stats")]
-    public async Task<ActionResult<ServiceResponse<AttendanceStatsDto>>> GetAttendanceStats([FromQuery] string period = "month")
+    public async Task<ActionResult<ServiceResponse<AttendanceStatsDto>>> GetAttendanceStats([FromQuery] string? period = null)
     {
         try
         {
@@ -121,7 +96,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("leave-stats")]
-    public async Task<ActionResult<ServiceResponse<LeaveStatsDto>>> GetLeaveStats([FromQuery] string period = "month")
+    public async Task<ActionResult<ServiceResponse<LeaveStatsDto>>> GetLeaveStats([FromQuery] string? period = null)
     {
         try
         {
@@ -146,7 +121,7 @@ public class DashboardController : ControllerBase
     }
 
     [HttpGet("payroll-stats")]
-    public async Task<ActionResult<ServiceResponse<PayrollStatsDto>>> GetPayrollStats([FromQuery] string period = "month")
+    public async Task<ActionResult<ServiceResponse<PayrollStatsDto>>> GetPayrollStats([FromQuery] string? period = null)
     {
         try
         {
@@ -194,8 +169,6 @@ public class DashboardController : ControllerBase
             });
         }
     }
-
-
 
     [HttpGet("employee-growth")]
     public async Task<ActionResult<ServiceResponse<EmployeeGrowthDto>>> GetEmployeeGrowth([FromQuery] string period = "12m")
@@ -271,6 +244,32 @@ public class DashboardController : ControllerBase
             });
         }
     }
+
+    [HttpGet("recent-activities")]
+    public async Task<ActionResult<ServiceResponse<List<RecentActivityDto>>>> GetRecentActivities([FromQuery] int limit = 10)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var activities = await _dashboardService.GetRecentActivitiesAsync(organizationId, limit);
+            
+            return Ok(new ServiceResponse<List<RecentActivityDto>>
+            {
+                Success = true,
+                Data = activities
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving recent activities");
+            return StatusCode(500, new ServiceResponse<List<RecentActivityDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving recent activities"
+            });
+        }
+    }
+
 
     // Additional Dashboard endpoints that frontend expects
     [HttpGet("attendance-trends")]

@@ -52,6 +52,8 @@ public class DepartmentStatsDto
     public int PresentCount { get; set; }
     public int AbsentCount { get; set; }
     public decimal Percentage { get; set; }
+    public int ActiveEmployees { get; set; }
+    public decimal AverageSalary { get; set; }
 }
 
 public class RecentActivityDto
@@ -68,10 +70,10 @@ public class RecentActivityDto
 // Dashboard-specific DTOs
 public class DashboardSummaryDto
 {
-    public long TotalEmployees { get; set; }
-    public long PresentToday { get; set; }
-    public long OnLeaveToday { get; set; }
-    public long PendingApprovals { get; set; }
+    public long? TotalEmployees { get; set; }
+    public long? PresentToday { get; set; }
+    public long? OnLeaveToday { get; set; }
+    public long? PendingApprovals { get; set; }
     public decimal? EmployeeGrowth { get; set; }
 }
 
@@ -120,6 +122,8 @@ public class EmployeeGrowthDto
     public List<string> Months { get; set; } = new();
     public List<int> Counts { get; set; } = new();
     public decimal GrowthRate { get; set; }
+    public List<int> CumulativeEmployees { get; set; } = new();
+    public List<int> NewEmployees { get; set; } = new();
 }
 
 public class UpcomingEventDto

@@ -134,6 +134,88 @@ ALTER FUNCTION auth.fn_create_user(uuid, character varying, character varying, c
 -- employee FUNCTIONS
 -- =====================================================================
 
+-- FUNCTION: employee.fn_create_employee
+-- Updates: Insert into employees + employmentdetails
+
+CREATE OR REPLACE FUNCTION employee.fn_create_employee(
+    p_organization_id uuid,
+    p_user_id uuid,
+    p_employee_code character varying,
+    p_first_name character varying,
+    p_last_name character varying,
+    p_email character varying,
+    p_phone character varying,
+    p_date_of_birth timestamp with time zone,
+    p_hire_date timestamp with time zone,
+    p_department_id uuid,
+    p_position_id uuid,
+    p_basic_salary numeric,
+    p_address jsonb
+)
+RETURNS uuid
+LANGUAGE 'plpgsql'
+COST 100
+VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    v_employee_id UUID;
+BEGIN
+    -- Insert into employees table
+    INSERT INTO employee.employees (
+        organizationid,
+        userid,
+        employeecode,
+        firstname,
+        lastname,
+        email,
+        phone,
+        address,
+        dateofbirth,
+        hiredate
+    )
+    VALUES (
+        p_organization_id,
+        p_user_id,
+        p_employee_code,
+        p_first_name,
+        p_last_name,
+        p_email,
+        p_phone,
+        COALESCE(p_address, '{}'::jsonb),
+        p_date_of_birth::date,
+        p_hire_date::date
+    )
+    RETURNING employeeid INTO v_employee_id;
+
+    -- Insert into employmentdetails table
+    INSERT INTO employee.employmentdetails (
+        employeeid,
+        departmentid,
+        positionid,
+        basicsalary,
+        effectivedate,
+        iscurrent
+    )
+    VALUES (
+        v_employee_id,
+        p_department_id,
+        p_position_id,
+        p_basic_salary,
+        p_hire_date::date, -- effective from hire date
+        true
+    );
+
+    RETURN v_employee_id;
+END;
+$BODY$;
+
+ALTER FUNCTION employee.fn_create_employee(
+    uuid, uuid, character varying, character varying, character varying, character varying, character varying,
+    timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb
+) OWNER TO postgres;
+
+
+
 -- Function: Get Employee By Id
 CREATE OR REPLACE FUNCTION employee.fn_get_employee_by_id(p_employee_id UUID)
 RETURNS TABLE (
@@ -191,74 +273,81 @@ $$ LANGUAGE plpgsql;
 
 -- Function: Get Employees (with pagination & filters)
 CREATE OR REPLACE FUNCTION employee.fn_get_employees(
-    p_organization_id UUID,
-    p_search_term VARCHAR(255) DEFAULT NULL,
-    p_department_id UUID DEFAULT NULL,
-    p_status VARCHAR(20) DEFAULT NULL,
-    p_limit INTEGER DEFAULT 50,
-    p_offset INTEGER DEFAULT 0
+    p_organization_id uuid DEFAULT NULL::uuid,
+    p_search_term character varying DEFAULT NULL::character varying,
+    p_department_id uuid DEFAULT NULL::uuid,
+    p_status character varying DEFAULT NULL::character varying,
+    p_limit integer DEFAULT 50,
+    p_offset integer DEFAULT 0
 )
-RETURNS TABLE (
-    employeeId UUID,
-    employeeCode VARCHAR(50),
-    firstName VARCHAR(100),
-    lastName VARCHAR(100),
-    email VARCHAR(255),
-    phone VARCHAR(20),
-    hireDate DATE,
-    status VARCHAR(20),
-    departmentName VARCHAR(100),
-    positionTitle VARCHAR(100),
-    totalCount BIGINT
-) AS $$
+RETURNS TABLE(
+    employeeid uuid,
+    employeecode character varying,
+    firstname character varying,
+    lastname character varying,
+    email character varying,
+    phone character varying,
+    hiredate date,
+    status character varying,
+    departmentname character varying,
+    positiontitle character varying,
+    totalcount bigint
+) 
+LANGUAGE 'plpgsql'
+AS $BODY$
 DECLARE
     total_records BIGINT;
 BEGIN
-    -- Get total count
+    -- Count with flexible filtering
     SELECT COUNT(*) INTO total_records
     FROM employee.employees e
-    LEFT JOIN employee.employment_details ed 
-           ON e.employee_id = ed.employee_id AND ed.is_current = true
+    LEFT JOIN employee.employmentdetails ed 
+           ON e.employeeid = ed.employeeid AND ed.iscurrent = true
     LEFT JOIN employee.departments d 
-           ON ed.department_id = d.department_id
-    WHERE e.organization_id = p_organization_id
+           ON ed.departmentid = d.departmentid
+    WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
+      AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
       AND (p_search_term IS NULL OR 
-           LOWER(CONCAT(e.first_name, ' ', e.last_name, ' ', e.email, ' ', e.employee_code)) 
+           LOWER(CONCAT(e.firstname, ' ', e.lastname, ' ', e.email, ' ', e.employeecode)) 
            LIKE LOWER('%' || p_search_term || '%'))
-      AND (p_department_id IS NULL OR ed.department_id = p_department_id)
       AND (p_status IS NULL OR e.status = p_status);
 
     -- Return paginated results
     RETURN QUERY
     SELECT 
-        e.employee_id AS "employeeId",
-        e.employee_code AS "employeeCode",
-        e.first_name AS "firstName",
-        e.last_name AS "lastName",
+        e.employeeid,
+        e.employeecode,
+        e.firstname,
+        e.lastname,
         e.email,
         e.phone,
-        e.hire_date AS "hireDate",
+        e.hiredate,
         e.status,
-        d.department_name AS "departmentName",
-        pos.position_title AS "positionTitle",
-        total_records AS "totalCount"
+        d.departmentname,
+        pos.positiontitle,
+        total_records
     FROM employee.employees e
-    LEFT JOIN employee.employment_details ed 
-           ON e.employee_id = ed.employee_id AND ed.is_current = true
+    LEFT JOIN employee.employmentdetails ed 
+           ON e.employeeid = ed.employeeid AND ed.iscurrent = true
     LEFT JOIN employee.departments d 
-           ON ed.department_id = d.department_id
+           ON ed.departmentid = d.departmentid
     LEFT JOIN employee.positions pos 
-           ON ed.position_id = pos.position_id
-    WHERE e.organization_id = p_organization_id
+           ON ed.positionid = pos.positionid
+    WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
+      AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
       AND (p_search_term IS NULL OR 
-           LOWER(CONCAT(e.first_name, ' ', e.last_name, ' ', e.email, ' ', e.employee_code)) 
+           LOWER(CONCAT(e.firstname, ' ', e.lastname, ' ', e.email, ' ', e.employeecode)) 
            LIKE LOWER('%' || p_search_term || '%'))
-      AND (p_department_id IS NULL OR ed.department_id = p_department_id)
       AND (p_status IS NULL OR e.status = p_status)
-    ORDER BY e.first_name, e.last_name
+    ORDER BY e.firstname, e.lastname
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$;
+
+ALTER FUNCTION employee.fn_get_employees(
+    uuid, character varying, uuid, character varying, integer, integer
+) OWNER TO postgres;
+
 
 
 -- =====================================================================
@@ -308,27 +397,24 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to get attendance records
+-- FUNCTION: attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer)
+
+-- DROP FUNCTION IF EXISTS attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer);
+
 CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
-    p_employee_id UUID DEFAULT NULL,
-    p_organization_id UUID DEFAULT NULL,
-    p_start_date DATE DEFAULT NULL,
-    p_end_date DATE DEFAULT NULL,
-    p_limit INTEGER DEFAULT 100,
-    p_offset INTEGER DEFAULT 0
-)
-RETURNS TABLE (
-    attendanceId UUID,
-    employeeId UUID,
-    employeeName VARCHAR(201),
-    workDate DATE,
-    checkInTime TIMESTAMP WITH TIME ZONE,
-    checkOutTime TIMESTAMP WITH TIME ZONE,
-    totalHours DECIMAL(5,2),
-    overtimeHours DECIMAL(5,2),
-    status VARCHAR(20),
-    totalCount BIGINT
-) AS $$
+	p_employee_id uuid DEFAULT NULL::uuid,
+	p_organization_id uuid DEFAULT NULL::uuid,
+	p_start_date date DEFAULT NULL::date,
+	p_end_date date DEFAULT NULL::date,
+	p_limit integer DEFAULT 100,
+	p_offset integer DEFAULT 0)
+    RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, totalcount bigint) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
+AS $BODY$
 DECLARE
     totalRecords BIGINT;
 BEGIN
@@ -345,7 +431,7 @@ BEGIN
     SELECT 
         a.attendanceId,
         a.employeeId,
-        CONCAT(e.firstName, ' ', e.lastName) AS employeeName,
+        CONCAT(e.firstName, ' ', e.lastName)::varchar AS employeeName,
         a.workDate,
         a.checkInTime,
         a.checkOutTime,
@@ -362,7 +448,10 @@ BEGIN
     ORDER BY a.workDate DESC, e.firstName
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$;
+
+ALTER FUNCTION attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer)
+    OWNER TO postgres;
 
 -- =====================================================================
 -- LEAVE MANAGEMENT FUNCTIONS

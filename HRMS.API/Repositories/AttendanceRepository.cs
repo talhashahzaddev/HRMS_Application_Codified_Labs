@@ -42,11 +42,11 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         try
         {
             var sql = @"
-                SELECT attendance_id, employee_id, work_date, check_in_time, check_out_time,
-                       break_start_time, break_end_time, total_hours, overtime_hours, break_hours,
-                       status, location, notes, approved_by, approved_at, created_at, updated_at
+                SELECT attendanceid, employeeid, workdate, checkintime, checkouttime,
+                       breakstarttime, breakendtime, totalhours, overtimehours, breakhours,
+                       status, location, notes, approvedby, approvedat, createdat, updatedat
                 FROM attendance.attendance 
-                WHERE employee_id = @employeeId AND work_date = CURRENT_DATE";
+                WHERE employeeid = @employeeId AND workdate = CURRENT_DATE";
 
             return await QuerySingleOrDefaultAsync<Attendance>(sql, new { employeeId });
         }
@@ -77,14 +77,14 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
             var attendanceList = results.Select(r => new AttendanceDto
             {
-                AttendanceId = r.attendance_id,
-                EmployeeId = r.employee_id,
-                EmployeeName = r.employee_name,
-                WorkDate = r.work_date,
-                CheckInTime = r.check_in_time,
-                CheckOutTime = r.check_out_time,
-                TotalHours = r.total_hours,
-                OvertimeHours = r.overtime_hours,
+                AttendanceId = r.attendanceid,
+                EmployeeId = r.employeeid,
+                EmployeeName = r.employeename,
+                WorkDate = r.workdate,
+                CheckInTime = r.checkintime,
+                CheckOutTime = r.checkouttime,
+                TotalHours = r.totalhours,
+                OvertimeHours = r.overtimehours,
                 Status = r.status
             }).ToList();
 
@@ -116,10 +116,10 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                     COUNT(CASE WHEN status = 'present' THEN 1 END) as presentdays,
                     COUNT(CASE WHEN status = 'absent' THEN 1 END) as absentdays,
                     COUNT(CASE WHEN status = 'late' THEN 1 END) as latedays,
-                    COALESCE(SUM(total_hours), 0) as total_hours,
-                    COALESCE(SUM(overtime_hours), 0) as overtimehours
+                    COALESCE(SUM(totalhours), 0) as totalhours,
+                    COALESCE(SUM(overtimehours), 0) as overtimehours
                 FROM attendance.attendance
-                WHERE employee_id = @employeeId";
+                WHERE employeeid = @employeeId";
 
             var result = await QuerySingleAsync<AttendanceSummaryDto>(sql, new { employeeId, startDate, endDate });
 
@@ -148,10 +148,10 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         {
             var sql = @"
                 UPDATE attendance.attendance 
-                SET check_in_time = @checkInTime, check_out_time = @checkOutTime,
-                    total_hours = @totalHours, status = @status, notes = @notes,
-                    updated_at = CURRENT_TIMESTAMP
-                WHERE attendance_id = @attendanceId";
+                SET checkintime = @checkInTime, checkouttime = @checkOutTime,
+                    totalhours = @totalHours, status = @status, notes = @notes,
+                    updatedat = CURRENT_TIMESTAMP
+                WHERE attendanceid = @attendanceId";
 
             var affected = await ExecuteAsync(sql, new
             {
@@ -177,14 +177,14 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         try
         {
             var sql = @"
-                SELECT a.attendance_id, a.employee_id, a.work_date, a.check_in_time, 
-                       a.check_out_time, a.total_hours, a.status,
-                       CONCAT(e.first_name, ' ', e.last_name) as employee_name
+                SELECT a.attendanceid, a.employeeid, a.workdate, a.checkintime, 
+                       a.checkouttime, a.totalhours, a.status,
+                       CONCAT(e.firstname, ' ', e.lastname) as employeename
                 FROM attendance.attendance a
-                INNER JOIN employee.employees e ON a.employee_id = e.employee_id
-                INNER JOIN employee.employment_details ed ON e.employee_id = ed.employee_id
-                WHERE ed.department_id = @departmentId AND a.work_date = @date AND ed.is_current = true
-                ORDER BY e.first_name, e.last_name";
+                INNER JOIN employee.employees e ON a.employeeid = e.employeeid
+                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+                WHERE ed.departmentid = @departmentId AND a.workdate = @date AND ed.iscurrent = true
+                ORDER BY e.firstname, e.lastname";
 
             var results = await QueryAsync<dynamic>(sql, new { departmentId, date });
 
@@ -213,10 +213,10 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         try
         {
             var sql = @"
-                SELECT attendance_id, employee_id, work_date, check_in_time, check_out_time,
-                       total_hours, overtime_hours, status, notes, created_at
+                SELECT attendanceid, employeeid, workdate, checkintime, checkouttime,
+                       totalhours, overtimehours, status, notes, createdat
                 FROM attendance.attendance 
-                WHERE attendance_id = @attendanceId";
+                WHERE attendanceid = @attendanceId";
 
             return await QuerySingleOrDefaultAsync<Attendance>(sql, new { attendanceId });
         }
@@ -233,9 +233,9 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         {
             var sql = @"
                 INSERT INTO attendance.attendance 
-                (employee_id, work_date, check_in_time, check_out_time, status, notes, total_hours, overtime_hours, created_at)
+                (employeeid, workdate, checkintime, checkouttime, status, notes, totalhours, overtimehours, createdat)
                 VALUES (@EmployeeId, @WorkDate, @CheckInTime, @CheckOutTime, @Status, @Notes, @TotalHours, @OvertimeHours, @CreatedAt)
-                RETURNING attendance_id, employee_id, work_date, check_in_time, check_out_time, total_hours, overtime_hours, status, notes, created_at";
+                RETURNING attendanceid, employeeid, workdate, checkintime, checkouttime, totalhours, overtimehours, status, notes, createdat";
 
             var result = await QuerySingleAsync<Attendance>(sql, attendance);
             return result;
@@ -267,13 +267,13 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         try
         {
             var sql = @"
-                SELECT attendance_id, employee_id, work_date, check_in_time, check_out_time,
-                       total_hours, overtime_hours, status, notes, created_at
+                SELECT attendanceid, employeeid, workdate, checkintime, checkouttime,
+                       totalhours, overtimehours, status, notes, createdat
                 FROM attendance.attendance 
-                WHERE employee_id = @employeeId 
-                AND work_date >= @startDate 
-                AND work_date <= @endDate
-                ORDER BY work_date DESC";
+                WHERE employeeid = @employeeId 
+                AND workdate >= @startDate 
+                AND workdate <= @endDate
+                ORDER BY workdate DESC";
 
             var results = await QueryAsync<Attendance>(sql, new { employeeId, startDate, endDate });
             return results.ToList();

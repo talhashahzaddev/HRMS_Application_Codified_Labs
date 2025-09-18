@@ -26,9 +26,9 @@ public class EmployeeService : IEmployeeService
     public async Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId)
     {
         // Validate unique employee code and email
-        var existingByCode = await _employeeRepository.GetEmployeeByCodeAsync(organizationId, request.EmployeeCode);
+        var existingByCode = await _employeeRepository.GetEmployeeByCodeAsync(organizationId, request.EmployeeNumber);
         if (existingByCode != null)
-            throw new InvalidOperationException($"Employee with code '{request.EmployeeCode}' already exists");
+            throw new InvalidOperationException($"Employee with code '{request.EmployeeNumber}' already exists");
 
         var existingByEmail = await _employeeRepository.GetEmployeeByEmailAsync(organizationId, request.Email);
         if (existingByEmail != null)
@@ -115,6 +115,74 @@ public class EmployeeService : IEmployeeService
         return _mapper.Map<PositionDto>(createdPosition);
     }
 
+    public async Task<DepartmentDto> UpdateDepartmentAsync(Guid departmentId, CreateDepartmentRequest request)
+    {
+        _logger.LogInformation("Updating department: {DepartmentId}", departmentId);
+        
+        var department = await _employeeRepository.GetDepartmentByIdAsync(departmentId);
+        if (department == null)
+            throw new KeyNotFoundException($"Department with ID {departmentId} not found");
+
+        _mapper.Map(request, department);
+        var updatedDepartment = await _employeeRepository.UpdateDepartmentAsync(department);
+        
+        _logger.LogInformation("Department {DepartmentId} updated successfully", departmentId);
+        return _mapper.Map<DepartmentDto>(updatedDepartment);
+    }
+
+    public async Task<bool> DeleteDepartmentAsync(Guid departmentId)
+    {
+        _logger.LogInformation("Deleting department: {DepartmentId}", departmentId);
+        
+        var department = await _employeeRepository.GetDepartmentByIdAsync(departmentId);
+        if (department == null)
+            throw new KeyNotFoundException($"Department with ID {departmentId} not found");
+
+        // Check if department has employees
+        var employeeCount = await _employeeRepository.GetEmployeeCountByDepartmentAsync(departmentId);
+        if (employeeCount > 0)
+            throw new InvalidOperationException($"Cannot delete department with {employeeCount} employees. Please reassign employees first.");
+
+        var result = await _employeeRepository.DeleteDepartmentAsync(departmentId);
+        
+        _logger.LogInformation("Department {DepartmentId} deleted successfully", departmentId);
+        return result;
+    }
+
+    public async Task<PositionDto> UpdatePositionAsync(Guid positionId, CreatePositionRequest request)
+    {
+        _logger.LogInformation("Updating position: {PositionId}", positionId);
+        
+        var position = await _employeeRepository.GetPositionByIdAsync(positionId);
+        if (position == null)
+            throw new KeyNotFoundException($"Position with ID {positionId} not found");
+
+        _mapper.Map(request, position);
+        var updatedPosition = await _employeeRepository.UpdatePositionAsync(position);
+        
+        _logger.LogInformation("Position {PositionId} updated successfully", positionId);
+        return _mapper.Map<PositionDto>(updatedPosition);
+    }
+
+    public async Task<bool> DeletePositionAsync(Guid positionId)
+    {
+        _logger.LogInformation("Deleting position: {PositionId}", positionId);
+        
+        var position = await _employeeRepository.GetPositionByIdAsync(positionId);
+        if (position == null)
+            throw new KeyNotFoundException($"Position with ID {positionId} not found");
+
+        // Check if position has employees
+        var employeeCount = await _employeeRepository.GetEmployeeCountByPositionAsync(positionId);
+        if (employeeCount > 0)
+            throw new InvalidOperationException($"Cannot delete position with {employeeCount} employees. Please reassign employees first.");
+
+        var result = await _employeeRepository.DeletePositionAsync(positionId);
+        
+        _logger.LogInformation("Position {PositionId} deleted successfully", positionId);
+        return result;
+    }
+
     // New missing methods implementation
     public async Task<EmployeeDto> ActivateEmployeeAsync(Guid employeeId)
     {
@@ -198,11 +266,7 @@ public class EmployeeService : IEmployeeService
     {
         _logger.LogInformation("Retrieving managers for organization: {OrganizationId}", organizationId);
         
-        // Mock implementation - in a real app, this would filter employees by role/position
-        var employees = await _employeeRepository.GetEmployeesAsync(organizationId, null, null, "Active", 1, 100);
-        
-        // Filter to only managers (mock)
-        var managers = employees.Data.Take(10).ToList();
+        var managers = await _employeeRepository.GetManagersAsync(organizationId);
         return _mapper.Map<List<EmployeeDto>>(managers);
     }
 
@@ -260,7 +324,7 @@ public class EmployeeService : IEmployeeService
         var csvData = "EmployeeCode,FirstName,LastName,Email,Department,Position,HireDate,Status\n";
         foreach (var employee in employees.Data)
         {
-            csvData += $"{employee.EmployeeCode},{employee.FirstName},{employee.LastName},{employee.Email},{employee.Department},{employee.Position},{employee.HireDate:yyyy-MM-dd},{(employee.IsActive ? "Active" : "Inactive")}\n";
+            csvData += $"{employee.EmployeeCode},{employee.FirstName},{employee.LastName},{employee.Email},{employee.Department},{employee.Position},{employee.HireDate:yyyy-MM-dd},{((bool)employee.IsActive ? "Active" : "Inactive")}\n";
         }
         
         return System.Text.Encoding.UTF8.GetBytes(csvData);

@@ -17,7 +17,7 @@ public class Employee : BaseEntity
     public Guid? UserId { get; set; }
     
     [Column("employee_code")]
-    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeNumber { get; set; } = string.Empty;
     
     [Column("first_name")]
     public string FirstName { get; set; } = string.Empty;
@@ -60,6 +60,12 @@ public class Employee : BaseEntity
     
     [Column("profile_picture_url")]
     public string? ProfilePictureUrl { get; set; }
+    [Column("departmentid")]
+    public Guid? DepartmentId { get; set; }
+    [Column("positionid")]
+    public Guid? PositionId { get; set; }
+    [Column("basicsalary")]
+    public decimal? BasicSalary { get; set; }
 
     // Navigation properties
     [NotMapped]
