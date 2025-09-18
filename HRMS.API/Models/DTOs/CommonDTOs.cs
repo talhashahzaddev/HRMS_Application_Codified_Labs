@@ -53,7 +53,7 @@ public class DepartmentStatsDto
     public int AbsentCount { get; set; }
     public decimal Percentage { get; set; }
     public int ActiveEmployees { get; set; }
-    public decimal AverageSalary { get; set; }
+    public decimal? AverageSalary { get; set; }
 }
 
 public class RecentActivityDto
