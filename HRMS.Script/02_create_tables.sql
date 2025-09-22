@@ -368,3 +368,13 @@ CREATE TABLE admin.AuditLogs (
     UserAgent TEXT,
     CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE attendance.AttendanceSessions (
+    SessionId     UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    AttendanceId  UUID NOT NULL REFERENCES attendance.Attendance(AttendanceId) ON DELETE CASCADE,
+    CheckInTime   TIMESTAMP WITH TIME ZONE NOT NULL,
+    CheckOutTime  TIMESTAMP WITH TIME ZONE,
+    Location      JSONB DEFAULT '{}',
+    CreatedAt     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
