@@ -48,14 +48,16 @@ public class UserDto
 
 public class RegisterRequest
 {
+    // Organization data (maps to auth.organizations table)
+    public string CompanyName { get; set; } = string.Empty;
+    public string? Website { get; set; }
+    public string CompanySize { get; set; } = string.Empty; // Used to determine subscription type
+    
+    // User data (maps to auth.users table)
     public string Email { get; set; } = string.Empty;
     public string Password { get; set; } = string.Empty;
-    public string ConfirmPassword { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public string OrganizationName { get; set; } = string.Empty;
-    public Guid OrganizationId { get; set; }
-    public string? RoleName { get; set; }
 }
 
 public class ForgotPasswordRequest

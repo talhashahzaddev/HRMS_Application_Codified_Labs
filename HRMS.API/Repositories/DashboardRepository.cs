@@ -459,7 +459,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
             {
                 DepartmentName = (string)d.departmentname,
                 EmployeeCount = (int)d.employeecount,
-                AverageSalary = (decimal)d.averagesalary,
+                AverageSalary = (decimal?)d.averagesalary,
                 ActiveEmployees = (int)d.activeemployees
             }).ToList();
         }

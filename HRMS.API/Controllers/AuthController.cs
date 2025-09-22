@@ -115,40 +115,7 @@ public class AuthController : ControllerBase
         }
     }
 
-    [HttpPost("users")]
-    //[Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<UserDto>>> CreateUser([FromBody] CreateUserRequest request)
-    {
-        try
-        {
-            //var organizationId = GetCurrentOrganizationId();
-            var user = await _authService.CreateUserAsync(request, request.OrganizationId);
-            
-            return CreatedAtAction(nameof(GetUser), new { id = user.UserId }, new ServiceResponse<UserDto>
-            {
-                Success = true,
-                Message = "User created successfully",
-                Data = user
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ServiceResponse<UserDto>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "User creation failed");
-            return StatusCode(500, new ServiceResponse<UserDto>
-            {
-                Success = false,
-                Message = "An error occurred while creating user"
-            });
-        }
-    }
+    // Removed users endpoint - registration now handles both organization and user creation
 
     [HttpGet("users/{id}")]
     [Authorize]
