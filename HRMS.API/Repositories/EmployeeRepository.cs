@@ -354,13 +354,20 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<int> GetEmployeeCountByPositionAsync(Guid positionId)
     {
+        try
+        {
         var sql = @"
             SELECT COUNT(*) 
             FROM employee.employees e
-            INNER JOIN employee.employment_details ed ON e.employeeid = ed.employeeid
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
             WHERE ed.positionid = @positionId AND e.status != 'deleted'";
 
         return await ExecuteScalarAsync<int>(sql, new { positionId });
+        }
+        catch(Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<List<Employee>> GetManagersAsync(Guid organizationId)

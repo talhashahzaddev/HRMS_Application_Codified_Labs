@@ -10,21 +10,36 @@ namespace HRMS.API.Services;
 public class EmployeeService : IEmployeeService
 {
     private readonly IEmployeeRepository _employeeRepository;
+    private readonly IAuthService _authService;
     private readonly IMapper _mapper;
     private readonly ILogger<EmployeeService> _logger;
 
     public EmployeeService(
         IEmployeeRepository employeeRepository,
+        IAuthService authService,
         IMapper mapper,
         ILogger<EmployeeService> logger)
     {
         _employeeRepository = employeeRepository;
+        _authService = authService;
         _mapper = mapper;
         _logger = logger;
     }
 
     public async Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId)
     {
+        _logger.LogInformation("Creating employee for organization: {OrganizationId}", organizationId);
+        
+        // Validate required fields
+        if (string.IsNullOrEmpty(request.Email))
+            throw new InvalidOperationException("Employee email is required");
+        
+        if (string.IsNullOrEmpty(request.FirstName))
+            throw new InvalidOperationException("Employee first name is required");
+            
+        if (string.IsNullOrEmpty(request.LastName))
+            throw new InvalidOperationException("Employee last name is required");
+
         // Validate unique employee code and email
         var existingByCode = await _employeeRepository.GetEmployeeByCodeAsync(organizationId, request.EmployeeNumber);
         if (existingByCode != null)
@@ -34,12 +49,30 @@ public class EmployeeService : IEmployeeService
         if (existingByEmail != null)
             throw new InvalidOperationException($"Employee with email '{request.Email}' already exists");
 
+        // Step 1: Create user account with Employee role and default password
+        var createUserRequest = new CreateUserRequest
+        {
+            Email = request.Email,
+            Password = "Password123", // Default password
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            RoleName = "Employee", // Default role for employees
+            OrganizationId = organizationId
+        };
+
+        _logger.LogInformation("Creating user account for employee: {Email}", request.Email);
+        var createdUser = await _authService.CreateUserAsync(createUserRequest, organizationId);
+        
+        // Step 2: Create employee record with the user ID
         var employee = _mapper.Map<Employee>(request);
         employee.OrganizationId = organizationId;
+        employee.UserId = createdUser.UserId; // Link to the created user
 
+        _logger.LogInformation("Creating employee record with user ID: {UserId}", createdUser.UserId);
         var createdEmployee = await _employeeRepository.CreateEmployeeAsync(employee);
         var result = await _employeeRepository.GetEmployeeByIdAsync(createdEmployee.EmployeeId);
 
+        _logger.LogInformation("Employee {EmployeeId} created successfully with user {UserId}", createdEmployee.EmployeeId, createdUser.UserId);
         return _mapper.Map<EmployeeDto>(result);
     }
 
