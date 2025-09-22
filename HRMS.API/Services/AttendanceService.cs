@@ -73,7 +73,7 @@ public class AttendanceService : IAttendanceService
         
         // Mock implementation - return current active session if exists
         var todayAttendance = await GetTodayAttendanceAsync(employeeId);
-        
+
         if (todayAttendance?.CheckInTime != null && todayAttendance.CheckOutTime == null)
         {
             return new TimeTrackingSessionDto
@@ -81,12 +81,13 @@ public class AttendanceService : IAttendanceService
                 SessionId = Guid.NewGuid(),
                 EmployeeId = employeeId,
                 CheckInTime = todayAttendance.CheckInTime,
+                IsActive = true,
                 Status = "Active",
                 ElapsedTime = DateTime.UtcNow - todayAttendance.CheckInTime.Value,
                 CurrentLocation = todayAttendance.CheckInLocation
             };
         }
-        
+
         return null;
     }
 

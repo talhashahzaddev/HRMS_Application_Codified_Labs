@@ -101,11 +101,11 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     public async Task<List<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId)
     {
         var sql = @"
-            SELECT leave_type_id, type_name, description, max_days_per_year, 
-                   is_paid, carry_forward_allowed, color, is_active
-            FROM attendance.leave_types 
-            WHERE organization_id = @organizationId AND is_active = true
-            ORDER BY type_name";
+            SELECT leavetypeid, typename, description, maxdaysperyear, 
+                   ispaid, carryforwardallowed, color, isactive
+            FROM attendance.leavetypes 
+            WHERE organizationid = @organizationId AND isactive = true
+            ORDER BY typename";
 
         var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
         return results.ToList();
@@ -129,16 +129,16 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     public async Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year)
     {
         var sql = @"
-            SELECT lt.type_name as leave_type_name, lt.color,
-                   COALESCE(le.total_days, 0) as total_days,
-                   COALESCE(le.used_days, 0) as used_days,
-                   COALESCE(le.remaining_days, 0) as remaining_days
-            FROM attendance.leave_types lt
-            LEFT JOIN attendance.leave_entitlements le ON lt.leave_type_id = le.leave_type_id 
-                AND le.employee_id = @employeeId AND le.year = @year
-            INNER JOIN employee.employees e ON e.employee_id = @employeeId
-            WHERE lt.organization_id = e.organization_id AND lt.is_active = true
-            ORDER BY lt.type_name";
+            SELECT lt.typename as leave_type_name, lt.color,
+                   COALESCE(le.totaldays, 0) as total_days,
+                   COALESCE(le.useddays, 0) as used_days,
+                   COALESCE(le.remainingdays, 0) as remaining_days
+            FROM attendance.leavetypes lt
+            LEFT JOIN attendance.leaveentitlements le ON lt.leavetypeid = le.leavetypeid 
+                AND le.employeeid = @employeeId AND le.year = @year
+            INNER JOIN employee.employees e ON e.employeeid = @employeeId
+            WHERE lt.organizationid = e.organizationid AND lt.isactive = true
+            ORDER BY lt.typename";
 
         var results = await QueryAsync<LeaveBalanceDto>(sql, new { employeeId, year });
         return results.ToList();

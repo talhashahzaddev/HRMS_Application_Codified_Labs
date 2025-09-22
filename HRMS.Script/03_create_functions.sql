@@ -356,46 +356,82 @@ ALTER FUNCTION employee.fn_get_employees(
 
 -- Function to clock in/out
 CREATE OR REPLACE FUNCTION attendance.fn_clock_in_out(
-    p_employee_id UUID,
-    p_action VARCHAR(10), -- 'in' or 'out'
-    p_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    p_location JSONB DEFAULT NULL
-)
-RETURNS BOOLEAN AS $$
+	p_employee_id uuid,
+	p_action character varying,
+	p_timestamp timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+	p_location jsonb DEFAULT NULL::jsonb)
+    RETURNS boolean
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
 DECLARE
     todayDate DATE := p_timestamp::DATE;
     attendanceRecord RECORD;
 BEGIN
-    -- Get or create today's attendance record
+    -- Step 1: Ensure daily attendance record exists
     SELECT * INTO attendanceRecord 
     FROM attendance.Attendance 
     WHERE employeeId = p_employee_id AND workDate = todayDate;
-    
+
     IF attendanceRecord IS NULL THEN
-        -- Create new attendance record
-        INSERT INTO attendance.Attendance (employeeId, workDate, location)
-        VALUES (p_employee_id, todayDate, COALESCE(p_location, '{}'));
+        INSERT INTO attendance.Attendance (employeeId, workDate, location, status)
+        VALUES (p_employee_id, todayDate, COALESCE(p_location, '{}'), 'present')
+        RETURNING * INTO attendanceRecord;
     END IF;
-    
+
+    -- Step 2: Handle Check-In
     IF p_action = 'in' THEN
+        -- Update main table with latest check-in (reset checkout for new session)
         UPDATE attendance.Attendance 
-        SET checkInTime = p_timestamp,
-            status = 'present',
-            location = COALESCE(p_location, location),
-            updatedAt = CURRENT_TIMESTAMP
-        WHERE employeeId = p_employee_id AND workDate = todayDate;
+        SET checkInTime  = p_timestamp,
+            checkOutTime = NULL,  -- ? reset checkout on new check-in
+            status       = 'present',
+            location     = COALESCE(p_location, location),
+            updatedAt    = CURRENT_TIMESTAMP
+        WHERE attendanceId = attendanceRecord.attendanceId;
+
+        -- Insert new session row
+        INSERT INTO attendance.AttendanceSessions (attendanceId, checkInTime, location)
+        VALUES (attendanceRecord.attendanceId, p_timestamp, COALESCE(p_location, '{}'));
+
+    -- Step 3: Handle Check-Out
     ELSIF p_action = 'out' THEN
+        -- Update main table with latest check-out
         UPDATE attendance.Attendance 
         SET checkOutTime = p_timestamp,
-            totalHours = EXTRACT(EPOCH FROM (p_timestamp - checkInTime)) / 3600,
-            location = COALESCE(p_location, location),
-            updatedAt = CURRENT_TIMESTAMP
-        WHERE employeeId = p_employee_id AND workDate = todayDate;
+            location     = COALESCE(p_location, location),
+            updatedAt    = CURRENT_TIMESTAMP
+        WHERE attendanceId = attendanceRecord.attendanceId;
+
+        -- ? Directly update the latest open session
+        UPDATE attendance.AttendanceSessions
+        SET checkOutTime = p_timestamp,
+            updatedAt    = CURRENT_TIMESTAMP
+        WHERE sessionId = (
+            SELECT sessionId
+            FROM attendance.AttendanceSessions
+            WHERE attendanceId = attendanceRecord.attendanceId
+              AND checkOutTime IS NULL
+            ORDER BY checkInTime DESC
+            LIMIT 1
+        );
+
+        -- Recalculate total hours for the day
+        UPDATE attendance.Attendance
+        SET totalHours = (
+            SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (checkOutTime - checkInTime))) / 3600, 0)
+            FROM attendance.AttendanceSessions
+            WHERE attendanceId = attendanceRecord.attendanceId
+              AND checkOutTime IS NOT NULL
+        ),
+        updatedAt = CURRENT_TIMESTAMP
+        WHERE attendanceId = attendanceRecord.attendanceId;
     END IF;
-    
+
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$;
 
 -- FUNCTION: attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer)
 
