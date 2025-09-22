@@ -17,17 +17,20 @@ namespace HRMS.API.Services;
 public class AuthService : IAuthService
 {
     private readonly IAuthRepository _authRepository;
+    private readonly IOrganizationService _organizationService;
     private readonly JwtSettings _jwtSettings;
     private readonly IMapper _mapper;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
         IAuthRepository authRepository,
+        IOrganizationService organizationService,
         IOptions<JwtSettings> jwtSettings,
         IMapper mapper,
         ILogger<AuthService> logger)
     {
         _authRepository = authRepository;
+        _organizationService = organizationService;
         _jwtSettings = jwtSettings.Value;
         _mapper = mapper;
         _logger = logger;
@@ -162,10 +165,10 @@ public class AuthService : IAuthService
         return true;
     }
 
-    // New missing methods implementation
+    // New registration method that creates organization and SuperAdmin user
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
     {
-        _logger.LogInformation("Registration attempt for email: {Email}", request.Email);
+        _logger.LogInformation("Registration attempt for email: {Email} and organization: {CompanyName}", request.Email, request.CompanyName);
         
         // Check if user already exists
         var existingUser = await _authRepository.GetUserByEmailAsync(request.Email);
@@ -174,16 +177,34 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("User with this email already exists");
         }
 
+        // Step 1: Create organization
+        var createOrgDto = new CreateOrganizationDTO
+        {
+            Name = request.CompanyName,
+            Domain = !string.IsNullOrEmpty(request.Website) ? ExtractDomainFromUrl(request.Website) : null,
+            SubscriptionType = GetSubscriptionTypeFromCompanySize(request.CompanySize)
+        };
+
+        var orgResponse = await _organizationService.CreateOrganizationAsync(createOrgDto);
+        if (!orgResponse.Success || orgResponse.Data == null)
+        {
+            throw new InvalidOperationException("Failed to create organization: " + orgResponse.Message);
+        }
+
+        var organizationId = orgResponse.Data.OrganizationId;
+        _logger.LogInformation("Organization {OrganizationId} created successfully", organizationId);
+
+        // Step 2: Create SuperAdmin user for the organization
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
         var user = new User
         {
-            OrganizationId = request.OrganizationId,
+            OrganizationId = organizationId,
             Email = request.Email,
             PasswordHash = passwordHash,
             FirstName = request.FirstName,
             LastName = request.LastName,
-            Role = new Role { RoleName = request.RoleName ?? "Employee" },
+            Role = new Role { RoleName = "Super Admin" }, // Always SuperAdmin for registration
             IsActive = true,
             CreatedAt = DateTime.UtcNow
         };
@@ -196,7 +217,7 @@ public class AuthService : IAuthService
         // Update refresh token in database
         await _authRepository.UpdateRefreshTokenAsync(createdUser.UserId, refreshToken, DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays));
 
-        _logger.LogInformation("User {UserId} registered successfully", createdUser.UserId);
+        _logger.LogInformation("SuperAdmin user {UserId} created successfully for organization {OrganizationId}", createdUser.UserId, organizationId);
 
         return new AuthResponse
         {
@@ -204,11 +225,42 @@ public class AuthService : IAuthService
             Email = createdUser.Email,
             FirstName = createdUser.FirstName,
             LastName = createdUser.LastName,
-            RoleName = createdUser.Role?.RoleName ?? "Employee",
-            OrganizationName = createdUser.Organization?.Name ?? "Unknown",
+            RoleName = "Super Admin",
+            OrganizationName = orgResponse.Data.Name,
             Token = accessToken,
             RefreshToken = refreshToken,
             TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
+        };
+    }
+
+    private string? ExtractDomainFromUrl(string url)
+    {
+        try
+        {
+            if (!url.StartsWith("http://") && !url.StartsWith("https://"))
+            {
+                url = "https://" + url;
+            }
+            var uri = new Uri(url);
+            return uri.Host.Replace("www.", "");
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private string GetSubscriptionTypeFromCompanySize(string companySize)
+    {
+        return companySize switch
+        {
+            "1-10" => "basic",
+            "11-50" => "standard",
+            "51-200" => "professional",
+            "201-500" => "enterprise",
+            "501-1000" => "enterprise",
+            "1000+" => "enterprise",
+            _ => "basic"
         };
     }
 
