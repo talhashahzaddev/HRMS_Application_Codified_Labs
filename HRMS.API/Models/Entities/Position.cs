@@ -22,6 +22,7 @@ public class Position : BaseEntity
     [Column("description")]
     public string? Description { get; set; }
     
+    public string? DepartmentName { get; set; }
     [Column("requirements")]
     public Dictionary<string, object> Requirements { get; set; } = new();
     

@@ -219,18 +219,28 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<List<Position>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null)
     {
-        var sql = @"
-            SELECT positionid, organizationid, positiontitle, departmentid, 
-                   description, requirements, salaryrange, isactive, createdat, updatedat
-            FROM employee.positions 
-            WHERE organizationid = @organizationId 
-              AND (@departmentId IS NULL OR departmentid = @departmentId)
-              AND isactive = true
-            ORDER BY positiontitle";
+        try
+        {
+            var sql = @"
+            SELECT ep.positionid, ep.organizationid, ep.positiontitle, 
+                   ed.departmentname AS DepartmentName, 
+                   ep.description, ep.requirements, ep.salaryrange, 
+                   ep.isactive, ep.createdat, ep.updatedat
+            FROM employee.positions ep
+            JOIN employee.departments ed ON ep.departmentid = ed.departmentid
+            WHERE ep.organizationid = @organizationId 
+              AND ep.isactive = true
+            ORDER BY ep.positiontitle";
 
-        var results = await QueryAsync<Position>(sql, new { organizationId, departmentId });
-        return results.ToList();
+            var results = await QueryAsync<Position>(sql, new { organizationId, departmentId });
+            return results.ToList();
+        }
+        catch (Exception)
+        {
+            throw;
+        }
     }
+
 
     public async Task<Position> CreatePositionAsync(Position position)
     {
