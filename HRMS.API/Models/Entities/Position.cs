@@ -23,6 +23,9 @@ public class Position : BaseEntity
     public string? Description { get; set; }
     
     public string? DepartmentName { get; set; }
+    
+    public string? RoleName { get; set; }
+    
     [Column("requirements")]
     public Dictionary<string, object> Requirements { get; set; } = new();
     
@@ -31,6 +34,9 @@ public class Position : BaseEntity
     
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
+    
+    [Column("roleid")]
+    public Guid? RoleId { get; set; }
 
     // Navigation properties
     [NotMapped]
@@ -38,6 +44,9 @@ public class Position : BaseEntity
     
     [NotMapped]
     public Department? Department { get; set; }
+    
+    [NotMapped]
+    public Role? Role { get; set; }
     
     [NotMapped]
     public ICollection<EmploymentDetail> EmploymentDetails { get; set; } = new List<EmploymentDetail>();
