@@ -476,6 +476,11 @@ public class AuthService : IAuthService
         return roles.Select(MapToRoleDto).ToList();
     }
 
+    public async Task<bool> UpdateUserRoleAsync(Guid userId, Guid roleId)
+    {
+        return await _authRepository.UpdateUserRoleAsync(userId, roleId);
+    }
+
     private static RoleDto MapToRoleDto(Role role)
     {
         return new RoleDto

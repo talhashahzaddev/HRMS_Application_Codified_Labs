@@ -92,6 +92,8 @@ public class PositionDto
     public Guid? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
     public string? Description { get; set; }
+    public Guid? RoleId { get; set; }
+    public string? RoleName { get; set; }
     public bool IsActive { get; set; }
     public int EmployeeCount { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -102,6 +104,7 @@ public class CreatePositionRequest
     public string PositionTitle { get; set; } = string.Empty;
     public string? Description { get; set; }
     public Guid? DepartmentId { get; set; }
+    public Guid? RoleId { get; set; }
 }
 
 public class EmployeeStatisticsDto

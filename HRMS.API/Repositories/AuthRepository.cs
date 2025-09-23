@@ -314,6 +314,18 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
         }
     }
 
+    public async Task<bool> UpdateUserRoleAsync(Guid? userId, Guid? roleId)
+    {
+        var sql = @"
+            UPDATE auth.users 
+            SET roleid = @roleId,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE userid = @userId";
+
+        var affected = await ExecuteAsync(sql, new { userId, roleId });
+        return affected > 0;
+    }
+
     private static User MapToUser(dynamic result)
     {
         try

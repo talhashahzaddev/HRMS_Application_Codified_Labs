@@ -12,11 +12,13 @@ namespace HRMS.API.Controllers;
 public class PositionController : ControllerBase
 {
     private readonly IEmployeeService _employeeService;
+    private readonly IAuthService _authService;
     private readonly ILogger<PositionController> _logger;
 
-    public PositionController(IEmployeeService employeeService, ILogger<PositionController> logger)
+    public PositionController(IEmployeeService employeeService, IAuthService authService, ILogger<PositionController> logger)
     {
         _employeeService = employeeService;
+        _authService = authService;
         _logger = logger;
     }
 
@@ -73,6 +75,31 @@ public class PositionController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while retrieving the position"
+            });
+        }
+    }
+
+    [HttpGet("roles")]
+    public async Task<ActionResult<ServiceResponse<List<RoleDto>>>> GetRoles()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var roles = await _authService.GetOrganizationRolesAsync(organizationId);
+            
+            return Ok(new ServiceResponse<List<RoleDto>>
+            {
+                Success = true,
+                Data = roles
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving roles");
+            return StatusCode(500, new ServiceResponse<List<RoleDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving roles"
             });
         }
     }
