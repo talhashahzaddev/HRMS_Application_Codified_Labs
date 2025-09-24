@@ -37,19 +37,19 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid? employeeId = null, Guid? organizationId = null, string? status = null, int page = 1, int pageSize = 50)
     {
         var sql = @"
-            SELECT lr.request_id, lr.employee_id, lr.leave_type_id, lr.start_date, lr.end_date,
-                   lr.days_requested, lr.reason, lr.status, lr.submitted_at, lr.approved_at,
-                   CONCAT(e.first_name, ' ', e.last_name) as employee_name,
-                   lt.type_name as leave_type_name,
-                   CONCAT(a.first_name, ' ', a.last_name) as approver_name
-            FROM attendance.leave_requests lr
-            INNER JOIN employee.employees e ON lr.employee_id = e.employee_id
-            INNER JOIN attendance.leave_types lt ON lr.leave_type_id = lt.leave_type_id
-            LEFT JOIN employee.employees a ON lr.approved_by = a.employee_id
-            WHERE (@employeeId IS NULL OR lr.employee_id = @employeeId)
-              AND (@organizationId IS NULL OR e.organization_id = @organizationId)
+            SELECT lr.requestid, lr.employeeid, lr.leavetypeid, lr.startdate, lr.enddate,
+                   lr.daysrequested, lr.reason, lr.status, lr.submittedat, lr.approvedat,
+                   CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+                   lt.typename as leave_type_name,
+                   CONCAT(a.firstname, ' ', a.lastname) as approver_name
+            FROM attendance.leaverequests lr
+            INNER JOIN employee.employees e ON lr.employeeid = e.employeeid
+            INNER JOIN attendance.leavetypes lt ON lr.leavetypeid = lt.leavetypeid
+            LEFT JOIN employee.employees a ON lr.approvedby = a.employeeid
+            WHERE (@employeeId IS NULL OR lr.employeeid = @employeeId)
+              AND (@organizationId IS NULL OR e.organizationid = @organizationId)
               AND (@status IS NULL OR lr.status = @status)
-            ORDER BY lr.submitted_at DESC
+            ORDER BY lr.submittedat DESC
             LIMIT @pageSize OFFSET @offset";
 
         var results = await QueryAsync<dynamic>(sql, new 
@@ -81,10 +81,10 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         // Get total count
         var countSql = @"
             SELECT COUNT(*)
-            FROM attendance.leave_requests lr
-            INNER JOIN employee.employees e ON lr.employee_id = e.employee_id
-            WHERE (@employeeId IS NULL OR lr.employee_id = @employeeId)
-              AND (@organizationId IS NULL OR e.organization_id = @organizationId)
+            FROM attendance.leaverequests lr
+            INNER JOIN employee.employees e ON lr.employeeid = e.employeeid
+            WHERE (@employeeId IS NULL OR lr.employeeid = @employeeId)
+              AND (@organizationId IS NULL OR e.organizationid = @organizationId)
               AND (@status IS NULL OR lr.status = @status)";
 
         var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, organizationId, status });
