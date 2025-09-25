@@ -49,37 +49,44 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
 
     public async Task<EmployeeAppraisal> CreateEmployeeAppraisalAsync(EmployeeAppraisal appraisal)
     {
-        var sql = @"
-            INSERT INTO performance.employee_appraisals (
-                cycle_id, employee_id, reviewer_id, review_type, overall_rating,
-                kra_ratings, skill_ratings, goals_achieved, feedback, improvement_areas,
-                development_plan, status
+        try
+        {
+            var sql = @"
+            INSERT INTO performance.employeeappraisals (
+                cycleid, employeeid, reviewerid, reviewtype, overallrating,
+                kraratings, skillratings, goalsachieved, feedback, improvementareas,
+                developmentplan, status
             )
             VALUES (
                 @cycleId, @employeeId, @reviewerId, @reviewType, @overallRating,
                 @kraRatings::jsonb, @skillRatings::jsonb, @goalsAchieved::jsonb,
                 @feedback, @improvementAreas, @developmentPlan, @status
             )
-            RETURNING appraisal_id";
+            RETURNING appraisalid";
 
-        var appraisalId = await ExecuteScalarAsync<Guid>(sql, new
+            var appraisalId = await ExecuteScalarAsync<Guid>(sql, new
+            {
+                cycleId = appraisal.CycleId,
+                employeeId = appraisal.EmployeeId,
+                reviewerId = appraisal.ReviewerId,
+                reviewType = appraisal.ReviewType,
+                overallRating = appraisal.OverallRating,
+                kraRatings = System.Text.Json.JsonSerializer.Serialize(appraisal.KraRatings),
+                skillRatings = System.Text.Json.JsonSerializer.Serialize(appraisal.SkillRatings),
+                goalsAchieved = System.Text.Json.JsonSerializer.Serialize(appraisal.GoalsAchieved),
+                feedback = appraisal.Feedback,
+                improvementAreas = appraisal.ImprovementAreas,
+                developmentPlan = appraisal.DevelopmentPlan,
+                status = appraisal.Status
+            });
+
+            appraisal.AppraisalId = appraisalId;
+            return appraisal;
+        }
+        catch(Exception ex)
         {
-            cycleId = appraisal.CycleId,
-            employeeId = appraisal.EmployeeId,
-            reviewerId = appraisal.ReviewerId,
-            reviewType = appraisal.ReviewType,
-            overallRating = appraisal.OverallRating,
-            kraRatings = System.Text.Json.JsonSerializer.Serialize(appraisal.KraRatings),
-            skillRatings = System.Text.Json.JsonSerializer.Serialize(appraisal.SkillRatings),
-            goalsAchieved = System.Text.Json.JsonSerializer.Serialize(appraisal.GoalsAchieved),
-            feedback = appraisal.Feedback,
-            improvementAreas = appraisal.ImprovementAreas,
-            developmentPlan = appraisal.DevelopmentPlan,
-            status = appraisal.Status
-        });
-
-        appraisal.AppraisalId = appraisalId;
-        return appraisal;
+            return null;
+        }
     }
 
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null)

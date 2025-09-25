@@ -719,8 +719,8 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION performance.fn_create_appraisal_cycle(
     p_organization_id UUID,
     p_cycle_name VARCHAR(100),
-    p_start_date DATE,
-    p_end_date DATE,
+	p_start_date timestamp with time zone,
+	p_end_date timestamp with time zone,
     p_description TEXT DEFAULT NULL
 )
 RETURNS UUID AS $$
