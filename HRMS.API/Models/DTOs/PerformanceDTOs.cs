@@ -76,9 +76,9 @@ public class CreateAppraisalRequest
 public class PerformanceSummaryDto
 {
     public decimal AverageRating { get; set; }
-    public int TotalAppraisals { get; set; }
-    public int PendingAppraisals { get; set; }
-    public Dictionary<string, int> RatingDistribution { get; set; } = new();
+    public long TotalAppraisals { get; set; }
+    public long PendingAppraisals { get; set; }
+    public Dictionary<string, long> RatingDistribution { get; set; } = new();
     public List<TopPerformerDto> TopPerformers { get; set; } = new();
 }
 
