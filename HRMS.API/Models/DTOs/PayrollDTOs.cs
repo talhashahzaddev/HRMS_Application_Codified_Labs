@@ -170,3 +170,14 @@ public class CalculateTaxRequest
     public decimal GrossPay { get; set; }
     public Guid PayrollPeriodId { get; set; }
 }
+
+public class PayrollCalculationResult
+{
+    public int EntriesCreated { get; set; }
+    public Guid PeriodId { get; set; }
+    public int TotalEmployees { get; set; }
+    public decimal TotalGrossAmount { get; set; }
+    public decimal TotalTaxAmount { get; set; }
+    public decimal TotalNetAmount { get; set; }
+    public DateTime CalculatedAt { get; set; }
+}

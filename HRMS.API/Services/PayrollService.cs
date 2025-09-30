@@ -42,7 +42,38 @@ public class PayrollService : IPayrollService
 
     public async Task<int> CalculatePayrollAsync(Guid periodId)
     {
-        return await _payrollRepository.CalculatePayrollAsync(periodId);
+        _logger.LogInformation("Starting payroll calculation for period: {PeriodId}", periodId);
+        
+        try
+        {
+            // Validate period exists and is in correct status
+            var period = await _payrollRepository.GetPayrollPeriodByIdAsync(periodId);
+            if (period == null)
+            {
+                throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
+            }
+
+            if (period.Status != "draft")
+            {
+                throw new InvalidOperationException($"Cannot calculate payroll for period in status: {period.Status}");
+            }
+
+            // Call the database function to calculate payroll
+            var entriesCreated = await _payrollRepository.CalculatePayrollAsync(periodId);
+            
+            // Update period status to calculated
+            await _payrollRepository.UpdatePayrollPeriodStatusAsync(periodId, "calculated");
+            
+            _logger.LogInformation("Payroll calculation completed for period {PeriodId}. Created {EntriesCount} entries", 
+                periodId, entriesCreated);
+            
+            return entriesCreated;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating payroll for period {PeriodId}", periodId);
+            throw;
+        }
     }
 
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50)
