@@ -28,9 +28,9 @@ public class LeaveService : ILeaveService
         var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(employeeId, request.StartDate, request.EndDate);
         if (hasOverlap)
             throw new InvalidOperationException("Leave request overlaps with existing leave");
-
+        var empId = await _leaveRepository.GetEmpId(employeeId);
         var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
-            employeeId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
+            empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
         return _mapper.Map<LeaveRequestDto>(leaveRequest);
     }
