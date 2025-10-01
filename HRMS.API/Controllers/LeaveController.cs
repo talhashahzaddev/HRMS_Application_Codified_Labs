@@ -83,8 +83,8 @@ public class LeaveController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
-            var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, employeeId);
+            var UserId = GetCurrentEmployeeId();
+            var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, UserId);
             
             return CreatedAtAction(nameof(GetLeaveRequest), new { id = leaveRequest.RequestId }, new ServiceResponse<LeaveRequestDto>
             {
