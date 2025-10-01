@@ -225,6 +225,9 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
 
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesFilteredAsync(Guid organizationId, PayrollFilterRequest filter, int page, int limit)
     {
+        try
+        {
+
         var whereConditions = new List<string> { "e.organizationid = @organizationId" };
         var parameters = new Dictionary<string, object> { { "organizationId", organizationId } };
 
@@ -286,6 +289,11 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             Page = page,
             PageSize = limit
         };
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesByEmployeeAsync(Guid employeeId, int page, int limit)
@@ -399,6 +407,9 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
 
     public async Task<PayrollSummaryDto> GetPayrollDashboardSummaryAsync(Guid organizationId)
     {
+        try
+        {
+
         var sql = @"
             SELECT 
                 COALESCE(SUM(pe.grosssalary), 0) as total_gross_salary,
@@ -438,9 +449,14 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             TotalGrossSalary = result.total_gross_salary,
             TotalTax = result.total_tax,
             TotalNetSalary = result.total_net_salary,
-            TotalEmployees = result.total_employees,
+            TotalEmployees = (int)result.total_employees,
             DepartmentWisePayroll = deptResults.ToDictionary(d => (string)d.departmentname, d => (decimal)d.total_amount)
         };
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
@@ -516,6 +532,9 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
 
     public async Task<DepartmentPayrollBreakdownDto> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId)
     {
+        try
+        {
+
         var periodFilter = payrollPeriodId.HasValue ? "AND pp.periodid = @payrollPeriodId" : "";
         var parameters = new Dictionary<string, object> { { "organizationId", organizationId } };
         
@@ -550,6 +569,11 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             AverageAmount = results.Any() ? results.Average(r => (decimal)r.average_amount) : 0,
             Percentage = 100
         };
+        }
+        catch(Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<PayrollTaxSummaryDto> CalculateTaxDeductionsAsync(Guid employeeId, decimal grossPay, Guid payrollPeriodId)
