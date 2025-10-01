@@ -445,6 +445,9 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
 
     public async Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
     {
+        try
+        {
+
         var dateFilter = "";
         var parameters = new Dictionary<string, object> { { "organizationId", organizationId } };
 
@@ -494,16 +497,21 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         {
             TotalPayroll = result.total_payroll,
             AveragePayroll = result.average_payroll,
-            TotalEmployees = result.total_employees,
             TotalDeductions = result.total_deductions,
             TotalAllowances = result.total_allowances,
+            TotalEmployees = (int)result.total_employees,
             MonthlyTrends = trends.Select(t => new MonthlyPayrollDto
             {
                 Month = t.month,
-                Amount = t.amount,
-                EmployeeCount = t.employee_count
+                Amount = (decimal)t.amount,
+                EmployeeCount = (int)t.employee_count
             }).ToList()
         };
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<DepartmentPayrollBreakdownDto> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId)
