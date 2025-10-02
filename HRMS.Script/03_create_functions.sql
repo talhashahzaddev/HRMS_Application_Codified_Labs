@@ -789,3 +789,31 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+
+--inserting data for leave balance 
+
+CREATE OR REPLACE FUNCTION attendance.fn_initialize_leave_entitlements(
+    p_employee_id UUID,
+    p_organization_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+    current_year INT := EXTRACT(YEAR FROM NOW());
+BEGIN
+    FOR rec IN 
+        SELECT leavetypeid, maxdaysperyear
+        FROM attendance.leavetypes
+        WHERE organizationid = p_organization_id
+          AND isactive = true
+    LOOP
+        INSERT INTO attendance.leaveentitlements
+            (employeeid, leavetypeid, year, totaldays, useddays, remainingdays, carryforwarddays, createdat)
+        VALUES
+            (p_employee_id, rec.leavetypeid, current_year, rec.maxdaysperyear, 0, rec.maxdaysperyear, 0, NOW());
+    END LOOP;
+END;
+$$;
+

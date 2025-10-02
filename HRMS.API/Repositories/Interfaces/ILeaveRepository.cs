@@ -14,4 +14,5 @@ public interface ILeaveRepository
     Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year);
     Task<LeaveRequest?> GetLeaveRequestByIdAsync(Guid requestId);
     Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null);
+    Task<List<LeaveRequest>> GetLeaveRequestsByEmployeeId(Guid employeeId);
 }

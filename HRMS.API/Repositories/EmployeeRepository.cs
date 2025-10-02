@@ -4,6 +4,7 @@ using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using System.Data;
 using Dapper;
+using Npgsql;
 
 namespace HRMS.API.Repositories;
 
@@ -13,35 +14,51 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<Employee> CreateEmployeeAsync(Employee employee)
     {
+        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+        await connection.OpenAsync();
+
+        using var transaction = await connection.BeginTransactionAsync();
+
         try
         {
-        var employeeId = await ExecuteScalarAsync<Guid>(
-            @"SELECT employee.fn_create_employee(
+            var employeeId = await connection.ExecuteScalarAsync<Guid>(
+                @"SELECT employee.fn_create_employee(
                 @organizationId, @userId, @employeeCode, @firstName, @lastName, 
                 @email, @phone, @dateOfBirth, @hireDate, @departmentId, 
                 @positionId, @basicSalary, @address::jsonb)",
-            new
-            {
-                organizationId = employee.OrganizationId,
-                userId = employee.UserId,
-                employeeCode = employee.EmployeeNumber,
-                firstName = employee.FirstName,
-                lastName = employee.LastName,
-                email = employee.Email,
-                phone = employee.Phone,
-                dateOfBirth = employee.DateOfBirth,
-                hireDate = employee.HireDate,
-                departmentId = employee.DepartmentId,
-                positionId = employee.PositionId,     
-                basicSalary = employee.BasicSalary,
-                address = System.Text.Json.JsonSerializer.Serialize(employee.Address)
-            });
+                new
+                {
+                    organizationId = employee.OrganizationId,
+                    userId = employee.UserId,
+                    employeeCode = employee.EmployeeNumber,
+                    firstName = employee.FirstName,
+                    lastName = employee.LastName,
+                    email = employee.Email,
+                    phone = employee.Phone,
+                    dateOfBirth = employee.DateOfBirth,
+                    hireDate = employee.HireDate,
+                    departmentId = employee.DepartmentId,
+                    positionId = employee.PositionId,
+                    basicSalary = employee.BasicSalary,
+                    address = System.Text.Json.JsonSerializer.Serialize(employee.Address)
+                },
+                transaction
+            );
 
-        employee.EmployeeId = employeeId;
-        return employee;
+            await connection.ExecuteAsync(
+                "SELECT attendance.fn_initialize_leave_entitlements(@employeeId, @organizationId)",
+                new { employeeId, employee.OrganizationId },
+                transaction
+            );
+
+            await transaction.CommitAsync();
+
+            employee.EmployeeId = employeeId;
+            return employee;
         }
-        catch (Exception ex)
+        catch
         {
+            await transaction.RollbackAsync();
             throw;
         }
     }
@@ -432,4 +449,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         var results = await QueryAsync<Employee>(sql, new { organizationId });
         return results.ToList();
     }
+
+
 }

@@ -1,4 +1,5 @@
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 
 namespace HRMS.API.Services.Interfaces;
@@ -12,4 +13,5 @@ public interface ILeaveService
     Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year);
     Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year);
     Task<LeaveRequestDto?> GetLeaveRequestByIdAsync(Guid requestId);
+    Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId(Guid employeeId);
 }
