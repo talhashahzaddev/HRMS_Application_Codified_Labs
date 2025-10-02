@@ -69,7 +69,8 @@ public class LeaveService : ILeaveService
 
     public async Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year)
     {
-        return await _leaveRepository.GetLeaveBalanceAsync(employeeId, year);
+        var empId = await _leaveRepository.GetEmpId(employeeId);
+        return await _leaveRepository.GetLeaveBalanceAsync(empId, year);
     }
 
     public async Task<LeaveRequestDto?> GetLeaveRequestByIdAsync(Guid requestId)
