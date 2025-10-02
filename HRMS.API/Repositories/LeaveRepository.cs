@@ -222,4 +222,23 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
             return false;
         }
     }
+
+    public async Task<List<LeaveRequest>> GetLeaveRequestsByEmployeeId(Guid employeeId)
+    {
+        try
+        {
+            var sql = @"
+        SELECT *
+        FROM attendance.leaverequests
+        WHERE employeeid = @employeeId";
+
+            var results = await QueryAsync<LeaveRequest>(sql, new { employeeId });
+            return results.ToList();
+        }
+        catch (Exception ex)
+        {
+            return new List<LeaveRequest>();
+        }
+    }
+
 }

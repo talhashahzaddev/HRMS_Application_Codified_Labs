@@ -1,5 +1,6 @@
 using AutoMapper;
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
@@ -33,6 +34,12 @@ public class LeaveService : ILeaveService
             empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
         return _mapper.Map<LeaveRequestDto>(leaveRequest);
+    }
+    public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
+    {
+        var empId = await _leaveRepository.GetEmpId(employeeId);
+        var LeaveRequest = await _leaveRepository.GetLeaveRequestsByEmployeeId(empId);       
+        return LeaveRequest;
     }
 
     public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy)
