@@ -151,6 +151,44 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
         return results.ToList();
     }
+    public async Task<bool> CreateLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto)
+    {
+        var sql = @"
+        INSERT INTO attendance.leavetypes 
+            (leavetypeid, organizationid, typename, description, maxdaysperyear, 
+             ispaid, carryforwardallowed, color, isactive, createdat)
+        VALUES
+            (@LeaveTypeId, @OrganizationId, @TypeName, @Description, @MaxDaysPerYear, 
+             @IsPaid, @CarryForwardAllowed, @Color, @IsActive, NOW());";
+
+        try
+        {
+            var rowsAffected = await ExecuteAsync(sql, new
+            {
+                dto.LeaveTypeId,
+                OrganizationId = organizationId,
+                dto.TypeName,
+                dto.Description,
+                dto.MaxDaysPerYear,
+                dto.IsPaid,
+                dto.CarryForwardAllowed,
+                dto.Color,
+                dto.IsActive
+            });
+
+            // If at least one row inserted, return true
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            // Log error or throw (depending on your logging setup)
+            Console.WriteLine($"Error inserting LeaveType: {ex.Message}");
+            return false;
+        }
+    }
+
+
+
 
     public async Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year)
     {
@@ -240,5 +278,35 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
             return new List<LeaveRequest>();
         }
     }
+    public async Task<List<LeaveCalendarDto>> GetLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    {
+        var sql = @"
+        SELECT lr.requestid, 
+               lr.employeeid, 
+               lr.leavetypeid, 
+               lt.typename AS LeaveTypeName,
+               lr.startdate, 
+               lr.enddate, 
+               lr.daysrequested, 
+               lr.reason, 
+               lr.attachmenturl, 
+               lr.status, 
+               lr.submittedat, 
+               lr.approvedby, 
+               lr.approvedat, 
+               lr.rejectionreason, 
+               lr.createdat, 
+               lr.updatedat
+        FROM attendance.leaverequests lr
+        INNER JOIN attendance.leavetypes lt ON lr.leavetypeid = lt.leavetypeid
+        WHERE lr.employeeid = @employeeId
+          AND lr.startdate >= @startDate
+          AND lr.enddate <= @endDate
+        ORDER BY lr.startdate;";
+
+        var results = await QueryAsync<LeaveCalendarDto>(sql, new { employeeId, startDate, endDate });
+        return results.ToList();
+    }
+
 
 }

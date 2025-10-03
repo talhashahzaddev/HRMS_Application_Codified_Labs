@@ -5,6 +5,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Services.Interfaces;
 using HRMS.API.Models.Entities;
+using HRMS.API.Requests;
 
 namespace HRMS.API.Controllers;
 
@@ -229,6 +230,43 @@ public class LeaveController : ControllerBase
             });
         }
     }
+    [HttpPost("types")]
+    public async Task<ActionResult<ServiceResponse<Guid>>> CreateLeaveType([FromBody] CreateLeaveTypeRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var leaveTypeId = await _leaveService.CreateLeaveTypeAsync(organizationId, request);
+            if(leaveTypeId != Guid.Empty)
+            {
+                return Ok(new ServiceResponse<Guid>
+                {
+                    Success = true,
+                    Data = leaveTypeId,
+                    Message = "Leave type created successfully"
+                });
+            }
+            else
+            {
+                return StatusCode(500, new ServiceResponse<Guid>
+                {
+                    Success = false,
+                    Message = "An error occurred while creating leave type"
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating leave type");
+            return StatusCode(500, new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = "An error occurred while creating leave type"
+            });
+        }
+    }
+
+
 
     [HttpGet("entitlements")]
     public async Task<ActionResult<ServiceResponse<List<LeaveEntitlementDto>>>> GetLeaveEntitlements([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
@@ -281,6 +319,32 @@ public class LeaveController : ControllerBase
             });
         }
     }
+
+    [HttpGet("calendar")]
+    public async Task<ActionResult<ServiceResponse<List<LeaveCalendarDto>>>> GetLeaveCalendar([FromQuery] DateTime startDate,DateTime endDate)
+    {
+        try
+        {
+            var userId = GetCurrentEmployeeId();
+            var data = await _leaveService.GetLeaveRequestsForCalendarAsync(userId, startDate, endDate);
+
+            return Ok(new ServiceResponse<List<LeaveCalendarDto>>
+            {
+                Success = true,
+                Data = data
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving leave calendar");
+            return StatusCode(500, new ServiceResponse<List<LeaveCalendarDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving leave calendar"
+            });
+        }
+    }
+
 
     private Guid GetCurrentEmployeeId()
     {
