@@ -255,6 +255,12 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             parameters.Add("search", $"%{filter.Search}%");
         }
 
+        if (!string.IsNullOrEmpty(filter.Department))
+        {
+            whereConditions.Add("d.departmentname = @department");
+            parameters.Add("department", filter.Department);
+        }
+
         var whereClause = string.Join(" AND ", whereConditions);
         
         var sql = $@"
@@ -262,9 +268,12 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                    pe.overtimeamount as overtime_amount, pe.bonusamount as bonus_amount, 
                    pe.grosssalary as gross_salary, pe.taxamount as tax_amount, pe.netsalary as net_salary,
                    pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
-                   CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code
+                   CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code,
+                   d.departmentname as department_name
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
             WHERE {whereClause}
             ORDER BY e.firstname, e.lastname
             LIMIT @limit OFFSET @offset";
@@ -278,6 +287,8 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             SELECT COUNT(*)
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
             WHERE {whereClause}";
 
         var totalCount = await ExecuteScalarAsync<int>(countSql, parameters.Where(p => p.Key != "limit" && p.Key != "offset").ToDictionary(p => p.Key, p => p.Value));
@@ -304,9 +315,12 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                    pe.grosssalary as gross_salary, pe.taxamount as tax_amount, pe.netsalary as net_salary,
                    pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
                    CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code,
+                   d.departmentname as department_name,
                    pp.periodname as period_name, pp.startdate as period_start, pp.enddate as period_end
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
             INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             WHERE pe.employeeid = @employeeId
             ORDER BY pp.startdate DESC
@@ -339,9 +353,12 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                    pe.bonusamount as bonus_amount, pe.grosssalary as gross_salary, 
                    pe.taxamount as tax_amount, pe.netsalary as net_salary,
                    pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
-                   CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code
+                   CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code,
+                   d.departmentname as department_name
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
             WHERE pe.entryid = @entryId";
 
         return await QuerySingleOrDefaultAsync<PayrollEntryDto>(sql, new { entryId });

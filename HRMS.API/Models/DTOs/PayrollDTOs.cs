@@ -30,6 +30,7 @@ public class PayrollEntryDto
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeCode { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
     public decimal BasicSalary { get; set; }
     public Dictionary<string, object> Allowances { get; set; } = new();
     public Dictionary<string, object> Deductions { get; set; } = new();
