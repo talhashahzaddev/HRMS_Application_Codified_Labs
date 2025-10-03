@@ -28,6 +28,18 @@ public class EmployeeService : IEmployeeService
 
     public async Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId)
     {
+        _logger.LogInformation("Creating employee for organization: {OrganizationId}", organizationId);
+        
+        // Validate required fields
+        if (string.IsNullOrEmpty(request.Email))
+            throw new InvalidOperationException("Employee email is required");
+        
+        if (string.IsNullOrEmpty(request.FirstName))
+            throw new InvalidOperationException("Employee first name is required");
+            
+        if (string.IsNullOrEmpty(request.LastName))
+            throw new InvalidOperationException("Employee last name is required");
+
         // Validate unique employee code and email
         var existingByCode = await _employeeRepository.GetEmployeeByCodeAsync(organizationId, request.EmployeeNumber);
         if (existingByCode != null)
@@ -85,6 +97,7 @@ public class EmployeeService : IEmployeeService
         employee.OrganizationId = organizationId;
         employee.UserId = userId;
 
+        _logger.LogInformation("Creating employee record with user ID: {UserId}", createdUser.UserId);
         var createdEmployee = await _employeeRepository.CreateEmployeeAsync(employee);
         
         _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}", 
@@ -92,6 +105,7 @@ public class EmployeeService : IEmployeeService
         
         var result = await _employeeRepository.GetEmployeeByIdAsync(createdEmployee.EmployeeId);
 
+        _logger.LogInformation("Employee {EmployeeId} created successfully with user {UserId}", createdEmployee.EmployeeId, createdUser.UserId);
         return _mapper.Map<EmployeeDto>(result);
     }
 
