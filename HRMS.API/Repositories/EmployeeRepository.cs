@@ -4,6 +4,7 @@ using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using System.Data;
 using Dapper;
+using Npgsql;
 
 namespace HRMS.API.Repositories;
 
@@ -13,35 +14,53 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<Employee> CreateEmployeeAsync(Employee employee)
     {
+        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+        await connection.OpenAsync();
+
+        using var transaction = await connection.BeginTransactionAsync();
+
         try
         {
-        var employeeId = await ExecuteScalarAsync<Guid>(
-            @"SELECT employee.fn_create_employee(
+            var employeeId = await connection.ExecuteScalarAsync<Guid>(
+                @"SELECT employee.fn_create_employee(
                 @organizationId, @userId, @employeeCode, @firstName, @lastName, 
                 @email, @phone, @dateOfBirth, @hireDate, @departmentId, 
-                @positionId, @basicSalary, @address::jsonb)",
-            new
-            {
-                organizationId = employee.OrganizationId,
-                userId = employee.UserId,
-                employeeCode = employee.EmployeeNumber,
-                firstName = employee.FirstName,
-                lastName = employee.LastName,
-                email = employee.Email,
-                phone = employee.Phone,
-                dateOfBirth = employee.DateOfBirth,
-                hireDate = employee.HireDate,
-                departmentId = employee.DepartmentId,
-                positionId = employee.PositionId,     
-                basicSalary = employee.BasicSalary,
-                address = System.Text.Json.JsonSerializer.Serialize(employee.Address)
-            });
+                @positionId, @basicSalary, @address::jsonb, @workLocation, @reportingManagerId)",
+                new
+                {
+                    organizationId = employee.OrganizationId,
+                    userId = employee.UserId,
+                    employeeCode = employee.EmployeeNumber,
+                    firstName = employee.FirstName,
+                    lastName = employee.LastName,
+                    email = employee.Email,
+                    phone = employee.Phone,
+                    dateOfBirth = employee.DateOfBirth,
+                    hireDate = employee.HireDate,
+                    departmentId = employee.DepartmentId,
+                    positionId = employee.PositionId,
+                    basicSalary = employee.BasicSalary,
+                    address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
+                    workLocation = employee.WorkLocation,
+                    reportingManagerId = employee.ReportingManagerId
+                },
+                transaction
+            );
 
-        employee.EmployeeId = employeeId;
-        return employee;
+            await connection.ExecuteAsync(
+                "SELECT attendance.fn_initialize_leave_entitlements(@employeeId, @organizationId)",
+                new { employeeId, employee.OrganizationId },
+                transaction
+            );
+
+            await transaction.CommitAsync();
+
+            employee.EmployeeId = employeeId;
+            return employee;
         }
-        catch (Exception ex)
+        catch
         {
+            await transaction.RollbackAsync();
             throw;
         }
     }
@@ -223,11 +242,13 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         {
             var sql = @"
             SELECT ep.positionid, ep.organizationid, ep.positiontitle, 
-                   ed.departmentname AS DepartmentName, 
+                   ep.departmentid, ed.departmentname AS DepartmentName, 
                    ep.description, ep.requirements, ep.salaryrange, 
+                   ep.roleid, ar.rolename AS RoleName,
                    ep.isactive, ep.createdat, ep.updatedat
             FROM employee.positions ep
-            JOIN employee.departments ed ON ep.departmentid = ed.departmentid
+            LEFT JOIN employee.departments ed ON ep.departmentid = ed.departmentid
+            LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
             WHERE ep.organizationid = @organizationId 
               AND ep.isactive = true
             ORDER BY ep.positiontitle";
@@ -245,8 +266,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     public async Task<Position> CreatePositionAsync(Position position)
     {
         var sql = @"
-            INSERT INTO employee.positions (organizationid, positiontitle, departmentid, description)
-            VALUES (@organizationId, @positionTitle, @departmentId, @description)
+            INSERT INTO employee.positions (organizationid, positiontitle, departmentid, description, roleid)
+            VALUES (@organizationId, @positionTitle, @departmentId, @description, @roleId)
             RETURNING positionid";
 
         var positionId = await ExecuteScalarAsync<Guid>(sql, new
@@ -254,7 +275,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             organizationId = position.OrganizationId,
             positionTitle = position.PositionTitle,
             departmentId = position.DepartmentId,
-            description = position.Description
+            description = position.Description,
+            roleId = position.RoleId
         });
 
         position.PositionId = positionId;
@@ -275,10 +297,12 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     public async Task<Position?> GetPositionByIdAsync(Guid positionId)
     {
         var sql = @"
-            SELECT positionid, organizationid, positiontitle, departmentid, 
-                   description, isactive, createdat
-            FROM employee.positions 
-            WHERE positionid = @positionId";
+            SELECT ep.positionid, ep.organizationid, ep.positiontitle, ep.departmentid, 
+                   ep.description, ep.roleid, ar.rolename AS RoleName,
+                   ep.isactive, ep.createdat
+            FROM employee.positions ep
+            LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
+            WHERE ep.positionid = @positionId";
 
         return await QuerySingleOrDefaultAsync<Position>(sql, new { positionId });
     }
@@ -335,16 +359,18 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             SET positiontitle = @positionTitle, 
                 departmentid = @departmentId,
                 description = @description,
+                roleid = @roleId,
                 updatedat = CURRENT_TIMESTAMP
             WHERE positionid = @positionId
             RETURNING positionid, organizationid, positiontitle, departmentid, 
-                     description, isactive, createdat, updatedat";
+                     description, roleid, isactive, createdat, updatedat";
 
         var updatedPosition = await QuerySingleAsync<Position>(sql, new
         {
             positionTitle = position.PositionTitle,
             departmentId = position.DepartmentId,
             description = position.Description,
+            roleId = position.RoleId,
             positionId = position.PositionId
         });
 
@@ -378,6 +404,21 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         {
             throw;
         }
+    }
+
+    public async Task<List<Employee>> GetEmployeesByPositionAsync(Guid positionId)
+    {
+        var sql = @"
+            SELECT e.employeeid, e.organizationid, e.userid, e.employeecode, e.firstname, e.lastname,
+                   e.email, e.phone, e.address, e.dateofbirth, e.gender, e.nationality, e.maritalstatus,
+                   e.emergencycontact, e.hiredate, e.terminationdate, e.status, e.profilepictureurl,
+                   e.createdat, e.updatedat, ed.positionid, ed.departmentid, ed.basicsalary
+            FROM employee.employees e
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+            WHERE ed.positionid = @positionId AND ed.iscurrent = true AND e.status != 'deleted'";
+
+        var results = await QueryAsync<Employee>(sql, new { positionId });
+        return results.ToList();
     }
 
     public async Task<List<Employee>> GetManagersAsync(Guid organizationId)
@@ -417,4 +458,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         var results = await QueryAsync<Employee>(sql, new { organizationId });
         return results.ToList();
     }
+
+
 }

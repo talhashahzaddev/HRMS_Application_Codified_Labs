@@ -66,16 +66,18 @@ CREATE TABLE employee.Departments (
 );
 
 CREATE TABLE employee.Positions (
-    PositionId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    OrganizationId UUID,
-    PositionTitle VARCHAR(100) NOT NULL,
-    DepartmentId UUID,
-    Description TEXT,
-    Requirements JSONB DEFAULT '{}',
-    SalaryRange JSONB DEFAULT '{}',
-    IsActive BOOLEAN DEFAULT true,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    positionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid,
+    positiontitle character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    departmentid uuid,
+    description text COLLATE pg_catalog."default",
+    requirements jsonb DEFAULT '{}'::jsonb,
+    salaryrange jsonb DEFAULT '{}'::jsonb,
+    isactive boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    roleid uuid,
+    CONSTRAINT positions_pkey PRIMARY KEY (positionid)
 );
 
 CREATE TABLE employee.Employees (

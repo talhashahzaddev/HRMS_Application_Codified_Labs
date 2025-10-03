@@ -299,7 +299,9 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 totalPayroll += amount;
             }
 
-            var averageSalary = payrollData.Any() ? (decimal)payrollData.Average(x => x.averagesalary) : 0;
+            var averageSalary = payrollData.Any()
+    ? payrollData.Average(x => (decimal)x.averagesalary)
+    : 0m;
 
             return new PayrollStatsDto
             {

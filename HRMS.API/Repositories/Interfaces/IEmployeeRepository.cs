@@ -26,5 +26,6 @@ public interface IEmployeeRepository
     Task<Position> UpdatePositionAsync(Position position);
     Task<bool> DeletePositionAsync(Guid positionId);
     Task<int> GetEmployeeCountByPositionAsync(Guid positionId);
+    Task<List<Employee>> GetEmployeesByPositionAsync(Guid positionId);
     Task<List<Employee>> GetManagersAsync(Guid organizationId);
 }

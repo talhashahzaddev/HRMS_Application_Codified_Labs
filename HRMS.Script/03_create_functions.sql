@@ -150,7 +150,9 @@ CREATE OR REPLACE FUNCTION employee.fn_create_employee(
     p_department_id uuid,
     p_position_id uuid,
     p_basic_salary numeric,
-    p_address jsonb
+    p_address jsonb,
+    p_work_location character varying DEFAULT NULL,
+    p_reporting_manager_id uuid DEFAULT NULL
 )
 RETURNS uuid
 LANGUAGE 'plpgsql'
@@ -193,6 +195,8 @@ BEGIN
         departmentid,
         positionid,
         basicsalary,
+        worklocation,
+        reportingmanagerid,
         effectivedate,
         iscurrent
     )
@@ -201,6 +205,8 @@ BEGIN
         p_department_id,
         p_position_id,
         p_basic_salary,
+        p_work_location,
+        p_reporting_manager_id,
         p_hire_date::date, -- effective from hire date
         true
     );
@@ -211,7 +217,7 @@ $BODY$;
 
 ALTER FUNCTION employee.fn_create_employee(
     uuid, uuid, character varying, character varying, character varying, character varying, character varying,
-    timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb
+    timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb, character varying, uuid
 ) OWNER TO postgres;
 
 
@@ -497,8 +503,8 @@ ALTER FUNCTION attendance.fn_get_attendance(uuid, uuid, date, date, integer, int
 CREATE OR REPLACE FUNCTION attendance.fn_create_leave_request(
     p_employee_id UUID,
     p_leave_type_id UUID,
-    p_start_date DATE,
-    p_end_date DATE,
+    p_start_date timestamp with time zone,
+    p_end_date timestamp with time zone,
     p_reason TEXT DEFAULT NULL
 )
 RETURNS UUID AS $$
@@ -508,17 +514,17 @@ DECLARE
     available_days DECIMAL(5,2);
     current_year INTEGER := EXTRACT(YEAR FROM p_start_date);
 BEGIN
-    -- Calculate working days between start and end date
-    SELECT 
-        (p_end_date - p_start_date + 1) - 
-        (EXTRACT(week FROM p_end_date) - EXTRACT(week FROM p_start_date)) * 2 - 
-        CASE WHEN EXTRACT(dow FROM p_start_date) = 0 THEN 1 ELSE 0 END -
-        CASE WHEN EXTRACT(dow FROM p_end_date) = 6 THEN 1 ELSE 0 END
-    INTO days_requested;
-    
+  -- Calculate working days between start and end date
+SELECT 
+    (p_end_date::date - p_start_date::date + 1) 
+    - (EXTRACT(week FROM p_end_date) - EXTRACT(week FROM p_start_date)) * 2
+    - CASE WHEN EXTRACT(dow FROM p_start_date) = 0 THEN 1 ELSE 0 END
+    - CASE WHEN EXTRACT(dow FROM p_end_date) = 6 THEN 1 ELSE 0 END
+INTO days_requested;
+
     -- Check available leave balance
     SELECT remainingDays INTO available_days
-    FROM attendance.leave_entitlements 
+    FROM attendance.leaveentitlements 
     WHERE employeeId = p_employee_id 
       AND leaveTypeId = p_leave_type_id 
       AND year = current_year;
@@ -528,7 +534,7 @@ BEGIN
     END IF;
     
     -- Create leave request
-    INSERT INTO attendance.leave_requests (
+    INSERT INTO attendance.leaverequests (
         employeeId, leaveTypeId, startDate, endDate, 
         daysRequested, reason
     )
@@ -557,7 +563,7 @@ DECLARE
 BEGIN
     -- Get leave request details
     SELECT * INTO leave_request 
-    FROM attendance.leave_requests 
+    FROM attendance.leaverequests 
     WHERE requestId = p_request_id;
     
     IF leave_request IS NULL THEN
@@ -567,7 +573,7 @@ BEGIN
     current_year := EXTRACT(YEAR FROM leave_request.startDate);
     
     -- Update request status
-    UPDATE attendance.leave_requests 
+    UPDATE attendance.leaverequests 
     SET status = p_status,
         approvedBy = p_approved_by,
         approvedAt = CASE WHEN p_status = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
@@ -577,7 +583,7 @@ BEGIN
     
     -- If approved, update leave entitlements
     IF p_status = 'approved' THEN
-        UPDATE attendance.leave_entitlements 
+        UPDATE attendance.leaveentitlements 
         SET usedDays = usedDays + leave_request.daysRequested,
             remainingDays = remainingDays - leave_request.daysRequested,
             updatedAt = CURRENT_TIMESTAMP
@@ -719,8 +725,8 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION performance.fn_create_appraisal_cycle(
     p_organization_id UUID,
     p_cycle_name VARCHAR(100),
-    p_start_date DATE,
-    p_end_date DATE,
+	p_start_date timestamp with time zone,
+	p_end_date timestamp with time zone,
     p_description TEXT DEFAULT NULL
 )
 RETURNS UUID AS $$
@@ -788,4 +794,32 @@ BEGIN
            AND isActive = true) AS totalDepartments;
 END;
 $$ LANGUAGE plpgsql;
+
+
+--inserting data for leave balance 
+
+CREATE OR REPLACE FUNCTION attendance.fn_initialize_leave_entitlements(
+    p_employee_id UUID,
+    p_organization_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+    current_year INT := EXTRACT(YEAR FROM NOW());
+BEGIN
+    FOR rec IN 
+        SELECT leavetypeid, maxdaysperyear
+        FROM attendance.leavetypes
+        WHERE organizationid = p_organization_id
+          AND isactive = true
+    LOOP
+        INSERT INTO attendance.leaveentitlements
+            (employeeid, leavetypeid, year, totaldays, useddays, remainingdays, carryforwarddays, createdat)
+        VALUES
+            (p_employee_id, rec.leavetypeid, current_year, rec.maxdaysperyear, 0, rec.maxdaysperyear, 0, NOW());
+    END LOOP;
+END;
+$$;
 

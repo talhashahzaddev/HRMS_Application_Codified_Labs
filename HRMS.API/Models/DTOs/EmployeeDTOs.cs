@@ -52,6 +52,11 @@ public class CreateEmployeeRequest
     public Guid? PositionId { get; set; }
     public decimal? BasicSalary { get; set; }
     public Guid? ReportingManagerId { get; set; }
+    public string? WorkLocation { get; set; }
+    public string? Gender { get; set; }
+    public string? MaritalStatus { get; set; }
+    public string? Nationality { get; set; }
+    public Dictionary<string, object> EmergencyContact { get; set; } = new();
 }
 
 public class UpdateEmployeeRequest
@@ -92,6 +97,8 @@ public class PositionDto
     public Guid? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
     public string? Description { get; set; }
+    public Guid? RoleId { get; set; }
+    public string? RoleName { get; set; }
     public bool IsActive { get; set; }
     public int EmployeeCount { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -102,6 +109,7 @@ public class CreatePositionRequest
     public string PositionTitle { get; set; } = string.Empty;
     public string? Description { get; set; }
     public Guid? DepartmentId { get; set; }
+    public Guid? RoleId { get; set; }
 }
 
 public class EmployeeStatisticsDto

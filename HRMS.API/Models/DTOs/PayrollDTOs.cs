@@ -30,6 +30,7 @@ public class PayrollEntryDto
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeCode { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
     public decimal BasicSalary { get; set; }
     public Dictionary<string, object> Allowances { get; set; } = new();
     public Dictionary<string, object> Deductions { get; set; } = new();
@@ -169,4 +170,15 @@ public class CalculateTaxRequest
     public Guid EmployeeId { get; set; }
     public decimal GrossPay { get; set; }
     public Guid PayrollPeriodId { get; set; }
+}
+
+public class PayrollCalculationResult
+{
+    public int EntriesCreated { get; set; }
+    public Guid PeriodId { get; set; }
+    public int TotalEmployees { get; set; }
+    public decimal TotalGrossAmount { get; set; }
+    public decimal TotalTaxAmount { get; set; }
+    public decimal TotalNetAmount { get; set; }
+    public DateTime CalculatedAt { get; set; }
 }

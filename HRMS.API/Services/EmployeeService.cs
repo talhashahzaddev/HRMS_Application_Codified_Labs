@@ -49,27 +49,60 @@ public class EmployeeService : IEmployeeService
         if (existingByEmail != null)
             throw new InvalidOperationException($"Employee with email '{request.Email}' already exists");
 
-        // Step 1: Create user account with Employee role and default password
+        // Step 1: Create user account first
+        Guid? userId = null;
+        string? roleName = "Employee"; // Default role
+        
+        // If position is assigned, get the role from that position
+        if (request.PositionId.HasValue)
+        {
+            var position = await _employeeRepository.GetPositionByIdAsync(request.PositionId.Value);
+            if (position?.RoleId.HasValue == true)
+            {
+                // Get role name by role ID
+                var roles = await _authService.GetOrganizationRolesAsync(organizationId);
+                var assignedRole = roles.FirstOrDefault(r => r.RoleId == position.RoleId.Value);
+                if (assignedRole != null)
+                {
+                    roleName = assignedRole.RoleName;
+                }
+            }
+        }
+
+        // Create user account with default password "Password123"
         var createUserRequest = new CreateUserRequest
         {
             Email = request.Email,
             Password = "Password123", // Default password
             FirstName = request.FirstName,
             LastName = request.LastName,
-            RoleName = "Employee", // Default role for employees
-            OrganizationId = organizationId
+            RoleName = roleName
         };
 
-        _logger.LogInformation("Creating user account for employee: {Email}", request.Email);
-        var createdUser = await _authService.CreateUserAsync(createUserRequest, organizationId);
-        
-        // Step 2: Create employee record with the user ID
+        try
+        {
+            var userDto = await _authService.CreateUserAsync(createUserRequest, organizationId);
+            userId = userDto.UserId;
+            _logger.LogInformation("Created user account {UserId} for employee {Email} with role {RoleName}", 
+                userId, request.Email, roleName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to create user account for employee {Email}", request.Email);
+            throw new InvalidOperationException($"Failed to create user account for employee: {ex.Message}");
+        }
+
+        // Step 2: Create employee record with the created user ID
         var employee = _mapper.Map<Employee>(request);
         employee.OrganizationId = organizationId;
-        employee.UserId = createdUser.UserId; // Link to the created user
+        employee.UserId = userId;
 
         _logger.LogInformation("Creating employee record with user ID: {UserId}", createdUser.UserId);
         var createdEmployee = await _employeeRepository.CreateEmployeeAsync(employee);
+        
+        _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}", 
+            createdEmployee.EmployeeId, userId);
+        
         var result = await _employeeRepository.GetEmployeeByIdAsync(createdEmployee.EmployeeId);
 
         _logger.LogInformation("Employee {EmployeeId} created successfully with user {UserId}", createdEmployee.EmployeeId, createdUser.UserId);
@@ -190,8 +223,24 @@ public class EmployeeService : IEmployeeService
         if (position == null)
             throw new KeyNotFoundException($"Position with ID {positionId} not found");
 
+        var oldRoleId = position.RoleId;
         _mapper.Map(request, position);
         var updatedPosition = await _employeeRepository.UpdatePositionAsync(position);
+        
+        // If the role of the position changed, update all employees with this position
+        if (oldRoleId != updatedPosition.RoleId && updatedPosition.RoleId.HasValue)
+        {
+            var employeesWithPosition = await _employeeRepository.GetEmployeesByPositionAsync(positionId);
+            foreach (var employee in employeesWithPosition)
+            {
+                if (employee.UserId.HasValue)
+                {
+                    await _authService.UpdateUserRoleAsync(employee.UserId.Value, updatedPosition.RoleId.Value);
+                    _logger.LogInformation("Updated user {UserId} role to {RoleId} due to position {PositionId} role change", 
+                        employee.UserId, updatedPosition.RoleId, positionId);
+                }
+            }
+        }
         
         _logger.LogInformation("Position {PositionId} updated successfully", positionId);
         return _mapper.Map<PositionDto>(updatedPosition);

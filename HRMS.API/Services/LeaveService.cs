@@ -1,5 +1,6 @@
 using AutoMapper;
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
@@ -28,11 +29,17 @@ public class LeaveService : ILeaveService
         var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(employeeId, request.StartDate, request.EndDate);
         if (hasOverlap)
             throw new InvalidOperationException("Leave request overlaps with existing leave");
-
+        var empId = await _leaveRepository.GetEmpId(employeeId);
         var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
-            employeeId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
+            empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
         return _mapper.Map<LeaveRequestDto>(leaveRequest);
+    }
+    public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
+    {
+        var empId = await _leaveRepository.GetEmpId(employeeId);
+        var LeaveRequest = await _leaveRepository.GetLeaveRequestsByEmployeeId(empId);       
+        return LeaveRequest;
     }
 
     public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy)
@@ -62,7 +69,8 @@ public class LeaveService : ILeaveService
 
     public async Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year)
     {
-        return await _leaveRepository.GetLeaveBalanceAsync(employeeId, year);
+        var empId = await _leaveRepository.GetEmpId(employeeId);
+        return await _leaveRepository.GetLeaveBalanceAsync(empId, year);
     }
 
     public async Task<LeaveRequestDto?> GetLeaveRequestByIdAsync(Guid requestId)

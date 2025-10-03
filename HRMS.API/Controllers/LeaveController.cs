@@ -4,6 +4,7 @@ using System.Security.Claims;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Services.Interfaces;
+using HRMS.API.Models.Entities;
 
 namespace HRMS.API.Controllers;
 
@@ -78,13 +79,49 @@ public class LeaveController : ControllerBase
         }
     }
 
+    [HttpGet("getleaverequestbyemployeeid")]
+    public async Task<ActionResult<ServiceResponse<List<LeaveRequest>>>> GetLeaveRequestByEmployeeId()
+    {
+        var userId = GetCurrentEmployeeId();
+
+        try
+        {
+            var requests = await _leaveService.GetLeaveRequestByEmployeeId(userId);
+
+            if (requests == null || !requests.Any())
+            {
+                return NotFound(new ServiceResponse<List<LeaveRequest>>
+                {
+                    Success = false,
+                    Message = "No leave requests found"
+                });
+            }
+
+            return Ok(new ServiceResponse<List<LeaveRequest>>
+            {
+                Success = true,
+                Data = requests
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving leave requests for employee {UserId}", userId);
+            return StatusCode(500, new ServiceResponse<List<LeaveRequest>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving leave requests"
+            });
+        }
+    }
+
+
     [HttpPost("requests")]
     public async Task<ActionResult<ServiceResponse<LeaveRequestDto>>> CreateLeaveRequest([FromBody] CreateLeaveRequest request)
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
-            var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, employeeId);
+            var UserId = GetCurrentEmployeeId();
+            var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, UserId);
             
             return CreatedAtAction(nameof(GetLeaveRequest), new { id = leaveRequest.RequestId }, new ServiceResponse<LeaveRequestDto>
             {

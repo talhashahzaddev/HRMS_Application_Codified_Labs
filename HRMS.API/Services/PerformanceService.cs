@@ -35,11 +35,54 @@ public class PerformanceService : IPerformanceService
 
     public async Task<EmployeeAppraisalDto> CreateEmployeeAppraisalAsync(CreateAppraisalRequest request, Guid reviewerId)
     {
-        var appraisal = _mapper.Map<EmployeeAppraisal>(request);
-        appraisal.ReviewerId = reviewerId;
+       try
+        {
+            var appraisal = new EmployeeAppraisal
+        {
+            AppraisalId = Guid.NewGuid(),      // generate new Id
+            CycleId = request.CycleId,
+            EmployeeId = request.EmployeeId,
+            ReviewerId = reviewerId,
+            ReviewType = request.ReviewType,
+            OverallRating = request.OverallRating,
+            KraRatings = request.KraRatings,
+            SkillRatings = request.SkillRatings,
+            Feedback = request.Feedback,
+            ImprovementAreas = request.ImprovementAreas,
+            DevelopmentPlan = request.DevelopmentPlan,
+            Status = "draft",
+            SubmittedAt = null,
+            ReviewedAt = null,
+            GoalsAchieved = new Dictionary<string, object>() // keep empty for now
+        };
+            appraisal.ReviewerId = reviewerId;
 
-        var createdAppraisal = await _performanceRepository.CreateEmployeeAppraisalAsync(appraisal);
-        return _mapper.Map<EmployeeAppraisalDto>(createdAppraisal);
+            var createdAppraisal = await _performanceRepository.CreateEmployeeAppraisalAsync(appraisal);
+            var dto = new EmployeeAppraisalDto
+            {
+                AppraisalId = createdAppraisal.AppraisalId,
+                CycleId = createdAppraisal.CycleId,
+                EmployeeId = createdAppraisal.EmployeeId,
+                EmployeeName = createdAppraisal.Employee?.FullName ?? string.Empty,  // <-- assuming Employee has FullName
+                CycleName = createdAppraisal.AppraisalCycle?.CycleName ?? string.Empty,   // <-- assuming Cycle has Name
+                ReviewerName = createdAppraisal.Reviewer?.FullName,                  // nullable
+                ReviewType = createdAppraisal.ReviewType,
+                OverallRating = createdAppraisal.OverallRating,
+                KraRatings = createdAppraisal.KraRatings,
+                SkillRatings = createdAppraisal.SkillRatings,
+                Feedback = createdAppraisal.Feedback,
+                ImprovementAreas = createdAppraisal.ImprovementAreas,
+                Status = createdAppraisal.Status,
+                SubmittedAt = createdAppraisal.SubmittedAt,
+                ReviewedAt = createdAppraisal.ReviewedAt
+            };
+
+            return dto;
+        }
+        catch(Exception ex)
+        {
+            return null;
+        }
     }
 
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null)

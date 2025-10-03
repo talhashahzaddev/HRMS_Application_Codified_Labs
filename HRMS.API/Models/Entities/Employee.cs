@@ -66,6 +66,12 @@ public class Employee : BaseEntity
     public Guid? PositionId { get; set; }
     [Column("basicsalary")]
     public decimal? BasicSalary { get; set; }
+    
+    [Column("work_location")]
+    public string? WorkLocation { get; set; }
+    
+    [Column("reporting_manager_id")]
+    public Guid? ReportingManagerId { get; set; }
 
     // Navigation properties
     [NotMapped]

@@ -104,23 +104,51 @@ public class PayrollController : ControllerBase
     }
 
     [HttpPost("periods/{id}/calculate")]
-    public async Task<ActionResult<ServiceResponse<int>>> CalculatePayroll(Guid id)
+    public async Task<ActionResult<ServiceResponse<PayrollCalculationResult>>> CalculatePayroll(Guid id)
     {
         try
         {
             var entriesCreated = await _payrollService.CalculatePayrollAsync(id);
             
-            return Ok(new ServiceResponse<int>
+            // Get updated period details
+            var period = await _payrollService.GetPayrollPeriodByIdAsync(id);
+            
+            return Ok(new ServiceResponse<PayrollCalculationResult>
             {
                 Success = true,
                 Message = $"Payroll calculated successfully for {entriesCreated} employees",
-                Data = entriesCreated
+                Data = new PayrollCalculationResult
+                {
+                    EntriesCreated = entriesCreated,
+                    PeriodId = id,
+                    TotalEmployees = period?.TotalEmployees ?? 0,
+                    TotalGrossAmount = period?.TotalGrossAmount ?? 0,
+                    TotalTaxAmount = period?.TotalTaxAmount ?? 0,
+                    TotalNetAmount = period?.TotalNetAmount ?? 0,
+                    CalculatedAt = DateTime.UtcNow
+                }
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<PayrollCalculationResult>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<PayrollCalculationResult>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calculating payroll for period {PeriodId}", id);
-            return StatusCode(500, new ServiceResponse<int>
+            return StatusCode(500, new ServiceResponse<PayrollCalculationResult>
             {
                 Success = false,
                 Message = "An error occurred while calculating payroll"

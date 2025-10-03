@@ -17,6 +17,7 @@ public interface IAuthService
     Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
     Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, Guid organizationId);
     Task<List<RoleDto>> GetOrganizationRolesAsync(Guid organizationId);
+    Task<bool> UpdateUserRoleAsync(Guid userId, Guid roleId);
     
     // Debug methods for testing
     Task<string> GetHashedPasswordAsync(string email);

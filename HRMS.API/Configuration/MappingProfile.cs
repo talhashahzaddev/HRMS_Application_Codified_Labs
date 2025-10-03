@@ -24,7 +24,8 @@ public class MappingProfile : Profile
         // Employee mappings
         CreateMap<Employee, EmployeeDto>()
             .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"));
-        CreateMap<CreateEmployeeRequest, Employee>();
+        CreateMap<CreateEmployeeRequest, Employee>()
+            .ForMember(dest => dest.EmployeeNumber, opt => opt.MapFrom(src => src.EmployeeNumber));
         CreateMap<UpdateEmployeeRequest, Employee>();
         CreateMap<Employee, EmployeeListItemDto>()
             .ForMember(dest => dest.FullName, opt => opt.MapFrom(src => $"{src.FirstName} {src.LastName}"));
