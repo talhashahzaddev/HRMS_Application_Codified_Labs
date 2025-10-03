@@ -150,7 +150,9 @@ CREATE OR REPLACE FUNCTION employee.fn_create_employee(
     p_department_id uuid,
     p_position_id uuid,
     p_basic_salary numeric,
-    p_address jsonb
+    p_address jsonb,
+    p_work_location character varying DEFAULT NULL,
+    p_reporting_manager_id uuid DEFAULT NULL
 )
 RETURNS uuid
 LANGUAGE 'plpgsql'
@@ -193,6 +195,8 @@ BEGIN
         departmentid,
         positionid,
         basicsalary,
+        worklocation,
+        reportingmanagerid,
         effectivedate,
         iscurrent
     )
@@ -201,6 +205,8 @@ BEGIN
         p_department_id,
         p_position_id,
         p_basic_salary,
+        p_work_location,
+        p_reporting_manager_id,
         p_hire_date::date, -- effective from hire date
         true
     );
@@ -211,7 +217,7 @@ $BODY$;
 
 ALTER FUNCTION employee.fn_create_employee(
     uuid, uuid, character varying, character varying, character varying, character varying, character varying,
-    timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb
+    timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb, character varying, uuid
 ) OWNER TO postgres;
 
 

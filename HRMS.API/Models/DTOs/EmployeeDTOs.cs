@@ -52,6 +52,11 @@ public class CreateEmployeeRequest
     public Guid? PositionId { get; set; }
     public decimal? BasicSalary { get; set; }
     public Guid? ReportingManagerId { get; set; }
+    public string? WorkLocation { get; set; }
+    public string? Gender { get; set; }
+    public string? MaritalStatus { get; set; }
+    public string? Nationality { get; set; }
+    public Dictionary<string, object> EmergencyContact { get; set; } = new();
 }
 
 public class UpdateEmployeeRequest
