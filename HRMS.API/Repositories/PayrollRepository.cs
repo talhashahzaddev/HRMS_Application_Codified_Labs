@@ -722,4 +722,36 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             }
         };
     }
+
+    public async Task<List<PayrollProcessingHistoryDto>> GetProcessingHistoryAsync(Guid organizationId, int limit = 10)
+    {
+        try
+        {
+            var sql = @"
+                SELECT 
+                    pp.periodid as PeriodId,
+                    pp.periodname as PeriodName,
+                    pp.processedat as ProcessedAt,
+                    COUNT(pe.entryid) as EntriesCreated,
+                    COALESCE(SUM(pe.grosssalary), 0) as TotalGrossAmount,
+                    COALESCE(SUM(pe.netsalary), 0) as TotalNetAmount,
+                    pp.status as Status,
+                    COALESCE(u.firstname || ' ' || u.lastname, 'System') as ProcessedBy
+                FROM payroll.payrollperiods pp
+                LEFT JOIN payroll.payrollentries pe ON pp.periodid = pe.periodid
+                LEFT JOIN auth.users u ON pp.processedby = u.userid
+                WHERE pp.organizationid = @organizationId 
+                  AND pp.status IN ('calculated', 'completed', 'paid')
+                GROUP BY pp.periodid, pp.periodname, pp.processedat, pp.status, u.firstname, u.lastname
+                ORDER BY pp.processedat DESC
+                LIMIT @limit";
+
+            var results = await QueryAsync<PayrollProcessingHistoryDto>(sql, new { organizationId, limit });
+            return results.ToList();
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
 }

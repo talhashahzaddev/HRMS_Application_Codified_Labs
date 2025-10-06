@@ -518,4 +518,10 @@ public class PayrollService : IPayrollService
         _logger.LogInformation("Getting deduction summary for period: {PeriodId}", payrollPeriodId);
         return await _payrollRepository.GetDeductionSummaryAsync(payrollPeriodId);
     }
+
+    public async Task<List<PayrollProcessingHistoryDto>> GetProcessingHistoryAsync(Guid organizationId, int limit = 10)
+    {
+        _logger.LogInformation("Getting processing history for organization: {OrganizationId}", organizationId);
+        return await _payrollRepository.GetProcessingHistoryAsync(organizationId, limit);
+    }
 }
