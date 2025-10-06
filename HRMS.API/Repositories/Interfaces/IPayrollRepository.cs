@@ -46,6 +46,7 @@ public interface IPayrollRepository
     Task<PayrollEntry> MarkPayrollEntryAsPaidAsync(Guid entryId);
     Task<bool> MarkMultiplePayrollEntriesAsPaidAsync(List<Guid> entryIds);
     Task<PayrollSummaryDto> GetPayrollDashboardSummaryAsync(Guid organizationId);
+    Task<PayrollSummaryDto> GetPayrollReportSummaryAsync(Guid organizationId, PayrollReportFilterRequest filter);
     Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate);
     Task<DepartmentPayrollBreakdownDto> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId);
     Task<PayrollTaxSummaryDto> CalculateTaxDeductionsAsync(Guid employeeId, decimal grossPay, Guid payrollPeriodId);
