@@ -195,11 +195,19 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         try
         {
         var sql = @"
-            SELECT departmentid, organizationid, departmentname, description, 
-                   managerid, parentdepartmentid, budget, isactive, createdat, updatedat
-            FROM employee.departments 
-            WHERE organizationid = @organizationId AND isactive = true
-            ORDER BY departmentname";
+            SELECT d.departmentid, d.organizationid, d.departmentname, d.description, 
+                   d.managerid, d.parentdepartmentid, d.budget, d.isactive, d.createdat, d.updatedat,
+                   COALESCE(emp_count.employee_count, 0) as employeecount
+            FROM employee.departments d
+            LEFT JOIN (
+                SELECT ed.departmentid, COUNT(e.employeeid) as employee_count
+                FROM employee.employmentdetails ed
+                INNER JOIN employee.employees e ON ed.employeeid = e.employeeid
+                WHERE ed.iscurrent = true AND e.organizationid = @organizationId
+                GROUP BY ed.departmentid
+            ) emp_count ON d.departmentid = emp_count.departmentid
+            WHERE d.organizationid = @organizationId AND d.isactive = true
+            ORDER BY d.departmentname";
 
         var results = await QueryAsync<Department>(sql, new { organizationId });
         return results.ToList();

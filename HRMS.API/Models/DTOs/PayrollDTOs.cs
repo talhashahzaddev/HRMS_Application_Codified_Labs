@@ -182,3 +182,15 @@ public class PayrollCalculationResult
     public decimal TotalNetAmount { get; set; }
     public DateTime CalculatedAt { get; set; }
 }
+
+public class PayrollProcessingHistoryDto
+{
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public DateTime ProcessedAt { get; set; }
+    public int EntriesCreated { get; set; }
+    public decimal TotalGrossAmount { get; set; }
+    public decimal TotalNetAmount { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string ProcessedBy { get; set; } = string.Empty;
+}

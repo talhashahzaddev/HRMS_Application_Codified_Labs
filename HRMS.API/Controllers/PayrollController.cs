@@ -816,6 +816,31 @@ public class PayrollController : ControllerBase
         }
     }
 
+    [HttpGet("processing-history")]
+    public async Task<ActionResult<ServiceResponse<List<PayrollProcessingHistoryDto>>>> GetProcessingHistory([FromQuery] int limit = 10)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var history = await _payrollService.GetProcessingHistoryAsync(organizationId, limit);
+            
+            return Ok(new ServiceResponse<List<PayrollProcessingHistoryDto>>
+            {
+                Success = true,
+                Data = history
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving processing history");
+            return StatusCode(500, new ServiceResponse<List<PayrollProcessingHistoryDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving processing history"
+            });
+        }
+    }
+
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");

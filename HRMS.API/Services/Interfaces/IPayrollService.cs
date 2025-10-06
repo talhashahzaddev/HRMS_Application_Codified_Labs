@@ -36,4 +36,5 @@ public interface IPayrollService
     Task<DepartmentPayrollBreakdownDto> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId);
     Task<PayrollTaxSummaryDto> CalculateTaxDeductionsAsync(Guid employeeId, decimal grossPay, Guid payrollPeriodId);
     Task<PayrollDeductionSummaryDto> GetDeductionSummaryAsync(Guid payrollPeriodId);
+    Task<List<PayrollProcessingHistoryDto>> GetProcessingHistoryAsync(Guid organizationId, int limit = 10);
 }
