@@ -97,15 +97,14 @@ public class EmployeeService : IEmployeeService
         employee.OrganizationId = organizationId;
         employee.UserId = userId;
 
-        _logger.LogInformation("Creating employee record with user ID: {UserId}");
         var createdEmployee = await _employeeRepository.CreateEmployeeAsync(employee);
-        
-        _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}", 
+
+        _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}",
             createdEmployee.EmployeeId, userId);
-        
+
         var result = await _employeeRepository.GetEmployeeByIdAsync(createdEmployee.EmployeeId);
 
-        _logger.LogInformation("Employee {EmployeeId} created successfully with user {UserId}", createdEmployee.EmployeeId);
+       
         return _mapper.Map<EmployeeDto>(result);
     }
 
