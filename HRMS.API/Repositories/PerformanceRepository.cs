@@ -94,7 +94,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
         var sql = @"
             SELECT ea.appraisalid, ea.employeeid, ea.reviewerid, ea.reviewtype,
                    ea.overallrating, ea.kraratings, ea.skillratings, ea.feedback,
-                   ea.improvementareas, ea.status, ea.submittedat, ea.reviewedat,
+                   ea.improvementareas, ea.status, ea.submittedat,ea.goalsachieved::text AS GoalsAchievedJson, ea.reviewedat,
                    CONCAT(e.firstname, ' ', e.lastname) as employee_name,
                    CONCAT(r.firstname, ' ', r.lastname) as reviewer_name,
                    ac.cyclename

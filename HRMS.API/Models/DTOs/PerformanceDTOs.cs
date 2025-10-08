@@ -41,6 +41,27 @@ public class AppraisalCycleDto
     public int CompletedAppraisals { get; set; }
 }
 
+//public class EmployeeAppraisalDto
+//{
+//    public Guid AppraisalId { get; set; }
+//    public Guid EmployeeId { get; set; }
+//    public Guid CycleId { get; set; }
+//    public string EmployeeName { get; set; } = string.Empty;
+//    public string CycleName { get; set; } = string.Empty;
+//    public string? ReviewerName { get; set; }
+//    public string ReviewType { get; set; } = string.Empty;
+//    public decimal? OverallRating { get; set; }
+//    public Dictionary<string, object> KraRatings { get; set; } = new();
+//    public Dictionary<string, object> SkillRatings { get; set; } = new();
+//    public string? Feedback { get; set; }
+//    public string? ImprovementAreas { get; set; }
+//    public string Status { get; set; } = string.Empty;
+//    public DateTime? SubmittedAt { get; set; }
+//    public DateTime? ReviewedAt { get; set; }
+//}
+
+
+
 public class EmployeeAppraisalDto
 {
     public Guid AppraisalId { get; set; }
@@ -58,7 +79,26 @@ public class EmployeeAppraisalDto
     public string Status { get; set; } = string.Empty;
     public DateTime? SubmittedAt { get; set; }
     public DateTime? ReviewedAt { get; set; }
+
+    // ?? Keep as string so Dapper can read it safely
+    public string? GoalsAchievedJson { get; set; }
+
+    // ?? Computed property (deserialize JSON automatically)
+    [Newtonsoft.Json.JsonIgnore]
+    public GoalsAchievedDto? GoalsAchieved =>
+        string.IsNullOrWhiteSpace(GoalsAchievedJson)
+            ? null
+            : Newtonsoft.Json.JsonConvert.DeserializeObject<GoalsAchievedDto>(GoalsAchievedJson);
 }
+
+public class GoalsAchievedDto
+{
+    public int? Total { get; set; }
+    public int? Completed { get; set; }
+}
+
+
+
 
 public class CreateAppraisalRequest
 {
