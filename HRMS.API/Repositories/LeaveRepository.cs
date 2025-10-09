@@ -3,6 +3,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Dapper;
+using Npgsql;
 
 namespace HRMS.API.Repositories;
 
@@ -153,37 +154,58 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     }
     public async Task<bool> CreateLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto)
     {
-        var sql = @"
+        var sqlInsert = @"
         INSERT INTO attendance.leavetypes 
             (leavetypeid, organizationid, typename, description, maxdaysperyear, 
              ispaid, carryforwardallowed, color, isactive, createdat)
         VALUES
             (@LeaveTypeId, @OrganizationId, @TypeName, @Description, @MaxDaysPerYear, 
-             @IsPaid, @CarryForwardAllowed, @Color, @IsActive, NOW());";
+             @IsPaid, @CarryForwardAllowed, @Color, @IsActive, NOW());
+    ";
 
-        try
+        var sqlInitEntitlements = @"
+        SELECT attendance.fn_initialize_leave_entitlements_for_new_leavetype(@LeaveTypeId, @OrganizationId);
+    ";
+
+        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+        await connection.OpenAsync();
         {
-            var rowsAffected = await ExecuteAsync(sql, new
+            using var transaction = await connection.BeginTransactionAsync();
             {
-                dto.LeaveTypeId,
-                OrganizationId = organizationId,
-                dto.TypeName,
-                dto.Description,
-                dto.MaxDaysPerYear,
-                dto.IsPaid,
-                dto.CarryForwardAllowed,
-                dto.Color,
-                dto.IsActive
-            });
+                try
+                {
+                    var rowsAffected = await connection.ExecuteAsync(sqlInsert, new
+                    {
+                        dto.LeaveTypeId,
+                        OrganizationId = organizationId,
+                        dto.TypeName,
+                        dto.Description,
+                        dto.MaxDaysPerYear,
+                        dto.IsPaid,
+                        dto.CarryForwardAllowed,
+                        dto.Color,
+                        dto.IsActive
+                    }, transaction);
 
-            // If at least one row inserted, return true
-            return rowsAffected > 0;
-        }
-        catch (Exception ex)
-        {
-            // Log error or throw (depending on your logging setup)
-            Console.WriteLine($"Error inserting LeaveType: {ex.Message}");
-            return false;
+                    if (rowsAffected > 0)
+                    {
+                        await connection.ExecuteAsync(sqlInitEntitlements, new
+                        {
+                            dto.LeaveTypeId,
+                            OrganizationId = organizationId
+                        }, transaction);
+                    }
+
+                    transaction.Commit();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    Console.WriteLine($"Error inserting LeaveType: {ex.Message}");
+                    return false;
+                }
+            }
         }
     }
 

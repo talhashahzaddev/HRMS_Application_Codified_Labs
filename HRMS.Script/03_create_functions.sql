@@ -823,3 +823,49 @@ BEGIN
 END;
 $$;
 
+
+--Leave Balance for new leave types
+
+CREATE OR REPLACE FUNCTION attendance.fn_initialize_leave_entitlements_for_new_leavetype(
+    p_leavetype_id UUID,
+    p_organization_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+    current_year INT := EXTRACT(YEAR FROM NOW());
+BEGIN
+    FOR rec IN 
+        SELECT employeeid 
+        FROM employee.employees
+        WHERE organizationid = p_organization_id
+    LOOP
+        -- Check if entitlement already exists for this employee and leave type
+        IF NOT EXISTS (
+            SELECT 1 
+            FROM attendance.leaveentitlements 
+            WHERE employeeid = rec.employeeid 
+              AND leavetypeid = p_leavetype_id 
+              AND year = current_year
+        ) THEN
+            INSERT INTO attendance.leaveentitlements
+                (employeeid, leavetypeid, year, totaldays, useddays, remainingdays, carryforwarddays, createdat)
+            SELECT 
+                rec.employeeid,
+                p_leavetype_id,
+                current_year,
+                lt.maxdaysperyear,
+                0,
+                lt.maxdaysperyear,
+                0,
+                NOW()
+            FROM attendance.leavetypes lt
+            WHERE lt.leavetypeid = p_leavetype_id;
+        END IF;
+    END LOOP;
+END;
+$$;
+
+
