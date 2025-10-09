@@ -25,8 +25,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 @"SELECT employee.fn_create_employee(
                 @organizationId, @userId, @employeeCode, @firstName, @lastName, 
                 @email, @phone, @dateOfBirth, @hireDate, @departmentId, 
-                @positionId, @basicSalary, @address::jsonb)",
-                //@workLocation, @reportingManagerId
+                @positionId, @basicSalary, @address::jsonb,@workLocation, @reportingManagerId)",
+                
                 new
                 {
                     organizationId = employee.OrganizationId,
@@ -42,8 +42,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                     positionId = employee.PositionId,
                     basicSalary = employee.BasicSalary,
                     address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
-                    //workLocation = employee.WorkLocation,
-                    //reportingManagerId = employee.ReportingManagerId
+                    workLocation = employee.WorkLocation,
+                    reportingManagerId = employee.ReportingManagerId
                 },
                 transaction
             );
