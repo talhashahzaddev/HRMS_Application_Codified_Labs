@@ -1,14 +1,38 @@
+using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
-using Dapper;
+using Microsoft.AspNetCore.Http.HttpResults;
+using System.Diagnostics.Metrics;
 
 namespace HRMS.API.Repositories;
 
 public class PerformanceRepository : BaseRepository, IPerformanceRepository
 {
     public PerformanceRepository(IDatabaseConnectionFactory connectionFactory) : base(connectionFactory) { }
+
+    public async Task<Guid> GetEmpId(Guid? employeeId)
+    {
+        try
+        {
+            var sql = @"
+            SELECT em.employeeid
+            FROM employee.employees em
+            WHERE ( em.userid = @employeeId)
+            LIMIT 1";
+
+            var results = await QueryAsync<Guid>(sql, new { employeeId });
+
+            return results.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            return Guid.Empty;
+        }
+    }
+
+
 
     public async Task<AppraisalCycle> CreateAppraisalCycleAsync(Guid organizationId, string cycleName, DateTime startDate, DateTime endDate, string? description = null)
     {
@@ -83,16 +107,19 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
             appraisal.AppraisalId = appraisalId;
             return appraisal;
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             return null;
         }
     }
 
-    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null)
+    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? userId = null)
     {
+        var employeeId = await GetEmpId(userId);
+
+
         var sql = @"
-            SELECT ea.appraisalid, ea.employeeid, ea.reviewerid, ea.reviewtype,
+            SELECT ea.appraisalid, ea.employeeid, ea.reviewerid, ea.reviewtype,ea.cycleid,
                    ea.overallrating, ea.kraratings, ea.skillratings, ea.feedback,
                    ea.improvementareas, ea.status, ea.submittedat, ea.reviewedat,
                    CONCAT(e.firstname, ' ', e.lastname) as employee_name,
@@ -110,16 +137,35 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
         return results.ToList();
     }
 
+  
+
     public async Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
     {
-        var sql = @"
-            SELECT skillid, skillname, category, description, skilllevelscale, isactive
-            FROM performance.skillsets
-            WHERE organizationid = @organizationId AND isactive = true
-            ORDER BY category, skillname";
+        try
+        {
+            var sql = @"
+           SELECT 
+           skillid,
+    skillname,
+    category,
+    description,
+    (
+        SELECT array_agg(value::int) 
+        FROM jsonb_array_elements_text(skilllevelscale)
+    ) AS skilllevelscale,
+    isactive,
+    createdat
+FROM performance.skillsets
+WHERE organizationid = @organizationId AND isactive = true
+ORDER BY category, skillname";
 
-        var results = await QueryAsync<SkillSetDto>(sql, new { organizationId });
-        return results.ToList();
+            var results = await QueryAsync<SkillSetDto>(sql, new { organizationId });
+            return results.ToList();
+        }
+        catch (Exception ex)
+        {
+            return null;
+        }
     }
 
     public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
@@ -197,4 +243,345 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
         var results = await QueryAsync<TopPerformerDto>(sql, new { organizationId, count });
         return results.ToList();
     }
+
+
+    // Overall_Ratting caulation function
+    public async Task<int> UpdateEmployeeStatsAsync(Guid employeeId, int achievedgoals,int totalgoals)
+    {
+        // Calculate overall rating
+        double overallRating = totalgoals > 0
+            ? Math.Round(((double)achievedgoals / totalgoals) * 5, 2)
+            : 0;
+
+        //  Update overall rating in employee appraisal table
+
+        var achievedGoals = new
+        {
+            completed = achievedgoals,
+            total = totalgoals
+        };
+
+
+        var updateRatingSql = @"
+        UPDATE performance.employeeappraisals
+        SET overallrating = @OverallRating,
+            goalsachieved = @AchievedGoals ::jsonb,
+            updatedat = CURRENT_TIMESTAMP
+        WHERE employeeid = @EmployeeId;
+    ";
+
+      var result=  await ExecuteAsync(updateRatingSql, new
+        {
+            EmployeeId = employeeId,
+            OverallRating = overallRating,
+          AchievedGoals = Newtonsoft.Json.JsonConvert.SerializeObject(achievedGoals) // ? this must be JSON
+      });
+
+        return result;
+
+    }
+
+
+    //GET Total Number of Goals given  an employee
+    public async Task<int> GetGoalCountAsync(Guid employeeId)
+    {
+        var sql = @"
+        SELECT COUNT(*) 
+        FROM performance.employeegoals 
+        WHERE employeeid = @EmployeeId;
+    ";
+
+        // use your repo’s built-in query helper
+        var count = await QuerySingleOrDefaultAsync<int>(sql, new { EmployeeId = employeeId });
+        return count;
+    }
+
+
+    //Count achieve Goals
+      public async Task<int> GetAchievedGoalsAsync(Guid employeeId)
+      {
+        var sql = @"
+        SELECT COUNT(*) 
+        FROM performance.employeegoals 
+        WHERE employeeid = @EmployeeId AND status = 'completed';
+    ";
+
+        var count = await QuerySingleOrDefaultAsync<int>(sql, new { EmployeeId = employeeId });
+        return count;
+    }
+
+
+    
+    // Create Employee Goal
+    public async Task<EmployeeGoalDto> CreateEmployeeGoalAsync(CreateEmployeeGoalRequest request)
+    {
+        var sql = @"
+        INSERT INTO performance.employeegoals
+        ( employeeid, title, description, startdate, enddate, status, createdat, updatedat)
+        VALUES
+        (@EmployeeId, @Title, @Description, @StartDate, @EndDate, @Status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING goalid, employeeid,  title, description, startdate, enddate, status, createdat, updatedat;
+    ";
+
+
+        var result = await QuerySingleOrDefaultAsync<EmployeeGoalDto>(sql, request);
+
+        var totalgoals = await GetGoalCountAsync(request.EmployeeId);
+        var updateSql = @"UPDATE performance.employeegoals
+                      SET totalgoals = @TotalGoals
+                      WHERE employeeid = @EmployeeId";
+        await ExecuteAsync(updateSql, new { TotalGoals = totalgoals, EmployeeId = request.EmployeeId });
+
+        var Achievegoal = await GetAchievedGoalsAsync(request.EmployeeId);
+        var updateachieveGoals = @"update performance.employeegoals
+                                  SET achievedgoals= @Achievegoals
+                                  WHERE employeeid=@EmployeeId";
+
+        await ExecuteAsync(updateachieveGoals, new { Achievegoals = Achievegoal, EmployeeId = request.EmployeeId });
+
+        //Updating OverallRating after creting a employee
+
+        await UpdateEmployeeStatsAsync(request.EmployeeId, Achievegoal, totalgoals);
+
+
+        return result!;
+    }
+
+    
+    // Completed Goal Function
+    public async Task<bool> GoalAsCompletedAsync(Guid goalId)
+    {
+        // Get employeeId for the given goalId
+        var getEmployeeSql = @"SELECT employeeid FROM performance.employeegoals WHERE goalid = @GoalId";
+        var employeeId = await QuerySingleOrDefaultAsync<Guid>(getEmployeeSql, new { GoalId = goalId });
+
+        if (employeeId == Guid.Empty)
+            return false; 
+
+         //Mark the goal as completed
+        var updateGoalSql = @"
+        UPDATE performance.employeegoals
+        SET status = 'completed',
+           createdat = CURRENT_TIMESTAMP
+        WHERE goalid = @GoalId;
+    ";
+        await ExecuteAsync(updateGoalSql, new { GoalId = goalId });
+
+        // Update achieved goals count for this employee
+        var countAchievedSql = @"
+        SELECT COUNT(*) 
+        FROM performance.employeegoals
+        WHERE employeeid = @EmployeeId
+          AND status = 'completed';
+    ";
+        var achievedGoals = await QuerySingleOrDefaultAsync<int>(countAchievedSql, new { EmployeeId = employeeId });
+
+        var updateAchievedSql = @"
+        UPDATE performance.employeegoals
+        SET achievedgoals = @AchievedGoals
+        WHERE employeeid = @EmployeeId;
+    ";
+        await ExecuteAsync(updateAchievedSql, new { AchievedGoals = achievedGoals, EmployeeId = employeeId });
+
+
+        //Step 1: Count total and achieved goals for the employee
+
+        var totalgoals = await GetGoalCountAsync(employeeId);
+
+
+        await UpdateEmployeeStatsAsync(employeeId, achievedGoals, totalgoals);
+
+
+        return true;
+    }
+
+
+
+    // Get Employee Goal By Id
+    public async Task<List<EmployeeGoalDto>> GetEmployeeGoalsAsync(Guid userId)
+    {
+
+        var employeeId = await GetEmpId(userId);
+
+
+        var sql = @"
+        SELECT   g.goalid, 
+            g.employeeid, 
+            CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+            g.title, 
+            g.description, 
+            g.startdate, 
+            g.enddate, 
+            g.status, 
+            g.createdat, 
+            g.updatedat
+        FROM performance.employeegoals g
+        INNER JOIN employee.employees e ON g.employeeid = e.employeeid
+        WHERE g.employeeid = @EmployeeId
+        ORDER BY g.createdat DESC;
+    ";
+
+        var result = await QueryAsync<EmployeeGoalDto>(sql, new { EmployeeId = employeeId });
+        return result.ToList();
+    }
+
+    //Get all Employee Goals
+    public async Task<List<EmployeeGoalDto>> GetAllEmployeeGoalsAsync()
+    {
+        var sql = @"
+        SELECT  
+            g.goalid, 
+            g.employeeid, 
+            CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+            g.title, 
+            g.description, 
+            g.startdate, 
+            g.enddate, 
+            g.status, 
+            g.createdat, 
+            g.updatedat
+        FROM performance.employeegoals g
+        INNER JOIN employee.employees e ON g.employeeid = e.employeeid
+        
+        ORDER BY createdat DESC;
+    ";
+
+        var result = await QueryAsync<EmployeeGoalDto>(sql);
+        return result.ToList();
+    }
+
+    public async Task<KRADto> CreateKRAAsync(CreateKRARequest request, Guid organizationId)
+    {
+        var sql = @"INSERT INTO performance.kras 
+    (organizationid, positionid, kratitle, description, weightpercentage, measurementcriteria, isactive)
+    VALUES (@OrganizationId, @PositionId, @Title, @Description, @Weight, @MeasurementCriteria, @IsActive)
+    RETURNING kraid AS KRAId, kratitle AS Title, description AS Description, 
+              weightpercentage AS Weight, measurementcriteria AS MeasurementCriteria, 
+              isactive AS IsActive, createdat AS CreatedAt;";
+        var parameters = new
+        {
+            OrganizationId = organizationId,
+            PositionId = request.PositionId, // make sure this exists in your CreateKRARequest
+            Title = request.Title,
+            Description = request.Description,
+            Weight = request.Weight,
+            MeasurementCriteria = request.MeasurementCriteria,
+            IsActive = request.IsActive
+        };
+
+        var result = await QuerySingleOrDefaultAsync<KRADto>(sql, parameters);
+        return result!;
+    }
+
+    public async Task<List<KRADto>> GetKRAsAsync(Guid organizationId)
+    {
+
+        const string sql = @"
+        SELECT 
+            k.kraid AS KRAId,
+            k.kratitle AS Title,
+            k.description AS Description,
+            k.weightpercentage AS Weight,
+            k.measurementcriteria AS MeasurementCriteria,
+            k.isactive AS IsActive,
+            k.createdat AS CreatedAt,
+            k.positionid AS PositionId
+        FROM performance.kras k
+       
+        WHERE k.organizationid = @organizationId
+        ORDER BY k.createdat DESC;
+    ";
+
+        var parameters = new { OrganizationId = organizationId };
+        var result = await QueryAsync<KRADto>(sql, parameters);
+        return result.ToList();
+
+
+    }
+
+    public async Task<KRADto> GetKraByIdAsync(Guid KraId)
+    {
+        const string sql = @"
+        SELECT 
+            k.kraid AS KRAId,
+            k.kratitle AS Title,
+            k.description AS Description,
+            k.weightpercentage AS Weight,
+            k.measurementcriteria AS MeasurementCriteria,
+            k.isactive AS IsActive,
+            k.createdat AS CreatedAt,
+            k.positionid AS PositionId,
+            k.organizationid AS OrganizationId
+        FROM performance.kras k
+        WHERE k.kraid = @KRAId;
+    ";
+
+        var parameters = new { KRAId = KraId };
+        var result = await QuerySingleOrDefaultAsync<KRADto>(sql, parameters);
+        return result;
+    }
+
+
+    public async Task<KRADto> UpdatekraAsync(Guid kraId, UpdateKRARequest request)
+    {
+
+        var sql = @" UPDATE performance.kras
+        SET 
+            kratitle = @Title,
+            description = @Description,
+            weightpercentage = @Weight,
+            measurementcriteria = @MeasurementCriteria,
+            isactive = @IsActive,
+            createdat = CURRENT_TIMESTAMP
+        WHERE kraid = @KraId;
+
+        SELECT kraid AS KraId,
+               kratitle AS Title,
+               description AS Description,
+               weightpercentage AS Weight,
+               measurementcriteria AS MeasurementCriteria,
+               isactive AS IsActive
+        FROM performance.kras
+        WHERE kraid = @KraId;";
+
+        var parameters = new
+        {
+            KraId = kraId,
+            Title = request.Title,
+            Description = request.Description,
+            Weight = request.Weight,
+            MeasurementCriteria = request.MeasurementCriteria,
+            IsActive = request.IsActive
+
+
+        };
+
+        var result = await QuerySingleOrDefaultAsync<KRADto>(sql, parameters);
+
+        return result;
+    }
+
+    public async Task<bool> UpdateKRAStatusAsync(Guid kraId, bool isActive)
+    {
+        var sql = @"
+        UPDATE performance.kras
+        SET 
+            isactive = @IsActive,
+            createdat = CURRENT_TIMESTAMP
+        WHERE kraid = @KraId;
+    ";
+
+        var parameters = new
+        {
+            KraId = kraId,
+            IsActive = isActive
+        };
+
+        var rowsAffected = await ExecuteAsync(sql, parameters);
+        return rowsAffected > 0;
+    }
+
+
+
+
 }

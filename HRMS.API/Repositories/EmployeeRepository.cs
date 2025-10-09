@@ -25,7 +25,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 @"SELECT employee.fn_create_employee(
                 @organizationId, @userId, @employeeCode, @firstName, @lastName, 
                 @email, @phone, @dateOfBirth, @hireDate, @departmentId, 
-                @positionId, @basicSalary, @address::jsonb, @workLocation, @reportingManagerId)",
+                @positionId, @basicSalary, @address::jsonb,@workLocation, @reportingManagerId)",
+                
                 new
                 {
                     organizationId = employee.OrganizationId,

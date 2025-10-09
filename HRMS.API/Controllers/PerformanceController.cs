@@ -181,7 +181,7 @@ public class PerformanceController : ControllerBase
         {
             var organizationId = GetCurrentOrganizationId();
             var summary = await _performanceService.GetPerformanceSummaryAsync(organizationId, cycleId);
-            
+
             return Ok(new ServiceResponse<PerformanceSummaryDto>
             {
                 Success = true,
@@ -198,6 +198,260 @@ public class PerformanceController : ControllerBase
             });
         }
     }
+
+
+
+    [HttpPost("Goals")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<EmployeeGoalDto>>> CreateGoal([FromBody] CreateEmployeeGoalRequest goal)
+    {
+        try
+        {
+            if (goal == null)
+                return BadRequest("Invalid goal data");
+            var goalId = await _performanceService.CreateEmployeeGoalAsync(goal);
+            return Ok(new ServiceResponse<EmployeeGoalDto>
+            {
+                Success = true,
+                Data = goalId
+            });
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error Creating Goals");
+            return StatusCode(500, new ServiceResponse<EmployeeGoalDto>
+            {
+                Success = false,
+                Message = "An error occurred while Creating Goals"
+            });
+
+        }
+
+
+    }
+
+
+    [HttpGet("Goals/Employee/{employeeId}")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeGoalDto>>>> GetGoalsByEmployee(Guid employeeId)
+    {
+        try
+        {
+            var goals = await _performanceService.GetEmployeeGoalsAsync(employeeId);
+            return Ok(new ServiceResponse<List<EmployeeGoalDto>>
+            {
+                Success = true,
+                Data = goals
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching goals for employee {EmployeeId}", employeeId);
+            return StatusCode(500, new ServiceResponse<List<EmployeeGoalDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching goals"
+            });
+        }
+    }
+
+
+    [HttpGet("Goals")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeGoalDto>>>> GetAllGoals()
+    {
+        try
+        {
+            var goals = await _performanceService.GetAllEmployeeGoalsAsync();
+            return Ok(new ServiceResponse<List<EmployeeGoalDto>> { Success = true, Data = goals });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching all goals");
+            return StatusCode(500, new ServiceResponse<List<EmployeeGoalDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching goals"
+            });
+        }
+    }
+
+    //Complete Code 
+
+    [HttpPut("Goals/{goalId}/complete")]
+    public async Task<ActionResult<ServiceResponse<bool>>> MarkGoalAsCompleted(Guid goalId)
+    {
+        try
+        {
+            var result = await _performanceService.GoalAsCompletedAsync(goalId);
+
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Goal not found or could not be updated"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Goal marked as completed successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking goal {GoalId} as completed", goalId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating goal status"
+            });
+        }
+    }
+
+
+
+    [HttpPost("Kra")]
+
+    public async Task<ActionResult<ServiceResponse<KRADto>>> CreateKra([FromQuery] CreateKRARequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _performanceService.CreateKRAAsync(organizationId, request);
+
+            return Ok(new ServiceResponse<KRADto>
+            {
+                Success = true,
+                Data = result,
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error While creating KRas");
+            return StatusCode(500, new ServiceResponse<List<TopPerformerDto>>
+            {
+                Success = false,
+                Message = "Error While creating KRass"
+            });
+        }
+    }
+
+
+
+    [HttpGet("Kra")]
+
+    public async Task<ActionResult<ServiceResponse<PagedResult<KRADto>>>> GetKra([FromQuery] string? search = null, [FromQuery] int page = 1,
+    [FromQuery] int limit = 10)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _performanceService.GetKRAsAsync(organizationId, page, limit, search);
+
+            return Ok(new ServiceResponse<PagedResult<KRADto>>
+            {
+                Success = true,
+                Data = result,
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error While Getting all KRas");
+            return StatusCode(500, new ServiceResponse<List<TopPerformerDto>>
+            {
+                Success = false,
+                Message = "Error Getting KRass"
+            });
+        }
+    }
+
+
+    [HttpGet("KraById/{kraId}")]
+
+    public async Task<ActionResult<ServiceResponse<KRADto>>> GetKraById(Guid kraId)
+    {
+        try
+        {
+            //var organizationId = GetCurrentOrganizationId();
+            var result = await _performanceService.GetKRAByIdAsync(kraId);
+
+            return Ok(new ServiceResponse<KRADto>
+            {
+                Success = true,
+                Data = result,
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error While Getting KRas By Id");
+            return StatusCode(500, new ServiceResponse<KRADto>
+            {
+                Success = false,
+                Message = "Error Getting KRass Id"
+            });
+        }
+    }
+
+
+    [HttpPut("KraUpdate")]
+
+    public async Task<ActionResult<ServiceResponse<KRADto>>> UpdateKra([FromQuery] UpdateKRARequest request, Guid kraId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _performanceService.UpdateKRAAsync(kraId, request);
+
+            return Ok(new ServiceResponse<KRADto>
+            {
+                Success = true,
+                Data = result,
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error While creating KRas");
+            return StatusCode(500, new ServiceResponse<KRADto>
+            {
+                Success = false,
+                Message = "Error While creating KRass"
+            });
+        }
+    }
+
+
+    [HttpPatch("KRAStatus/{kraId}")]
+    public async Task<ActionResult<ServiceResponse<string>>> UpdateKRAStatus(Guid kraId, [FromQuery] bool isActive)
+    {
+        try
+        {
+            var result = await _performanceService.UpdateKRAStatusAsync(kraId, isActive);
+
+            if (!result)
+                return NotFound(new ServiceResponse<string> { Success = false, Message = "KRA not found" });
+
+            return Ok(new ServiceResponse<string>
+            {
+                Success = true,
+                Message = $"KRA status updated to {(isActive ? "Active" : "Inactive")} successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while updating KRA status");
+            return StatusCode(500, new ServiceResponse<string>
+            {
+                Success = false,
+                Message = "Error updating KRA status"
+            });
+        }
+    }
+
+
 
     [HttpGet("top-performers")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]

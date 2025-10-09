@@ -1,4 +1,5 @@
-using HRMS.API.Models.DTOs;
+﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 
 namespace HRMS.API.Services.Interfaces;
 
@@ -12,7 +13,7 @@ public interface IPerformanceService
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId);
     Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(Guid organizationId, Guid? cycleId = null);
     Task<List<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10);
-    
+
     // Additional methods based on frontend consumption
     Task<PerformanceSummaryDto> GetPerformanceDashboardSummaryAsync(Guid organizationId);
     Task<PagedResult<SkillSetDto>> GetSkillSetsPagedAsync(Guid organizationId, SkillSetFilterRequest filter, int page, int limit);
@@ -26,11 +27,14 @@ public interface IPerformanceService
     Task<EmployeeSkillDto> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request);
     Task<EmployeeSkillDto> UpdateEmployeeSkillAsync(Guid employeeSkillId, UpdateEmployeeSkillRequest request);
     Task<bool> DeleteEmployeeSkillAsync(Guid employeeSkillId);
+
+    //KRA 
     Task<PagedResult<KRADto>> GetKRAsAsync(Guid organizationId, int page, int limit, string? search);
     Task<KRADto?> GetKRAByIdAsync(Guid kraId);
-    Task<KRADto> CreateKRAAsync(CreateKRARequest request, Guid organizationId);
+    Task<KRADto> CreateKRAAsync(Guid organizationId, CreateKRARequest request);
     Task<KRADto> UpdateKRAAsync(Guid kraId, UpdateKRARequest request);
     Task<bool> DeleteKRAAsync(Guid kraId);
+    Task<bool> UpdateKRAStatusAsync(Guid kraId, bool isActive);
     Task<PagedResult<AppraisalCycleDto>> GetAppraisalCyclesPagedAsync(Guid organizationId, int page, int limit, string? search);
     Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId);
     Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request);
@@ -42,4 +46,14 @@ public interface IPerformanceService
     Task<EmployeeAppraisalDto> ReviewAppraisalAsync(Guid appraisalId, ReviewAppraisalRequest request);
     Task<PerformanceReportDto> GeneratePerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
     Task<byte[]> ExportPerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
+    // 🔹 Employee Goals Management
+    Task<EmployeeGoalDto> CreateEmployeeGoalAsync(CreateEmployeeGoalRequest request);
+
+    Task<List<EmployeeGoalDto>> GetEmployeeGoalsAsync(Guid employeeId);
+    Task<List<EmployeeGoalDto>> GetAllEmployeeGoalsAsync();
+
+    Task<bool> GoalAsCompletedAsync(Guid goalId);
+
+
+
 }
