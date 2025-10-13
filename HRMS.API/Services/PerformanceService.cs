@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
@@ -90,10 +90,36 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetEmployeeAppraisalsAsync(cycleId, employeeId);
     }
 
+    public async Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
+    {
+        try
+        {
+            return await _performanceRepository.CreateSkillSetAsync(request, organizationId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Forward duplicate error to controller
+            throw;
+        }
+        //return new SkillSetDto
+        //{
+        //    SkillId = Guid.NewGuid(),
+        //    SkillName = request.SkillName,
+        //    Category = request.Category ?? "General",
+        //    Description = request.Description,
+        //    IsActive = request.IsActive,
+        //    CreatedAt = DateTime.UtcNow
+        //};
+    }
+
+
+
     public async Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
     {
         return await _performanceRepository.GetSkillSetsAsync(organizationId);
     }
+
+
 
     public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
     {
@@ -148,20 +174,20 @@ public class PerformanceService : IPerformanceService
         return skillSets.FirstOrDefault(s => s.SkillId == skillSetId);
     }
 
-    public async Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
-    {
-        _logger.LogInformation("Creating skill set: {SkillName}", request.SkillName);
+    //public async Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
+    //{
+    //    _logger.LogInformation("Creating skill set: {SkillName}", request.SkillName);
 
-        return new SkillSetDto
-        {
-            SkillId = Guid.NewGuid(),
-            SkillName = request.SkillName,
-            Category = request.Category ?? "General",
-            Description = request.Description,
-            IsActive = request.IsActive,
-            CreatedAt = DateTime.UtcNow
-        };
-    }
+    //    return new SkillSetDto
+    //    {
+    //        SkillId = Guid.NewGuid(),
+    //        SkillName = request.SkillName,
+    //        Category = request.Category ?? "General",
+    //        Description = request.Description,
+    //        IsActive = request.IsActive,
+    //        CreatedAt = DateTime.UtcNow
+    //    };
+    //}
 
     public async Task<SkillSetDto> UpdateSkillSetAsync(Guid skillSetId, UpdateSkillSetRequest request)
     {
@@ -191,8 +217,8 @@ public class PerformanceService : IPerformanceService
 
         var skills = new List<EmployeeSkillDto>
         {
-            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 4, AssessorName = "Manager", LastAssessed = DateTime.UtcNow.AddDays(-30) },
-            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 3, AssessorName = "Manager", LastAssessed = DateTime.UtcNow.AddDays(-45) }
+            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 4, AssessedBy = Guid.NewGuid(), LastAssessed = DateTime.UtcNow.AddDays(-30) },
+            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 3, AssessedBy = Guid.NewGuid(), LastAssessed = DateTime.UtcNow.AddDays(-45) }
         };
 
         if (filter.EmployeeId.HasValue)
@@ -228,26 +254,93 @@ public class PerformanceService : IPerformanceService
             EmployeeId = Guid.NewGuid(),
             SkillId = Guid.NewGuid(),
             ProficiencyLevel = 4,
-            AssessorName = "Manager",
+            AssessedBy = Guid.NewGuid(),
             LastAssessed = DateTime.UtcNow.AddDays(-30)
         };
     }
 
     public async Task<EmployeeSkillDto> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
     {
-        _logger.LogInformation("Creating employee skill for employee: {EmployeeId}", request.EmployeeId);
-
-        return new EmployeeSkillDto
+        try
         {
-            EmployeeSkillId = Guid.NewGuid(),
-            EmployeeId = request.EmployeeId,
-            SkillId = request.SkillId,
-            ProficiencyLevel = request.ProficiencyLevel,
-            AssessorName = request.AssessorName,
-            LastAssessed = request.LastAssessed ?? DateTime.UtcNow,
-            Notes = request.Notes
-        };
+            // ✅ 1. Basic validation
+            if (request.EmployeeId == Guid.Empty || request.SkillId == Guid.Empty)
+                throw new ArgumentException("EmployeeId and SkillId are required.");
+
+            if (request.ProficiencyLevel < 1 || request.ProficiencyLevel > 5)
+                throw new ArgumentException("Proficiency level must be between 1 and 5.");
+
+            // ✅ 2. Default values
+            if (!request.LastAssessed.HasValue)
+                request.LastAssessed = DateTime.UtcNow;
+
+            // agar assessedBy empty hai to default (e.g., system user / HR)
+            if (!request.AssessedBy.HasValue)
+                request.AssessedBy = Guid.Parse("00000000-0000-0000-0000-000000000000");
+
+            // ✅ 3. Call repository
+            var result = await _performanceRepository.CreateEmployeeSkillAsync(request);
+
+            if (result == null)
+                throw new Exception("Failed to create employee skill record.");
+
+            _logger.LogInformation("✅ Successfully created skill for employee {EmployeeId}", request.EmployeeId);
+
+            return result;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "⚠ Validation failed for employee skill creation");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Error while creating employee skill");
+            throw;
+        }
     }
+
+
+    //public async Task<EmployeeSkillDto> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
+    //{
+    //    try
+    //    {
+    //        // 🔍 Basic validation (extra safety)
+    //        if (request.EmployeeId == Guid.Empty || request.SkillId == Guid.Empty)
+    //            throw new ArgumentException("EmployeeId and SkillId are required.");
+
+    //        if (request.ProficiencyLevel < 1 || request.ProficiencyLevel > 5)
+    //            throw new ArgumentException("Proficiency level must be between 1 and 5.");
+
+    //        // 🧠 Call repository to insert record
+    //        var result = await _performanceRepository.CreateEmployeeSkillAsync(request);
+
+    //        if (result == null)
+    //            throw new Exception("Failed to create employee skill record.");
+
+    //        _logger.LogInformation("Successfully created skill for employee {EmployeeId}", request.EmployeeId);
+    //        return result;
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error while creating employee skill");
+    //        throw;
+    //    }
+    //}
+
+    //    //_logger.LogInformation("Creating employee skill for employee: {EmployeeId}", request.EmployeeId);
+
+    //return new EmployeeSkillDto
+    //{
+    //    EmployeeSkillId = Guid.NewGuid(),
+    //    EmployeeId = request.EmployeeId,
+    //    SkillId = request.SkillId,
+    //    ProficiencyLevel = request.ProficiencyLevel,
+    //    AssessorName = request.AssessorName,
+    //    LastAssessed = request.LastAssessed ?? DateTime.UtcNow,
+    //    Notes = request.Notes
+    //};
+
 
     public async Task<EmployeeSkillDto> UpdateEmployeeSkillAsync(Guid employeeSkillId, UpdateEmployeeSkillRequest request)
     {
@@ -258,7 +351,7 @@ public class PerformanceService : IPerformanceService
             throw new KeyNotFoundException($"Employee skill with ID {employeeSkillId} not found");
 
         skill.ProficiencyLevel = request.ProficiencyLevel;
-        skill.AssessorName = request.AssessorName;
+        skill.AssessedBy = request.AssessedBy;
         skill.LastAssessed = request.LastAssessed ?? skill.LastAssessed;
         skill.Notes = request.Notes;
 
@@ -541,7 +634,7 @@ public class PerformanceService : IPerformanceService
 
     public async Task<bool> GoalAsCompletedAsync(Guid goalId)
     {
-        // Call repository to update the goal�s status
+        // Call repository to update the goal’s status
         var updated = await _performanceRepository.GoalAsCompletedAsync(goalId);
         return updated;
     }

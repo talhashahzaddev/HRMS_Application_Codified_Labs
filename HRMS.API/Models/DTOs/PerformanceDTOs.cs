@@ -1,5 +1,13 @@
 namespace HRMS.API.Models.DTOs;
 
+
+public class CreateSkillSetDto
+{
+    public string SkillName { get; set; }
+    public string Category { get; set; }
+    public string Description { get; set; }
+    public List<int> SkillLevelScale { get; set; } = new() { 1, 2, 3, 4, 5 };
+}
 public class SkillSetDto
 {
     public Guid SkillId { get; set; }
@@ -20,7 +28,7 @@ public class EmployeeSkillDto
     public string SkillName { get; set; } = string.Empty;
     public string? SkillCategory { get; set; }
     public int ProficiencyLevel { get; set; }
-    public string? AssessorName { get; set; }
+    public Guid? AssessedBy { get; set; }
     public DateTime? LastAssessed { get; set; }
     public string? Notes { get; set; }
 }
@@ -148,7 +156,7 @@ public class CreateEmployeeSkillRequest
     public Guid EmployeeId { get; set; }
     public Guid SkillId { get; set; }
     public int ProficiencyLevel { get; set; }
-    public string? AssessorName { get; set; }
+    public Guid? AssessedBy { get; set; }
     public DateTime? LastAssessed { get; set; }
     public string? Notes { get; set; }
 }
@@ -156,7 +164,7 @@ public class CreateEmployeeSkillRequest
 public class UpdateEmployeeSkillRequest
 {
     public int ProficiencyLevel { get; set; }
-    public string? AssessorName { get; set; }
+    public Guid? AssessedBy { get; set; }
     public DateTime? LastAssessed { get; set; }
     public string? Notes { get; set; }
 }
