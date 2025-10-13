@@ -9,6 +9,7 @@ public interface IPerformanceService
     Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId);
     Task<EmployeeAppraisalDto> CreateEmployeeAppraisalAsync(CreateAppraisalRequest request, Guid reviewerId);
     Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null);
+    Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId);
     Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId);
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId);
     Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(Guid organizationId, Guid? cycleId = null);
@@ -18,7 +19,6 @@ public interface IPerformanceService
     Task<PerformanceSummaryDto> GetPerformanceDashboardSummaryAsync(Guid organizationId);
     Task<PagedResult<SkillSetDto>> GetSkillSetsPagedAsync(Guid organizationId, SkillSetFilterRequest filter, int page, int limit);
     Task<SkillSetDto?> GetSkillSetByIdAsync(Guid skillSetId);
-    Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId);
     Task<SkillSetDto> UpdateSkillSetAsync(Guid skillSetId, UpdateSkillSetRequest request);
     Task<bool> DeleteSkillSetAsync(Guid skillSetId);
     Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit);

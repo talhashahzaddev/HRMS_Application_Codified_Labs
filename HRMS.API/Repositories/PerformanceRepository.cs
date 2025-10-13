@@ -4,6 +4,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Npgsql;
 using System.Diagnostics.Metrics;
 
 namespace HRMS.API.Repositories;
@@ -137,7 +138,112 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
         return results.ToList();
     }
 
-  
+    public async Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
+    {
+        var sql = @"
+INSERT INTO performance.skillsets
+    (organizationid, skillname, category, description, skilllevelscale, isactive)
+VALUES
+    (@organizationId, @skillName, @category, @description, to_jsonb(@skillLevelScale), @isActive)
+RETURNING 
+    skillid, 
+    skillname, 
+    category, 
+    description,
+    ARRAY(SELECT jsonb_array_elements_text(skilllevelscale)::int) AS skilllevelscale,
+    isactive, 
+    createdat;";
+
+        try
+        {
+            // Default scale if none provided
+            var skillScale = request.SkillLevelScale?.Length > 0
+                ? request.SkillLevelScale
+                : new int[] { 1, 2, 3, 4, 5 };
+
+            // Execute query and map to DTO
+            var result = await QuerySingleOrDefaultAsync<SkillSetDto>(sql, new
+            {
+                organizationId,
+                skillName = request.SkillName,
+                category = request.Category ?? "General",
+                description = request.Description,
+                skillLevelScale = skillScale,
+                isActive = request.IsActive
+            });
+
+            return result;
+        }
+        catch (PostgresException ex)
+        {
+            if (ex.SqlState == "23505") // unique_violation
+            {
+                // Friendly error for duplicate skill names
+                throw new InvalidOperationException("A skill with this name already exists in the organization.");
+            }
+
+            // Log & rethrow for any other DB error
+            throw new Exception("An unexpected database error occurred while creating the skill.", ex);
+        }
+        catch (Exception ex)
+        {
+            // General fallback error
+            throw new Exception("An unexpected error occurred while creating the skill.", ex);
+        }
+    }
+    //    public async Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
+    //    {
+    //        var sql = @"
+    //INSERT INTO performance.skillsets
+    //    (organizationid, skillname, category, description, skilllevelscale, isactive)
+    //VALUES
+    //    (@organizationId, @skillName, @category, @description, to_jsonb(@skillLevelScale), @isActive)
+    //RETURNING 
+    //    skillid, 
+    //    skillname, 
+    //    category, 
+    //    description,
+    //    ARRAY(SELECT jsonb_array_elements_text(skilllevelscale)::int) AS skilllevelscale,
+    //    isactive, 
+    //    createdat;";
+
+    //        try
+    //        {
+    //            // Default scale if none provided
+    //            var skillScale = request.SkillLevelScale?.Length > 0
+    //                ? request.SkillLevelScale
+    //                : new int[] { 1, 2, 3, 4, 5 };
+
+    //            // Execute query and map to DTO
+    //            var result = await QuerySingleOrDefaultAsync<SkillSetDto>(sql, new
+    //            {
+    //                organizationId,
+    //                skillName = request.SkillName,
+    //                category = request.Category ?? "General",
+    //                description = request.Description,
+    //                skillLevelScale = skillScale,
+    //                isActive = request.IsActive
+    //            });
+
+    //            return result;
+    //        }
+    //        catch (PostgresException ex)
+    //        {
+    //            if (ex.SqlState == "23505") // unique_violation
+    //            {
+    //                // Friendly error for duplicate skill names
+    //                throw new InvalidOperationException("A skill with this name already exists in the organization.");
+    //            }
+
+    //            // Log & rethrow for any other DB error
+    //            throw new Exception("An unexpected database error occurred while creating the skill.", ex);
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            // General fallback error
+    //            throw new Exception("An unexpected error occurred while creating the skill.", ex);
+    //        }
+    //    }
 
     public async Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
     {
@@ -149,10 +255,13 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
     skillname,
     category,
     description,
-    (
-        SELECT array_agg(value::int) 
-        FROM jsonb_array_elements_text(skilllevelscale)
-    ) AS skilllevelscale,
+    CASE 
+     WHEN jsonb_typeof(skilllevelscale) = 'array' THEN 
+         (SELECT array_agg(value::int) 
+          FROM jsonb_array_elements_text(skilllevelscale))
+     ELSE 
+         ARRAY[]::int[]
+ END AS skilllevelscale,
     isactive,
     createdat
 FROM performance.skillsets
@@ -168,20 +277,97 @@ ORDER BY category, skillname";
         }
     }
 
+    public async Task<EmployeeSkillDto?> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
+    {
+        var sql = @"
+INSERT INTO performance.employeeskills
+    (employeeid, skillid, proficiencylevel, assessedby, lastassessed, notes)
+VALUES
+    (@EmployeeId, @SkillId, @ProficiencyLevel, @AssessedBy, @LastAssessed, @Notes)
+RETURNING 
+    employeeskillid AS EmployeeSkillId,
+    employeeid AS EmployeeId,
+    skillid AS SkillId,
+    proficiencylevel AS ProficiencyLevel,
+    assessedby AS AssessedBy,
+    lastassessed AS LastAssessed,
+    notes AS Notes;";
+
+        try
+        {
+            using var connection = CreateConnection();
+            var result = await connection.QuerySingleOrDefaultAsync<EmployeeSkillDto>(sql, request);
+            return result;
+        }
+        catch (PostgresException ex)
+        {
+            throw new Exception($"Database error: {ex.MessageText}");
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
+
+
+    //    public async Task<EmployeeSkillDto?> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
+    //    {
+    //        var sql = @"
+    //INSERT INTO performance.employeeskills
+    //    (employeeid, skillid, proficiencylevel, assessedby, lastassessed, notes)
+    //VALUES
+    //    (@EmployeeId, @SkillId, @ProficiencyLevel, @Assessedby, @LastAssessed, @Notes)
+    //RETURNING 
+    //    employeeskillid,
+    //    employeeid,
+    //    skillid,
+    //    proficiencylevel,
+    //    assessedby AS assessedby,
+    //    lastassessed,
+    //    notes;";
+
+    //        try
+    //        {
+    //            using var connection = CreateConnection();
+    //            var result = await connection.QuerySingleOrDefaultAsync<EmployeeSkillDto>(sql, request);
+    //            return result;
+    //        }
+    //        catch (PostgresException ex)
+    //        {
+    //            //_logger.LogError(ex, "Database error while inserting employee skill");
+    //            throw new Exception("An error occurred while adding the employee skill.");
+    //        }
+    //        catch (Exception ex)
+    //        {
+    //            // _logger.LogError(ex, "Unexpected error while inserting employee skill");
+    //            throw;
+    //        }
+    //    }
     public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
     {
         var sql = @"
-            SELECT es.employee_skill_id, es.employee_id, es.skill_id, es.proficiency_level,
-                   es.assessed_by, es.last_assessed, es.notes,
-                   CONCAT(e.first_name, ' ', e.last_name) as employee_name,
-                   s.skill_name, s.category as skill_category,
-                   CONCAT(a.first_name, ' ', a.last_name) as assessor_name
-            FROM performance.employee_skills es
-            INNER JOIN employee.employees e ON es.employee_id = e.employee_id
-            INNER JOIN performance.skill_sets s ON es.skill_id = s.skill_id
-            LEFT JOIN employee.employees a ON es.assessed_by = a.employee_id
-            WHERE es.employee_id = @employeeId
-            ORDER BY s.category, s.skill_name";
+            SELECT 
+    es.employeeskillid,
+    es.employeeid,
+    es.skillid,
+    es.proficiencylevel,
+    es.assessedby,
+    es.lastassessed,
+    es.notes,
+    CONCAT(e.firstname, ' ', e.lastname) AS employee_name,
+    s.skillname,
+    s.category AS skill_category,
+    CONCAT(a.firstname, ' ', a.lastname) AS assessor_name
+FROM performance.employeeskills es
+INNER JOIN employee.employees e 
+    ON es.employeeid = e.employeeid
+INNER JOIN performance.skillsets s 
+    ON es.skillid = s.skillid
+LEFT JOIN employee.employees a 
+    ON es.assessedby = a.employeeid
+WHERE es.employeeid = @employeeId
+ORDER BY s.category, s.skillname;
+";
 
         var results = await QueryAsync<EmployeeSkillDto>(sql, new { employeeId });
         return results.ToList();
@@ -246,7 +432,7 @@ ORDER BY category, skillname";
 
 
     // Overall_Ratting caulation function
-    public async Task<int> UpdateEmployeeStatsAsync(Guid employeeId, int achievedgoals,int totalgoals)
+    public async Task<int> UpdateEmployeeStatsAsync(Guid employeeId, int achievedgoals, int totalgoals)
     {
         // Calculate overall rating
         double overallRating = totalgoals > 0
@@ -270,12 +456,12 @@ ORDER BY category, skillname";
         WHERE employeeid = @EmployeeId;
     ";
 
-      var result=  await ExecuteAsync(updateRatingSql, new
+        var result = await ExecuteAsync(updateRatingSql, new
         {
             EmployeeId = employeeId,
             OverallRating = overallRating,
-          AchievedGoals = Newtonsoft.Json.JsonConvert.SerializeObject(achievedGoals) // ? this must be JSON
-      });
+            AchievedGoals = Newtonsoft.Json.JsonConvert.SerializeObject(achievedGoals) // ? this must be JSON
+        });
 
         return result;
 
@@ -291,15 +477,15 @@ ORDER BY category, skillname";
         WHERE employeeid = @EmployeeId;
     ";
 
-        // use your repo’s built-in query helper
+        // use your repo s built-in query helper
         var count = await QuerySingleOrDefaultAsync<int>(sql, new { EmployeeId = employeeId });
         return count;
     }
 
 
     //Count achieve Goals
-      public async Task<int> GetAchievedGoalsAsync(Guid employeeId)
-      {
+    public async Task<int> GetAchievedGoalsAsync(Guid employeeId)
+    {
         var sql = @"
         SELECT COUNT(*) 
         FROM performance.employeegoals 
@@ -311,7 +497,7 @@ ORDER BY category, skillname";
     }
 
 
-    
+
     // Create Employee Goal
     public async Task<EmployeeGoalDto> CreateEmployeeGoalAsync(CreateEmployeeGoalRequest request)
     {
@@ -347,7 +533,7 @@ ORDER BY category, skillname";
         return result!;
     }
 
-    
+
     // Completed Goal Function
     public async Task<bool> GoalAsCompletedAsync(Guid goalId)
     {
@@ -356,9 +542,9 @@ ORDER BY category, skillname";
         var employeeId = await QuerySingleOrDefaultAsync<Guid>(getEmployeeSql, new { GoalId = goalId });
 
         if (employeeId == Guid.Empty)
-            return false; 
+            return false;
 
-         //Mark the goal as completed
+        //Mark the goal as completed
         var updateGoalSql = @"
         UPDATE performance.employeegoals
         SET status = 'completed',

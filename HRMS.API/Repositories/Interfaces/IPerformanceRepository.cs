@@ -9,7 +9,9 @@ public interface IPerformanceRepository
     Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId);
     Task<EmployeeAppraisal> CreateEmployeeAppraisalAsync(EmployeeAppraisal appraisal);
     Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null);
+    Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId);
     Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId);
+    Task<EmployeeSkillDto?> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request);
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId);
     Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(Guid organizationId, Guid? cycleId = null);
     Task<bool> UpdateAppraisalStatusAsync(Guid appraisalId, string status);
@@ -31,7 +33,7 @@ public interface IPerformanceRepository
 
     Task<KRADto> UpdatekraAsync(Guid kraId, UpdateKRARequest request);
     Task<bool> UpdateKRAStatusAsync(Guid kraId, bool isActive);
-   
-    
+
+
 
 }
