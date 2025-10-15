@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -174,31 +174,46 @@ public class AttendanceService : IAttendanceService
         return _mapper.Map<List<AttendanceDto>>(attendance);
     }
 
+   
     public async Task<List<AttendanceCalendarDto>> GetAttendanceCalendarAsync(Guid employeeId, int year, int month)
     {
-        _logger.LogInformation("Getting attendance calendar for employee: {EmployeeId} for {Year}-{Month}", 
+        _logger.LogInformation("Getting attendance calendar for employee: {EmployeeId} for {Year}-{Month}",
             employeeId, year, month);
         var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
         var startDate = new DateTime(year, month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
-        
+        var today = DateTime.Today;
         var attendance = await GetEmployeeAttendanceAsync(EMP_Id, startDate, endDate);
-        
+
         var calendar = new List<AttendanceCalendarDto>();
+
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
         {
-            var dayAttendance = attendance.FirstOrDefault(a => a.Date.Date == date.Date);
+            var dayAttendance = attendance.FirstOrDefault(a => a.WorkDate.Date == date.Date);
+            bool isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+
+            string status;
+            if (date > today)
+                status = "No Record"; // ✅ Future days
+            else if (dayAttendance != null)
+                status = dayAttendance.Status;
+            else if (isWeekend)
+                status = "Weekend";
+            else
+                status = "Absent";
+
             calendar.Add(new AttendanceCalendarDto
             {
                 Date = date,
-                Status = dayAttendance?.Status ?? "Absent",
+                Status = status,
                 CheckInTime = dayAttendance?.CheckInTime,
                 CheckOutTime = dayAttendance?.CheckOutTime,
                 TotalHours = dayAttendance?.TotalHours ?? 0,
-                IsHoliday = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday
+                IsWorkingDay = !isWeekend,
+                IsHoliday = isWeekend
             });
         }
-        
+
         return calendar;
     }
 
