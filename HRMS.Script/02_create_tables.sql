@@ -380,3 +380,20 @@ CREATE TABLE attendance.AttendanceSessions (
     CreatedAt     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     UpdatedAt     TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+--Employee Goals For performance
+CREATE TABLE IF NOT EXISTS performance.employeegoals
+(
+    goalid uuid NOT NULL DEFAULT gen_random_uuid(),
+    employeeid uuid NOT NULL,
+    title character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    startdate date,
+    enddate date,
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    totalgoals integer DEFAULT 0,
+    achievedgoals integer DEFAULT 0,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT employeegoals_pkey PRIMARY KEY (goalid)
+)

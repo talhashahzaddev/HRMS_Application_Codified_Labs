@@ -151,8 +151,12 @@ CREATE OR REPLACE FUNCTION employee.fn_create_employee(
     p_position_id uuid,
     p_basic_salary numeric,
     p_address jsonb,
-    p_work_location character varying DEFAULT NULL,
-    p_reporting_manager_id uuid DEFAULT NULL
+    p_work_location character varying DEFAULT NULL::character varying,
+    p_reporting_manager_id uuid DEFAULT NULL::uuid,
+    p_nationality character varying DEFAULT NULL::character varying,
+    p_gender character varying DEFAULT NULL::character varying,
+    p_marital_status character varying DEFAULT NULL::character varying,
+    p_emergency_contact jsonb DEFAULT '{}'::jsonb
 )
 RETURNS uuid
 LANGUAGE 'plpgsql'
@@ -173,7 +177,11 @@ BEGIN
         phone,
         address,
         dateofbirth,
-        hiredate
+        hiredate,
+        nationality,
+        gender,
+        maritalstatus,
+        emergencycontact
     )
     VALUES (
         p_organization_id,
@@ -185,7 +193,11 @@ BEGIN
         p_phone,
         COALESCE(p_address, '{}'::jsonb),
         p_date_of_birth::date,
-        p_hire_date::date
+        p_hire_date::date,
+        p_nationality,
+        p_gender,
+        p_marital_status,
+        COALESCE(p_emergency_contact, '{}'::jsonb)
     )
     RETURNING employeeid INTO v_employee_id;
 
@@ -207,7 +219,7 @@ BEGIN
         p_basic_salary,
         p_work_location,
         p_reporting_manager_id,
-        p_hire_date::date, -- effective from hire date
+        p_hire_date::date,
         true
     );
 
@@ -216,8 +228,8 @@ END;
 $BODY$;
 
 ALTER FUNCTION employee.fn_create_employee(
-    uuid, uuid, character varying, character varying, character varying, character varying, character varying,
-    timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb, character varying, uuid
+    uuid, uuid, varchar, varchar, varchar, varchar, varchar, timestamptz, timestamptz,
+    uuid, uuid, numeric, jsonb, varchar, uuid, varchar, varchar, varchar, jsonb
 ) OWNER TO postgres;
 
 
@@ -824,22 +836,7 @@ END;
 $$;
 
 
---Employee Goals For performance
-CREATE TABLE IF NOT EXISTS performance.employeegoals
-(
-    goalid uuid NOT NULL DEFAULT gen_random_uuid(),
-    employeeid uuid NOT NULL,
-    title character varying(255) COLLATE pg_catalog."default" NOT NULL,
-    description text COLLATE pg_catalog."default",
-    startdate date,
-    enddate date,
-    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
-    totalgoals integer DEFAULT 0,
-    achievedgoals integer DEFAULT 0,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT employeegoals_pkey PRIMARY KEY (goalid)
-)
+
 
 
 

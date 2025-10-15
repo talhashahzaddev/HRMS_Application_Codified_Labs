@@ -483,7 +483,7 @@ public class AttendanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate, employeeId, departmentId);
+            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate);
             
             return Ok(new ServiceResponse<AttendanceReportDto>
             {

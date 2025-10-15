@@ -114,6 +114,9 @@ public class AttendanceReportDto
     public int TotalPresentDays { get; set; }
     public int TotalAbsentDays { get; set; }
     public decimal AverageAttendanceRate { get; set; }
+    public int TotalLateDays { get; set; } // Add this
+    public decimal TotalHours { get; set; } // Add this
+    public decimal OvertimeHours { get; set; } // Add this
     public List<AttendanceDto> Records { get; set; } = new();
     public AttendanceSummaryDto Summary { get; set; } = new();
     public List<DailyAttendanceStatsDto> DailyStats { get; set; } = new();
