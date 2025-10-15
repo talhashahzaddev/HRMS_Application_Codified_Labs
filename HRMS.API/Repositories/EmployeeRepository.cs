@@ -19,52 +19,122 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
         using var transaction = await connection.BeginTransactionAsync();
 
+        //try
+        //{
+        //    var employeeId = await connection.ExecuteScalarAsync<Guid>(
+        //        @"SELECT employee.fn_create_employee(
+        //        @organizationId, @userId, @employeeCode, @firstName, @lastName, 
+        //        @email, @phone, @dateOfBirth, @hireDate, @departmentId, 
+        //        @positionId, @basicSalary, @address::jsonb,@workLocation, @reportingManagerId)",
+
+        //        new
+        //        {
+        //            organizationId = employee.OrganizationId,
+        //            userId = employee.UserId,
+        //            employeeCode = employee.EmployeeNumber,
+        //            firstName = employee.FirstName,
+        //            lastName = employee.LastName,
+        //            email = employee.Email,
+        //            phone = employee.Phone,
+        //            dateOfBirth = employee.DateOfBirth,
+        //            hireDate = employee.HireDate,
+        //            departmentId = employee.DepartmentId,
+        //            positionId = employee.PositionId,
+        //            basicSalary = employee.BasicSalary,
+        //            address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
+        //            workLocation = employee.WorkLocation,
+        //            reportingManagerId = employee.ReportingManagerId
+        //        },
+        //        transaction
+        //    );
+
+        //    await connection.ExecuteAsync(
+        //        "SELECT attendance.fn_initialize_leave_entitlements(@employeeId, @organizationId)",
+        //        new { employeeId, employee.OrganizationId },
+        //        transaction
+        //    );
+
+        //    await transaction.CommitAsync();
+
+        //    employee.EmployeeId = employeeId;
+        //    return employee;
+        //}
+        //catch
+        //{
+        //    await transaction.RollbackAsync();
+        //    throw;
+        //}
+
+
         try
+{
+    var employeeId = await connection.ExecuteScalarAsync<Guid>(
+        @"SELECT employee.fn_create_employee(
+            @organizationId, @userId, @employeeCode, @firstName, @lastName, @email, @phone, 
+            @dateOfBirth, @hireDate, @departmentId, @positionId, @basicSalary, @address::jsonb, 
+            @workLocation, @reportingManagerId, @nationality, @gender, @maritalStatus, @emergencyContact::jsonb)",
+        new
         {
-            var employeeId = await connection.ExecuteScalarAsync<Guid>(
-                @"SELECT employee.fn_create_employee(
-                @organizationId, @userId, @employeeCode, @firstName, @lastName, 
-                @email, @phone, @dateOfBirth, @hireDate, @departmentId, 
-                @positionId, @basicSalary, @address::jsonb,@workLocation, @reportingManagerId)",
-                
-                new
-                {
-                    organizationId = employee.OrganizationId,
-                    userId = employee.UserId,
-                    employeeCode = employee.EmployeeNumber,
-                    firstName = employee.FirstName,
-                    lastName = employee.LastName,
-                    email = employee.Email,
-                    phone = employee.Phone,
-                    dateOfBirth = employee.DateOfBirth,
-                    hireDate = employee.HireDate,
-                    departmentId = employee.DepartmentId,
-                    positionId = employee.PositionId,
-                    basicSalary = employee.BasicSalary,
-                    address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
-                    workLocation = employee.WorkLocation,
-                    reportingManagerId = employee.ReportingManagerId
-                },
-                transaction
-            );
+            organizationId = employee.OrganizationId,
+            userId = employee.UserId,
+            employeeCode = employee.EmployeeNumber,
+            firstName = employee.FirstName,
+            lastName = employee.LastName,
+            email = employee.Email,
+            phone = employee.Phone,
+            dateOfBirth = employee.DateOfBirth,
+            hireDate = employee.HireDate,
+            departmentId = employee.DepartmentId,
+            positionId = employee.PositionId,
+            basicSalary = employee.BasicSalary,
+            address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
+            workLocation = employee.WorkLocation,
+            reportingManagerId = employee.ReportingManagerId,
+            nationality = employee.Nationality,
+            gender = employee.Gender,
+            maritalStatus = employee.MaritalStatus,
+            emergencyContact = System.Text.Json.JsonSerializer.Serialize(employee.EmergencyContact)
+        },
+        transaction
+    );
 
-            await connection.ExecuteAsync(
-                "SELECT attendance.fn_initialize_leave_entitlements(@employeeId, @organizationId)",
-                new { employeeId, employee.OrganizationId },
-                transaction
-            );
+    await connection.ExecuteAsync(
+        "SELECT attendance.fn_initialize_leave_entitlements(@employeeId, @organizationId)",
+        new { employeeId, employee.OrganizationId },
+        transaction
+    );
 
-            await transaction.CommitAsync();
+    await transaction.CommitAsync();
+    employee.EmployeeId = employeeId;
+    return employee;
+}
+catch (Exception ex)
+{
+    await transaction.RollbackAsync();
+    throw new Exception("Error while creating employee record", ex);
+}
 
-            employee.EmployeeId = employeeId;
-            return employee;
-        }
-        catch
-        {
-            await transaction.RollbackAsync();
-            throw;
-        }
     }
+
+
+    //Add this function so that i return data in my response of creating employee and return data 
+   public async  Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId)
+    {
+
+        var sql = @"
+        SELECT e.employeeid, e.organizationid, e.userid, e.employeecode, e.firstname, e.lastname,
+               e.email, e.phone, e.address, e.dateofbirth, e.gender, e.nationality,
+               e.maritalstatus, e.hiredate, e.status,
+               d.departmentname, p.positiontitle, ed.basicsalary
+        FROM employee.employees e
+        LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+        LEFT JOIN employee.positions p ON ed.positionid = p.positionid
+        WHERE e.employeeid = @employeeId";
+
+        return await QuerySingleOrDefaultAsync<EmployeeDto>(sql, new { employeeId });
+    }
+
 
     public async Task<Employee?> GetEmployeeByIdAsync(Guid employeeId)
     {
@@ -75,6 +145,9 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                    createdat, updatedat
             FROM employee.employees 
             WHERE employeeid = @employeeId";
+
+
+
 
         return await QuerySingleOrDefaultAsync<Employee>(sql, new { employeeId });
     }

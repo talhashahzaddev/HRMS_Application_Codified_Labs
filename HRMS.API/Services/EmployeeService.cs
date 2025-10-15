@@ -103,7 +103,7 @@ public class EmployeeService : IEmployeeService
         _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}",
             createdEmployee.EmployeeId, userId);
 
-        var result = await _employeeRepository.GetEmployeeByIdAsync(createdEmployee.EmployeeId);
+        var result = await _employeeRepository.GetEmployeedetailsAsync(createdEmployee.EmployeeId);
 
        
         return _mapper.Map<EmployeeDto>(result);

@@ -5,6 +5,10 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IEmployeeRepository
 {
+
+    //adding this now
+    Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId);
+
     Task<Employee> CreateEmployeeAsync(Employee employee);
     Task<Employee?> GetEmployeeByIdAsync(Guid employeeId);
     Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode);
