@@ -80,10 +80,9 @@ public class AttendanceService : IAttendanceService
     public async Task<TimeTrackingSessionDto?> GetCurrentSessionAsync(Guid employeeId)
     {
         _logger.LogInformation("Getting current session for employee: {EmployeeId}", employeeId);
-        var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
 
         // Mock implementation - return current active session if exists
-        var todayAttendance = await GetTodayAttendanceAsync(EMP_Id);
+        var todayAttendance = await GetTodayAttendanceAsync(employeeId);
 
         if (todayAttendance?.CheckInTime != null && todayAttendance.CheckOutTime == null)
         {
@@ -179,11 +178,10 @@ public class AttendanceService : IAttendanceService
     {
         _logger.LogInformation("Getting attendance calendar for employee: {EmployeeId} for {Year}-{Month}",
             employeeId, year, month);
-        var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
         var startDate = new DateTime(year, month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
         var today = DateTime.Today;
-        var attendance = await GetEmployeeAttendanceAsync(EMP_Id, startDate, endDate);
+        var attendance = await GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
 
         var calendar = new List<AttendanceCalendarDto>();
 
