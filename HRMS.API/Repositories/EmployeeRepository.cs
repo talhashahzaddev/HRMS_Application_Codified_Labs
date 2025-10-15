@@ -97,7 +97,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             SELECT employeeid, organizationid, userid, employeecode, firstname, lastname,
                    email, phone, dateofbirth, hiredate, status, createdat
             FROM employee.employees 
-            WHERE organizationid = @organizationId AND email = @email";
+            WHERE email = @email";
 
         var result = await QuerySingleOrDefaultAsync<Employee>(sql, new { organizationId, email });
         return result;
@@ -195,24 +195,61 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     {
         try
         {
-        var sql = @"
-            SELECT d.departmentid, d.organizationid, d.departmentname, d.description, 
-                   d.managerid, d.parentdepartmentid, d.budget, d.isactive, d.createdat, d.updatedat,
-                   COALESCE(emp_count.employee_count, 0) as employeecount
-            FROM employee.departments d
-            LEFT JOIN (
-                SELECT ed.departmentid, COUNT(e.employeeid) as employee_count
-                FROM employee.employmentdetails ed
-                INNER JOIN employee.employees e ON ed.employeeid = e.employeeid
-                WHERE ed.iscurrent = true AND e.organizationid = @organizationId
-                GROUP BY ed.departmentid
-            ) emp_count ON d.departmentid = emp_count.departmentid
-            WHERE d.organizationid = @organizationId AND d.isactive = true
-            ORDER BY d.departmentname";
+            var sql = @"
+        SELECT 
+            d.departmentid, 
+            d.organizationid, 
+            d.departmentname, 
+            d.description, 
+            d.managerid, 
+            d.parentdepartmentid, 
+            d.budget, 
+            d.isactive, 
+            d.createdat, 
+            d.updatedat,
+            COALESCE(emp_count.employee_count, 0) as employeecount,
+            -- Manager details
+            m.firstname AS ManagerFirstName,
+            m.lastname AS ManagerLastName,
+            m.email AS ManagerEmail
+        FROM employee.departments d
+        LEFT JOIN (
+            SELECT ed.departmentid, COUNT(e.employeeid) as employee_count
+            FROM employee.employmentdetails ed
+            INNER JOIN employee.employees e ON ed.employeeid = e.employeeid
+            WHERE ed.iscurrent = true AND e.organizationid = @organizationId
+            GROUP BY ed.departmentid
+        ) emp_count ON d.departmentid = emp_count.departmentid
+        -- Join for manager details
+        LEFT JOIN employee.employees m ON d.managerid = m.employeeid
+        WHERE d.organizationid = @organizationId AND d.isactive = true
+        ORDER BY d.departmentname";
 
-        var results = await QueryAsync<Department>(sql, new { organizationId });
-        return results.ToList();
+            var results = await QueryAsync<Department>(sql, new { organizationId });
 
+            // Map manager details to Manager object
+            var departments = results.Select(d => new Department
+            {
+                DepartmentId = d.DepartmentId,
+                OrganizationId = d.OrganizationId,
+                DepartmentName = d.DepartmentName,
+                Description = d.Description,
+                ManagerId = d.ManagerId,
+                ParentDepartmentId = d.ParentDepartmentId,
+                Budget = d.Budget,
+                IsActive = d.IsActive,
+                CreatedAt = d.CreatedAt,
+                UpdatedAt = d.UpdatedAt,
+                EmployeeCount = d.EmployeeCount,
+                Manager = d.ManagerId.HasValue ? new Employee
+                {
+                    EmployeeId = d.ManagerId.Value,
+                    FirstName = d.ManagerFirstName,
+                    LastName = d.ManagerLastName
+                } : null
+            }).ToList();
+
+            return departments;
         }
         catch (Exception ex)
         {
@@ -250,20 +287,99 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         try
         {
             var sql = @"
-            SELECT ep.positionid, ep.organizationid, ep.positiontitle, 
-                   ep.departmentid, ed.departmentname AS DepartmentName, 
-                   ep.description, ep.requirements, ep.salaryrange, 
-                   ep.roleid, ar.rolename AS RoleName,
-                   ep.isactive, ep.createdat, ep.updatedat
-            FROM employee.positions ep
-            LEFT JOIN employee.departments ed ON ep.departmentid = ed.departmentid
-            LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
-            WHERE ep.organizationid = @organizationId 
-              AND ep.isactive = true
-            ORDER BY ep.positiontitle";
+        SELECT 
+            ep.positionid, 
+            ep.organizationid, 
+            ep.positiontitle, 
+            ep.departmentid, 
+            ed.departmentname AS DepartmentName, 
+            ep.description, 
+            ep.requirements, 
+            ep.salaryrange, 
+            ep.roleid, 
+            ar.rolename AS RoleName,
+            ep.isactive, 
+            ep.createdat, 
+            ep.updatedat,
+            -- Employee Details
+            ee.employeeid AS EmployeeId,
+            ee.employeecode AS EmployeeCode,
+            ee.firstname AS EmployeeFirstName,
+            ee.lastname AS EmployeeLastName,
+            ee.email AS EmployeeEmail,
+            ee.phone AS EmployeePhone,
+            ee.status AS EmployeeStatus,
+            ee.hiredate AS HireDate,
+            -- User Details
+            au.firstname AS UserFirstName,
+            au.lastname AS UserLastName,
+            au.email AS UserEmail,
+            -- Employment Details
+            edet.employmenttype AS EmploymentType,
+            edet.paytype AS PayType,
+            edet.basicsalary AS BasicSalary,
+            edet.worklocation AS WorkLocation,
+            edet.effectivedate AS EffectiveDate,
+            edet.iscurrent AS IsCurrentEmployment
+        FROM employee.positions ep
+        LEFT JOIN employee.departments ed ON ep.departmentid = ed.departmentid
+        LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
+        -- Join to employment details to find employees in this position
+        LEFT JOIN employee.employmentdetails edet ON ep.positionid = edet.positionid AND edet.iscurrent = true
+        -- Join to employees table
+        LEFT JOIN employee.employees ee ON edet.employeeid = ee.employeeid AND ee.status = 'active'
+        -- Join to users table for role matching and user details
+        LEFT JOIN auth.users au ON ee.userid = au.userid AND au.roleid = ep.roleid
+        WHERE ep.organizationid = @organizationId 
+          AND ep.isactive = true
+          AND (@departmentId IS NULL OR ep.departmentid = @departmentId)
+        ORDER BY ep.positiontitle, ee.firstname, ee.lastname";
 
-            var results = await QueryAsync<Position>(sql, new { organizationId, departmentId });
-            return results.ToList();
+            var results = await QueryAsync<PositionWithEmployees>(sql, new { organizationId, departmentId });
+
+            // Group by position and map to your entity
+            var positions = results
+                .GroupBy(r => r.PositionId)
+                .Select(g => new Position
+                {
+                    PositionId = g.Key,
+                    OrganizationId = g.First().OrganizationId,
+                    PositionTitle = g.First().PositionTitle,
+                    DepartmentId = g.First().DepartmentId,
+                    DepartmentName = g.First().DepartmentName,
+                    Description = g.First().Description,
+                    Requirements = g.First().Requirements,
+                    SalaryRange = g.First().SalaryRange,
+                    RoleId = g.First().RoleId,
+                    RoleName = g.First().RoleName,
+                    IsActive = g.First().IsActive,
+                    CreatedAt = g.First().CreatedAt,
+                    UpdatedAt = g.First().UpdatedAt,
+                    EmploymentDetails = g.Where(x => x.EmployeeId != null)
+                        .Select(e => new EmploymentDetail
+                        {
+                            EmployeeId = e.EmployeeId.Value,
+                            PositionId = g.Key,
+                            EmploymentType = e.EmploymentType,
+                            PayType = e.PayType,
+                            BasicSalary = e.BasicSalary,
+                            WorkLocation = e.WorkLocation,
+                            EffectiveDate = e.EffectiveDate,
+                            IsCurrent = e.IsCurrentEmployment,
+                            Employee = new Employee
+                            {
+                                EmployeeId = e.EmployeeId.Value,
+                                //EmployeeCode = e.EmployeeCode,
+                                FirstName = e.EmployeeFirstName,
+                                LastName = e.EmployeeLastName,
+                                Email = e.EmployeeEmail,
+                                Phone = e.EmployeePhone,
+                                HireDate = e.HireDate
+                            }
+                        }).ToList()
+                }).ToList();
+
+            return positions;
         }
         catch (Exception)
         {

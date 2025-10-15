@@ -51,3 +51,39 @@ public class Position : BaseEntity
     [NotMapped]
     public ICollection<EmploymentDetail> EmploymentDetails { get; set; } = new List<EmploymentDetail>();
 }
+
+public class PositionWithEmployees
+{
+    // Position properties
+    public Guid PositionId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string PositionTitle { get; set; } = string.Empty;
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public string? Description { get; set; }
+    public Dictionary<string, object> Requirements { get; set; } = new();
+    public Dictionary<string, object> SalaryRange { get; set; } = new();
+    public Guid? RoleId { get; set; }
+    public string? RoleName { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    // Employee properties
+    public Guid? EmployeeId { get; set; }
+    public string? EmployeeCode { get; set; }
+    public string? EmployeeFirstName { get; set; }
+    public string? EmployeeLastName { get; set; }
+    public string? EmployeeEmail { get; set; }
+    public string? EmployeePhone { get; set; }
+    public string? EmployeeStatus { get; set; }
+    public DateTime HireDate { get; set; }
+
+    // Employment details
+    public string? EmploymentType { get; set; }
+    public string? PayType { get; set; }
+    public decimal? BasicSalary { get; set; }
+    public string? WorkLocation { get; set; }
+    public DateTime EffectiveDate { get; set; }
+    public bool IsCurrentEmployment { get; set; }
+}

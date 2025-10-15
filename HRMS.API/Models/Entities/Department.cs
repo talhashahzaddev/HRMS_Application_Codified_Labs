@@ -40,7 +40,14 @@ public class Department : BaseEntity
     
     [NotMapped]
     public Employee? Manager { get; set; }
-    
+
+    [NotMapped]
+    public string? ManagerFirstName { get; set; }
+
+    [NotMapped]
+    public string? ManagerLastName { get; set; }
+
+
     [NotMapped]
     public Department? ParentDepartment { get; set; }
     
