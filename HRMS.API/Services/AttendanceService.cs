@@ -219,21 +219,13 @@ public class AttendanceService : IAttendanceService
     {
         _logger.LogInformation("Getting daily attendance stats for organization: {OrganizationId} on {Date}", 
             organizationId, date);
-        
-        // Mock implementation
-        return new DailyAttendanceStatsDto
-        {
-            Date = date,
-            TotalEmployees = 150,
-            PresentEmployees = 142,
-            AbsentEmployees = 8,
-            LateEmployees = 12,
-            EarlyLeavers = 5,
-            OnLeaveEmployees = 3,
-            AttendancePercentage = 94.7m,
-            AverageCheckInTime = TimeSpan.FromHours(9).Add(TimeSpan.FromMinutes(15)),
-            AverageCheckOutTime = TimeSpan.FromHours(17).Add(TimeSpan.FromMinutes(30))
-        };
+
+        var result = await _attendanceRepository.GetDailyAttendanceStatsAsync(organizationId, date);
+
+
+        return result;
+
+
     }
 
     public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate)
@@ -246,7 +238,10 @@ public class AttendanceService : IAttendanceService
             var dailyStats = await _attendanceRepository.GetDailyAttendanceStatsAsync(organizationId, startDate, endDate);
             var attendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate);
 
-            var totalWorkDays = (endDate - startDate).Days + 1;
+            //var totalWorkDays = (endDate - startDate).Days + 1;
+            var totalWorkDays = Enumerable.Range(0, (endDate - startDate).Days + 1)
+    .Select(offset => startDate.AddDays(offset))
+    .Count(date => date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday);
 
             var totalPossibleDays = mainReport.TotalEmployees * totalWorkDays;
             var calculatedAbsentDays = totalPossibleDays - mainReport.TotalPresentDays;
@@ -255,7 +250,7 @@ public class AttendanceService : IAttendanceService
             {
                 StartDate = startDate,
                 EndDate = endDate,
-                TotalWorkDays = totalWorkDays,
+                TotalWorkDays = totalPossibleDays,
                 TotalEmployees = mainReport.TotalEmployees,
                 TotalPresentDays = mainReport.TotalPresentDays,
                 TotalAbsentDays = calculatedAbsentDays,

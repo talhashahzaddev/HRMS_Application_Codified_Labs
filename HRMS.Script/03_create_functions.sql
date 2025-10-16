@@ -458,8 +458,8 @@ $BODY$;
 CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
 	p_employee_id uuid DEFAULT NULL::uuid,
 	p_organization_id uuid DEFAULT NULL::uuid,
-	p_start_date date DEFAULT NULL::date,
-	p_end_date date DEFAULT NULL::date,
+	p_start_date timestamp with time zone DEFAULT NULL::timestamp with time zone,
+	p_end_date timestamp with time zone DEFAULT NULL::timestamp with time zone,
 	p_limit integer DEFAULT 100,
 	p_offset integer DEFAULT 0)
     RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, totalcount bigint) 
@@ -497,15 +497,12 @@ BEGIN
     INNER JOIN employee.Employees e ON a.employeeId = e.employeeId
     WHERE (p_employee_id IS NULL OR a.employeeId = p_employee_id)
       AND (p_organization_id IS NULL OR e.organizationId = p_organization_id)
-      AND (p_start_date IS NULL OR a.workDate >= p_start_date)
-      AND (p_end_date IS NULL OR a.workDate <= p_end_date)
+      AND (p_start_date IS NULL OR a.workDate >= p_start_date::date)
+      AND (p_end_date IS NULL OR a.workDate <= p_end_date::date)
     ORDER BY a.workDate DESC, e.firstName
     LIMIT p_limit OFFSET p_offset;
 END;
 $BODY$;
-
-ALTER FUNCTION attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer)
-    OWNER TO postgres;
 
 -- =====================================================================
 -- LEAVE MANAGEMENT FUNCTIONS
