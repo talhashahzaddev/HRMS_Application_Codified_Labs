@@ -4,6 +4,7 @@ using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Dapper;
 using Npgsql;
+using System.Data;
 
 namespace HRMS.API.Repositories;
 
@@ -470,6 +471,62 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         catch (Exception ex)
         {
             return Guid.Empty;
+        }
+    }
+    public async Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime date)
+    {
+        try
+        {
+            const string sql = @"
+WITH emp AS (
+    SELECT e.employeeid
+    FROM employee.employees e
+    WHERE e.organizationid = @organizationId
+),
+PresentEmployees AS (
+    SELECT DISTINCT a.employeeid
+    FROM attendance.attendance a
+    INNER JOIN emp ON emp.employeeid = a.employeeid
+    WHERE a.workdate = @date
+      AND LOWER(TRIM(a.status)) = 'present'
+),
+OnLeaveEmployees AS (
+    SELECT DISTINCT lr.employeeid
+    FROM attendance.leaverequests lr
+    INNER JOIN emp ON emp.employeeid = lr.employeeid
+    WHERE LOWER(TRIM(lr.status)) = 'approved'
+      AND @date BETWEEN lr.startdate AND lr.enddate
+)
+SELECT
+    @date AS Date,
+    COALESCE((SELECT COUNT(*) FROM emp), 0) AS TotalEmployees,
+    COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0) AS PresentEmployees,
+    COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0) AS OnLeaveEmployees,
+    GREATEST(
+        COALESCE((SELECT COUNT(*) FROM emp), 0)
+        - COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0)
+        - COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0),
+        0
+    ) AS AbsentEmployees,
+    ROUND(
+        (COALESCE((SELECT COUNT(*)::numeric FROM PresentEmployees), 0)
+         / NULLIF(COALESCE((SELECT COUNT(*)::numeric FROM emp),0), 0)
+        ) * 100,
+    2) AS AttendancePercentage;
+";
+
+            var parameters = new DynamicParameters();
+            parameters.Add("organizationId", organizationId, DbType.Guid);
+            parameters.Add("date", date.Date, DbType.Date);
+
+            return await QuerySingleOrDefaultAsync<DailyAttendanceStatsDto>(sql, parameters);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error getting daily attendance stats for organization {OrganizationId} on {Date}",
+                organizationId, date);
+            throw;
         }
     }
 }
