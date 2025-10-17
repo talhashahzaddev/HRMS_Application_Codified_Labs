@@ -145,7 +145,7 @@ public class LeaveController : ControllerBase
             return StatusCode(500, new ServiceResponse<LeaveRequestDto>
             {
                 Success = false,
-                Message = "An error occurred while creating leave request"
+                Message = ex.Message
             });
         }
     }

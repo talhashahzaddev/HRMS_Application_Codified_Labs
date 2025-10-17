@@ -267,18 +267,24 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     {
        try
         {
+            var employeeid = await GetEmpId(employeeId);
+            
             var sql = @"
-            SELECT COUNT(*) > 0
-            FROM attendance.leaverequests
-            WHERE employee_id = @employeeId
-              AND status IN ('approved', 'pending')
-              AND (@excludeRequestId IS NULL OR request_id != @excludeRequestId)
-              AND NOT (end_date < @startDate OR start_date > @endDate)";
+SELECT COUNT(*) > 0
+FROM attendance.leaverequests
+WHERE employeeid = @employeeid
+  AND status IN ('approved', 'pending','rejected')
+  AND (@excludeRequestId IS NULL OR requestid != @excludeRequestId)
+  AND NOT (enddate < @startDate OR startdate > @endDate)";
 
-            return await ExecuteScalarAsync<bool>(sql, new { employeeId, startDate, endDate, excludeRequestId });
+
+            return await ExecuteScalarAsync<bool>(sql, new { employeeid, startDate, endDate, excludeRequestId });
         }
         catch(Exception ex)
         {
+            Console.WriteLine($"Error checking leave overlap: {ex.Message}");
+            throw new Exception("An error occurred while checking leave overlap.");
+
             return false;
         }
     }
