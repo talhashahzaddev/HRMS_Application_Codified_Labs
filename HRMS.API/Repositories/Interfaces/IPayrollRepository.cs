@@ -15,6 +15,20 @@ public interface IPayrollRepository
     Task<PayrollSummaryDto> GetPayrollSummaryAsync(Guid periodId);
     Task<bool> ProcessPayrollPaymentAsync(Guid entryId, string paymentMethod, string paymentReference);
     
+    // Salary Component Operations
+    Task<SalaryComponent> CreateSalaryComponentAsync(Guid organizationId, CreateSalaryComponentRequest request);
+    Task<List<SalaryComponentDto>> GetSalaryComponentsAsync(Guid organizationId);
+    Task<SalaryComponentDto?> GetSalaryComponentByIdAsync(Guid componentId);
+    Task<SalaryComponent> UpdateSalaryComponentAsync(Guid componentId, UpdateSalaryComponentRequest request);
+    Task<bool> DeleteSalaryComponentAsync(Guid componentId);
+    
+    // Salary Rule Operations
+    Task<SalaryRule> CreateSalaryRuleAsync(Guid organizationId, CreateSalaryRuleRequest request);
+    Task<List<SalaryRuleDto>> GetSalaryRulesAsync(Guid organizationId);
+    Task<SalaryRuleDto?> GetSalaryRuleByIdAsync(Guid ruleId);
+    Task<SalaryRule> UpdateSalaryRuleAsync(Guid ruleId, UpdateSalaryRuleRequest request);
+    Task<bool> DeleteSalaryRuleAsync(Guid ruleId);
+    
     // Additional methods for complete implementation
     //Task<PayrollPeriodDto?> GetCurrentPayrollPeriodAsync(Guid organizationId);
     //Task<PayrollPeriod> UpdatePayrollPeriodAsync(Guid periodId, UpdatePayrollPeriodRequest request);
