@@ -1,9 +1,13 @@
-using AutoMapper;
+﻿using AutoMapper;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using OfficeOpenXml;
+using OfficeOpenXml.Style;
+using System.Drawing;
+using System.Text;
 
 namespace HRMS.API.Services;
 
@@ -25,17 +29,21 @@ public class AttendanceService : IAttendanceService
 
     public async Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request)
     {
-        return await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location);
+        var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+        var result = await _attendanceRepository.ClockInOutAsync(EMP_Id, "in", DateTime.UtcNow, request.Location);
+        return result;
     }
 
     public async Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request)
     {
-        return await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location);
+        var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+        return await _attendanceRepository.ClockInOutAsync(EMP_Id, "out", DateTime.UtcNow, request.Location);
     }
 
     public async Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId)
     {
-        var attendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
+        var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+        var attendance = await _attendanceRepository.GetTodayAttendanceAsync(EMP_Id);
         return attendance != null ? _mapper.Map<AttendanceDto>(attendance) : null;
     }
 
@@ -52,7 +60,9 @@ public class AttendanceService : IAttendanceService
 
     public async Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
-        return await _attendanceRepository.GetAttendanceSummaryAsync(employeeId, startDate, endDate);
+        var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+
+        return await _attendanceRepository.GetAttendanceSummaryAsync(EMP_Id, startDate, endDate);
     }
 
     public async Task<bool> UpdateAttendanceAsync(Guid attendanceId, CreateAttendanceRequest request)
@@ -70,7 +80,7 @@ public class AttendanceService : IAttendanceService
     public async Task<TimeTrackingSessionDto?> GetCurrentSessionAsync(Guid employeeId)
     {
         _logger.LogInformation("Getting current session for employee: {EmployeeId}", employeeId);
-        
+
         // Mock implementation - return current active session if exists
         var todayAttendance = await GetTodayAttendanceAsync(employeeId);
 
@@ -157,36 +167,51 @@ public class AttendanceService : IAttendanceService
     {
         _logger.LogInformation("Getting employee attendance for employee: {EmployeeId} from {StartDate} to {EndDate}", 
             employeeId, startDate, endDate);
-        
-        var attendance = await _attendanceRepository.GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
+        var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+
+        var attendance = await _attendanceRepository.GetEmployeeAttendanceAsync(EMP_Id, startDate, endDate);
         return _mapper.Map<List<AttendanceDto>>(attendance);
     }
 
+   
     public async Task<List<AttendanceCalendarDto>> GetAttendanceCalendarAsync(Guid employeeId, int year, int month)
     {
-        _logger.LogInformation("Getting attendance calendar for employee: {EmployeeId} for {Year}-{Month}", 
+        _logger.LogInformation("Getting attendance calendar for employee: {EmployeeId} for {Year}-{Month}",
             employeeId, year, month);
-        
         var startDate = new DateTime(year, month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
-        
+        var today = DateTime.Today;
         var attendance = await GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
-        
+
         var calendar = new List<AttendanceCalendarDto>();
+
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
         {
-            var dayAttendance = attendance.FirstOrDefault(a => a.Date.Date == date.Date);
+            var dayAttendance = attendance.FirstOrDefault(a => a.WorkDate.Date == date.Date);
+            bool isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+
+            string status;
+            if (date > today)
+                status = "No Record"; // ✅ Future days
+            else if (dayAttendance != null)
+                status = dayAttendance.Status;
+            else if (isWeekend)
+                status = "Weekend";
+            else
+                status = "Absent";
+
             calendar.Add(new AttendanceCalendarDto
             {
                 Date = date,
-                Status = dayAttendance?.Status ?? "Absent",
+                Status = status,
                 CheckInTime = dayAttendance?.CheckInTime,
                 CheckOutTime = dayAttendance?.CheckOutTime,
                 TotalHours = dayAttendance?.TotalHours ?? 0,
-                IsHoliday = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday
+                IsWorkingDay = !isWeekend,
+                IsHoliday = isWeekend
             });
         }
-        
+
         return calendar;
     }
 
@@ -194,61 +219,159 @@ public class AttendanceService : IAttendanceService
     {
         _logger.LogInformation("Getting daily attendance stats for organization: {OrganizationId} on {Date}", 
             organizationId, date);
-        
-        // Mock implementation
-        return new DailyAttendanceStatsDto
-        {
-            Date = date,
-            TotalEmployees = 150,
-            PresentEmployees = 142,
-            AbsentEmployees = 8,
-            LateEmployees = 12,
-            EarlyLeavers = 5,
-            OnLeaveEmployees = 3,
-            AttendancePercentage = 94.7m,
-            AverageCheckInTime = TimeSpan.FromHours(9).Add(TimeSpan.FromMinutes(15)),
-            AverageCheckOutTime = TimeSpan.FromHours(17).Add(TimeSpan.FromMinutes(30))
-        };
+
+        var result = await _attendanceRepository.GetDailyAttendanceStatsAsync(organizationId, date);
+
+
+        return result;
+
+
     }
 
-    public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? employeeId, Guid? departmentId)
+    public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate)
     {
-        _logger.LogInformation("Generating attendance report for organization: {OrganizationId} from {StartDate} to {EndDate}", 
-            organizationId, startDate, endDate);
-        
-        // Mock implementation
-        return new AttendanceReportDto
+        try
         {
-            StartDate = startDate,
-            EndDate = endDate,
-            TotalWorkDays = (endDate - startDate).Days + 1,
-            TotalEmployees = 150,
-            TotalPresentDays = 2100,
-            TotalAbsentDays = 150,
-            AverageAttendanceRate = 93.3m,
-            DepartmentStats = new List<DepartmentAttendanceStatsDto>
+            var mainReport = await _attendanceRepository.GetAttendanceReportAsync(organizationId, startDate, endDate);
+
+            var departmentStats = await _attendanceRepository.GetDepartmentAttendanceStatsAsync(organizationId, startDate, endDate);
+            var dailyStats = await _attendanceRepository.GetDailyAttendanceStatsAsync(organizationId, startDate, endDate);
+            var attendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate);
+
+            //var totalWorkDays = (endDate - startDate).Days + 1;
+            var totalWorkDays = Enumerable.Range(0, (endDate - startDate).Days + 1)
+    .Select(offset => startDate.AddDays(offset))
+    .Count(date => date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday);
+
+            var totalPossibleDays = mainReport.TotalEmployees * totalWorkDays;
+            var calculatedAbsentDays = totalPossibleDays - mainReport.TotalPresentDays;
+
+            var completeReport = new AttendanceReportDto
             {
-                new() { DepartmentName = "Engineering", AttendanceRate = 95.2m, TotalEmployees = 60 },
-                new() { DepartmentName = "Sales", AttendanceRate = 92.1m, TotalEmployees = 30 },
-                new() { DepartmentName = "Marketing", AttendanceRate = 94.8m, TotalEmployees = 25 }
-            }
-        };
+                StartDate = startDate,
+                EndDate = endDate,
+                TotalWorkDays = totalPossibleDays,
+                TotalEmployees = mainReport.TotalEmployees,
+                TotalPresentDays = mainReport.TotalPresentDays,
+                TotalAbsentDays = calculatedAbsentDays,
+                AverageAttendanceRate = (mainReport.TotalEmployees > 0 && totalWorkDays > 0)
+        ? Math.Round((mainReport.TotalPresentDays * 100.0m) / (mainReport.TotalEmployees * totalWorkDays), 2)
+        : 0,
+                Records = attendanceRecords,
+                DailyStats = dailyStats,
+                DepartmentStats = departmentStats,
+                Summary = new AttendanceSummaryDto
+                {
+                    TotalWorkDays = totalWorkDays,
+                    PresentDays = mainReport.TotalPresentDays,
+                    AbsentDays = mainReport.TotalAbsentDays,
+                    LateDays = mainReport.TotalLateDays,
+                    TotalHours = mainReport.TotalHours,
+                    OvertimeHours = mainReport.OvertimeHours,
+                    AverageHoursPerDay = totalWorkDays > 0 ?
+                        Math.Round(mainReport.TotalHours / totalWorkDays, 2) : 0
+                }
+            };
+
+            return completeReport;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating complete attendance report");
+            throw;
+        }
     }
 
     public async Task<byte[]> ExportAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, string format, Guid? employeeId)
     {
-        _logger.LogInformation("Exporting attendance report for organization: {OrganizationId} in format: {Format}", 
-            organizationId, format);
-        
-        var report = await GetAttendanceReportAsync(organizationId, startDate, endDate, employeeId, null);
-        
-        // Mock CSV export
-        var csvData = "Date,EmployeeCode,EmployeeName,CheckIn,CheckOut,TotalHours,Status\n";
-        csvData += $"{startDate:yyyy-MM-dd},EMP001,John Doe,09:00,17:00,8.0,Present\n";
-        csvData += $"{startDate:yyyy-MM-dd},EMP002,Jane Smith,09:15,17:30,8.25,Present\n";
-        csvData += $"{startDate:yyyy-MM-dd},EMP003,Bob Wilson,,,0,Absent\n";
-        
-        return System.Text.Encoding.UTF8.GetBytes(csvData);
+        try
+        {
+            _logger.LogInformation("Exporting attendance report for organization: {OrganizationId} in format: {Format}",
+                organizationId, format);
+
+            var attendanceRecords = await GetAttendanceReportAsync(
+                organizationId, startDate, endDate);
+
+            if (format.ToLower() == "csv")
+            {
+                return GenerateCsvExport(attendanceRecords.Records, startDate, endDate);
+            }
+            else
+            {
+                return GenerateExcelExport(attendanceRecords.Records, startDate, endDate);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error exporting attendance report");
+            throw;
+        }
+    }
+
+    private byte[] GenerateCsvExport(List<AttendanceDto> records, DateTime startDate, DateTime endDate)
+    {
+        var csvBuilder = new StringBuilder();
+
+        csvBuilder.AppendLine("Date,Employee Name,Check In,Check Out,Total Hours,Overtime Hours,Status,Notes");
+
+        foreach (var record in records)
+        {
+            var checkInTime = record.CheckInTime?.ToString("HH:mm") ?? "N/A";
+            var checkOutTime = record.CheckOutTime?.ToString("HH:mm") ?? "N/A";
+            var totalHours = record.TotalHours.ToString("0.00");
+            var overtimeHours = record.OvertimeHours.ToString("0.00");
+            var notes = string.IsNullOrEmpty(record.Notes) ? "" : record.Notes.Replace(",", ";");
+
+            csvBuilder.AppendLine($"\"{record.WorkDate:yyyy-MM-dd}\",\"{record.EmployeeName}\",\"{checkInTime}\",\"{checkOutTime}\",\"{totalHours}\",\"{overtimeHours}\",\"{record.Status}\",\"{notes}\"");
+        }
+
+        return Encoding.UTF8.GetBytes(csvBuilder.ToString());
+    }
+    private byte[] GenerateExcelExport(List<AttendanceDto> records, DateTime startDate, DateTime endDate)
+    {
+        var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
+        var sheet = workbook.CreateSheet("Attendance Report");
+
+        var headerRow = sheet.CreateRow(0);
+        string[] headers = { "Date", "Employee Name", "Check In", "Check Out", "Total Hours", "Overtime Hours", "Status", "Notes" };
+
+        for (int i = 0; i < headers.Length; i++)
+        {
+            var cell = headerRow.CreateCell(i);
+            cell.SetCellValue(headers[i]);
+
+            var headerStyle = workbook.CreateCellStyle();
+            var headerFont = workbook.CreateFont();
+            headerFont.IsBold = true;
+            headerStyle.SetFont(headerFont);
+            headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+            headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+            cell.CellStyle = headerStyle;
+        }
+
+        for (int i = 0; i < records.Count; i++)
+        {
+            var record = records[i];
+            var row = sheet.CreateRow(i + 1);
+
+            row.CreateCell(0).SetCellValue(record.WorkDate.ToString("yyyy-MM-dd"));
+            row.CreateCell(1).SetCellValue(record.EmployeeName);
+            row.CreateCell(2).SetCellValue(record.CheckInTime?.ToString("HH:mm") ?? "N/A");
+            row.CreateCell(3).SetCellValue(record.CheckOutTime?.ToString("HH:mm") ?? "N/A");
+            row.CreateCell(4).SetCellValue((double)record.TotalHours);
+            row.CreateCell(5).SetCellValue((double)record.OvertimeHours);
+            row.CreateCell(6).SetCellValue(record.Status);
+            row.CreateCell(7).SetCellValue(record.Notes ?? "");
+        }
+
+        for (int i = 0; i < headers.Length; i++)
+        {
+            sheet.AutoSizeColumn(i);
+        }
+
+        using var stream = new MemoryStream();
+        workbook.Write(stream);
+        return stream.ToArray();
     }
 
     public async Task<bool> BulkApproveAttendanceAsync(List<Guid> attendanceIds)

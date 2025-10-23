@@ -1,4 +1,5 @@
 using AutoMapper;
+using DocumentFormat.OpenXml.Bibliography;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -97,15 +98,14 @@ public class EmployeeService : IEmployeeService
         employee.OrganizationId = organizationId;
         employee.UserId = userId;
 
-        _logger.LogInformation("Creating employee record with user ID: {UserId}", createdUser.UserId);
         var createdEmployee = await _employeeRepository.CreateEmployeeAsync(employee);
-        
-        _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}", 
-            createdEmployee.EmployeeId, userId);
-        
-        var result = await _employeeRepository.GetEmployeeByIdAsync(createdEmployee.EmployeeId);
 
-        _logger.LogInformation("Employee {EmployeeId} created successfully with user {UserId}", createdEmployee.EmployeeId, createdUser.UserId);
+        _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}",
+            createdEmployee.EmployeeId, userId);
+
+        var result = await _employeeRepository.GetEmployeedetailsAsync(createdEmployee.EmployeeId);
+
+       
         return _mapper.Map<EmployeeDto>(result);
     }
 
@@ -148,12 +148,24 @@ public class EmployeeService : IEmployeeService
     public async Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId)
     {
         var departments = await _employeeRepository.GetDepartmentsAsync(organizationId);
-        return _mapper.Map<List<DepartmentDto>>(departments);
+
+        return departments.Select(d => new DepartmentDto
+        {
+            DepartmentId = d.DepartmentId,
+            OrganizationId = d.OrganizationId,
+            DepartmentName = d.DepartmentName,
+            Description = d.Description,
+            ManagerId = d.ManagerId,
+            ManagerName = d.Manager ?.FullName,
+            IsActive = d.IsActive,
+            EmployeeCount = d.EmployeeCount,
+            CreatedAt = d.CreatedAt
+        }).ToList();
     }
 
     public async Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId)
     {
-        var department = _mapper.Map<Department>(request);
+        var department = _mapper.Map<Models.Entities.Department>(request);
         department.OrganizationId = organizationId;
 
         var createdDepartment = await _employeeRepository.CreateDepartmentAsync(department);
@@ -163,7 +175,16 @@ public class EmployeeService : IEmployeeService
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null)
     {
         var positions = await _employeeRepository.GetPositionsAsync(organizationId, departmentId);
-        return _mapper.Map<List<PositionDto>>(positions);
+        var positionDtos = _mapper.Map<List<PositionDto>>(positions);
+
+      
+        foreach (var positionDto in positionDtos)
+        {
+            var position = positions.FirstOrDefault(p => p.PositionId == positionDto.PositionId);
+            positionDto.EmployeeCount = position?.EmploymentDetails?.Count ?? 0;
+        }
+
+        return positionDtos;
     }
 
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId)

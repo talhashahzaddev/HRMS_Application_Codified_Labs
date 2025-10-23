@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
@@ -35,26 +35,26 @@ public class PerformanceService : IPerformanceService
 
     public async Task<EmployeeAppraisalDto> CreateEmployeeAppraisalAsync(CreateAppraisalRequest request, Guid reviewerId)
     {
-       try
+        try
         {
             var appraisal = new EmployeeAppraisal
-        {
-            AppraisalId = Guid.NewGuid(),      // generate new Id
-            CycleId = request.CycleId,
-            EmployeeId = request.EmployeeId,
-            ReviewerId = reviewerId,
-            ReviewType = request.ReviewType,
-            OverallRating = request.OverallRating,
-            KraRatings = request.KraRatings,
-            SkillRatings = request.SkillRatings,
-            Feedback = request.Feedback,
-            ImprovementAreas = request.ImprovementAreas,
-            DevelopmentPlan = request.DevelopmentPlan,
-            Status = "draft",
-            SubmittedAt = null,
-            ReviewedAt = null,
-            GoalsAchieved = new Dictionary<string, object>() // keep empty for now
-        };
+            {
+                AppraisalId = Guid.NewGuid(),      // generate new Id
+                CycleId = request.CycleId,
+                EmployeeId = request.EmployeeId,
+                ReviewerId = reviewerId,
+                ReviewType = request.ReviewType,
+                OverallRating = request.OverallRating,
+                KraRatings = request.KraRatings,
+                SkillRatings = request.SkillRatings,
+                Feedback = request.Feedback,
+                ImprovementAreas = request.ImprovementAreas,
+                DevelopmentPlan = request.DevelopmentPlan,
+                Status = "draft",
+                SubmittedAt = null,
+                ReviewedAt = null,
+                GoalsAchieved = new Dictionary<string, object>() // keep empty for now
+            };
             appraisal.ReviewerId = reviewerId;
 
             var createdAppraisal = await _performanceRepository.CreateEmployeeAppraisalAsync(appraisal);
@@ -79,7 +79,7 @@ public class PerformanceService : IPerformanceService
 
             return dto;
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             return null;
         }
@@ -90,10 +90,36 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetEmployeeAppraisalsAsync(cycleId, employeeId);
     }
 
+    public async Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
+    {
+        try
+        {
+            return await _performanceRepository.CreateSkillSetAsync(request, organizationId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            // Forward duplicate error to controller
+            throw;
+        }
+        //return new SkillSetDto
+        //{
+        //    SkillId = Guid.NewGuid(),
+        //    SkillName = request.SkillName,
+        //    Category = request.Category ?? "General",
+        //    Description = request.Description,
+        //    IsActive = request.IsActive,
+        //    CreatedAt = DateTime.UtcNow
+        //};
+    }
+
+
+
     public async Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
     {
         return await _performanceRepository.GetSkillSetsAsync(organizationId);
     }
+
+
 
     public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
     {
@@ -121,7 +147,7 @@ public class PerformanceService : IPerformanceService
     {
         _logger.LogInformation("Getting paged skill sets for organization: {OrganizationId}", organizationId);
         var skillSets = await GetSkillSetsAsync(organizationId);
-        
+
         if (!string.IsNullOrEmpty(filter.Category))
             skillSets = skillSets.Where(s => s.Category == filter.Category).ToList();
         if (filter.IsActive.HasValue)
@@ -131,7 +157,7 @@ public class PerformanceService : IPerformanceService
 
         var totalItems = skillSets.Count;
         var pagedItems = skillSets.Skip((page - 1) * limit).Take(limit).ToList();
-        
+
         return new PagedResult<SkillSetDto>
         {
             Data = pagedItems,
@@ -148,25 +174,25 @@ public class PerformanceService : IPerformanceService
         return skillSets.FirstOrDefault(s => s.SkillId == skillSetId);
     }
 
-    public async Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
-    {
-        _logger.LogInformation("Creating skill set: {SkillName}", request.SkillName);
-        
-        return new SkillSetDto
-        {
-            SkillId = Guid.NewGuid(),
-            SkillName = request.SkillName,
-            Category = request.Category ?? "General",
-            Description = request.Description,
-            IsActive = request.IsActive,
-            CreatedAt = DateTime.UtcNow
-        };
-    }
+    //public async Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
+    //{
+    //    _logger.LogInformation("Creating skill set: {SkillName}", request.SkillName);
+
+    //    return new SkillSetDto
+    //    {
+    //        SkillId = Guid.NewGuid(),
+    //        SkillName = request.SkillName,
+    //        Category = request.Category ?? "General",
+    //        Description = request.Description,
+    //        IsActive = request.IsActive,
+    //        CreatedAt = DateTime.UtcNow
+    //    };
+    //}
 
     public async Task<SkillSetDto> UpdateSkillSetAsync(Guid skillSetId, UpdateSkillSetRequest request)
     {
         _logger.LogInformation("Updating skill set: {SkillSetId}", skillSetId);
-        
+
         var skillSet = await GetSkillSetByIdAsync(skillSetId);
         if (skillSet == null)
             throw new KeyNotFoundException($"Skill set with ID {skillSetId} not found");
@@ -188,11 +214,11 @@ public class PerformanceService : IPerformanceService
     public async Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit)
     {
         _logger.LogInformation("Getting paged employee skills for organization: {OrganizationId}", organizationId);
-        
+
         var skills = new List<EmployeeSkillDto>
         {
-            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 4, AssessorName = "Manager", LastAssessed = DateTime.UtcNow.AddDays(-30) },
-            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 3, AssessorName = "Manager", LastAssessed = DateTime.UtcNow.AddDays(-45) }
+            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 4, AssessedBy = Guid.NewGuid(), LastAssessed = DateTime.UtcNow.AddDays(-30) },
+            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 3, AssessedBy = Guid.NewGuid(), LastAssessed = DateTime.UtcNow.AddDays(-45) }
         };
 
         if (filter.EmployeeId.HasValue)
@@ -202,7 +228,7 @@ public class PerformanceService : IPerformanceService
 
         var totalItems = skills.Count;
         var pagedItems = skills.Skip((page - 1) * limit).Take(limit).ToList();
-        
+
         return new PagedResult<EmployeeSkillDto>
         {
             Data = pagedItems,
@@ -221,44 +247,111 @@ public class PerformanceService : IPerformanceService
     public async Task<EmployeeSkillDto?> GetEmployeeSkillByIdAsync(Guid employeeSkillId)
     {
         _logger.LogInformation("Getting employee skill by ID: {EmployeeSkillId}", employeeSkillId);
-        
+
         return new EmployeeSkillDto
         {
             EmployeeSkillId = employeeSkillId,
             EmployeeId = Guid.NewGuid(),
             SkillId = Guid.NewGuid(),
             ProficiencyLevel = 4,
-            AssessorName = "Manager",
+            AssessedBy = Guid.NewGuid(),
             LastAssessed = DateTime.UtcNow.AddDays(-30)
         };
     }
 
     public async Task<EmployeeSkillDto> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
     {
-        _logger.LogInformation("Creating employee skill for employee: {EmployeeId}", request.EmployeeId);
-        
-        return new EmployeeSkillDto
+        try
         {
-            EmployeeSkillId = Guid.NewGuid(),
-            EmployeeId = request.EmployeeId,
-            SkillId = request.SkillId,
-            ProficiencyLevel = request.ProficiencyLevel,
-            AssessorName = request.AssessorName,
-            LastAssessed = request.LastAssessed ?? DateTime.UtcNow,
-            Notes = request.Notes
-        };
+            // ✅ 1. Basic validation
+            if (request.EmployeeId == Guid.Empty || request.SkillId == Guid.Empty)
+                throw new ArgumentException("EmployeeId and SkillId are required.");
+
+            if (request.ProficiencyLevel < 1 || request.ProficiencyLevel > 5)
+                throw new ArgumentException("Proficiency level must be between 1 and 5.");
+
+            // ✅ 2. Default values
+            if (!request.LastAssessed.HasValue)
+                request.LastAssessed = DateTime.UtcNow;
+
+            // agar assessedBy empty hai to default (e.g., system user / HR)
+            if (!request.AssessedBy.HasValue)
+                request.AssessedBy = Guid.Parse("00000000-0000-0000-0000-000000000000");
+
+            // ✅ 3. Call repository
+            var result = await _performanceRepository.CreateEmployeeSkillAsync(request);
+
+            if (result == null)
+                throw new Exception("Failed to create employee skill record.");
+
+            _logger.LogInformation("✅ Successfully created skill for employee {EmployeeId}", request.EmployeeId);
+
+            return result;
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "⚠ Validation failed for employee skill creation");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "❌ Error while creating employee skill");
+            throw;
+        }
     }
+
+
+    //public async Task<EmployeeSkillDto> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
+    //{
+    //    try
+    //    {
+    //        // 🔍 Basic validation (extra safety)
+    //        if (request.EmployeeId == Guid.Empty || request.SkillId == Guid.Empty)
+    //            throw new ArgumentException("EmployeeId and SkillId are required.");
+
+    //        if (request.ProficiencyLevel < 1 || request.ProficiencyLevel > 5)
+    //            throw new ArgumentException("Proficiency level must be between 1 and 5.");
+
+    //        // 🧠 Call repository to insert record
+    //        var result = await _performanceRepository.CreateEmployeeSkillAsync(request);
+
+    //        if (result == null)
+    //            throw new Exception("Failed to create employee skill record.");
+
+    //        _logger.LogInformation("Successfully created skill for employee {EmployeeId}", request.EmployeeId);
+    //        return result;
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error while creating employee skill");
+    //        throw;
+    //    }
+    //}
+
+    //    //_logger.LogInformation("Creating employee skill for employee: {EmployeeId}", request.EmployeeId);
+
+    //return new EmployeeSkillDto
+    //{
+    //    EmployeeSkillId = Guid.NewGuid(),
+    //    EmployeeId = request.EmployeeId,
+    //    SkillId = request.SkillId,
+    //    ProficiencyLevel = request.ProficiencyLevel,
+    //    AssessorName = request.AssessorName,
+    //    LastAssessed = request.LastAssessed ?? DateTime.UtcNow,
+    //    Notes = request.Notes
+    //};
+
 
     public async Task<EmployeeSkillDto> UpdateEmployeeSkillAsync(Guid employeeSkillId, UpdateEmployeeSkillRequest request)
     {
         _logger.LogInformation("Updating employee skill: {EmployeeSkillId}", employeeSkillId);
-        
+
         var skill = await GetEmployeeSkillByIdAsync(employeeSkillId);
         if (skill == null)
             throw new KeyNotFoundException($"Employee skill with ID {employeeSkillId} not found");
 
         skill.ProficiencyLevel = request.ProficiencyLevel;
-        skill.AssessorName = request.AssessorName;
+        skill.AssessedBy = request.AssessedBy;
         skill.LastAssessed = request.LastAssessed ?? skill.LastAssessed;
         skill.Notes = request.Notes;
 
@@ -274,19 +367,17 @@ public class PerformanceService : IPerformanceService
     public async Task<PagedResult<KRADto>> GetKRAsAsync(Guid organizationId, int page, int limit, string? search)
     {
         _logger.LogInformation("Getting KRAs for organization: {OrganizationId}", organizationId);
-        
-        var kras = new List<KRADto>
-        {
-            new() { KRAId = Guid.NewGuid(), Title = "Sales Performance", Description = "Achieve sales targets", Category = "Sales", Weight = 30, MeasurementCriteria = "Monthly sales numbers", IsActive = true, CreatedAt = DateTime.UtcNow },
-            new() { KRAId = Guid.NewGuid(), Title = "Customer Satisfaction", Description = "Maintain customer satisfaction", Category = "Service", Weight = 25, MeasurementCriteria = "Customer feedback scores", IsActive = true, CreatedAt = DateTime.UtcNow }
-        };
+
+        var kras = await _performanceRepository.GetKRAsAsync(organizationId);
+
+
 
         if (!string.IsNullOrEmpty(search))
             kras = kras.Where(k => k.Title.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
 
         var totalItems = kras.Count;
         var pagedItems = kras.Skip((page - 1) * limit).Take(limit).ToList();
-        
+
         return new PagedResult<KRADto>
         {
             Data = pagedItems,
@@ -299,54 +390,54 @@ public class PerformanceService : IPerformanceService
     public async Task<KRADto?> GetKRAByIdAsync(Guid kraId)
     {
         _logger.LogInformation("Getting KRA by ID: {KRAId}", kraId);
-        
-        return new KRADto
-        {
-            KRAId = kraId,
-            Title = "Sales Performance",
-            Description = "Achieve sales targets",
-            Category = "Sales",
-            Weight = 30,
-            MeasurementCriteria = "Monthly sales numbers",
-            IsActive = true,
-            CreatedAt = DateTime.UtcNow
-        };
+
+        var result = await _performanceRepository.GetKraByIdAsync(kraId);
+        return result;
+
     }
 
-    public async Task<KRADto> CreateKRAAsync(CreateKRARequest request, Guid organizationId)
+    public async Task<KRADto> CreateKRAAsync(Guid organizationId, CreateKRARequest request)
     {
         _logger.LogInformation("Creating KRA: {Title}", request.Title);
-        
-        return new KRADto
-        {
-            KRAId = Guid.NewGuid(),
-            Title = request.Title,
-            Description = request.Description,
-            Category = request.Category,
-            Weight = request.Weight,
-            MeasurementCriteria = request.MeasurementCriteria,
-            IsActive = request.IsActive,
-            CreatedAt = DateTime.UtcNow
-        };
+
+        var result = await _performanceRepository.CreateKRAAsync(request, organizationId);
+
+
+        return result;
     }
 
     public async Task<KRADto> UpdateKRAAsync(Guid kraId, UpdateKRARequest request)
     {
-        _logger.LogInformation("Updating KRA: {KRAId}", kraId);
-        
-        var kra = await GetKRAByIdAsync(kraId);
+        _logger.LogInformation("Checking Weather KRa with this id exisits or not");
+
+        var kra = await _performanceRepository.GetKraByIdAsync(kraId);
         if (kra == null)
-            throw new KeyNotFoundException($"KRA with ID {kraId} not found");
+        {
+            return null;
+        }
 
-        kra.Title = request.Title;
-        kra.Description = request.Description;
-        kra.Category = request.Category;
-        kra.Weight = request.Weight;
-        kra.MeasurementCriteria = request.MeasurementCriteria;
-        kra.IsActive = request.IsActive;
+        else
+        {
+            var result = await _performanceRepository.UpdatekraAsync(kraId, request);
+            return result;
+        }
 
-        return kra;
     }
+
+    public async Task<bool> UpdateKRAStatusAsync(Guid kraId, bool isActive)
+    {
+        var kra = await _performanceRepository.GetKraByIdAsync(kraId);
+        if (kra == null)
+        {
+            return false;
+        }
+
+        return await _performanceRepository.UpdateKRAStatusAsync(kraId, isActive);
+    }
+
+
+
+
 
     public async Task<bool> DeleteKRAAsync(Guid kraId)
     {
@@ -357,15 +448,15 @@ public class PerformanceService : IPerformanceService
     public async Task<PagedResult<AppraisalCycleDto>> GetAppraisalCyclesPagedAsync(Guid organizationId, int page, int limit, string? search)
     {
         _logger.LogInformation("Getting paged appraisal cycles for organization: {OrganizationId}", organizationId);
-        
+
         var cycles = await GetAppraisalCyclesAsync(organizationId);
-        
+
         if (!string.IsNullOrEmpty(search))
             cycles = cycles.Where(c => c.CycleName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
 
         var totalItems = cycles.Count;
         var pagedItems = cycles.Skip((page - 1) * limit).Take(limit).ToList();
-        
+
         return new PagedResult<AppraisalCycleDto>
         {
             Data = pagedItems,
@@ -378,7 +469,7 @@ public class PerformanceService : IPerformanceService
     public async Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId)
     {
         _logger.LogInformation("Getting appraisal cycle by ID: {CycleId}", cycleId);
-        
+
         var cycles = await GetAppraisalCyclesAsync(Guid.NewGuid());
         return cycles.FirstOrDefault(c => c.CycleId == cycleId);
     }
@@ -386,7 +477,7 @@ public class PerformanceService : IPerformanceService
     public async Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request)
     {
         _logger.LogInformation("Updating appraisal cycle: {CycleId}", cycleId);
-        
+
         var cycle = await GetAppraisalCycleByIdAsync(cycleId);
         if (cycle == null)
             throw new KeyNotFoundException($"Appraisal cycle with ID {cycleId} not found");
@@ -409,7 +500,7 @@ public class PerformanceService : IPerformanceService
     public async Task<PagedResult<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit)
     {
         _logger.LogInformation("Getting paged employee appraisals for organization: {OrganizationId}", organizationId);
-        
+
         var appraisals = new List<EmployeeAppraisalDto>
         {
             new() { AppraisalId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), CycleId = Guid.NewGuid(), Status = "Completed", OverallRating = 4.5m, SubmittedAt = DateTime.UtcNow.AddDays(-10) },
@@ -425,7 +516,7 @@ public class PerformanceService : IPerformanceService
 
         var totalItems = appraisals.Count;
         var pagedItems = appraisals.Skip((page - 1) * limit).Take(limit).ToList();
-        
+
         return new PagedResult<EmployeeAppraisalDto>
         {
             Data = pagedItems,
@@ -438,7 +529,7 @@ public class PerformanceService : IPerformanceService
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId)
     {
         _logger.LogInformation("Getting employee appraisals for employee: {EmployeeId}", employeeId);
-        
+
         return new List<EmployeeAppraisalDto>
         {
             new() { AppraisalId = Guid.NewGuid(), EmployeeId = employeeId, CycleId = Guid.NewGuid(), Status = "Completed", OverallRating = 4.5m, SubmittedAt = DateTime.UtcNow.AddDays(-10) }
@@ -448,7 +539,7 @@ public class PerformanceService : IPerformanceService
     public async Task<EmployeeAppraisalDto?> GetEmployeeAppraisalByIdAsync(Guid appraisalId)
     {
         _logger.LogInformation("Getting employee appraisal by ID: {AppraisalId}", appraisalId);
-        
+
         return new EmployeeAppraisalDto
         {
             AppraisalId = appraisalId,
@@ -463,7 +554,7 @@ public class PerformanceService : IPerformanceService
     public async Task<EmployeeAppraisalDto> SubmitAppraisalAsync(Guid appraisalId, SubmitAppraisalRequest request)
     {
         _logger.LogInformation("Submitting appraisal: {AppraisalId}", appraisalId);
-        
+
         var appraisal = await GetEmployeeAppraisalByIdAsync(appraisalId);
         if (appraisal == null)
             throw new KeyNotFoundException($"Employee appraisal with ID {appraisalId} not found");
@@ -478,7 +569,7 @@ public class PerformanceService : IPerformanceService
     public async Task<EmployeeAppraisalDto> ReviewAppraisalAsync(Guid appraisalId, ReviewAppraisalRequest request)
     {
         _logger.LogInformation("Reviewing appraisal: {AppraisalId}", appraisalId);
-        
+
         var appraisal = await GetEmployeeAppraisalByIdAsync(appraisalId);
         if (appraisal == null)
             throw new KeyNotFoundException($"Employee appraisal with ID {appraisalId} not found");
@@ -492,7 +583,7 @@ public class PerformanceService : IPerformanceService
     public async Task<PerformanceReportDto> GeneratePerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter)
     {
         _logger.LogInformation("Generating performance report for organization: {OrganizationId}", organizationId);
-        
+
         return new PerformanceReportDto
         {
             StartDate = filter.StartDate ?? DateTime.Now.AddMonths(-3),
@@ -511,14 +602,43 @@ public class PerformanceService : IPerformanceService
     public async Task<byte[]> ExportPerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter)
     {
         _logger.LogInformation("Exporting performance report for organization: {OrganizationId}", organizationId);
-        
+
         var report = await GeneratePerformanceReportAsync(organizationId, filter);
-        
+
         // Mock CSV export
         var csvData = "Employee,Department,OverallRating,Status,CompletionDate\n";
         csvData += "John Doe,Engineering,4.5,Completed,2024-01-15\n";
         csvData += "Jane Smith,Sales,4.2,Completed,2024-01-20\n";
-        
+
         return System.Text.Encoding.UTF8.GetBytes(csvData);
     }
+
+    //Goals
+    public async Task<EmployeeGoalDto> CreateEmployeeGoalAsync(CreateEmployeeGoalRequest goal)
+    {
+        // Just pass the goal directly to repository
+        return await _performanceRepository.CreateEmployeeGoalAsync(goal);
+    }
+
+    public async Task<List<EmployeeGoalDto>> GetEmployeeGoalsAsync(Guid employeeId)
+    {
+        //var empid =await  _performanceRepository.GetEmpId(employeeId);
+
+        return await _performanceRepository.GetEmployeeGoalsAsync(employeeId);
+    }
+
+    public async Task<List<EmployeeGoalDto>> GetAllEmployeeGoalsAsync()
+    {
+        return await _performanceRepository.GetAllEmployeeGoalsAsync();
+    }
+
+    public async Task<bool> GoalAsCompletedAsync(Guid goalId)
+    {
+        // Call repository to update the goal’s status
+        var updated = await _performanceRepository.GoalAsCompletedAsync(goalId);
+        return updated;
+    }
+
+
+
 }

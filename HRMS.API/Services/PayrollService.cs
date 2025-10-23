@@ -2,6 +2,9 @@ using AutoMapper;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using ClosedXML.Excel;
+using iTextSharp.text;
+using iTextSharp.text.pdf;
 
 namespace HRMS.API.Services;
 
@@ -96,6 +99,12 @@ public class PayrollService : IPayrollService
     {
         _logger.LogInformation("Getting payroll dashboard summary for organization: {OrganizationId}", organizationId);
         return await _payrollRepository.GetPayrollDashboardSummaryAsync(organizationId);
+    }
+
+    public async Task<PayrollSummaryDto> GetPayrollReportSummaryAsync(Guid organizationId, PayrollReportFilterRequest filter)
+    {
+        _logger.LogInformation("Getting payroll report summary for organization: {OrganizationId}", organizationId);
+        return await _payrollRepository.GetPayrollReportSummaryAsync(organizationId, filter);
     }
 
     public async Task<PagedResult<PayrollPeriodDto>> GetPayrollPeriodsPagedAsync(Guid organizationId, int page, int limit, string? search)
@@ -219,8 +228,8 @@ public class PayrollService : IPayrollService
         
         var entries = await _payrollRepository.GetPayrollEntriesFilteredAsync(organizationId, entriesFilter, 1, 1000);
         
-        // Get summary data
-        var summary = await GetPayrollDashboardSummaryAsync(organizationId);
+        // Get summary data based on filtered entries
+        var summary = await GetPayrollReportSummaryAsync(organizationId, filter);
         
         // Get department breakdown
         var departmentBreakdown = await GetDepartmentPayrollBreakdownAsync(organizationId, filter.PayrollPeriodId);
@@ -241,15 +250,224 @@ public class PayrollService : IPayrollService
         
         var report = await GeneratePayrollReportAsync(organizationId, filter);
         
-        // Generate CSV export with real data
-        var csvData = "Employee,EmployeeCode,BasicSalary,GrossSalary,TaxDeductions,NetSalary,Status\n";
-        
+        return format.ToLower() switch
+        {
+            "excel" => await GenerateExcelReportAsync(report),
+            "pdf" => await GeneratePdfReportAsync(report),
+            _ => await GenerateExcelReportAsync(report) // Default to Excel
+        };
+    }
+
+    private async Task<byte[]> GenerateExcelReportAsync(PayrollReportDto report)
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("Payroll Report");
+
+        // Add title
+        worksheet.Cell("A1").Value = "Payroll Report";
+        worksheet.Cell("A1").Style.Font.Bold = true;
+        worksheet.Cell("A1").Style.Font.FontSize = 16;
+        worksheet.Range("A1:H1").Merge();
+
+        // Add report period
+        worksheet.Cell("A2").Value = $"Report Period: {report.StartDate:yyyy-MM-dd} to {report.EndDate:yyyy-MM-dd}";
+        worksheet.Cell("A2").Style.Font.Bold = true;
+        worksheet.Range("A2:H2").Merge();
+
+        // Add summary section
+        worksheet.Cell("A4").Value = "Summary";
+        worksheet.Cell("A4").Style.Font.Bold = true;
+        worksheet.Cell("A4").Style.Font.FontSize = 14;
+
+        worksheet.Cell("A5").Value = "Total Employees:";
+        worksheet.Cell("B5").Value = report.Summary.TotalEmployees;
+        worksheet.Cell("A6").Value = "Total Gross Salary:";
+        worksheet.Cell("B6").Value = report.Summary.TotalGrossSalary;
+        worksheet.Cell("A7").Value = "Total Tax:";
+        worksheet.Cell("B7").Value = report.Summary.TotalTax;
+        worksheet.Cell("A8").Value = "Total Net Salary:";
+        worksheet.Cell("B8").Value = report.Summary.TotalNetSalary;
+
+        // Add detailed entries
+        worksheet.Cell("A10").Value = "Detailed Entries";
+        worksheet.Cell("A10").Style.Font.Bold = true;
+        worksheet.Cell("A10").Style.Font.FontSize = 14;
+
+        // Headers
+        var headers = new[] { "Employee Name", "Employee Code", "Department", "Basic Salary", "Gross Salary", "Tax Amount", "Net Salary", "Status" };
+        for (int i = 0; i < headers.Length; i++)
+        {
+            worksheet.Cell(11, i + 1).Value = headers[i];
+            worksheet.Cell(11, i + 1).Style.Font.Bold = true;
+            worksheet.Cell(11, i + 1).Style.Fill.BackgroundColor = XLColor.LightGray;
+        }
+
+        // Data rows
+        int row = 12;
         foreach (var entry in report.Entries)
         {
-            csvData += $"{entry.EmployeeName},{entry.EmployeeCode},{entry.BasicSalary},{entry.GrossSalary},{entry.TaxAmount},{entry.NetSalary},{entry.Status}\n";
+            worksheet.Cell(row, 1).Value = entry.EmployeeName;
+            worksheet.Cell(row, 2).Value = entry.EmployeeCode;
+            worksheet.Cell(row, 3).Value = entry.DepartmentName;
+            worksheet.Cell(row, 4).Value = entry.BasicSalary;
+            worksheet.Cell(row, 5).Value = entry.GrossSalary;
+            worksheet.Cell(row, 6).Value = entry.TaxAmount;
+            worksheet.Cell(row, 7).Value = entry.NetSalary;
+            worksheet.Cell(row, 8).Value = entry.Status;
+            row++;
         }
+
+        // Auto-fit columns
+        worksheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    private async Task<byte[]> GeneratePdfReportAsync(PayrollReportDto report)
+    {
+        using var memoryStream = new MemoryStream();
+        var document = new Document(PageSize.A4, 25, 25, 30, 30);
+        var writer = PdfWriter.GetInstance(document, memoryStream);
+
+        document.Open();
+
+        // Add title
+        var titleFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 16, BaseColor.BLACK);
+        var title = new Paragraph("Payroll Report", titleFont)
+        {
+            Alignment = Element.ALIGN_CENTER,
+            SpacingAfter = 20
+        };
+        document.Add(title);
+
+        // Add report period
+        var periodFont = FontFactory.GetFont(FontFactory.HELVETICA, 12, BaseColor.BLACK);
+        var period = new Paragraph($"Report Period: {report.StartDate:yyyy-MM-dd} to {report.EndDate:yyyy-MM-dd}", periodFont)
+        {
+            Alignment = Element.ALIGN_CENTER,
+            SpacingAfter = 20
+        };
+        document.Add(period);
+
+        // Add summary section
+        var summaryFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 14, BaseColor.BLACK);
+        var summaryTitle = new Paragraph("Summary", summaryFont)
+        {
+            SpacingAfter = 10
+        };
+        document.Add(summaryTitle);
+
+        var summaryTable = new PdfPTable(2);
+        summaryTable.WidthPercentage = 50;
+        summaryTable.SetWidths(new float[] { 2f, 1f });
+
+        var cell1 = new PdfPCell(new Phrase("Total Employees:", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+        cell1.Border = PdfPCell.NO_BORDER;
+        summaryTable.AddCell(cell1);
         
-        return System.Text.Encoding.UTF8.GetBytes(csvData);
+        var cell2 = new PdfPCell(new Phrase(report.Summary.TotalEmployees.ToString(), FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+        cell2.Border = PdfPCell.NO_BORDER;
+        summaryTable.AddCell(cell2);
+
+        var cell3 = new PdfPCell(new Phrase("Total Gross Salary:", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+        cell3.Border = PdfPCell.NO_BORDER;
+        summaryTable.AddCell(cell3);
+        
+        var cell4 = new PdfPCell(new Phrase(report.Summary.TotalGrossSalary.ToString("C"), FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+        cell4.Border = PdfPCell.NO_BORDER;
+        summaryTable.AddCell(cell4);
+
+        var cell5 = new PdfPCell(new Phrase("Total Tax:", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+        cell5.Border = PdfPCell.NO_BORDER;
+        summaryTable.AddCell(cell5);
+        
+        var cell6 = new PdfPCell(new Phrase(report.Summary.TotalTax.ToString("C"), FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+        cell6.Border = PdfPCell.NO_BORDER;
+        summaryTable.AddCell(cell6);
+
+        var cell7 = new PdfPCell(new Phrase("Total Net Salary:", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+        cell7.Border = PdfPCell.NO_BORDER;
+        summaryTable.AddCell(cell7);
+        
+        var cell8 = new PdfPCell(new Phrase(report.Summary.TotalNetSalary.ToString("C"), FontFactory.GetFont(FontFactory.HELVETICA, 10)));
+        cell8.Border = PdfPCell.NO_BORDER;
+        summaryTable.AddCell(cell8);
+
+        document.Add(summaryTable);
+
+        // Add detailed entries
+        var detailsTitle = new Paragraph("Detailed Entries", summaryFont)
+        {
+            SpacingBefore = 20,
+            SpacingAfter = 10
+        };
+        document.Add(detailsTitle);
+
+        var detailsTable = new PdfPTable(8);
+        detailsTable.WidthPercentage = 100;
+        detailsTable.SetWidths(new float[] { 2f, 1.5f, 1.5f, 1f, 1f, 1f, 1f, 1f });
+
+        // Headers
+        var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE);
+        var headerCells = new[] { "Employee Name", "Employee Code", "Department", "Basic Salary", "Gross Salary", "Tax Amount", "Net Salary", "Status" };
+        
+        foreach (var header in headerCells)
+        {
+            var cell = new PdfPCell(new Phrase(header, headerFont));
+            cell.BackgroundColor = BaseColor.LIGHT_GRAY;
+            cell.HorizontalAlignment = Element.ALIGN_CENTER;
+            cell.Padding = 5;
+            detailsTable.AddCell(cell);
+        }
+
+        // Data rows
+        var dataFont = FontFactory.GetFont(FontFactory.HELVETICA, 9, BaseColor.BLACK);
+        foreach (var entry in report.Entries)
+        {
+            var nameCell = new PdfPCell(new Phrase(entry.EmployeeName, dataFont));
+            nameCell.Padding = 3;
+            detailsTable.AddCell(nameCell);
+            
+            var codeCell = new PdfPCell(new Phrase(entry.EmployeeCode, dataFont));
+            codeCell.Padding = 3;
+            detailsTable.AddCell(codeCell);
+            
+            var deptCell = new PdfPCell(new Phrase(entry.DepartmentName, dataFont));
+            deptCell.Padding = 3;
+            detailsTable.AddCell(deptCell);
+            
+            var basicCell = new PdfPCell(new Phrase(entry.BasicSalary.ToString("C"), dataFont));
+            basicCell.Padding = 3;
+            basicCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+            detailsTable.AddCell(basicCell);
+            
+            var grossCell = new PdfPCell(new Phrase(entry.GrossSalary.ToString("C"), dataFont));
+            grossCell.Padding = 3;
+            grossCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+            detailsTable.AddCell(grossCell);
+            
+            var taxCell = new PdfPCell(new Phrase(entry.TaxAmount.ToString("C"), dataFont));
+            taxCell.Padding = 3;
+            taxCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+            detailsTable.AddCell(taxCell);
+            
+            var netCell = new PdfPCell(new Phrase(entry.NetSalary.ToString("C"), dataFont));
+            netCell.Padding = 3;
+            netCell.HorizontalAlignment = Element.ALIGN_RIGHT;
+            detailsTable.AddCell(netCell);
+            
+            var statusCell = new PdfPCell(new Phrase(entry.Status, dataFont));
+            statusCell.Padding = 3;
+            statusCell.HorizontalAlignment = Element.ALIGN_CENTER;
+            detailsTable.AddCell(statusCell);
+        }
+
+        document.Add(detailsTable);
+
+        document.Close();
+        return memoryStream.ToArray();
     }
 
     public async Task<bool> GeneratePayslipsAsync(Guid payrollPeriodId, List<Guid>? employeeIds)
@@ -299,5 +517,11 @@ public class PayrollService : IPayrollService
     {
         _logger.LogInformation("Getting deduction summary for period: {PeriodId}", payrollPeriodId);
         return await _payrollRepository.GetDeductionSummaryAsync(payrollPeriodId);
+    }
+
+    public async Task<List<PayrollProcessingHistoryDto>> GetProcessingHistoryAsync(Guid organizationId, int limit = 10)
+    {
+        _logger.LogInformation("Getting processing history for organization: {OrganizationId}", organizationId);
+        return await _payrollRepository.GetProcessingHistoryAsync(organizationId, limit);
     }
 }

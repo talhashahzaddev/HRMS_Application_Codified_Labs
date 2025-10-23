@@ -3,6 +3,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Dapper;
+using Npgsql;
 
 namespace HRMS.API.Repositories;
 
@@ -151,6 +152,65 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
         return results.ToList();
     }
+    public async Task<bool> CreateLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto)
+    {
+        var sqlInsert = @"
+        INSERT INTO attendance.leavetypes 
+            (leavetypeid, organizationid, typename, description, maxdaysperyear, 
+             ispaid, carryforwardallowed, color, isactive, createdat)
+        VALUES
+            (@LeaveTypeId, @OrganizationId, @TypeName, @Description, @MaxDaysPerYear, 
+             @IsPaid, @CarryForwardAllowed, @Color, @IsActive, NOW());
+    ";
+
+        var sqlInitEntitlements = @"
+        SELECT attendance.fn_initialize_leave_entitlements_for_new_leavetype(@LeaveTypeId, @OrganizationId);
+    ";
+
+        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+        await connection.OpenAsync();
+        {
+            using var transaction = await connection.BeginTransactionAsync();
+            {
+                try
+                {
+                    var rowsAffected = await connection.ExecuteAsync(sqlInsert, new
+                    {
+                        dto.LeaveTypeId,
+                        OrganizationId = organizationId,
+                        dto.TypeName,
+                        dto.Description,
+                        dto.MaxDaysPerYear,
+                        dto.IsPaid,
+                        dto.CarryForwardAllowed,
+                        dto.Color,
+                        dto.IsActive
+                    }, transaction);
+
+                    if (rowsAffected > 0)
+                    {
+                        await connection.ExecuteAsync(sqlInitEntitlements, new
+                        {
+                            dto.LeaveTypeId,
+                            OrganizationId = organizationId
+                        }, transaction);
+                    }
+
+                    transaction.Commit();
+                    return true;
+                }
+                catch (Exception ex)
+                {
+                    transaction.Rollback();
+                    Console.WriteLine($"Error inserting LeaveType: {ex.Message}");
+                    return false;
+                }
+            }
+        }
+    }
+
+
+
 
     public async Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year)
     {
@@ -207,18 +267,24 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     {
        try
         {
+            var employeeid = await GetEmpId(employeeId);
+            
             var sql = @"
-            SELECT COUNT(*) > 0
-            FROM attendance.leaverequests
-            WHERE employee_id = @employeeId
-              AND status IN ('approved', 'pending')
-              AND (@excludeRequestId IS NULL OR request_id != @excludeRequestId)
-              AND NOT (end_date < @startDate OR start_date > @endDate)";
+SELECT COUNT(*) > 0
+FROM attendance.leaverequests
+WHERE employeeid = @employeeid
+  AND status IN ('approved', 'pending','rejected')
+  AND (@excludeRequestId IS NULL OR requestid != @excludeRequestId)
+  AND NOT (enddate < @startDate OR startdate > @endDate)";
 
-            return await ExecuteScalarAsync<bool>(sql, new { employeeId, startDate, endDate, excludeRequestId });
+
+            return await ExecuteScalarAsync<bool>(sql, new { employeeid, startDate, endDate, excludeRequestId });
         }
         catch(Exception ex)
         {
+            Console.WriteLine($"Error checking leave overlap: {ex.Message}");
+            throw new Exception("An error occurred while checking leave overlap.");
+
             return false;
         }
     }
@@ -240,5 +306,35 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
             return new List<LeaveRequest>();
         }
     }
+    public async Task<List<LeaveCalendarDto>> GetLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    {
+        var sql = @"
+        SELECT lr.requestid, 
+               lr.employeeid, 
+               lr.leavetypeid, 
+               lt.typename AS LeaveTypeName,
+               lr.startdate, 
+               lr.enddate, 
+               lr.daysrequested, 
+               lr.reason, 
+               lr.attachmenturl, 
+               lr.status, 
+               lr.submittedat, 
+               lr.approvedby, 
+               lr.approvedat, 
+               lr.rejectionreason, 
+               lr.createdat, 
+               lr.updatedat
+        FROM attendance.leaverequests lr
+        INNER JOIN attendance.leavetypes lt ON lr.leavetypeid = lt.leavetypeid
+        WHERE lr.employeeid = @employeeId
+          AND lr.startdate >= @startDate
+          AND lr.enddate <= @endDate
+        ORDER BY lr.startdate;";
+
+        var results = await QueryAsync<LeaveCalendarDto>(sql, new { employeeId, startDate, endDate });
+        return results.ToList();
+    }
+
 
 }

@@ -1,5 +1,13 @@
 namespace HRMS.API.Models.DTOs;
 
+
+public class CreateSkillSetDto
+{
+    public string SkillName { get; set; }
+    public string Category { get; set; }
+    public string Description { get; set; }
+    public List<int> SkillLevelScale { get; set; } = new() { 1, 2, 3, 4, 5 };
+}
 public class SkillSetDto
 {
     public Guid SkillId { get; set; }
@@ -20,7 +28,7 @@ public class EmployeeSkillDto
     public string SkillName { get; set; } = string.Empty;
     public string? SkillCategory { get; set; }
     public int ProficiencyLevel { get; set; }
-    public string? AssessorName { get; set; }
+    public Guid? AssessedBy { get; set; }
     public DateTime? LastAssessed { get; set; }
     public string? Notes { get; set; }
 }
@@ -148,7 +156,7 @@ public class CreateEmployeeSkillRequest
     public Guid EmployeeId { get; set; }
     public Guid SkillId { get; set; }
     public int ProficiencyLevel { get; set; }
-    public string? AssessorName { get; set; }
+    public Guid? AssessedBy { get; set; }
     public DateTime? LastAssessed { get; set; }
     public string? Notes { get; set; }
 }
@@ -156,7 +164,7 @@ public class CreateEmployeeSkillRequest
 public class UpdateEmployeeSkillRequest
 {
     public int ProficiencyLevel { get; set; }
-    public string? AssessorName { get; set; }
+    public Guid? AssessedBy { get; set; }
     public DateTime? LastAssessed { get; set; }
     public string? Notes { get; set; }
 }
@@ -175,9 +183,9 @@ public class KRADto
 
 public class CreateKRARequest
 {
+    public Guid PositionId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
     public decimal Weight { get; set; }
     public string MeasurementCriteria { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;
@@ -187,7 +195,7 @@ public class UpdateKRARequest
 {
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
+    //public string Category { get; set; } = string.Empty;
     public decimal Weight { get; set; }
     public string MeasurementCriteria { get; set; } = string.Empty;
     public bool IsActive { get; set; }
@@ -226,6 +234,34 @@ public class ReviewAppraisalRequest
     public string? ReviewComments { get; set; }
     public string Status { get; set; } = string.Empty;
 }
+
+
+public class EmployeeGoalDto
+{
+    public Guid GoalId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string employee_name { get; set; }
+    public string Title { get; set; } = null!;
+    public string? Description { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public string Status { get; set; } = "pending"; // default
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+
+public class CreateEmployeeGoalRequest
+{
+    public Guid EmployeeId { get; set; }
+    public string Title { get; set; } = null!;
+    public string? Description { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public string Status { get; set; } = "pending";
+}
+
+
 
 public class PerformanceReportDto
 {

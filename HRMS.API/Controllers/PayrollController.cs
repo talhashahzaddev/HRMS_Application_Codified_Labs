@@ -611,15 +611,29 @@ public class PayrollController : ControllerBase
     }
 
     [HttpGet("reports/export")]
-    public async Task<IActionResult> ExportPayrollReport([FromQuery] PayrollReportFilterRequest filter, [FromQuery] string format = "pdf")
+    public async Task<IActionResult> ExportPayrollReport([FromQuery] PayrollReportFilterRequest filter, [FromQuery] string format = "excel")
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var fileBytes = await _payrollService.ExportPayrollReportAsync(organizationId, filter, format);
             
-            var contentType = format.ToLower() == "excel" ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "application/pdf";
-            var fileName = $"payroll-report-{DateTime.Now:yyyy-MM-dd}.{format}";
+            var formatLower = format.ToLower();
+            var contentType = formatLower switch
+            {
+                "excel" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "pdf" => "application/pdf",
+                _ => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            };
+            
+            var fileExtension = formatLower switch
+            {
+                "excel" => "xlsx",
+                "pdf" => "pdf",
+                _ => "xlsx"
+            };
+            
+            var fileName = $"payroll-report-{DateTime.Now:yyyy-MM-dd}.{fileExtension}";
             
             return File(fileBytes, contentType, fileName);
         }
@@ -798,6 +812,31 @@ public class PayrollController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while retrieving deduction summary"
+            });
+        }
+    }
+
+    [HttpGet("processing-history")]
+    public async Task<ActionResult<ServiceResponse<List<PayrollProcessingHistoryDto>>>> GetProcessingHistory([FromQuery] int limit = 10)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var history = await _payrollService.GetProcessingHistoryAsync(organizationId, limit);
+            
+            return Ok(new ServiceResponse<List<PayrollProcessingHistoryDto>>
+            {
+                Success = true,
+                Data = history
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving processing history");
+            return StatusCode(500, new ServiceResponse<List<PayrollProcessingHistoryDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving processing history"
             });
         }
     }

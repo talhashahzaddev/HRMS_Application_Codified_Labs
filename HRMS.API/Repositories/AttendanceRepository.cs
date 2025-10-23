@@ -3,6 +3,8 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Dapper;
+using Npgsql;
+using System.Data;
 
 namespace HRMS.API.Repositories;
 
@@ -281,6 +283,249 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting attendance records for employee {EmployeeId} from {StartDate} to {EndDate}", employeeId, startDate, endDate);
+            throw;
+        }
+    }
+    public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+    {
+        try
+        {
+            var sql = @"
+        -- Total Active Employees Count
+        WITH EmployeeCounts AS (
+            SELECT COUNT(*) as TotalEmployees
+            FROM employee.employees e
+            WHERE e.organizationid = @organizationId 
+            AND e.status = 'active'
+        ),
+        
+        -- Attendance Summary
+        AttendanceSummary AS (
+            SELECT 
+                COUNT(DISTINCT a.employeeid) as TotalEmployeesWithAttendance,
+                COUNT(CASE WHEN a.status = 'present' THEN 1 END) as TotalPresentDays,
+                COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as TotalAbsentDays,
+                COUNT(CASE WHEN a.status = 'late' THEN 1 END) as TotalLateDays,
+                COALESCE(SUM(a.totalhours), 0) as TotalHours,
+                COALESCE(SUM(a.overtimehours), 0) as OvertimeHours
+            FROM attendance.attendance a
+            INNER JOIN employee.employees e ON a.employeeid = e.employeeid
+            WHERE e.organizationid = @organizationId
+            AND a.workdate BETWEEN @startDate AND @endDate
+        )
+        
+        SELECT 
+            @startDate as StartDate,
+            @endDate as EndDate,
+            (SELECT TotalEmployees FROM EmployeeCounts) as TotalEmployees,
+            (SELECT TotalPresentDays FROM AttendanceSummary) as TotalPresentDays,
+            (SELECT TotalAbsentDays FROM AttendanceSummary) as TotalAbsentDays,
+            (SELECT TotalLateDays FROM AttendanceSummary) as TotalLateDays,
+            (SELECT TotalHours FROM AttendanceSummary) as TotalHours,
+            (SELECT OvertimeHours FROM AttendanceSummary) as OvertimeHours,
+            CASE 
+                WHEN (SELECT TotalPresentDays FROM AttendanceSummary) > 0 
+                THEN ROUND(
+                    (SELECT TotalPresentDays FROM AttendanceSummary) * 100.0 / 
+                    NULLIF((SELECT TotalPresentDays FROM AttendanceSummary) + (SELECT TotalAbsentDays FROM AttendanceSummary), 0), 
+                    2
+                )
+                ELSE 0 
+            END as AverageAttendanceRate";
+            using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+            await connection.OpenAsync();
+           
+            var report = await connection.QueryFirstAsync<AttendanceReportDto>(sql, new
+            {
+                organizationId,
+                startDate,
+                endDate
+            });
+
+            return report;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating attendance report from database");
+            throw;
+        }
+    }
+
+    public async Task<List<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+    {
+        var sql = @"
+        SELECT 
+            d.departmentid as DepartmentId,
+            d.departmentname as DepartmentName,
+            COUNT(DISTINCT e.employeeid) as TotalEmployees,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as PresentEmployees,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as AbsentEmployees,
+            CASE 
+                WHEN COUNT(DISTINCT e.employeeid) > 0 
+                THEN ROUND(
+                    COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+                    NULLIF(COUNT(DISTINCT e.employeeid), 0), 
+                    2
+                )
+                ELSE 0 
+            END as AttendanceRate
+        FROM employee.departments d
+        LEFT JOIN employee.employmentdetails ed ON d.departmentid = ed.departmentid AND ed.iscurrent = true
+        LEFT JOIN employee.employees e ON ed.employeeid = e.employeeid AND e.status = 'active'
+        LEFT JOIN attendance.attendance a ON e.employeeid = a.employeeid 
+            AND a.workdate BETWEEN @startDate AND @endDate
+        WHERE d.organizationid = @organizationId
+        AND d.isactive = true
+        GROUP BY d.departmentid, d.departmentname
+        ORDER BY d.departmentname";
+
+        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+        await connection.OpenAsync();
+        return (await connection.QueryAsync<DepartmentAttendanceStatsDto>(sql, new
+        {
+            organizationId,
+            startDate,
+            endDate
+        })).ToList();
+    }
+
+    public async Task<List<DailyAttendanceStatsDto>> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+    {
+        var sql = @"
+        SELECT 
+            a.workdate as Date,
+            COUNT(DISTINCT a.employeeid) as TotalEmployees,
+            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as PresentEmployees,
+            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as AbsentEmployees,
+            COUNT(CASE WHEN a.status = 'late' THEN 1 END) as LateEmployees,
+            CASE 
+                WHEN COUNT(DISTINCT a.employeeid) > 0 
+                THEN ROUND(
+                    COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
+                    COUNT(DISTINCT a.employeeid), 
+                    2
+                )
+                ELSE 0 
+            END as AttendancePercentage
+        FROM attendance.attendance a
+        INNER JOIN employee.employees e ON a.employeeid = e.employeeid
+        WHERE e.organizationid = @organizationId
+        AND a.workdate BETWEEN @startDate AND @endDate
+        GROUP BY a.workdate
+        ORDER BY a.workdate";
+        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+        await connection.OpenAsync();
+        return (await connection.QueryAsync<DailyAttendanceStatsDto>(sql, new
+        {
+            organizationId,
+            startDate,
+            endDate
+        })).ToList();
+    }
+
+    public async Task<List<AttendanceDto>> GetAttendanceRecordsAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+    {
+        var sql = @"
+        SELECT 
+            a.attendanceid as AttendanceId,
+            a.employeeid as EmployeeId,
+            e.firstname || ' ' || e.lastname as EmployeeName,
+            a.workdate as WorkDate,
+            a.workdate as Date,
+            a.checkintime as CheckInTime,
+            a.checkouttime as CheckOutTime,
+            a.totalhours as TotalHours,
+            a.overtimehours as OvertimeHours,
+            a.status as Status,
+            a.notes as Notes
+        FROM attendance.attendance a
+        INNER JOIN employee.employees e ON a.employeeid = e.employeeid
+        WHERE e.organizationid = @organizationId
+        AND a.workdate BETWEEN @startDate AND @endDate
+        ORDER BY a.workdate DESC, e.firstname, e.lastname";
+
+        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+        await connection.OpenAsync();
+        return (await connection.QueryAsync<AttendanceDto>(sql, new
+        {
+            organizationId,
+            startDate,
+            endDate
+        })).ToList();
+    }
+
+    public async Task<Guid> GetEmpId(Guid? employeeId)
+    {
+        try
+        {
+            var sql = @"
+            SELECT em.employeeid
+            FROM employee.employees em
+            WHERE ( em.userid = @employeeId)
+            LIMIT 1";
+
+            var results = await QueryAsync<Guid>(sql, new { employeeId });
+
+            return results.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            return Guid.Empty;
+        }
+    }
+    public async Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime date)
+    {
+        try
+        {
+            const string sql = @"
+WITH emp AS (
+    SELECT e.employeeid
+    FROM employee.employees e
+    WHERE e.organizationid = @organizationId
+),
+PresentEmployees AS (
+    SELECT DISTINCT a.employeeid
+    FROM attendance.attendance a
+    INNER JOIN emp ON emp.employeeid = a.employeeid
+    WHERE a.workdate = @date
+      AND LOWER(TRIM(a.status)) = 'present'
+),
+OnLeaveEmployees AS (
+    SELECT DISTINCT lr.employeeid
+    FROM attendance.leaverequests lr
+    INNER JOIN emp ON emp.employeeid = lr.employeeid
+    WHERE LOWER(TRIM(lr.status)) = 'approved'
+      AND @date BETWEEN lr.startdate AND lr.enddate
+)
+SELECT
+    @date AS Date,
+    COALESCE((SELECT COUNT(*) FROM emp), 0) AS TotalEmployees,
+    COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0) AS PresentEmployees,
+    COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0) AS OnLeaveEmployees,
+    GREATEST(
+        COALESCE((SELECT COUNT(*) FROM emp), 0)
+        - COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0)
+        - COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0),
+        0
+    ) AS AbsentEmployees,
+    ROUND(
+        (COALESCE((SELECT COUNT(*)::numeric FROM PresentEmployees), 0)
+         / NULLIF(COALESCE((SELECT COUNT(*)::numeric FROM emp),0), 0)
+        ) * 100,
+    2) AS AttendancePercentage;
+";
+
+            var parameters = new DynamicParameters();
+            parameters.Add("organizationId", organizationId, DbType.Guid);
+            parameters.Add("date", date.Date, DbType.Date);
+
+            return await QuerySingleOrDefaultAsync<DailyAttendanceStatsDto>(sql, parameters);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error getting daily attendance stats for organization {OrganizationId} on {Date}",
+                organizationId, date);
             throw;
         }
     }

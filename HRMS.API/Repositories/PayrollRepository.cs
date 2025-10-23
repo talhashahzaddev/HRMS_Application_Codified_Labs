@@ -447,7 +447,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         var deptSql = @"
             SELECT 
                 d.departmentname,
-                COALESCE(SUM(pe.netsalary), 0) as total_amount
+                COALESCE(SUM(pe.netsalary), 0) as totalamount
             FROM payroll.payrollentries pe
             INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
@@ -467,8 +467,92 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             TotalTax = result.total_tax,
             TotalNetSalary = result.total_net_salary,
             TotalEmployees = (int)result.total_employees,
-            DepartmentWisePayroll = deptResults.ToDictionary(d => (string)d.departmentname, d => (decimal)d.total_amount)
+            DepartmentWisePayroll = deptResults.ToDictionary(d => (string)d.departmentname, d => (decimal)d.totalamount)
         };
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
+
+    public async Task<PayrollSummaryDto> GetPayrollReportSummaryAsync(Guid organizationId, PayrollReportFilterRequest filter)
+    {
+        try
+        {
+            var whereConditions = new List<string> { "e.organizationid = @organizationId" };
+            var parameters = new Dictionary<string, object> { { "organizationId", organizationId } };
+
+            if (filter.PayrollPeriodId.HasValue)
+            {
+                whereConditions.Add("pe.periodid = @payrollPeriodId");
+                parameters.Add("payrollPeriodId", filter.PayrollPeriodId.Value);
+            }
+
+            if (!string.IsNullOrEmpty(filter.Department))
+            {
+                whereConditions.Add("d.departmentname = @department");
+                parameters.Add("department", filter.Department);
+            }
+
+            if (!string.IsNullOrEmpty(filter.Status))
+            {
+                whereConditions.Add("pe.status = @status");
+                parameters.Add("status", filter.Status);
+            }
+
+            if (filter.StartDate.HasValue)
+            {
+                whereConditions.Add("pp.startdate >= @startDate");
+                parameters.Add("startDate", filter.StartDate.Value);
+            }
+
+            if (filter.EndDate.HasValue)
+            {
+                whereConditions.Add("pp.enddate <= @endDate");
+                parameters.Add("endDate", filter.EndDate.Value);
+            }
+
+            var whereClause = string.Join(" AND ", whereConditions);
+
+            var sql = $@"
+                SELECT 
+                    COALESCE(SUM(pe.grosssalary), 0) as total_gross_salary,
+                    COALESCE(SUM(pe.taxamount), 0) as total_tax,
+                    COALESCE(SUM(pe.netsalary), 0) as total_net_salary,
+                    COUNT(DISTINCT pe.employeeid) as total_employees
+                FROM payroll.payrollentries pe
+                INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
+                INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+                INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
+                WHERE {whereClause}";
+
+            var result = await QuerySingleAsync<dynamic>(sql, parameters);
+
+            // Get department-wise breakdown for the same filter
+            var deptSql = $@"
+                SELECT 
+                    d.departmentname,
+                    COALESCE(SUM(pe.netsalary), 0) as total_amount
+                FROM payroll.payrollentries pe
+                INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
+                INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+                INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
+                WHERE {whereClause}
+                GROUP BY d.departmentname";
+
+            var deptResults = await QueryAsync<dynamic>(deptSql, parameters);
+
+            return new PayrollSummaryDto
+            {
+                TotalGrossSalary = result.total_gross_salary,
+                TotalTax = result.total_tax,
+                TotalNetSalary = result.total_net_salary,
+                TotalEmployees = (int)result.total_employees,
+                DepartmentWisePayroll = deptResults.ToDictionary(d => (string)d.departmentname, d => (decimal)d.total_amount)
+            };
         }
         catch (Exception ex)
         {
@@ -637,5 +721,37 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 new() { Name = "Other Deductions", Amount = result.other_deductions, Type = "Other" }
             }
         };
+    }
+
+    public async Task<List<PayrollProcessingHistoryDto>> GetProcessingHistoryAsync(Guid organizationId, int limit = 10)
+    {
+        try
+        {
+            var sql = @"
+                SELECT 
+                    pp.periodid as PeriodId,
+                    pp.periodname as PeriodName,
+                    pp.processedat as ProcessedAt,
+                    COUNT(pe.entryid) as EntriesCreated,
+                    COALESCE(SUM(pe.grosssalary), 0) as TotalGrossAmount,
+                    COALESCE(SUM(pe.netsalary), 0) as TotalNetAmount,
+                    pp.status as Status,
+                    COALESCE(u.firstname || ' ' || u.lastname, 'System') as ProcessedBy
+                FROM payroll.payrollperiods pp
+                LEFT JOIN payroll.payrollentries pe ON pp.periodid = pe.periodid
+                LEFT JOIN auth.users u ON pp.processedby = u.userid
+                WHERE pp.organizationid = @organizationId 
+                  AND pp.status IN ('calculated', 'completed', 'paid')
+                GROUP BY pp.periodid, pp.periodname, pp.processedat, pp.status, u.firstname, u.lastname
+                ORDER BY pp.processedat DESC
+                LIMIT @limit";
+
+            var results = await QueryAsync<PayrollProcessingHistoryDto>(sql, new { organizationId, limit });
+            return results.ToList();
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 }

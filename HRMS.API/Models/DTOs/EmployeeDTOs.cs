@@ -79,7 +79,7 @@ public class DepartmentDto
     public string? ManagerName { get; set; }
     public bool IsActive { get; set; }
     public int EmployeeCount { get; set; }
-    public DateTime CreatedAt { get; set; }
+    public DateTime? CreatedAt { get; set; }
 }
 
 public class CreateDepartmentRequest

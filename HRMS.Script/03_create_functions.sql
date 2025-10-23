@@ -151,8 +151,12 @@ CREATE OR REPLACE FUNCTION employee.fn_create_employee(
     p_position_id uuid,
     p_basic_salary numeric,
     p_address jsonb,
-    p_work_location character varying DEFAULT NULL,
-    p_reporting_manager_id uuid DEFAULT NULL
+    p_work_location character varying DEFAULT NULL::character varying,
+    p_reporting_manager_id uuid DEFAULT NULL::uuid,
+    p_nationality character varying DEFAULT NULL::character varying,
+    p_gender character varying DEFAULT NULL::character varying,
+    p_marital_status character varying DEFAULT NULL::character varying,
+    p_emergency_contact jsonb DEFAULT '{}'::jsonb
 )
 RETURNS uuid
 LANGUAGE 'plpgsql'
@@ -173,7 +177,11 @@ BEGIN
         phone,
         address,
         dateofbirth,
-        hiredate
+        hiredate,
+        nationality,
+        gender,
+        maritalstatus,
+        emergencycontact
     )
     VALUES (
         p_organization_id,
@@ -185,7 +193,11 @@ BEGIN
         p_phone,
         COALESCE(p_address, '{}'::jsonb),
         p_date_of_birth::date,
-        p_hire_date::date
+        p_hire_date::date,
+        p_nationality,
+        p_gender,
+        p_marital_status,
+        COALESCE(p_emergency_contact, '{}'::jsonb)
     )
     RETURNING employeeid INTO v_employee_id;
 
@@ -207,7 +219,7 @@ BEGIN
         p_basic_salary,
         p_work_location,
         p_reporting_manager_id,
-        p_hire_date::date, -- effective from hire date
+        p_hire_date::date,
         true
     );
 
@@ -216,8 +228,8 @@ END;
 $BODY$;
 
 ALTER FUNCTION employee.fn_create_employee(
-    uuid, uuid, character varying, character varying, character varying, character varying, character varying,
-    timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb, character varying, uuid
+    uuid, uuid, varchar, varchar, varchar, varchar, varchar, timestamptz, timestamptz,
+    uuid, uuid, numeric, jsonb, varchar, uuid, varchar, varchar, varchar, jsonb
 ) OWNER TO postgres;
 
 
@@ -446,8 +458,8 @@ $BODY$;
 CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
 	p_employee_id uuid DEFAULT NULL::uuid,
 	p_organization_id uuid DEFAULT NULL::uuid,
-	p_start_date date DEFAULT NULL::date,
-	p_end_date date DEFAULT NULL::date,
+	p_start_date timestamp with time zone DEFAULT NULL::timestamp with time zone,
+	p_end_date timestamp with time zone DEFAULT NULL::timestamp with time zone,
 	p_limit integer DEFAULT 100,
 	p_offset integer DEFAULT 0)
     RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, totalcount bigint) 
@@ -485,15 +497,12 @@ BEGIN
     INNER JOIN employee.Employees e ON a.employeeId = e.employeeId
     WHERE (p_employee_id IS NULL OR a.employeeId = p_employee_id)
       AND (p_organization_id IS NULL OR e.organizationId = p_organization_id)
-      AND (p_start_date IS NULL OR a.workDate >= p_start_date)
-      AND (p_end_date IS NULL OR a.workDate <= p_end_date)
+      AND (p_start_date IS NULL OR a.workDate >= p_start_date::date)
+      AND (p_end_date IS NULL OR a.workDate <= p_end_date::date)
     ORDER BY a.workDate DESC, e.firstName
     LIMIT p_limit OFFSET p_offset;
 END;
 $BODY$;
-
-ALTER FUNCTION attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer)
-    OWNER TO postgres;
 
 -- =====================================================================
 -- LEAVE MANAGEMENT FUNCTIONS
@@ -822,4 +831,55 @@ BEGIN
     END LOOP;
 END;
 $$;
+
+
+
+
+
+
+
+--Leave Balance for new leave types
+
+CREATE OR REPLACE FUNCTION attendance.fn_initialize_leave_entitlements_for_new_leavetype(
+    p_leavetype_id UUID,
+    p_organization_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    rec RECORD;
+    current_year INT := EXTRACT(YEAR FROM NOW());
+BEGIN
+    FOR rec IN 
+        SELECT employeeid 
+        FROM employee.employees
+        WHERE organizationid = p_organization_id
+    LOOP
+        -- Check if entitlement already exists for this employee and leave type
+        IF NOT EXISTS (
+            SELECT 1 
+            FROM attendance.leaveentitlements 
+            WHERE employeeid = rec.employeeid 
+              AND leavetypeid = p_leavetype_id 
+              AND year = current_year
+        ) THEN
+            INSERT INTO attendance.leaveentitlements
+                (employeeid, leavetypeid, year, totaldays, useddays, remainingdays, carryforwarddays, createdat)
+            SELECT 
+                rec.employeeid,
+                p_leavetype_id,
+                current_year,
+                lt.maxdaysperyear,
+                0,
+                lt.maxdaysperyear,
+                0,
+                NOW()
+            FROM attendance.leavetypes lt
+            WHERE lt.leavetypeid = p_leavetype_id;
+        END IF;
+    END LOOP;
+END;
+$$;
+
 

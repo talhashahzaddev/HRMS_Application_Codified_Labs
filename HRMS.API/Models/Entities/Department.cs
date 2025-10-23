@@ -31,13 +31,23 @@ public class Department : BaseEntity
     [Column("is_active")]
     public bool IsActive { get; set; } = true;
 
+    [NotMapped]
+    public int EmployeeCount { get; set; } = 0;
+
     // Navigation properties
     [NotMapped]
     public Organization Organization { get; set; } = null!;
     
     [NotMapped]
     public Employee? Manager { get; set; }
-    
+
+    [NotMapped]
+    public string? ManagerFirstName { get; set; }
+
+    [NotMapped]
+    public string? ManagerLastName { get; set; }
+
+
     [NotMapped]
     public Department? ParentDepartment { get; set; }
     
