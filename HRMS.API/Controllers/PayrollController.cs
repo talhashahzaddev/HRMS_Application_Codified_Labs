@@ -8,7 +8,7 @@ namespace HRMS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Super Admin,HR Manager")]
+[Authorize(Roles = "Super Admin,HR Manager,Admin")]
 public class PayrollController : ControllerBase
 {
     private readonly IPayrollService _payrollService;
@@ -859,6 +859,316 @@ public class PayrollController : ControllerBase
         
         return organizationId;
     }
+    
+    #region Salary Components
+    
+    [HttpGet("components")]
+    public async Task<ActionResult<ServiceResponse<List<SalaryComponentDto>>>> GetSalaryComponents()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var components = await _payrollService.GetSalaryComponentsAsync(organizationId);
+            
+            return Ok(new ServiceResponse<List<SalaryComponentDto>>
+            {
+                Success = true,
+                Data = components
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving salary components");
+            return StatusCode(500, new ServiceResponse<List<SalaryComponentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving salary components"
+            });
+        }
+    }
+    
+    [HttpGet("components/{id}")]
+    public async Task<ActionResult<ServiceResponse<SalaryComponentDto>>> GetSalaryComponent(Guid id)
+    {
+        try
+        {
+            var component = await _payrollService.GetSalaryComponentByIdAsync(id);
+            if (component == null)
+            {
+                return NotFound(new ServiceResponse<SalaryComponentDto>
+                {
+                    Success = false,
+                    Message = "Salary component not found"
+                });
+            }
+            
+            return Ok(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = true,
+                Data = component
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving salary component");
+            return StatusCode(500, new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the salary component"
+            });
+        }
+    }
+    
+    [HttpPost("components")]
+    public async Task<ActionResult<ServiceResponse<SalaryComponentDto>>> CreateSalaryComponent(CreateSalaryComponentRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var component = await _payrollService.CreateSalaryComponentAsync(request, organizationId);
+            
+            return CreatedAtAction(nameof(GetSalaryComponent), new { id = component.ComponentId }, 
+                new ServiceResponse<SalaryComponentDto>
+                {
+                    Success = true,
+                    Data = component,
+                    Message = "Salary component created successfully"
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating salary component");
+            return StatusCode(500, new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating the salary component"
+            });
+        }
+    }
+    
+    [HttpPut("components/{id}")]
+    public async Task<ActionResult<ServiceResponse<SalaryComponentDto>>> UpdateSalaryComponent(Guid id, UpdateSalaryComponentRequest request)
+    {
+        try
+        {
+            var component = await _payrollService.UpdateSalaryComponentAsync(id, request);
+            
+            return Ok(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = true,
+                Data = component,
+                Message = "Salary component updated successfully"
+            });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = "Salary component not found"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating salary component");
+            return StatusCode(500, new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating the salary component"
+            });
+        }
+    }
+    
+    [HttpDelete("components/{id}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSalaryComponent(Guid id)
+    {
+        try
+        {
+            var result = await _payrollService.DeleteSalaryComponentAsync(id);
+            
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Salary component not found"
+                });
+            }
+            
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Salary component deleted successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting salary component");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting the salary component"
+            });
+        }
+    }
+    
+    #endregion
+    
+    #region Salary Rules
+    
+    [HttpGet("rules")]
+    public async Task<ActionResult<ServiceResponse<List<SalaryRuleDto>>>> GetSalaryRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var rules = await _payrollService.GetSalaryRulesAsync(organizationId);
+            
+            return Ok(new ServiceResponse<List<SalaryRuleDto>>
+            {
+                Success = true,
+                Data = rules
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving salary rules");
+            return StatusCode(500, new ServiceResponse<List<SalaryRuleDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving salary rules"
+            });
+        }
+    }
+    
+    [HttpGet("rules/{id}")]
+    public async Task<ActionResult<ServiceResponse<SalaryRuleDto>>> GetSalaryRule(Guid id)
+    {
+        try
+        {
+            var rule = await _payrollService.GetSalaryRuleByIdAsync(id);
+            if (rule == null)
+            {
+                return NotFound(new ServiceResponse<SalaryRuleDto>
+                {
+                    Success = false,
+                    Message = "Salary rule not found"
+                });
+            }
+            
+            return Ok(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = true,
+                Data = rule
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving salary rule");
+            return StatusCode(500, new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the salary rule"
+            });
+        }
+    }
+    
+    [HttpPost("rules")]
+    public async Task<ActionResult<ServiceResponse<SalaryRuleDto>>> CreateSalaryRule(CreateSalaryRuleRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var rule = await _payrollService.CreateSalaryRuleAsync(request, organizationId);
+            
+            return CreatedAtAction(nameof(GetSalaryRule), new { id = rule.RuleId }, 
+                new ServiceResponse<SalaryRuleDto>
+                {
+                    Success = true,
+                    Data = rule,
+                    Message = "Salary rule created successfully"
+                });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating salary rule");
+            return StatusCode(500, new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating the salary rule"
+            });
+        }
+    }
+    
+    [HttpPut("rules/{id}")]
+    public async Task<ActionResult<ServiceResponse<SalaryRuleDto>>> UpdateSalaryRule(Guid id, UpdateSalaryRuleRequest request)
+    {
+        try
+        {
+            var rule = await _payrollService.UpdateSalaryRuleAsync(id, request);
+            
+            return Ok(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = true,
+                Data = rule,
+                Message = "Salary rule updated successfully"
+            });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = "Salary rule not found"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating salary rule");
+            return StatusCode(500, new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating the salary rule"
+            });
+        }
+    }
+    
+    [HttpDelete("rules/{id}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSalaryRule(Guid id)
+    {
+        try
+        {
+            var result = await _payrollService.DeleteSalaryRuleAsync(id);
+            
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Salary rule not found"
+                });
+            }
+            
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Salary rule deleted successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting salary rule");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting the salary rule"
+            });
+        }
+    }
+    
+    #endregion
 }
 
 public class ProcessPaymentRequest

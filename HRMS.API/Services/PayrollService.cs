@@ -93,6 +93,76 @@ public class PayrollService : IPayrollService
     {
         return await _payrollRepository.ProcessPayrollPaymentAsync(entryId, paymentMethod, paymentReference);
     }
+    
+    // Salary Component Operations
+    public async Task<SalaryComponentDto> CreateSalaryComponentAsync(CreateSalaryComponentRequest request, Guid organizationId)
+    {
+        var component = await _payrollRepository.CreateSalaryComponentAsync(
+            organizationId, 
+            request);
+            
+        return _mapper.Map<SalaryComponentDto>(component);
+    }
+    
+    public async Task<List<SalaryComponentDto>> GetSalaryComponentsAsync(Guid organizationId)
+    {
+        return await _payrollRepository.GetSalaryComponentsAsync(organizationId);
+    }
+    
+    public async Task<SalaryComponentDto?> GetSalaryComponentByIdAsync(Guid componentId)
+    {
+        var component = await _payrollRepository.GetSalaryComponentByIdAsync(componentId);
+        return component != null ? _mapper.Map<SalaryComponentDto>(component) : null;
+    }
+    
+    public async Task<SalaryComponentDto> UpdateSalaryComponentAsync(Guid componentId, UpdateSalaryComponentRequest request)
+    {
+        var component = await _payrollRepository.UpdateSalaryComponentAsync(
+            componentId,
+            request);
+            
+        return _mapper.Map<SalaryComponentDto>(component);
+    }
+    
+    public async Task<bool> DeleteSalaryComponentAsync(Guid componentId)
+    {
+        return await _payrollRepository.DeleteSalaryComponentAsync(componentId);
+    }
+    
+    // Salary Rule Operations
+    public async Task<SalaryRuleDto> CreateSalaryRuleAsync(CreateSalaryRuleRequest request, Guid organizationId)
+    {
+        var rule = await _payrollRepository.CreateSalaryRuleAsync(
+            organizationId,
+            request);
+            
+        return _mapper.Map<SalaryRuleDto>(rule);
+    }
+    
+    public async Task<List<SalaryRuleDto>> GetSalaryRulesAsync(Guid organizationId)
+    {
+        return await _payrollRepository.GetSalaryRulesAsync(organizationId);
+    }
+    
+    public async Task<SalaryRuleDto?> GetSalaryRuleByIdAsync(Guid ruleId)
+    {
+        var rule = await _payrollRepository.GetSalaryRuleByIdAsync(ruleId);
+        return rule != null ? _mapper.Map<SalaryRuleDto>(rule) : null;
+    }
+    
+    public async Task<SalaryRuleDto> UpdateSalaryRuleAsync(Guid ruleId, UpdateSalaryRuleRequest request)
+    {
+        var rule = await _payrollRepository.UpdateSalaryRuleAsync(
+            ruleId,
+            request);
+            
+        return _mapper.Map<SalaryRuleDto>(rule);
+    }
+    
+    public async Task<bool> DeleteSalaryRuleAsync(Guid ruleId)
+    {
+        return await _payrollRepository.DeleteSalaryRuleAsync(ruleId);
+    }
 
     // New missing methods implementation
     public async Task<PayrollSummaryDto> GetPayrollDashboardSummaryAsync(Guid organizationId)

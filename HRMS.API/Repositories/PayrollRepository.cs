@@ -3,12 +3,225 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Dapper;
+using System.Data;
 
 namespace HRMS.API.Repositories;
 
 public class PayrollRepository : BaseRepository, IPayrollRepository
 {
     public PayrollRepository(IDatabaseConnectionFactory connectionFactory) : base(connectionFactory) { }
+    
+    #region Salary Component Operations
+    
+    public async Task<SalaryComponent> CreateSalaryComponentAsync(Guid organizationId, CreateSalaryComponentRequest request)
+    {
+        var sql = @"
+            INSERT INTO payroll.salarycomponents 
+            (organizationid, name, code, type, calculationtype, value, isactive, createdat)
+            VALUES 
+            (@OrganizationId, @Name, @Code, @Type, @CalculationType, @Value, @IsActive, NOW())
+            RETURNING componentid, createdat";
+
+        var parameters = new
+        {
+            OrganizationId = organizationId,
+            request.Name,
+            request.Code,
+            request.Type,
+            request.CalculationType,
+            request.Value,
+            request.IsActive
+        };
+
+        var result = await QuerySingleAsync<dynamic>(sql, parameters);
+
+        return new SalaryComponent
+        {
+            ComponentId = result.componentid,
+            OrganizationId = organizationId,
+            Name = request.Name,
+            Code = request.Code,
+            Type = request.Type,
+            CalculationType = request.CalculationType,
+            Value = request.Value,
+            IsActive = request.IsActive,
+            CreatedAt = result.createdat
+        };
+    }
+
+    public async Task<List<SalaryComponentDto>> GetSalaryComponentsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT 
+                componentid, organizationid, name, code, type, 
+                calculationtype, value, isactive, createdat, updatedat
+            FROM payroll.salarycomponents
+            WHERE organizationid = @OrganizationId
+            ORDER BY name";
+
+        return (await QueryAsync<SalaryComponentDto>(sql, new { OrganizationId = organizationId })).ToList();
+    }
+
+    public async Task<SalaryComponentDto?> GetSalaryComponentByIdAsync(Guid componentId)
+    {
+        var sql = @"
+            SELECT 
+                componentid, organizationid, name, code, type, 
+                calculationtype, value, isactive, createdat, updatedat
+            FROM payroll.salarycomponents
+            WHERE componentid = @ComponentId";
+
+        return await QuerySingleOrDefaultAsync<SalaryComponentDto>(sql, new { ComponentId = componentId });
+    }
+
+    public async Task<SalaryComponent> UpdateSalaryComponentAsync(Guid componentId, UpdateSalaryComponentRequest request)
+    {
+        var sql = @"
+            UPDATE payroll.salarycomponents
+            SET 
+                name = @Name,
+                code = @Code,
+                type = @Type,
+                calculationtype = @CalculationType,
+                value = @Value,
+                isactive = @IsActive,
+                updatedat = NOW()
+            WHERE componentid = @ComponentId
+            RETURNING componentid, organizationid, name, code, type, calculationtype, value, isactive, createdat, updatedat";
+
+        var parameters = new
+        {
+            ComponentId = componentId,
+            request.Name,
+            request.Code,
+            request.Type,
+            request.CalculationType,
+            request.Value,
+            request.IsActive
+        };
+
+        return await QuerySingleAsync<SalaryComponent>(sql, parameters);
+    }
+
+    public async Task<bool> DeleteSalaryComponentAsync(Guid componentId)
+    {
+        var sql = @"
+            DELETE FROM payroll.salarycomponents
+            WHERE componentid = @ComponentId";
+
+        var rowsAffected = await ExecuteAsync(sql, new { ComponentId = componentId });
+        return rowsAffected > 0;
+    }
+    
+    #endregion
+    
+    #region Salary Rule Operations
+    
+    public async Task<SalaryRule> CreateSalaryRuleAsync(Guid organizationId, CreateSalaryRuleRequest request)
+    {
+        var sql = @"
+            INSERT INTO payroll.salaryrules 
+            (organizationid, departmentid, positionid, componentid, value_override, createdat)
+            VALUES 
+            (@OrganizationId, @DepartmentId, @PositionId, @ComponentId, @ValueOverride, NOW())
+            RETURNING ruleid, createdat";
+
+        var parameters = new
+        {
+            OrganizationId = organizationId,
+            request.DepartmentId,
+            request.PositionId,
+            request.ComponentId,
+            request.ValueOverride
+        };
+
+        var result = await QuerySingleAsync<dynamic>(sql, parameters);
+
+        return new SalaryRule
+        {
+            RuleId = result.ruleid,
+            OrganizationId = organizationId,
+            DepartmentId = request.DepartmentId,
+            PositionId = request.PositionId,
+            ComponentId = request.ComponentId,
+            ValueOverride = request.ValueOverride,
+            CreatedAt = result.createdat
+        };
+    }
+
+    public async Task<List<SalaryRuleDto>> GetSalaryRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT 
+                sr.ruleid, sr.organizationid, sr.departmentid, d.departmentname, 
+                sr.positionid, p.positionname, sr.componentid, sc.name as componentname, 
+                sc.code as componentcode, sc.type as componenttype, 
+                sc.calculationtype as calculationtype, sc.value as componentvalue,
+                sr.value_override as valueoverride, sr.createdat, sr.updatedat
+            FROM payroll.salaryrules sr
+            JOIN payroll.salarycomponents sc ON sr.componentid = sc.componentid
+            LEFT JOIN employee.departments d ON sr.departmentid = d.departmentid
+            LEFT JOIN employee.positions p ON sr.positionid = p.positionid
+            WHERE sr.organizationid = @OrganizationId
+            ORDER BY d.departmentname, p.positionname, sc.name";
+
+        return (await QueryAsync<SalaryRuleDto>(sql, new { OrganizationId = organizationId })).ToList();
+    }
+
+    public async Task<SalaryRuleDto?> GetSalaryRuleByIdAsync(Guid ruleId)
+    {
+        var sql = @"
+            SELECT 
+                sr.ruleid, sr.organizationid, sr.departmentid, d.departmentname, 
+                sr.positionid, p.positionname, sr.componentid, sc.name as componentname, 
+                sc.code as componentcode, sc.type as componenttype, 
+                sc.calculationtype as calculationtype, sc.value as componentvalue,
+                sr.value_override as valueoverride, sr.createdat, sr.updatedat
+            FROM payroll.salaryrules sr
+            JOIN payroll.salarycomponents sc ON sr.componentid = sc.componentid
+            LEFT JOIN employee.departments d ON sr.departmentid = d.departmentid
+            LEFT JOIN employee.positions p ON sr.positionid = p.positionid
+            WHERE sr.ruleid = @RuleId";
+
+        return await QuerySingleOrDefaultAsync<SalaryRuleDto>(sql, new { RuleId = ruleId });
+    }
+
+    public async Task<SalaryRule> UpdateSalaryRuleAsync(Guid ruleId, UpdateSalaryRuleRequest request)
+    {
+        var sql = @"
+            UPDATE payroll.salaryrules
+            SET 
+                departmentid = @DepartmentId,
+                positionid = @PositionId,
+                componentid = @ComponentId,
+                value_override = @ValueOverride,
+                updatedat = NOW()
+            WHERE ruleid = @RuleId
+            RETURNING ruleid, organizationid, departmentid, positionid, componentid, value_override as valueoverride, createdat, updatedat";
+
+        var parameters = new
+        {
+            RuleId = ruleId,
+            request.DepartmentId,
+            request.PositionId,
+            request.ComponentId,
+            request.ValueOverride
+        };
+
+        return await QuerySingleAsync<SalaryRule>(sql, parameters);
+    }
+
+    public async Task<bool> DeleteSalaryRuleAsync(Guid ruleId)
+    {
+        var sql = @"
+            DELETE FROM payroll.salaryrules
+            WHERE ruleid = @RuleId";
+
+        var rowsAffected = await ExecuteAsync(sql, new { RuleId = ruleId });
+        return rowsAffected > 0;
+    }
+    
+    #endregion
 
     public async Task<PayrollPeriod> CreatePayrollPeriodAsync(Guid organizationId, string periodName, DateTime startDate, DateTime endDate, DateTime? payDate = null)
     {
@@ -70,9 +283,113 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
 
     public async Task<int> CalculatePayrollAsync(Guid periodId)
     {
-        return await ExecuteScalarAsync<int>(
-            "SELECT payroll.fn_calculate_payroll(@periodId)",
-            new { periodId });
+        // Get the payroll period to determine organization
+        var period = await GetPayrollPeriodByIdAsync(periodId);
+        if (period == null)
+        {
+            throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
+        }
+        
+        var organizationId = period.OrganizationId;
+        
+        // Get all employees eligible for this payroll period
+        var employeesSql = @"
+            SELECT e.employeeid, e.organizationid, ed.departmentid, ed.positionid, ed.basicsalary
+            FROM employee.employees e
+            JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+            WHERE e.organizationid = @OrganizationId
+            AND e.status = 'active'";
+            
+        var employees = await QueryAsync<dynamic>(employeesSql, new { OrganizationId = organizationId });
+        
+        int entriesCreated = 0;
+        
+        foreach (var employee in employees)
+        {
+            decimal basicSalary = employee.basicsalary;
+            decimal totalEarnings = basicSalary;
+            decimal totalDeductions = 0;
+            
+            // Get applicable salary components for this employee based on department and position
+            var componentsSql = @"
+                SELECT 
+                    sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
+                    sr.value_override
+                FROM payroll.salarycomponents sc
+                LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
+                WHERE sc.organizationid = @OrganizationId
+                AND sc.isactive = true
+                AND (
+                    (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
+                    AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
+                )";
+                
+            var components = await QueryAsync<dynamic>(componentsSql, new { 
+                OrganizationId = organizationId,
+                DepartmentId = employee.departmentid,
+                PositionId = employee.positionid
+            });
+            
+            // Calculate each component
+            foreach (var component in components)
+            {
+                decimal componentValue = 0;
+                
+                // Use value_override if available, otherwise use the component's default value
+                decimal valueToUse = component.value_override != null ? (decimal)component.value_override : (decimal)component.value;
+                
+                // Calculate based on type
+                if (component.calculationtype.ToString().ToLower() == "percentage")
+                {
+                    componentValue = (basicSalary * valueToUse) / 100;
+                }
+                else // fixed
+                {
+                    componentValue = valueToUse;
+                }
+                
+                // Add to earnings or deductions based on component type
+                if (component.type.ToString().ToLower() == "earning")
+                {
+                    totalEarnings += componentValue;
+                }
+                else // deduction
+                {
+                    totalDeductions += componentValue;
+                }
+            }
+            
+            decimal grossSalary = totalEarnings;
+            decimal netSalary = grossSalary - totalDeductions;
+            
+            // Insert payroll entry
+            var insertSql = @"
+                INSERT INTO payroll.payrollentries (
+                    entryid, periodid, employeeid, basicsalary, 
+                    allowances, deductions, grosssalary, taxamount, 
+                    netsalary, status, calculatedat, createdat, updatedat
+                )
+                VALUES (
+                    uuid_generate_v4(), @PeriodId, @EmployeeId, @BasicSalary,
+                    @Allowances, @Deductions, @GrossSalary, @TaxAmount,
+                    @NetSalary, 'calculated', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                )";
+                
+            await ExecuteAsync(insertSql, new {
+                PeriodId = periodId,
+                EmployeeId = employee.employeeid,
+                BasicSalary = basicSalary,
+                Allowances = totalEarnings - basicSalary, // Additional earnings beyond basic salary
+                Deductions = totalDeductions,
+                GrossSalary = grossSalary,
+                TaxAmount = 0, // Tax is included in deductions through components
+                NetSalary = netSalary
+            });
+            
+            entriesCreated++;
+        }
+        
+        return entriesCreated;
     }
 
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50)
