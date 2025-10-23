@@ -70,7 +70,21 @@ DapperConfiguration.Configure();
 
 // Add database connection
 builder.Services.AddSingleton<IDatabaseConnectionFactory>(provider =>
-    new DatabaseConnectionFactory(builder.Configuration.GetConnectionString("DefaultConnection")!));
+{
+    // Try Railway environment variable first
+    var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+
+    // If not found, fallback to local appsettings.json
+    var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+
+    var finalConnectionString = !string.IsNullOrEmpty(envConnection) ? envConnection : configConnection;
+
+    Console.WriteLine($"✅ Using connection source: {(envConnection != null ? "Railway Environment Variable" : "Local appsettings.json")}");
+    Console.WriteLine($"Connection string (sanitized): {finalConnectionString?.Split('@').Last()}");
+
+    return new DatabaseConnectionFactory(finalConnectionString!);
+});
+
 
 // Add JWT Authentication
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -147,16 +161,13 @@ builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment())
+app.UseSwagger();
+app.UseSwaggerUI(c =>
 {
-    app.UseSwagger();
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "HRMS API V1");
-        c.RoutePrefix = string.Empty; // Swagger at root
-    });
-}
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "HRMS API V1");
+    c.RoutePrefix = string.Empty; // Swagger at root
+});
+
 
 app.UseHttpsRedirection();
 
