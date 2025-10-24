@@ -10,48 +10,57 @@ namespace HRMS.API.Repositories;
 public class PayrollRepository : BaseRepository, IPayrollRepository
 {
     public PayrollRepository(IDatabaseConnectionFactory connectionFactory) : base(connectionFactory) { }
-    
+
     #region Salary Component Operations
-    
+
     public async Task<SalaryComponent> CreateSalaryComponentAsync(Guid organizationId, CreateSalaryComponentRequest request)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             INSERT INTO payroll.salarycomponents 
             (organizationid, name, code, type, calculationtype, value, isactive, createdat)
             VALUES 
             (@OrganizationId, @Name, @Code, @Type, @CalculationType, @Value, @IsActive, NOW())
             RETURNING componentid, createdat";
 
-        var parameters = new
-        {
-            OrganizationId = organizationId,
-            request.Name,
-            request.Code,
-            request.Type,
-            request.CalculationType,
-            request.Value,
-            request.IsActive
-        };
+            var parameters = new
+            {
+                OrganizationId = organizationId,
+                request.Name,
+                request.Code,
+                request.Type,
+                request.CalculationType,
+                request.Value,
+                request.IsActive
+            };
 
-        var result = await QuerySingleAsync<dynamic>(sql, parameters);
+            var result = await QuerySingleAsync<dynamic>(sql, parameters);
 
-        return new SalaryComponent
+            return new SalaryComponent
+            {
+                ComponentId = result.componentid,
+                OrganizationId = organizationId,
+                Name = request.Name,
+                Code = request.Code,
+                Type = request.Type,
+                CalculationType = request.CalculationType,
+                Value = request.Value,
+                IsActive = request.IsActive,
+                CreatedAt = result.createdat
+            };
+        }
+        catch (Exception ex)
         {
-            ComponentId = result.componentid,
-            OrganizationId = organizationId,
-            Name = request.Name,
-            Code = request.Code,
-            Type = request.Type,
-            CalculationType = request.CalculationType,
-            Value = request.Value,
-            IsActive = request.IsActive,
-            CreatedAt = result.createdat
-        };
+            throw;
+        }
     }
 
     public async Task<List<SalaryComponentDto>> GetSalaryComponentsAsync(Guid organizationId)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             SELECT 
                 componentid, organizationid, name, code, type, 
                 calculationtype, value, isactive, createdat, updatedat
@@ -59,24 +68,38 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             WHERE organizationid = @OrganizationId
             ORDER BY name";
 
-        return (await QueryAsync<SalaryComponentDto>(sql, new { OrganizationId = organizationId })).ToList();
+            return (await QueryAsync<SalaryComponentDto>(sql, new { OrganizationId = organizationId })).ToList();
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<SalaryComponentDto?> GetSalaryComponentByIdAsync(Guid componentId)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             SELECT 
                 componentid, organizationid, name, code, type, 
                 calculationtype, value, isactive, createdat, updatedat
             FROM payroll.salarycomponents
             WHERE componentid = @ComponentId";
 
-        return await QuerySingleOrDefaultAsync<SalaryComponentDto>(sql, new { ComponentId = componentId });
+            return await QuerySingleOrDefaultAsync<SalaryComponentDto>(sql, new { ComponentId = componentId });
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<SalaryComponent> UpdateSalaryComponentAsync(Guid componentId, UpdateSalaryComponentRequest request)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             UPDATE payroll.salarycomponents
             SET 
                 name = @Name,
@@ -89,91 +112,122 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             WHERE componentid = @ComponentId
             RETURNING componentid, organizationid, name, code, type, calculationtype, value, isactive, createdat, updatedat";
 
-        var parameters = new
-        {
-            ComponentId = componentId,
-            request.Name,
-            request.Code,
-            request.Type,
-            request.CalculationType,
-            request.Value,
-            request.IsActive
-        };
+            var parameters = new
+            {
+                ComponentId = componentId,
+                request.Name,
+                request.Code,
+                request.Type,
+                request.CalculationType,
+                request.Value,
+                request.IsActive
+            };
 
-        return await QuerySingleAsync<SalaryComponent>(sql, parameters);
+            return await QuerySingleAsync<SalaryComponent>(sql, parameters);
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<bool> DeleteSalaryComponentAsync(Guid componentId)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             DELETE FROM payroll.salarycomponents
             WHERE componentid = @ComponentId";
 
-        var rowsAffected = await ExecuteAsync(sql, new { ComponentId = componentId });
-        return rowsAffected > 0;
+            var rowsAffected = await ExecuteAsync(sql, new { ComponentId = componentId });
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
-    
+
     #endregion
-    
+
     #region Salary Rule Operations
-    
+
     public async Task<SalaryRule> CreateSalaryRuleAsync(Guid organizationId, CreateSalaryRuleRequest request)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             INSERT INTO payroll.salaryrules 
-            (organizationid, departmentid, positionid, componentid, value_override, createdat)
+            (rulename,organizationid, departmentid, positionid, componentid, value_override, createdat)
             VALUES 
-            (@OrganizationId, @DepartmentId, @PositionId, @ComponentId, @ValueOverride, NOW())
+            (@RuleName,@OrganizationId, @DepartmentId, @PositionId, @ComponentId, @ValueOverride, NOW())
             RETURNING ruleid, createdat";
 
-        var parameters = new
-        {
-            OrganizationId = organizationId,
-            request.DepartmentId,
-            request.PositionId,
-            request.ComponentId,
-            request.ValueOverride
-        };
+            var parameters = new
+            {
+                request.RuleName,
+                OrganizationId = organizationId,
+                request.DepartmentId,
+                request.PositionId,
+                request.ComponentId,
+                request.ValueOverride
+            };
 
-        var result = await QuerySingleAsync<dynamic>(sql, parameters);
+            var result = await QuerySingleAsync<dynamic>(sql, parameters);
 
-        return new SalaryRule
+            return new SalaryRule
+            {
+                RuleId = result.ruleid,
+                RuleName= request.RuleName,
+                OrganizationId = organizationId,
+                DepartmentId = request.DepartmentId,
+                PositionId = request.PositionId,
+                ComponentId = request.ComponentId,
+                ValueOverride = request.ValueOverride,
+                CreatedAt = result.createdat
+            };
+        }
+        catch (Exception ex)
         {
-            RuleId = result.ruleid,
-            OrganizationId = organizationId,
-            DepartmentId = request.DepartmentId,
-            PositionId = request.PositionId,
-            ComponentId = request.ComponentId,
-            ValueOverride = request.ValueOverride,
-            CreatedAt = result.createdat
-        };
+            throw;
+        }
     }
 
     public async Task<List<SalaryRuleDto>> GetSalaryRulesAsync(Guid organizationId)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             SELECT 
-                sr.ruleid, sr.organizationid, sr.departmentid, d.departmentname, 
-                sr.positionid, p.positionname, sr.componentid, sc.name as componentname, 
+                sr.rulename,sr.ruleid, sr.organizationid, sr.departmentid, d.departmentname, 
+                sr.positionid, p.positiontitle, sr.componentid, sc.name as componentname, 
                 sc.code as componentcode, sc.type as componenttype, 
                 sc.calculationtype as calculationtype, sc.value as componentvalue,
-                sr.value_override as valueoverride, sr.createdat, sr.updatedat
+                COALESCE(sr.value_override, sc.value) AS valueoverride,
+                sr.createdat, sr.updatedat
             FROM payroll.salaryrules sr
             JOIN payroll.salarycomponents sc ON sr.componentid = sc.componentid
             LEFT JOIN employee.departments d ON sr.departmentid = d.departmentid
             LEFT JOIN employee.positions p ON sr.positionid = p.positionid
             WHERE sr.organizationid = @OrganizationId
-            ORDER BY d.departmentname, p.positionname, sc.name";
+            ORDER BY d.departmentname, p.positiontitle, sc.name";
 
-        return (await QueryAsync<SalaryRuleDto>(sql, new { OrganizationId = organizationId })).ToList();
+            return (await QueryAsync<SalaryRuleDto>(sql, new { OrganizationId = organizationId })).ToList();
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<SalaryRuleDto?> GetSalaryRuleByIdAsync(Guid ruleId)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             SELECT 
-                sr.ruleid, sr.organizationid, sr.departmentid, d.departmentname, 
-                sr.positionid, p.positionname, sr.componentid, sc.name as componentname, 
+                sr.rulename,sr.ruleid, sr.organizationid, sr.departmentid, d.departmentname, 
+                sr.positionid, p.positiontitle, sr.componentid, sc.name as componentname, 
                 sc.code as componentcode, sc.type as componenttype, 
                 sc.calculationtype as calculationtype, sc.value as componentvalue,
                 sr.value_override as valueoverride, sr.createdat, sr.updatedat
@@ -183,14 +237,22 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             LEFT JOIN employee.positions p ON sr.positionid = p.positionid
             WHERE sr.ruleid = @RuleId";
 
-        return await QuerySingleOrDefaultAsync<SalaryRuleDto>(sql, new { RuleId = ruleId });
+            return await QuerySingleOrDefaultAsync<SalaryRuleDto>(sql, new { RuleId = ruleId });
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<SalaryRule> UpdateSalaryRuleAsync(Guid ruleId, UpdateSalaryRuleRequest request)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             UPDATE payroll.salaryrules
             SET 
+                rulename = @rulename,
                 departmentid = @DepartmentId,
                 positionid = @PositionId,
                 componentid = @ComponentId,
@@ -199,29 +261,43 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             WHERE ruleid = @RuleId
             RETURNING ruleid, organizationid, departmentid, positionid, componentid, value_override as valueoverride, createdat, updatedat";
 
-        var parameters = new
-        {
-            RuleId = ruleId,
-            request.DepartmentId,
-            request.PositionId,
-            request.ComponentId,
-            request.ValueOverride
-        };
+            var parameters = new
+            {
+                request.RuleName,
+                RuleId = ruleId,
+                request.DepartmentId,
+                request.PositionId,
+                request.ComponentId,
+                request.ValueOverride
+            };
 
-        return await QuerySingleAsync<SalaryRule>(sql, parameters);
+            return await QuerySingleAsync<SalaryRule>(sql, parameters);
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<bool> DeleteSalaryRuleAsync(Guid ruleId)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             DELETE FROM payroll.salaryrules
             WHERE ruleid = @RuleId";
 
-        var rowsAffected = await ExecuteAsync(sql, new { RuleId = ruleId });
-        return rowsAffected > 0;
+            var rowsAffected = await ExecuteAsync(sql, new { RuleId = ruleId });
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
-    
+
     #endregion
+
 
     public async Task<PayrollPeriod> CreatePayrollPeriodAsync(Guid organizationId, string periodName, DateTime startDate, DateTime endDate, DateTime? payDate = null)
     {
