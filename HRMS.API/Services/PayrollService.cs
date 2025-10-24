@@ -46,7 +46,7 @@ public class PayrollService : IPayrollService
     public async Task<int> CalculatePayrollAsync(Guid periodId)
     {
         _logger.LogInformation("Starting payroll calculation for period: {PeriodId}", periodId);
-        
+
         try
         {
             // Validate period exists and is in correct status
@@ -63,13 +63,13 @@ public class PayrollService : IPayrollService
 
             // Call the database function to calculate payroll
             var entriesCreated = await _payrollRepository.CalculatePayrollAsync(periodId);
-            
+
             // Update period status to calculated
             await _payrollRepository.UpdatePayrollPeriodStatusAsync(periodId, "calculated");
-            
-            _logger.LogInformation("Payroll calculation completed for period {PeriodId}. Created {EntriesCount} entries", 
+
+            _logger.LogInformation("Payroll calculation completed for period {PeriodId}. Created {EntriesCount} entries",
                 periodId, entriesCreated);
-            
+
             return entriesCreated;
         }
         catch (Exception ex)
@@ -93,72 +93,80 @@ public class PayrollService : IPayrollService
     {
         return await _payrollRepository.ProcessPayrollPaymentAsync(entryId, paymentMethod, paymentReference);
     }
-    
+
     // Salary Component Operations
     public async Task<SalaryComponentDto> CreateSalaryComponentAsync(CreateSalaryComponentRequest request, Guid organizationId)
     {
-        var component = await _payrollRepository.CreateSalaryComponentAsync(
-            organizationId, 
-            request);
-            
-        return _mapper.Map<SalaryComponentDto>(component);
+        try
+        {
+
+            var component = await _payrollRepository.CreateSalaryComponentAsync(
+                organizationId,
+                request);
+            return _mapper.Map<SalaryComponentDto>(component);
+        }
+        catch
+        {
+            throw;
+        }
+
     }
-    
+
     public async Task<List<SalaryComponentDto>> GetSalaryComponentsAsync(Guid organizationId)
     {
         return await _payrollRepository.GetSalaryComponentsAsync(organizationId);
     }
-    
+
     public async Task<SalaryComponentDto?> GetSalaryComponentByIdAsync(Guid componentId)
     {
         var component = await _payrollRepository.GetSalaryComponentByIdAsync(componentId);
         return component != null ? _mapper.Map<SalaryComponentDto>(component) : null;
     }
-    
+
     public async Task<SalaryComponentDto> UpdateSalaryComponentAsync(Guid componentId, UpdateSalaryComponentRequest request)
     {
         var component = await _payrollRepository.UpdateSalaryComponentAsync(
             componentId,
             request);
-            
+
         return _mapper.Map<SalaryComponentDto>(component);
     }
-    
+
     public async Task<bool> DeleteSalaryComponentAsync(Guid componentId)
     {
         return await _payrollRepository.DeleteSalaryComponentAsync(componentId);
     }
-    
+
     // Salary Rule Operations
     public async Task<SalaryRuleDto> CreateSalaryRuleAsync(CreateSalaryRuleRequest request, Guid organizationId)
     {
         var rule = await _payrollRepository.CreateSalaryRuleAsync(
             organizationId,
             request);
-            
+
         return _mapper.Map<SalaryRuleDto>(rule);
     }
-    
+
     public async Task<List<SalaryRuleDto>> GetSalaryRulesAsync(Guid organizationId)
     {
         return await _payrollRepository.GetSalaryRulesAsync(organizationId);
     }
-    
+
     public async Task<SalaryRuleDto?> GetSalaryRuleByIdAsync(Guid ruleId)
     {
         var rule = await _payrollRepository.GetSalaryRuleByIdAsync(ruleId);
         return rule != null ? _mapper.Map<SalaryRuleDto>(rule) : null;
     }
-    
+
     public async Task<SalaryRuleDto> UpdateSalaryRuleAsync(Guid ruleId, UpdateSalaryRuleRequest request)
     {
         var rule = await _payrollRepository.UpdateSalaryRuleAsync(
             ruleId,
             request);
-            
+
         return _mapper.Map<SalaryRuleDto>(rule);
     }
-    
+
     public async Task<bool> DeleteSalaryRuleAsync(Guid ruleId)
     {
         return await _payrollRepository.DeleteSalaryRuleAsync(ruleId);
@@ -179,19 +187,19 @@ public class PayrollService : IPayrollService
 
     public async Task<PagedResult<PayrollPeriodDto>> GetPayrollPeriodsPagedAsync(Guid organizationId, int page, int limit, string? search)
     {
-        _logger.LogInformation("Getting paged payroll periods for organization: {OrganizationId}, page: {Page}, limit: {Limit}", 
+        _logger.LogInformation("Getting paged payroll periods for organization: {OrganizationId}, page: {Page}, limit: {Limit}",
             organizationId, page, limit);
-        
+
         var periods = await GetPayrollPeriodsAsync(organizationId);
-        
+
         if (!string.IsNullOrEmpty(search))
         {
             periods = periods.Where(p => p.PeriodName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
         }
-        
+
         var totalItems = periods.Count;
         var pagedItems = periods.Skip((page - 1) * limit).Take(limit).ToList();
-        
+
         return new PagedResult<PayrollPeriodDto>
         {
             Data = pagedItems,
@@ -210,7 +218,7 @@ public class PayrollService : IPayrollService
     public async Task<PayrollPeriodDto> UpdatePayrollPeriodAsync(Guid periodId, UpdatePayrollPeriodRequest request)
     {
         _logger.LogInformation("Updating payroll period: {PeriodId}", periodId);
-        
+
         var existingPeriod = await _payrollRepository.GetPayrollPeriodByIdAsync(periodId);
         if (existingPeriod == null)
             throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
@@ -222,7 +230,7 @@ public class PayrollService : IPayrollService
     public async Task<bool> DeletePayrollPeriodAsync(Guid periodId)
     {
         _logger.LogInformation("Deleting payroll period: {PeriodId}", periodId);
-        
+
         var period = await _payrollRepository.GetPayrollPeriodByIdAsync(periodId);
         if (period == null)
             throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
@@ -251,7 +259,7 @@ public class PayrollService : IPayrollService
     public async Task<PayrollEntryDto> ApprovePayrollEntryAsync(Guid entryId)
     {
         _logger.LogInformation("Approving payroll entry: {EntryId}", entryId);
-        
+
         var entry = await _payrollRepository.ApprovePayrollEntryAsync(entryId);
         return _mapper.Map<PayrollEntryDto>(entry);
     }
@@ -265,7 +273,7 @@ public class PayrollService : IPayrollService
     public async Task<PayrollEntryDto> RejectPayrollEntryAsync(Guid entryId, string reason)
     {
         _logger.LogInformation("Rejecting payroll entry: {EntryId} with reason: {Reason}", entryId, reason);
-        
+
         var entry = await _payrollRepository.RejectPayrollEntryAsync(entryId, reason);
         return _mapper.Map<PayrollEntryDto>(entry);
     }
@@ -273,7 +281,7 @@ public class PayrollService : IPayrollService
     public async Task<PayrollEntryDto> MarkPayrollEntryAsPaidAsync(Guid entryId)
     {
         _logger.LogInformation("Marking payroll entry as paid: {EntryId}", entryId);
-        
+
         var entry = await _payrollRepository.MarkPayrollEntryAsPaidAsync(entryId);
         return _mapper.Map<PayrollEntryDto>(entry);
     }
@@ -287,7 +295,7 @@ public class PayrollService : IPayrollService
     public async Task<PayrollReportDto> GeneratePayrollReportAsync(Guid organizationId, PayrollReportFilterRequest filter)
     {
         _logger.LogInformation("Generating payroll report for organization: {OrganizationId}", organizationId);
-        
+
         // Get filtered entries
         var entriesFilter = new PayrollFilterRequest
         {
@@ -295,15 +303,15 @@ public class PayrollService : IPayrollService
             Department = filter.Department,
             Status = filter.Status
         };
-        
+
         var entries = await _payrollRepository.GetPayrollEntriesFilteredAsync(organizationId, entriesFilter, 1, 1000);
-        
+
         // Get summary data based on filtered entries
         var summary = await GetPayrollReportSummaryAsync(organizationId, filter);
-        
+
         // Get department breakdown
         var departmentBreakdown = await GetDepartmentPayrollBreakdownAsync(organizationId, filter.PayrollPeriodId);
-        
+
         return new PayrollReportDto
         {
             StartDate = filter.StartDate ?? DateTime.Now.AddMonths(-1),
@@ -317,9 +325,9 @@ public class PayrollService : IPayrollService
     public async Task<byte[]> ExportPayrollReportAsync(Guid organizationId, PayrollReportFilterRequest filter, string format)
     {
         _logger.LogInformation("Exporting payroll report for organization: {OrganizationId} in format: {Format}", organizationId, format);
-        
+
         var report = await GeneratePayrollReportAsync(organizationId, filter);
-        
+
         return format.ToLower() switch
         {
             "excel" => await GenerateExcelReportAsync(report),
@@ -436,7 +444,7 @@ public class PayrollService : IPayrollService
         var cell1 = new PdfPCell(new Phrase("Total Employees:", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
         cell1.Border = PdfPCell.NO_BORDER;
         summaryTable.AddCell(cell1);
-        
+
         var cell2 = new PdfPCell(new Phrase(report.Summary.TotalEmployees.ToString(), FontFactory.GetFont(FontFactory.HELVETICA, 10)));
         cell2.Border = PdfPCell.NO_BORDER;
         summaryTable.AddCell(cell2);
@@ -444,7 +452,7 @@ public class PayrollService : IPayrollService
         var cell3 = new PdfPCell(new Phrase("Total Gross Salary:", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
         cell3.Border = PdfPCell.NO_BORDER;
         summaryTable.AddCell(cell3);
-        
+
         var cell4 = new PdfPCell(new Phrase(report.Summary.TotalGrossSalary.ToString("C"), FontFactory.GetFont(FontFactory.HELVETICA, 10)));
         cell4.Border = PdfPCell.NO_BORDER;
         summaryTable.AddCell(cell4);
@@ -452,7 +460,7 @@ public class PayrollService : IPayrollService
         var cell5 = new PdfPCell(new Phrase("Total Tax:", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
         cell5.Border = PdfPCell.NO_BORDER;
         summaryTable.AddCell(cell5);
-        
+
         var cell6 = new PdfPCell(new Phrase(report.Summary.TotalTax.ToString("C"), FontFactory.GetFont(FontFactory.HELVETICA, 10)));
         cell6.Border = PdfPCell.NO_BORDER;
         summaryTable.AddCell(cell6);
@@ -460,7 +468,7 @@ public class PayrollService : IPayrollService
         var cell7 = new PdfPCell(new Phrase("Total Net Salary:", FontFactory.GetFont(FontFactory.HELVETICA, 10)));
         cell7.Border = PdfPCell.NO_BORDER;
         summaryTable.AddCell(cell7);
-        
+
         var cell8 = new PdfPCell(new Phrase(report.Summary.TotalNetSalary.ToString("C"), FontFactory.GetFont(FontFactory.HELVETICA, 10)));
         cell8.Border = PdfPCell.NO_BORDER;
         summaryTable.AddCell(cell8);
@@ -482,7 +490,7 @@ public class PayrollService : IPayrollService
         // Headers
         var headerFont = FontFactory.GetFont(FontFactory.HELVETICA_BOLD, 10, BaseColor.WHITE);
         var headerCells = new[] { "Employee Name", "Employee Code", "Department", "Basic Salary", "Gross Salary", "Tax Amount", "Net Salary", "Status" };
-        
+
         foreach (var header in headerCells)
         {
             var cell = new PdfPCell(new Phrase(header, headerFont));
@@ -499,35 +507,35 @@ public class PayrollService : IPayrollService
             var nameCell = new PdfPCell(new Phrase(entry.EmployeeName, dataFont));
             nameCell.Padding = 3;
             detailsTable.AddCell(nameCell);
-            
+
             var codeCell = new PdfPCell(new Phrase(entry.EmployeeCode, dataFont));
             codeCell.Padding = 3;
             detailsTable.AddCell(codeCell);
-            
+
             var deptCell = new PdfPCell(new Phrase(entry.DepartmentName, dataFont));
             deptCell.Padding = 3;
             detailsTable.AddCell(deptCell);
-            
+
             var basicCell = new PdfPCell(new Phrase(entry.BasicSalary.ToString("C"), dataFont));
             basicCell.Padding = 3;
             basicCell.HorizontalAlignment = Element.ALIGN_RIGHT;
             detailsTable.AddCell(basicCell);
-            
+
             var grossCell = new PdfPCell(new Phrase(entry.GrossSalary.ToString("C"), dataFont));
             grossCell.Padding = 3;
             grossCell.HorizontalAlignment = Element.ALIGN_RIGHT;
             detailsTable.AddCell(grossCell);
-            
+
             var taxCell = new PdfPCell(new Phrase(entry.TaxAmount.ToString("C"), dataFont));
             taxCell.Padding = 3;
             taxCell.HorizontalAlignment = Element.ALIGN_RIGHT;
             detailsTable.AddCell(taxCell);
-            
+
             var netCell = new PdfPCell(new Phrase(entry.NetSalary.ToString("C"), dataFont));
             netCell.Padding = 3;
             netCell.HorizontalAlignment = Element.ALIGN_RIGHT;
             detailsTable.AddCell(netCell);
-            
+
             var statusCell = new PdfPCell(new Phrase(entry.Status, dataFont));
             statusCell.Padding = 3;
             statusCell.HorizontalAlignment = Element.ALIGN_CENTER;
@@ -543,7 +551,7 @@ public class PayrollService : IPayrollService
     public async Task<bool> GeneratePayslipsAsync(Guid payrollPeriodId, List<Guid>? employeeIds)
     {
         _logger.LogInformation("Generating payslips for period: {PeriodId}", payrollPeriodId);
-        
+
         // Mock implementation
         return true;
     }
@@ -551,7 +559,7 @@ public class PayrollService : IPayrollService
     public async Task<byte[]> DownloadPayslipAsync(Guid payrollEntryId)
     {
         _logger.LogInformation("Downloading payslip for entry: {EntryId}", payrollEntryId);
-        
+
         // Mock PDF payslip content
         var pdfContent = "Mock PDF payslip content for entry " + payrollEntryId;
         return System.Text.Encoding.UTF8.GetBytes(pdfContent);
@@ -560,7 +568,7 @@ public class PayrollService : IPayrollService
     public async Task<bool> EmailPayslipsAsync(Guid payrollPeriodId, List<Guid>? employeeIds)
     {
         _logger.LogInformation("Emailing payslips for period: {PeriodId}", payrollPeriodId);
-        
+
         // Mock email sending
         return true;
     }

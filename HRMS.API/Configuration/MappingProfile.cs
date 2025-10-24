@@ -65,5 +65,7 @@ public class MappingProfile : Profile
 
         // Additional attendance mappings
         CreateMap<ManualAttendanceRequest, Attendance>();
+        CreateMap<SalaryComponent, SalaryComponentDto>().ReverseMap();
+        CreateMap<SalaryRule, SalaryRuleDto>().ReverseMap();
     }
 }

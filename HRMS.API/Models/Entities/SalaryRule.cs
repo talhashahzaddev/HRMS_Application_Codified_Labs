@@ -4,6 +4,7 @@ namespace HRMS.API.Models.Entities;
 
 public class SalaryRule
 {
+    public string RuleName { get; set; }
     public Guid RuleId { get; set; }
     public Guid OrganizationId { get; set; }
     public Guid? DepartmentId { get; set; }

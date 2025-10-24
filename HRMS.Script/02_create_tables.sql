@@ -397,3 +397,48 @@ CREATE TABLE IF NOT EXISTS performance.employeegoals
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT employeegoals_pkey PRIMARY KEY (goalid)
 )
+-- Table: payroll.salaryrules
+
+-- DROP TABLE IF EXISTS payroll.salaryrules;
+
+CREATE TABLE IF NOT EXISTS payroll.salaryrules
+(
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    departmentid uuid,
+    positionid uuid,
+    componentid uuid,
+    value_override numeric(10,2),
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    rulename character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    CONSTRAINT salaryrules_pkey PRIMARY KEY (ruleid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS payroll.salaryrules
+    OWNER to postgres;
+    -- Table: payroll.salarycomponents
+
+-- DROP TABLE IF EXISTS payroll.salarycomponents;
+
+CREATE TABLE IF NOT EXISTS payroll.salarycomponents
+(
+    componentid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    name character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    code character varying(50) COLLATE pg_catalog."default" NOT NULL,
+    type character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    calculationtype character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    value numeric(10,2) NOT NULL DEFAULT 0,
+    isactive boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT salarycomponents_pkey PRIMARY KEY (componentid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS payroll.salarycomponents
+    OWNER to postgres;
