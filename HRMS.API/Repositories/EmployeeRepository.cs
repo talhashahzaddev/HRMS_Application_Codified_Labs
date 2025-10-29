@@ -1,4 +1,4 @@
-using HRMS.API.Configuration;
+﻿using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
@@ -112,13 +112,13 @@ catch (Exception ex)
 {
     await transaction.RollbackAsync();
     throw new Exception("Error while creating employee record", ex);
-}
+        }
 
     }
 
 
     //Add this function so that i return data in my response of creating employee and return data 
-   public async  Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId)
+    public async Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId)
     {
 
         var sql = @"
@@ -136,21 +136,74 @@ catch (Exception ex)
     }
 
 
-    public async Task<Employee?> GetEmployeeByIdAsync(Guid employeeId)
+    //Get Empolyee ID
+    public async Task<Guid?> getemployeeid(Guid userId)
+    {
+        var sql = @"select employeeid from  employee.employees where
+             userid=@userId";
+
+
+        var empid = await QuerySingleOrDefaultAsync<Guid?>(sql, new { userId = userId });
+
+        return empid;
+
+    }
+
+    public async Task<Employee?> GetEmployeeByIdAsync(Guid userId)
     {
         var sql = @"
-            SELECT employeeid, organizationid, userid, employeecode, firstname, lastname,
-                   email, phone, address, dateofbirth, gender, nationality, maritalstatus,
-                   emergencycontact, hiredate, terminationdate, status, profilepictureurl,
-                   createdat, updatedat
-            FROM employee.employees 
-            WHERE employeeid = @employeeId";
+        SELECT 
+            e.employeeid, e.organizationid, e.userid, e.employeecode AS EmployeeNumber,
+            e.firstname, e.lastname, e.email, e.phone, e.address,e.profilepictureurl As ProfilePictureUrl,
+            e.dateofbirth, e.gender, e.nationality, e.maritalstatus,
+            e.emergencycontact as EmergencyContact, e.hiredate, e.terminationdate, e.status,
+            e.profilepictureurl, e.createdat, e.updatedat,
+            ed.worklocation, ed.basicsalary As BasicSalary, ed.departmentid, ed.positionid,
+            CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
+            p.positiontitle, d.departmentname
+        FROM employee.employees AS e
+        LEFT JOIN employee.employmentdetails AS ed ON e.employeeid = ed.employeeid
+        LEFT JOIN employee.positions AS p ON ed.positionid = p.positionid
+        LEFT JOIN employee.departments AS d ON ed.departmentid = d.departmentid
+       LEFT JOIN employee.employees AS mgr ON ed.reportingmanagerid = mgr.employeeid
+        WHERE e.employeeid = @empid;
+    ";
 
-
-
-
-        return await QuerySingleOrDefaultAsync<Employee>(sql, new { employeeId });
+        return await QuerySingleOrDefaultAsync<Employee>(
+            sql,
+            new { empid = await getemployeeid(userId) }
+        );
     }
+
+
+    //  public async Task<Employee?> GetEmployeeByIdAsync(Guid userId)
+    //  {
+    //      var sql = @"
+    //    SELECT 
+    //        e.employeeid, e.organizationid, e.userid, e.employeecode AS EmployeeNumber,
+    //        e.firstname, e.lastname, e.email, e.phone, e.address::text, e.profilepictureurl AS ProfilePictureUrl,
+    //        e.dateofbirth, e.gender, e.nationality, e.maritalstatus,
+    //        e.emergencycontact::text AS EmergencyContact, e.hiredate, e.terminationdate, e.status,
+    //        ed.worklocation, ed.basicsalary, ed.departmentid, ed.positionid,
+    //        CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
+    //        p.positiontitle, d.departmentname
+    //    FROM employee.employees AS e
+    //    LEFT JOIN employee.employmentdetails AS ed ON e.employeeid = ed.employeeid
+    //    LEFT JOIN employee.positions AS p ON ed.positionid = p.positionid
+    //    LEFT JOIN employee.departments AS d ON ed.departmentid = d.departmentid
+    //    LEFT JOIN employee.employees AS mgr ON ed.reportingmanagerid = mgr.employeeid
+    //    WHERE e.employeeid = @empid;
+    //";
+
+    //      return await QuerySingleOrDefaultAsync<Employee>(
+    //          sql,
+    //          new { empid = await getemployeeid(userId) }
+    //      );
+
+    //  }
+
+
+
 
     public async Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode)
     {

@@ -1,19 +1,23 @@
+using DocumentFormat.OpenXml.Spreadsheet;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
+using Microsoft.AspNetCore.Identity.Data;
 
 namespace HRMS.API.Services.Interfaces;
 
 public interface IAuthService
 {
-    Task<AuthResponse> AuthenticateAsync(LoginRequest request);
+    Task<bool> ResetPasswordAsync(HRMS.API.Models.DTOs.ResetPasswordRequest requst);
+
+    Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request);
     Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request);
     Task<bool> LogoutAsync(Guid userId);
     Task<UserDto> CreateUserAsync(CreateUserRequest request, Guid organizationId);
     Task<UserDto?> GetUserByIdAsync(Guid userId);
     // New missing methods
-    Task<AuthResponse> RegisterAsync(RegisterRequest request);
-    Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request);
-    Task<UserDto> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);
+    Task<AuthResponse> RegisterAsync(HRMS.API.Models.DTOs.RegisterRequest request);
+    Task<bool> ForgotPasswordAsync(HRMS.API.Models.DTOs.ForgotPasswordRequest request);
+    Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request,IFormFile profileurl);// bool changoe in response
     Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
     Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, Guid organizationId);
     Task<List<RoleDto>> GetOrganizationRolesAsync(Guid organizationId);

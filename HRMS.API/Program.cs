@@ -168,6 +168,7 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = string.Empty; // Swagger at root
 });
 
+app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 

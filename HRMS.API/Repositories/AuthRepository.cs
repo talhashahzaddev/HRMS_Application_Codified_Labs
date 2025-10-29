@@ -1,5 +1,6 @@
 using Dapper;
 using HRMS.API.Configuration;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Newtonsoft.Json;
@@ -59,6 +60,7 @@ public class AuthRepository : BaseRepository, IAuthRepository
        u.firstname AS FirstName, 
        u.lastname AS LastName, 
        u.isactive AS IsActive, 
+       u.passwordhash,
        u.lastloginat AS LastLoginAt, 
        u.createdat AS CreatedAt,
        r.rolename AS RoleName, 
@@ -103,16 +105,227 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
 
         try
         {
-        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { email });
-        if (result == null) return null;
+            var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { email });
+            if (result == null) return null;
 
-        return MapToUser(result);
+            return MapToUser(result);
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             throw new Exception("An error occured", ex.InnerException);
         }
     }
+
+    //Changes Here
+
+
+    public async Task<bool> SavePasswordResetTokenAsync(Guid userId, string token, DateTime expiresAt)
+    {
+        var sql = @"
+     INSERT INTO auth.password_reset_tokens (userid, token, expiresat, createdat)
+     VALUES (@userId, @token, @expiresAt, CURRENT_TIMESTAMP)";
+
+        var affected = await ExecuteAsync(sql, new { userId, token, expiresAt });
+        return affected > 0;
+    }
+
+
+    public async Task<PasswordResetToken?> GetPasswordResetTokenAsync(string token)
+    {
+        const string sql = @"
+SELECT 
+    tokenid,
+    userid,
+    token,
+    expiresat,
+    used,
+    createdat
+FROM auth.password_reset_tokens
+WHERE token = @token;
+";
+
+        try
+        {
+            var tokenRecord = await QuerySingleOrDefaultAsync<PasswordResetToken>(sql, new { token });
+            return tokenRecord;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error fetching password reset token", ex);
+        }
+    }
+
+
+    public async Task<bool> UpdateUserPasswordAsync(Guid userId, string newPasswordHash)
+    {
+        const string sql = @"
+        UPDATE auth.users
+        SET 
+            passwordhash = @newPasswordHash,
+            passwordchangedat = NOW(),
+            updatedat = NOW()
+        WHERE userid = @userId;
+    ";
+
+        try
+        {
+            var rowsAffected = await ExecuteAsync(sql, new { userId, newPasswordHash });
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error updating user password", ex);
+        }
+    }
+
+
+    public async Task<bool> MarkResetTokenAsUsedAsync(string token)
+    {
+        const string sql = @"
+        UPDATE auth.password_reset_tokens
+        SET used = true
+        WHERE token = @token;
+    ";
+
+        try
+        {
+            var rowsAffected = await ExecuteAsync(sql, new { token });
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Error marking reset token as used", ex);
+        }
+    }
+
+    //Change Password
+
+    public async Task<bool> ChanegPasswordAsync(Guid userId, string newPasswordHash)
+    {
+        var sql = @"
+        UPDATE auth.users
+        SET passwordhash = @PasswordHash,
+            passwordchangedat = NOW(),
+            updatedat = NOW()
+        WHERE userid = @UserId";
+
+        var rowsAffected = await ExecuteAsync(sql, new { PasswordHash = newPasswordHash, UserId = userId });
+
+        return rowsAffected > 0; // Returns true if password was updated successfully
+    }
+
+
+
+
+    //Chnages For Employee now
+
+    public async Task<Employee?> GetEmployeeByIdAsync(Guid userId)
+    {
+        var sql = @"
+            SELECT employeeid
+            FROM employee.employees 
+            WHERE userid = @userId";
+
+        return await QuerySingleOrDefaultAsync<Employee>(sql, new { userId });
+    }
+
+
+
+
+    //Adding update method for Updating Employee all information
+    public async Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request,string? profileUrl)
+    {
+
+        var sql = @"UPDATE employee.employees SET 
+        employeecode=@EmployeeNumber, firstname=@FirstName, lastname=@LastName, email=@Email,
+        phone=@Phone, address=@Address::jsonb, dateofbirth=@DateOfBirth, gender=@Gender,
+        nationality=@Nationality, maritalstatus=@MaritalStatus, emergencycontact=@EmergencyContact::jsonb,
+        profilepictureurl=COALESCE(@ProfileUrl, profilepictureurl),
+        hiredate=@HireDate, updatedat=CURRENT_TIMESTAMP
+        WHERE employeeid=@EmployeeId";
+
+        var affected = await ExecuteAsync(sql, new
+        {
+            EmployeeNumber = request.EmployeeNumber,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            Phone = request.Phone,
+            Address = System.Text.Json.JsonSerializer.Serialize(request.Address),
+            DateOfBirth = request.DateOfBirth,
+            Gender = request.Gender,
+            Nationality = request.Nationality,
+            MaritalStatus = request.MaritalStatus,
+            EmergencyContact = System.Text.Json.JsonSerializer.Serialize(request.EmergencyContact),
+            HireDate = request.HireDate,
+            EmployeeId = employeeId,
+            profileUrl=profileUrl
+        });
+
+        return affected > 0;
+
+
+    }
+
+    //Update Employee Details table also 
+
+    public async Task<bool> UpdateProfile_EmployeeDetailsAsync(Guid employeeId, UpdateProfileRequest request)
+    {
+        var sql = @"UPDATE employee.employmentdetails SET 
+        departmentid=@DepartmentId, positionid=@PositionId,
+        employmenttype=@EmploymentType, paytype=@PayType, basicsalary=@BasicSalary,
+        currency=@Currency, worklocation=@WorkLocation, reportingmanagerid=@ReportingManagerId,
+        effectivedate=@EffectiveDate, enddate=@EndDate, iscurrent=@IsCurrent
+        WHERE employeeid=@EmployeeId";
+
+        var affected = await ExecuteAsync(sql, new
+        {
+            DepartmentId = request.DepartmentId,
+            PositionId = request.PositionId,
+            //ShiftId = request?.ShiftId,
+            EmploymentType = "full_time",
+            PayType = "salary",
+            BasicSalary = request.BasicSalary,
+            Currency = "USD",
+            WorkLocation = request.WorkLocation,
+            ReportingManagerId = request.ReportingManagerId,
+            EffectiveDate = DateTime.UtcNow.Date,
+            EndDate = (DateTime?)null,
+            IsCurrent = true,
+            EmployeeId = employeeId
+        });
+
+        return affected > 0;
+    }
+
+    //Updating User table also
+
+    public async Task<bool> UpdateProfile_UserAsync(Guid userId, UpdateProfileRequest request)
+    {
+        var sql = @"UPDATE auth.users SET 
+        firstname=@FirstName, lastname=@LastName, email=@Email, 
+       emailverified=@EmailVerified, 
+      roleid=@roleId,
+         updatedat=CURRENT_TIMESTAMP 
+        WHERE userid=@UserId";
+
+        var affected = await ExecuteAsync(sql, new
+        {
+            FirstName = request?.FirstName,
+            LastName = request?.LastName,
+            Email = request?.Email,
+            EmailVerified = false,          // Default false
+            roleId = request?.roleId,
+            UserId = userId
+        });
+
+        return affected > 0;
+    }
+
+
+
+
+
 
     public async Task<User> CreateUserAsync(User user)
     {
@@ -335,6 +548,7 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
             {
                 UserId = result.userid,
                 OrganizationId = result.organizationid,
+                PasswordHash = result.passwordhash,
                 Email = result.email,
                 FirstName = result.firstname,
                 LastName = result.lastname,
