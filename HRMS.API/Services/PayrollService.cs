@@ -43,7 +43,7 @@ public class PayrollService : IPayrollService
         return period != null ? _mapper.Map<PayrollPeriodDto>(period) : null;
     }
 
-    public async Task<int> CalculatePayrollAsync(Guid periodId)
+    public async Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId)
     {
         _logger.LogInformation("Starting payroll calculation for period: {PeriodId}", periodId);
 
@@ -62,7 +62,7 @@ public class PayrollService : IPayrollService
             }
 
             // Call the database function to calculate payroll
-            var entriesCreated = await _payrollRepository.CalculatePayrollAsync(periodId);
+            var entriesCreated = await _payrollRepository.CalculatePayrollAsync(periodId, ruleId);
 
             // Update period status to calculated
             await _payrollRepository.UpdatePayrollPeriodStatusAsync(periodId, "calculated");

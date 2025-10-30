@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
+using HRMS.API.Requests;
 
 namespace HRMS.API.Controllers;
 
@@ -102,13 +103,12 @@ public class PayrollController : ControllerBase
             });
         }
     }
-
     [HttpPost("periods/{id}/calculate")]
-    public async Task<ActionResult<ServiceResponse<PayrollCalculationResult>>> CalculatePayroll(Guid id)
+    public async Task<ActionResult<ServiceResponse<PayrollCalculationResult>>> CalculatePayroll(Guid id, [FromBody] CalculatePayrollRequest? request)
     {
         try
         {
-            var entriesCreated = await _payrollService.CalculatePayrollAsync(id);
+            var entriesCreated = await _payrollService.CalculatePayrollAsync(id, request?.RuleId);
             
             // Get updated period details
             var period = await _payrollService.GetPayrollPeriodByIdAsync(id);
