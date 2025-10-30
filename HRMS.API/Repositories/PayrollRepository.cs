@@ -502,13 +502,26 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50)
     {
         var sql = @"
-            SELECT pe.entryid, pe.employeeid, pe.basicsalary, pe.overtimeamount,
-                   pe.bonusamount, pe.grosssalary, pe.taxamount, pe.netsalary,
-                   pe.currency, pe.status, pe.calculatedat, pe.paidat,
-                   CONCAT(e.firstname, ' ', e.lastname) as employeename,
-                   e.employee_code
+            SELECT 
+                pe.entryid,
+                pe.periodid,
+                pe.employeeid,
+                pe.basicsalary,
+                pe.overtimeamount,
+                pe.bonusamount,
+                pe.grosssalary,
+                pe.taxamount,
+                pe.netsalary,
+                pe.currency,
+                pe.status,
+                pe.calculatedat,
+                pe.paidat,
+                CONCAT(e.firstname, ' ', e.lastname) as employeename,
+                e.employee_code as employeecode,
+                d.name as departmentname
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+            LEFT JOIN employee.departments d ON e.department_id = d.department_id
             WHERE pe.periodid = @periodId
             ORDER BY e.firstname, e.lastname
             LIMIT @pageSize OFFSET @offset";
@@ -688,16 +701,29 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         var whereClause = string.Join(" AND ", whereConditions);
         
         var sql = $@"
-            SELECT pe.entryid as entry_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
-                   pe.overtimeamount as overtime_amount, pe.bonusamount as bonus_amount, 
-                   pe.grosssalary as gross_salary, pe.taxamount as tax_amount, pe.netsalary as net_salary,
-                   pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
-                   CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code,
-                   d.departmentname as department_name
+            SELECT 
+                pe.entryid AS EntryId,
+                pe.periodid AS PeriodId,
+                pp.periodname AS PeriodName,
+                pe.employeeid AS EmployeeId,
+                pe.basicsalary AS BasicSalary, 
+                pe.overtimeamount AS OvertimeAmount, 
+                pe.bonusamount AS BonusAmount, 
+                pe.grosssalary AS GrossSalary, 
+                pe.taxamount AS TaxAmount, 
+                pe.netsalary AS NetSalary,
+                pe.currency AS Currency, 
+                pe.status AS Status, 
+                pe.calculatedat AS CalculatedAt, 
+                pe.paidat AS PaidAt,
+                CONCAT(e.firstname, ' ', e.lastname) AS EmployeeName, 
+                e.employeecode AS EmployeeCode,
+                d.departmentname AS DepartmentName
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
             INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
+            INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             WHERE {whereClause}
             ORDER BY e.firstname, e.lastname
             LIMIT @limit OFFSET @offset";
@@ -713,6 +739,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
             INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
+            INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             WHERE {whereClause}";
 
         var totalCount = await ExecuteScalarAsync<int>(countSql, parameters.Where(p => p.Key != "limit" && p.Key != "offset").ToDictionary(p => p.Key, p => p.Value));
