@@ -27,6 +27,8 @@ public class CreatePayrollPeriodRequest
 public class PayrollEntryDto
 {
     public Guid EntryId { get; set; }
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeCode { get; set; } = string.Empty;
