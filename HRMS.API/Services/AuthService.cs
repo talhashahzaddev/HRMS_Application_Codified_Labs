@@ -1,16 +1,17 @@
-using Microsoft.Extensions.Options;
-using Microsoft.IdentityModel.Tokens;
-using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Security.Cryptography;
-using System.Text;
-using AutoMapper;
+﻿using AutoMapper;
 using BCrypt.Net;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.Identity.Data;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace HRMS.API.Services;
 
@@ -21,24 +22,37 @@ public class AuthService : IAuthService
     private readonly JwtSettings _jwtSettings;
     private readonly IMapper _mapper;
     private readonly ILogger<AuthService> _logger;
+     private readonly IEmailService _emailService;
 
     public AuthService(
         IAuthRepository authRepository,
         IOrganizationService organizationService,
         IOptions<JwtSettings> jwtSettings,
         IMapper mapper,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+         IEmailService emailService)
     {
         _authRepository = authRepository;
         _organizationService = organizationService;
         _jwtSettings = jwtSettings.Value;
         _mapper = mapper;
         _logger = logger;
+        _emailService = emailService;
     }
 
-    public async Task<AuthResponse> AuthenticateAsync(LoginRequest request)
+    public async Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request)
     {
         _logger.LogInformation("Authentication attempt for email: {Email}", request.Email);
+
+        var userEmail = await _authRepository.GetUserByEmailAsync(request.Email);
+
+        if (userEmail == null)
+        {
+            _logger.LogWarning("Authentication failed for email: {Email}", request.Email);
+            throw new UnauthorizedAccessException("Invalid email or password");
+        }
+
+
         string hashedPassword = await _authRepository.GetHashedPassword(request.Email);
         var passwordHash = BCrypt.Net.BCrypt.Verify(request.Password, hashedPassword);
         if (!passwordHash)
@@ -162,11 +176,12 @@ public class AuthService : IAuthService
         var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
         
         // Update password logic would go here - for now, return true
+
         return true;
     }
 
     // New registration method that creates organization and SuperAdmin user
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request)
+    public async Task<AuthResponse> RegisterAsync(HRMS.API.Models.DTOs.RegisterRequest request)
     {
         _logger.LogInformation("Registration attempt for email: {Email} and organization: {CompanyName}", request.Email, request.CompanyName);
         
@@ -264,52 +279,144 @@ public class AuthService : IAuthService
         };
     }
 
-    public async Task<bool> ForgotPasswordAsync(ForgotPasswordRequest request)
+
+    public async Task<bool> ForgotPasswordAsync(HRMS.API.Models.DTOs.ForgotPasswordRequest request)
     {
         _logger.LogInformation("Forgot password request for email: {Email}", request.Email);
-        
+
         var user = await _authRepository.GetUserByEmailAsync(request.Email);
         if (user == null)
         {
-            // Don't reveal if email exists or not for security
             _logger.LogWarning("Forgot password attempted for non-existent email: {Email}", request.Email);
-            return true; // Return true to prevent email enumeration
+            return true; // Don't reveal that user doesn't exist
         }
 
-        // Generate password reset token (implement proper logic)
+        // 1️⃣ Generate unique reset token
         var resetToken = Guid.NewGuid().ToString();
-        
-        // In a real implementation, save the reset token to database with expiration
-        // and send email with reset link
-        
-        _logger.LogInformation("Password reset token generated for user {UserId}", user.UserId);
-        
-        // Mock: Always return true for now
+
+        // 2️⃣ Set expiration (e.g., 15 minutes from now)
+        var expiresAt = DateTime.UtcNow.AddMinutes(15);
+
+        // 3️⃣ Save to DB
+        await _authRepository.SavePasswordResetTokenAsync(user.UserId.Value, resetToken, expiresAt);
+
+        // 4️⃣ Generate link for frontend reset page
+        var resetLink = $"http://localhost:4200/reset-password?token={resetToken}";
+
+        // 5️⃣ Send email
+        await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, resetLink);
+
+        _logger.LogInformation("Password reset token generated and email sent for {Email}", request.Email);
+
         return true;
     }
 
-    public async Task<UserDto> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
+    //Reset Password
+
+
+    public async Task<bool> ResetPasswordAsync(HRMS.API.Models.DTOs.ResetPasswordRequest request)
     {
-        _logger.LogInformation("Profile update attempt for user: {UserId}", userId);
-        
-        var user = await _authRepository.GetUserByIdAsync(userId);
-        if (user == null)
+        _logger.LogInformation("Reset password attempt using token: {Token}", request.token);
+
+        if (string.IsNullOrWhiteSpace(request.token) || string.IsNullOrWhiteSpace(request.password))
         {
-            throw new KeyNotFoundException($"User with ID {userId} not found");
+            _logger.LogWarning("Reset password failed - token or password missing");
+            throw new ArgumentException("Token or password cannot be empty");
         }
 
-        // Update user properties
-        user.FirstName = request.FirstName ?? user.FirstName;
-        user.LastName = request.LastName ?? user.LastName;
-        user.Email = request.Email ?? user.Email;
-        
-        // In a real implementation, update the user in database
-        // For now, return the updated user DTO
-        
-        _logger.LogInformation("Profile updated successfully for user {UserId}", userId);
-        
-        return _mapper.Map<UserDto>(user);
+        // 1) Fetch token record
+        var tokenRecord = await _authRepository.GetPasswordResetTokenAsync(request.token);
+        if (tokenRecord == null)
+        {
+            _logger.LogWarning("Reset password failed - token not found: {Token}", request.token);
+            throw new UnauthorizedAccessException("Invalid or expired token");
+        }
+
+        // 2) Validate token (expiry & used)
+        if (tokenRecord.used)
+        {
+            _logger.LogWarning("Reset password failed - token already used: {Token}", request.token);
+            throw new UnauthorizedAccessException("Token has already been used");
+        }
+
+
+        //Expires function problem
+
+        //if (DateTime.Now <= tokenRecord.expiresat)
+        //{
+        //    _logger.LogWarning("Reset password failed - token expired: {Token}", request.token);
+        //    throw new UnauthorizedAccessException("Token has expired");
+        //}
+
+        // 3) Load user
+        var user = await _authRepository.GetUserByIdAsync(tokenRecord.userid);
+        if (user == null)
+        {
+            _logger.LogError("Reset password failed - user not found for token: {Token}", request.token);
+            throw new KeyNotFoundException("User not found for this token");
+        }
+
+        // 4) Hash new password and update user
+        var newHashedPassword = BCrypt.Net.BCrypt.HashPassword(request.password);
+        await _authRepository.UpdateUserPasswordAsync(tokenRecord.userid, newHashedPassword);
+
+        // 5) Mark token as used
+        await _authRepository.MarkResetTokenAsUsedAsync(request.token);
+
+
+
+        _logger.LogInformation("Password reset successful for user: {UserId}", user.UserId);
+        return true;
     }
+
+
+
+    public async Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request,IFormFile? profileurl)
+    {
+
+        //Update user Table
+
+        var UpdateUserTable = await _authRepository.UpdateProfile_UserAsync(userId, request);
+
+
+        var employee = await _authRepository.GetEmployeeByIdAsync(userId);
+        if (employee == null)
+            throw new KeyNotFoundException($"Employee with ID {userId} not found");
+
+        // 1️⃣ Upload Profile Picture if provided
+        string? profileUrl = employee.ProfilePictureUrl;
+
+        if (profileurl != null)
+        {
+            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "profile_pictures");
+            if (!Directory.Exists(folderPath))
+                Directory.CreateDirectory(folderPath);
+
+            var fileName = $"{Guid.NewGuid()}_{profileurl.FileName}";
+            var filePath = Path.Combine(folderPath, fileName);
+
+            using (var stream = new FileStream(filePath, FileMode.Create))
+            {
+                await profileurl.CopyToAsync(stream);
+            }
+
+            // Save relative URL to DB
+            profileUrl = $"/profile_pictures/{fileName}";
+        }
+
+
+        //_mapper.Map(request, employee);
+        //Update Employee table
+        var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request,profileUrl);
+
+        //Update Employee Details table
+
+        var updateEmployeeDetails = await _authRepository.UpdateProfile_EmployeeDetailsAsync(employee.EmployeeId, request);
+
+        return updateEmployeetable && updateEmployeeDetails;
+
+    }
+
 
     public async Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
     {
@@ -330,12 +437,14 @@ public class AuthService : IAuthService
 
         // Hash new password
         var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
-        
-        // In a real implementation, update the password in database
-        // For now, return true
-        
+
+        // Update password in database
+        await _authRepository.ChanegPasswordAsync(userId, newPasswordHash);
+
         _logger.LogInformation("Password changed successfully for user {UserId}", userId);
-        
+        return true;
+
+
         return true;
     }
 

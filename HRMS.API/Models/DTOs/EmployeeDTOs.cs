@@ -1,15 +1,22 @@
 namespace HRMS.API.Models.DTOs;
 
+
 public class EmployeeDto
 {
     public Guid EmployeeId { get; set; }
-    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeNumber { get; set; } = string.Empty;
+    public string ProfilePictureUrl { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public Dictionary<string, object> Address { get; set; } = new();
+    public Dictionary<string, object> emergencycontact { get; set; } = new();
+    public string gender { get; set; } = string.Empty;
+    public string nationality { get; set; } = string.Empty;
+    public string maritalstatus { get; set; } = string.Empty;
+    public string WorkLocation { get; set; } = string.Empty;
     public DateTime? DateOfBirth { get; set; }
     public DateTime HireDate { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -18,7 +25,14 @@ public class EmployeeDto
     public decimal? BasicSalary { get; set; }
     public string? ManagerName { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    public Guid? DepartmentId { get; set; }       // ? Added
+    public Guid? PositionId { get; set; }
 }
+
+
+
+
 
 public class EmployeeListItemDto
 {

@@ -1,9 +1,30 @@
+using DocumentFormat.OpenXml.Spreadsheet;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 
 namespace HRMS.API.Repositories.Interfaces;
 
 public interface IAuthRepository
 {
+
+    ////adding this line here
+    Task<bool> SavePasswordResetTokenAsync(Guid userId, string token, DateTime expiresAt);
+    Task<PasswordResetToken?> GetPasswordResetTokenAsync(string token);
+    Task<bool> UpdateUserPasswordAsync(Guid userId, string newPasswordHash);
+    Task<bool> MarkResetTokenAsUsedAsync(string token);
+    Task<bool> ChanegPasswordAsync(Guid userId,string newPasswordHash);
+
+    // Adding changes For Profile now
+    Task<Employee?> GetEmployeeByIdAsync(Guid userId);
+
+    Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request,string? profileUrl);
+    Task<bool> UpdateProfile_EmployeeDetailsAsync(Guid employeeId, UpdateProfileRequest request);
+
+    Task<bool> UpdateProfile_UserAsync(Guid userId, UpdateProfileRequest request);
+
+
+
+
     Task<User?> AuthenticateAsync(string email, string passwordHash);
     Task<User?> GetUserByIdAsync(Guid? userId);
     Task<User?> GetUserByEmailAsync(string email);
