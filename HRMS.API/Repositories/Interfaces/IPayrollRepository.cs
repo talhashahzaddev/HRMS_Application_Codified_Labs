@@ -8,7 +8,7 @@ public interface IPayrollRepository
     Task<PayrollPeriod> CreatePayrollPeriodAsync(Guid organizationId, string periodName, DateTime startDate, DateTime endDate, DateTime? payDate = null);
     Task<List<PayrollPeriodDto>> GetPayrollPeriodsAsync(Guid organizationId);
     Task<PayrollPeriod?> GetPayrollPeriodByIdAsync(Guid periodId);
-    Task<int> CalculatePayrollAsync(Guid periodId);
+    Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId);
     Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50);
     Task<PayrollEntry?> GetPayrollEntryAsync(Guid entryId);
     Task<bool> UpdatePayrollPeriodStatusAsync(Guid periodId, string status);

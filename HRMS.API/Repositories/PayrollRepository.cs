@@ -1,8 +1,9 @@
+using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
-using Dapper;
+using Newtonsoft.Json;
 using System.Data;
 
 namespace HRMS.API.Repositories;
@@ -357,8 +358,10 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         return await QuerySingleOrDefaultAsync<PayrollPeriod>(sql, new { periodId });
     }
 
-    public async Task<int> CalculatePayrollAsync(Guid periodId)
-    {
+    public async Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId)
+    {try
+        {
+
         // Get the payroll period to determine organization
         var period = await GetPayrollPeriodByIdAsync(periodId);
         if (period == null)
@@ -382,72 +385,90 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         
         foreach (var employee in employees)
         {
-            decimal basicSalary = employee.basicsalary;
-            decimal totalEarnings = basicSalary;
-            decimal totalDeductions = 0;
+            decimal basicSalary = (decimal)(employee.basicsalary ?? 0m);
+            decimal totalAllowances = 0m;
+            decimal totalDeductions = 0m;
             
-            // Get applicable salary components for this employee based on department and position
-            var componentsSql = @"
+            // Get applicable salary components. If a specific rule is selected, limit to that rule.
+            string componentsSql;
+            object componentsParams;
+
+            if (ruleId.HasValue)
+            {
+                componentsSql = @"
+                SELECT 
+                    sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
+                    sr.value_override
+                FROM payroll.salarycomponents sc
+                INNER JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
+                WHERE sc.organizationid = @OrganizationId
+                  AND sc.isactive = true
+                  AND sr.ruleid = @RuleId";
+                componentsParams = new { OrganizationId = organizationId, RuleId = ruleId.Value };
+            }
+            else
+            {
+                componentsSql = @"
                 SELECT 
                     sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
                     sr.value_override
                 FROM payroll.salarycomponents sc
                 LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
                 WHERE sc.organizationid = @OrganizationId
-                AND sc.isactive = true
-                AND (
-                    (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
-                    AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
-                )";
-                
-            var components = await QueryAsync<dynamic>(componentsSql, new { 
-                OrganizationId = organizationId,
-                DepartmentId = employee.departmentid,
-                PositionId = employee.positionid
-            });
+                  AND sc.isactive = true
+                  AND (
+                      (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
+                      AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
+                  )";
+                componentsParams = new { OrganizationId = organizationId, DepartmentId = employee.departmentid, PositionId = employee.positionid };
+            }
+
+            var components = await QueryAsync<dynamic>(componentsSql, componentsParams);
             
             // Calculate each component
             foreach (var component in components)
             {
-                decimal componentValue = 0;
-                
+                decimal componentValue = 0m;
+
                 // Use value_override if available, otherwise use the component's default value
                 decimal valueToUse = component.value_override != null ? (decimal)component.value_override : (decimal)component.value;
-                
+
                 // Calculate based on type
-                if (component.calculationtype.ToString().ToLower() == "percentage")
+                string calculationType = component.calculationtype?.ToString()?.ToLower() ?? "fixed";
+                if (calculationType == "percentage")
                 {
-                    componentValue = (basicSalary * valueToUse) / 100;
+                    componentValue = (basicSalary * valueToUse) / 100m;
                 }
                 else // fixed
                 {
                     componentValue = valueToUse;
                 }
-                
-                // Add to earnings or deductions based on component type
-                if (component.type.ToString().ToLower() == "earning")
+
+                // Apply based on component type: 'allowance' adds, 'deduction' subtracts
+                string compType = component.type?.ToString()?.ToLower() ?? string.Empty;
+                if (compType == "allowance")
                 {
-                    totalEarnings += componentValue;
+                    totalAllowances += componentValue;
                 }
-                else // deduction
+                else if (compType == "deduction")
                 {
                     totalDeductions += componentValue;
                 }
             }
-            
-            decimal grossSalary = totalEarnings;
+
+            decimal grossSalary = basicSalary + totalAllowances;
             decimal netSalary = grossSalary - totalDeductions;
             
             // Insert payroll entry
             var insertSql = @"
                 INSERT INTO payroll.payrollentries (
                     entryid, periodid, employeeid, basicsalary, 
-                    allowances, deductions, grosssalary, taxamount, 
+                    allowances, deductions, overtimeamount, bonusamount, grosssalary, taxamount, 
                     netsalary, status, calculatedat, createdat, updatedat
                 )
                 VALUES (
                     uuid_generate_v4(), @PeriodId, @EmployeeId, @BasicSalary,
-                    @Allowances, @Deductions, @GrossSalary, @TaxAmount,
+                    @Allowances::jsonb, @Deductions::jsonb, @OvertimeAmount, @BonusAmount, @GrossSalary, @TaxAmount,
                     @NetSalary, 'calculated', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                 )";
                 
@@ -455,10 +476,14 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 PeriodId = periodId,
                 EmployeeId = employee.employeeid,
                 BasicSalary = basicSalary,
-                Allowances = totalEarnings - basicSalary, // Additional earnings beyond basic salary
-                Deductions = totalDeductions,
+                // Store totals as jsonb numbers
+                Allowances = JsonConvert.SerializeObject(totalAllowances),
+                Deductions = JsonConvert.SerializeObject(totalDeductions),
+                OvertimeAmount = 0m,
+                BonusAmount = totalAllowances,
                 GrossSalary = grossSalary,
-                TaxAmount = 0, // Tax is included in deductions through components
+                // As requested: reflect deductions in TaxAmount
+                TaxAmount = totalDeductions,
                 NetSalary = netSalary
             });
             
@@ -466,6 +491,12 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         }
         
         return entriesCreated;
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+
     }
 
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50)
