@@ -15,8 +15,8 @@ public class Employee : BaseEntity
     
     [Column("user_id")]
     public Guid? UserId { get; set; }
-    
-    [Column("employee_code")]
+
+    [Column("employeecode")]
     public string EmployeeNumber { get; set; } = string.Empty;
     
     [Column("first_name")]
@@ -62,6 +62,15 @@ public class Employee : BaseEntity
     public string? ProfilePictureUrl { get; set; }
     [Column("departmentid")]
     public Guid? DepartmentId { get; set; }
+    [NotMapped]
+    [Column("positiontitle")]
+    public string? PositionTitle { get; set; }
+
+    [NotMapped]
+    [Column("departmentname")]
+    public string? DepartmentName { get; set; }
+
+
     [Column("positionid")]
     public Guid? PositionId { get; set; }
     [Column("basicsalary")]
@@ -69,9 +78,11 @@ public class Employee : BaseEntity
     
     [Column("work_location")]
     public string? WorkLocation { get; set; }
-    
+
     [Column("reporting_manager_id")]
     public Guid? ReportingManagerId { get; set; }
+
+    public string ReportingManagerName { get; set; }
 
     // Navigation properties
     [NotMapped]

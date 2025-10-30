@@ -13,15 +13,48 @@ public class EmailService : IEmailService
         _configuration = configuration;
     }
 
+
     public async Task<bool> SendEmailAsync(string to, string subject, string body, bool isHtml = true)
     {
-        // For demo purposes, just log the email instead of actually sending it
-        _logger.LogInformation("Email would be sent to: {To}, Subject: {Subject}", to, subject);
-        _logger.LogInformation("Email body: {Body}", body);
-        
-        // In a real implementation, you would use a service like SendGrid, AWS SES, etc.
-        await Task.Delay(100); // Simulate async operation
-        return true;
+
+        try
+        {
+            var smtpHost = _configuration["Email:SmtpHost"];
+            var smtpPort = int.Parse(_configuration["Email:SmtpPort"]);
+            var fromEmail = _configuration["Email:FromEmail"];
+            var fromName = _configuration["Email:FromName"];
+            var username = _configuration["Email:Username"];
+            var password = _configuration["Email:Password"];
+
+            using (var smtpClient = new System.Net.Mail.SmtpClient(smtpHost, smtpPort))
+            {
+                smtpClient.Credentials = new System.Net.NetworkCredential(username, password);
+                smtpClient.EnableSsl = true;
+
+                using (var message = new System.Net.Mail.MailMessage())
+                {
+                    message.From = new System.Net.Mail.MailAddress(fromEmail, fromName);
+                    message.To.Add(to);
+                    message.Subject = subject;
+                    message.Body = body;
+                    message.IsBodyHtml = isHtml;
+
+
+                    await smtpClient.SendMailAsync(message);
+                }
+
+
+            }
+
+            _logger.LogInformation("Email sent successfully to: {To}", to);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send email to: {To}", to);
+            return false;
+        }
+
     }
 
     public async Task<bool> SendWelcomeEmailAsync(string to, string firstName, string organizationName, string tempPassword)
@@ -55,7 +88,7 @@ public class EmailService : IEmailService
 
     public async Task<bool> SendPasswordResetEmailAsync(string to, string firstName, string resetLink)
     {
-        var subject = "Password Reset Request";
+        var subject = $"Password Reset Request - {Guid.NewGuid().ToString().Substring(0, 6)}"; // unique subject to avoid 
         var body = $@"
             <h2>Password Reset</h2>
             <p>Dear {firstName},</p>

@@ -16,7 +16,7 @@ public class User : BaseEntity
     [Column("email")]
     public string? Email { get; set; } 
     
-    [Column("password_hash")]
+    [Column("passwordhash")]
     public string? PasswordHash { get; set; }
     
     [Column("role_id")]

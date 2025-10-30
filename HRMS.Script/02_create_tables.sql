@@ -47,6 +47,27 @@ CREATE TABLE auth.Users (
     UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Table: auth.password_reset_tokens
+
+-- DROP TABLE IF EXISTS auth.password_reset_tokens;
+
+CREATE TABLE IF NOT EXISTS auth.password_reset_tokens
+(
+    tokenid uuid NOT NULL DEFAULT gen_random_uuid(),
+    userid uuid NOT NULL,
+    token text COLLATE pg_catalog."default" NOT NULL,
+    expiresat timestamp with time zone NOT NULL,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    used boolean DEFAULT false,
+    CONSTRAINT password_reset_tokens_pkey PRIMARY KEY (tokenid),
+    CONSTRAINT password_reset_tokens_userid_fkey FOREIGN KEY (userid)
+        REFERENCES auth.users (userid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+
+TABLESPACE pg_default;
+
 -- ==============================
 -- EMPLOYEE SCHEMA
 -- ==============================

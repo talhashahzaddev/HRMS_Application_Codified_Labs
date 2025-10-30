@@ -1,9 +1,14 @@
+using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using NPOI.SS.Formula.Functions;
 using System.Security.Claims;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Services.Interfaces;
-using HRMS.API.Models.Entities;
+
+using System.Text.Json;
+
+
 
 namespace HRMS.API.Controllers;
 
@@ -51,7 +56,8 @@ public class AuthController : ControllerBase
             return StatusCode(500, new ServiceResponse<AuthResponse>
             {
                 Success = false,
-                Message = "An error occurred during login"
+                Message = ex.Message
+
             });
         }
     }
@@ -208,6 +214,43 @@ public class AuthController : ControllerBase
         }
     }
 
+
+    [HttpPost("reset-password")]
+    public async Task<IActionResult> ResetPassword([FromBody]  ResetPasswordRequest request)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(request.token) || string.IsNullOrEmpty(request.password))
+                return BadRequest(new { message = "Token or password cannot be empty" });
+
+            var result = await _authService.ResetPasswordAsync(request);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Password reset  successfully",
+                Data = result
+            });
+
+
+
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Reset password failed for email: {Email}");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while  password reset request"
+            });
+
+        }
+
+    }
+
+
+
+
     [HttpPost("forgot-password")]
     public async Task<ActionResult<ServiceResponse<bool>>> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
@@ -234,18 +277,28 @@ public class AuthController : ControllerBase
 
     [HttpPut("profile")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<UserDto>>> UpdateProfile([FromBody] UpdateProfileRequest request)
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateProfile([FromForm] UpdateProfileRequest request,IFormFile? profileurl)
     {
         try
         {
+
+            // Manual deserialization of JSON strings into Dictionary
+            if (Request.Form.ContainsKey("Address"))
+                request.Address = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["Address"]);
+
+            if (Request.Form.ContainsKey("EmergencyContact"))
+                request.EmergencyContact = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["EmergencyContact"]);
+
+
+
             var userId = GetCurrentUserId();
-            var user = await _authService.UpdateProfileAsync(userId, request);
+            var user = await _authService.UpdateProfileAsync(userId, request,profileurl);
             
             return Ok(new ServiceResponse<UserDto>
             {
                 Success = true,
                 Message = "Profile updated successfully",
-                Data = user
+                //Data = user
             });
         }
         catch (KeyNotFoundException ex)

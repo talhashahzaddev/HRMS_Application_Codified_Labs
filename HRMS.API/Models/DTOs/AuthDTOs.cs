@@ -65,13 +65,57 @@ public class ForgotPasswordRequest
     public string Email { get; set; } = string.Empty;
 }
 
+//public class UpdateProfileRequest
+//{
+//    public string FirstName { get; set; } = string.Empty;
+//    public string LastName { get; set; } = string.Empty;
+//    public string? Email { get; set; }
+//    public string? Phone { get; set; }
+//}
+
+
 public class UpdateProfileRequest
 {
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
+    public string? EmployeeNumber { get; set; }
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
     public string? Email { get; set; }
     public string? Phone { get; set; }
+    public Dictionary<string, object> Address { get; set; } = new();
+    public DateTime? DateOfBirth { get; set; }
+    public DateTime? HireDate { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public Guid? PositionId { get; set; }
+    public decimal? BasicSalary { get; set; }
+    public Guid? ReportingManagerId { get; set; }
+    public string? WorkLocation { get; set; }
+    public string? Gender { get; set; }
+    public string? MaritalStatus { get; set; }
+    public string? Nationality { get; set; }
+    public Dictionary<string, object> EmergencyContact { get; set; } = new();
+    public Guid? roleId { get; set; }
+
+    public IFormFile? ProfilePicture { get; set; }
 }
+
+
+public class ResetPasswordRequest
+{
+    public string password { get; set; } = string.Empty;
+    public string token { get; set; } = string.Empty;
+}
+
+public class PasswordResetToken
+{
+    public Guid tokenid { get; set; }
+    public Guid userid { get; set; }
+    public string token { get; set; } = string.Empty;
+    public DateTime expiresat { get; set; }
+    public DateTime createdat { get; set; }
+    public bool used { get; set; }
+}
+
+
 
 public class ChangePasswordRequest
 {
