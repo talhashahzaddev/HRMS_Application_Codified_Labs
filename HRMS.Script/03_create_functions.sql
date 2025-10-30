@@ -613,27 +613,48 @@ $$ LANGUAGE plpgsql;
 -- Function: Create Payroll Period
 -- ============================
 CREATE OR REPLACE FUNCTION payroll.fn_create_payroll_period(
-    p_organization_id UUID,
-    p_period_name VARCHAR(100),
-    p_start_date DATE,
-    p_end_date DATE,
-    p_pay_date DATE DEFAULT NULL
+    p_organization_id uuid,
+    p_period_name character varying,
+    p_start_date date,
+    p_end_date date,
+    p_pay_date date DEFAULT NULL::date
 )
-RETURNS UUID AS $$
+RETURNS uuid
+LANGUAGE plpgsql
+AS $$
 DECLARE
     new_period_id UUID;
+    employees_count INTEGER;
+    total_gross NUMERIC;
 BEGIN
+    -- Count active employees
+    SELECT COUNT(*) INTO employees_count
+    FROM employee.employees
+    WHERE organizationid = p_organization_id AND status = 'active';
+
+    -- Sum basic salaries of active employees
+    SELECT COALESCE(SUM(ed.basicsalary), 0) INTO total_gross
+    FROM employee.employees e
+    JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+    WHERE e.organizationid = p_organization_id AND e.status = 'active';
+
+    -- Insert payroll period
     INSERT INTO payroll.payrollPeriods (
-        organizationId, periodName, startDate, endDate, payDate
+        organizationId, periodName, startDate, endDate, payDate,
+        totalEmployees, totalGrossAmount
     )
     VALUES (
-        p_organization_id, p_period_name, p_start_date, p_end_date, p_pay_date
+        p_organization_id, p_period_name, p_start_date, p_end_date, p_pay_date,
+        employees_count, total_gross
     )
     RETURNING periodId INTO new_period_id;
-    
+
     RETURN new_period_id;
 END;
-$$ LANGUAGE plpgsql;
+$$;
+
+ALTER FUNCTION payroll.fn_create_payroll_period(uuid, character varying, date, date, date)
+    OWNER TO postgres;
 
 -- ============================
 -- Function: Calculate Payroll
