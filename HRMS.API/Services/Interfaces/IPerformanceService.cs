@@ -54,6 +54,10 @@ public interface IPerformanceService
 
     Task<bool> GoalAsCompletedAsync(Guid goalId);
 
-
+    Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request);
+    Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId);
+    Task<string> SubmitSelfAssessmentAsync(Guid employeeId, Guid cycleId);
+    Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId);
+    Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request);
 
 }

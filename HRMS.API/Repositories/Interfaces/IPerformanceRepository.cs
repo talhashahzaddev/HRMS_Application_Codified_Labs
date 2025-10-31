@@ -33,7 +33,10 @@ public interface IPerformanceRepository
 
     Task<KRADto> UpdatekraAsync(Guid kraId, UpdateKRARequest request);
     Task<bool> UpdateKRAStatusAsync(Guid kraId, bool isActive);
-
-
+    Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request);
+    Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId);
+    Task UpdateSelfAssessmentStatusAsync(Guid employeeId, Guid cycleId, string status);
+    Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId);
+    Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request);
 
 }

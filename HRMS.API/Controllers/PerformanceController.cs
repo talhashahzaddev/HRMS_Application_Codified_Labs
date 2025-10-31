@@ -545,6 +545,158 @@ public class PerformanceController : ControllerBase
         }
     }
 
+    [HttpPost("SelfAssessment")]
+    [Authorize(Roles = "Employee,Manager,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SelfAssessmentDto>>> CreateSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
+    {
+        try
+        {
+            if (request == null)
+                return BadRequest("Invalid self-assessment data");
+
+            var result = await _performanceService.CreateSelfAssessmentAsync(request);
+
+            return Ok(new ServiceResponse<SelfAssessmentDto>
+            {
+                Success = true,
+                Data = result,
+                Message = "Self-assessment saved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving self-assessment");
+            return StatusCode(500, new ServiceResponse<SelfAssessmentDto>
+            {
+                Success = false,
+                Message = "An error occurred while saving self-assessment"
+            });
+        }
+    }
+
+    [HttpGet("SelfAssessment/{employeeId}/{cycleId}")]
+    [Authorize(Roles = "Employee,Manager,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetSelfAssessment(Guid employeeId, Guid cycleId)
+    {
+        try
+        {
+            var assessments = await _performanceService.GetSelfAssessmentsAsync(employeeId, cycleId);
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = assessments
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching self-assessment");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching self-assessment"
+            });
+        }
+    }
+
+    [HttpPost("SelfAssessment/Submit")]
+    [Authorize(Roles = "Employee")]
+    public async Task<ActionResult<ServiceResponse<string>>> SubmitSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
+    {
+        try
+        {
+            var result = await _performanceService.SubmitSelfAssessmentAsync(request.EmployeeId, request.CycleId);
+
+            return Ok(new ServiceResponse<string>
+            {
+                Success = true,
+                Message = "Self-assessment submitted successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error submitting self-assessment");
+            return StatusCode(500, new ServiceResponse<string>
+            {
+                Success = false,
+                Message = "An error occurred while submitting self-assessment"
+            });
+        }
+    }
+
+    [HttpGet("Manager/Self-Assessments/{managerId}/{cycleId}")]
+    [Authorize(Roles = "Manager,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetTeamSelfAssessments(Guid managerId, Guid cycleId)
+    {
+        try
+        {
+            var data = await _performanceService.GetTeamSelfAssessmentsAsync(managerId, cycleId);
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = data
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching team self-assessments");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching team self-assessments"
+            });
+        }
+    }
+
+    [HttpGet("Manager/Self-Assessment/{employeeId}/{cycleId}")]
+    [Authorize(Roles = "Manager,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetEmployeeSelfAssessment(Guid employeeId, Guid cycleId)
+    {
+        try
+        {
+            var data = await _performanceService.GetSelfAssessmentsAsync(employeeId, cycleId);
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = data
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employee self-assessment");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee self-assessment"
+            });
+        }
+    }
+
+    [HttpPost("Manager/Review")]
+    [Authorize(Roles = "Manager,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<ManagerReviewDto>>> SubmitManagerReview([FromBody] ManagerReviewRequest request)
+    {
+        try
+        {
+            var result = await _performanceService.SubmitManagerReviewAsync(request);
+            return Ok(new ServiceResponse<ManagerReviewDto>
+            {
+                Success = true,
+                Data = result,
+                Message = "Manager review submitted successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error submitting manager review");
+            return StatusCode(500, new ServiceResponse<ManagerReviewDto>
+            {
+                Success = false,
+                Message = "An error occurred while submitting manager review"
+            });
+        }
+    }
+
     private Guid GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
