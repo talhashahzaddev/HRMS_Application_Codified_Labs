@@ -359,144 +359,193 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     }
 
     public async Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId)
-    {try
+    {
+        try
         {
-
-        // Get the payroll period to determine organization
-        var period = await GetPayrollPeriodByIdAsync(periodId);
-        if (period == null)
-        {
-            throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
-        }
-        
-        var organizationId = period.OrganizationId;
-        
-        // Get all employees eligible for this payroll period
-        var employeesSql = @"
-            SELECT e.employeeid, e.organizationid, ed.departmentid, ed.positionid, ed.basicsalary
-            FROM employee.employees e
-            JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
-            WHERE e.organizationid = @OrganizationId
-            AND e.status = 'active'";
+            // Get the payroll period to determine organization
+            var period = await GetPayrollPeriodByIdAsync(periodId);
+            if (period == null)
+            {
+                throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
+            }
             
-        var employees = await QueryAsync<dynamic>(employeesSql, new { OrganizationId = organizationId });
-        
-        int entriesCreated = 0;
-        
-        foreach (var employee in employees)
-        {
-            decimal basicSalary = (decimal)(employee.basicsalary ?? 0m);
-            decimal totalAllowances = 0m;
-            decimal totalDeductions = 0m;
+            var organizationId = period.OrganizationId;
             
-            // Get applicable salary components. If a specific rule is selected, limit to that rule.
-            string componentsSql;
-            object componentsParams;
-
+            // If a rule is provided, fetch its details to get department and position filters
+            Guid? ruleDepartmentId = null;
+            Guid? rulePositionId = null;
+            
             if (ruleId.HasValue)
             {
-                componentsSql = @"
-                SELECT 
-                    sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
-                    sr.value_override
-                FROM payroll.salarycomponents sc
-                INNER JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
-                WHERE sc.organizationid = @OrganizationId
-                  AND sc.isactive = true
-                  AND sr.ruleid = @RuleId";
-                componentsParams = new { OrganizationId = organizationId, RuleId = ruleId.Value };
+                var rule = await GetSalaryRuleByIdAsync(ruleId.Value);
+                if (rule == null)
+                {
+                    throw new KeyNotFoundException($"Salary rule with ID {ruleId.Value} not found");
+                }
+                
+                ruleDepartmentId = rule.DepartmentId;
+                rulePositionId = rule.PositionId;
+            }
+            
+            // Build employee query with filters based on rule criteria
+            var employeesSql = @"
+                SELECT e.employeeid, e.organizationid, ed.departmentid, ed.positionid, ed.basicsalary
+                FROM employee.employees e
+                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+                WHERE e.organizationid = @OrganizationId
+                AND e.status = 'active'";
+            
+            object employeesParams;
+            
+            // Add department and position filters if rule is provided
+            if (ruleId.HasValue)
+            {
+                if (ruleDepartmentId.HasValue && rulePositionId.HasValue)
+                {
+                    // Rule has both department and position - filter by both
+                    employeesSql += @" AND ed.departmentid = @DepartmentId AND ed.positionid = @PositionId";
+                    employeesParams = new { OrganizationId = organizationId, DepartmentId = ruleDepartmentId.Value, PositionId = rulePositionId.Value };
+                }
+                else if (ruleDepartmentId.HasValue)
+                {
+                    // Rule has only department - filter by department only
+                    employeesSql += @" AND ed.departmentid = @DepartmentId";
+                    employeesParams = new { OrganizationId = organizationId, DepartmentId = ruleDepartmentId.Value };
+                }
+                else if (rulePositionId.HasValue)
+                {
+                    // Rule has only position - filter by position only
+                    employeesSql += @" AND ed.positionid = @PositionId";
+                    employeesParams = new { OrganizationId = organizationId, PositionId = rulePositionId.Value };
+                }
+                else
+                {
+                    // If rule has neither department nor position, apply to all employees
+                    employeesParams = new { OrganizationId = organizationId };
+                }
             }
             else
             {
-                componentsSql = @"
-                SELECT 
-                    sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
-                    sr.value_override
-                FROM payroll.salarycomponents sc
-                LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
-                WHERE sc.organizationid = @OrganizationId
-                  AND sc.isactive = true
-                  AND (
-                      (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
-                      AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
-                  )";
-                componentsParams = new { OrganizationId = organizationId, DepartmentId = employee.departmentid, PositionId = employee.positionid };
+                employeesParams = new { OrganizationId = organizationId };
             }
-
-            var components = await QueryAsync<dynamic>(componentsSql, componentsParams);
             
-            // Calculate each component
-            foreach (var component in components)
+            var employees = await QueryAsync<dynamic>(employeesSql, employeesParams);
+            
+            int entriesCreated = 0;
+            
+            foreach (var employee in employees)
             {
-                decimal componentValue = 0m;
-
-                // Use value_override if available, otherwise use the component's default value
-                decimal valueToUse = component.value_override != null ? (decimal)component.value_override : (decimal)component.value;
-
-                // Calculate based on type
-                string calculationType = component.calculationtype?.ToString()?.ToLower() ?? "fixed";
-                if (calculationType == "percentage")
-                {
-                    componentValue = (basicSalary * valueToUse) / 100m;
-                }
-                else // fixed
-                {
-                    componentValue = valueToUse;
-                }
-
-                // Apply based on component type: 'allowance' adds, 'deduction' subtracts
-                string compType = component.type?.ToString()?.ToLower() ?? string.Empty;
-                if (compType == "allowance")
-                {
-                    totalAllowances += componentValue;
-                }
-                else if (compType == "deduction")
-                {
-                    totalDeductions += componentValue;
-                }
-            }
-
-            decimal grossSalary = basicSalary + totalAllowances;
-            decimal netSalary = grossSalary - totalDeductions;
-            
-            // Insert payroll entry
-            var insertSql = @"
-                INSERT INTO payroll.payrollentries (
-                    entryid, periodid, employeeid, basicsalary, 
-                    allowances, deductions, overtimeamount, bonusamount, grosssalary, taxamount, 
-                    netsalary, status, calculatedat, createdat, updatedat
-                )
-                VALUES (
-                    uuid_generate_v4(), @PeriodId, @EmployeeId, @BasicSalary,
-                    @Allowances::jsonb, @Deductions::jsonb, @OvertimeAmount, @BonusAmount, @GrossSalary, @TaxAmount,
-                    @NetSalary, 'calculated', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-                )";
+                decimal basicSalary = (decimal)(employee.basicsalary ?? 0m);
+                decimal totalAllowances = 0m;
+                decimal totalDeductions = 0m;
                 
-            await ExecuteAsync(insertSql, new {
-                PeriodId = periodId,
-                EmployeeId = employee.employeeid,
-                BasicSalary = basicSalary,
-                // Store totals as jsonb numbers
-                Allowances = JsonConvert.SerializeObject(totalAllowances),
-                Deductions = JsonConvert.SerializeObject(totalDeductions),
-                OvertimeAmount = 0m,
-                BonusAmount = totalAllowances,
-                GrossSalary = grossSalary,
-                // As requested: reflect deductions in TaxAmount
-                TaxAmount = totalDeductions,
-                NetSalary = netSalary
-            });
+                // Get applicable salary components. If a specific rule is selected, limit to that rule.
+                string componentsSql;
+                object componentsParams;
+
+                if (ruleId.HasValue)
+                {
+                    componentsSql = @"
+                        SELECT 
+                            sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
+                            sr.value_override
+                        FROM payroll.salarycomponents sc
+                        INNER JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
+                        WHERE sc.organizationid = @OrganizationId
+                          AND sc.isactive = true
+                          AND sr.ruleid = @RuleId";
+                    componentsParams = new { OrganizationId = organizationId, RuleId = ruleId.Value };
+                }
+                else
+                {
+                    componentsSql = @"
+                        SELECT 
+                            sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
+                            sr.value_override
+                        FROM payroll.salarycomponents sc
+                        LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
+                        WHERE sc.organizationid = @OrganizationId
+                          AND sc.isactive = true
+                          AND (
+                              (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
+                              AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
+                          )";
+                    componentsParams = new { OrganizationId = organizationId, DepartmentId = employee.departmentid, PositionId = employee.positionid };
+                }
+
+                var components = await QueryAsync<dynamic>(componentsSql, componentsParams);
+                
+                // Calculate each component
+                foreach (var component in components)
+                {
+                    decimal componentValue = 0m;
+
+                    // Use value_override if available, otherwise use the component's default value
+                    decimal valueToUse = component.value_override != null ? (decimal)component.value_override : (decimal)component.value;
+
+                    // Calculate based on type
+                    string calculationType = component.calculationtype?.ToString()?.ToLower() ?? "fixed";
+                    if (calculationType == "percentage")
+                    {
+                        componentValue = (basicSalary * valueToUse) / 100m;
+                    }
+                    else // fixed
+                    {
+                        componentValue = valueToUse;
+                    }
+
+                    // Apply based on component type: 'allowance' adds, 'deduction' subtracts
+                    string compType = component.type?.ToString()?.ToLower() ?? string.Empty;
+                    if (compType == "allowance")
+                    {
+                        totalAllowances += componentValue;
+                    }
+                    else if (compType == "deduction")
+                    {
+                        totalDeductions += componentValue;
+                    }
+                }
+
+                decimal grossSalary = basicSalary + totalAllowances;
+                decimal netSalary = grossSalary - totalDeductions;
+                
+                // Insert payroll entry
+                var insertSql = @"
+                    INSERT INTO payroll.payrollentries (
+                        entryid, periodid, employeeid, basicsalary, 
+                        allowances, deductions, overtimeamount, bonusamount, grosssalary, taxamount, 
+                        netsalary, status, calculatedat, createdat, updatedat
+                    )
+                    VALUES (
+                        uuid_generate_v4(), @PeriodId, @EmployeeId, @BasicSalary,
+                        @Allowances::jsonb, @Deductions::jsonb, @OvertimeAmount, @BonusAmount, @GrossSalary, @TaxAmount,
+                        @NetSalary, 'calculated', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+                    )";
+                    
+                await ExecuteAsync(insertSql, new {
+                    PeriodId = periodId,
+                    EmployeeId = employee.employeeid,
+                    BasicSalary = basicSalary,
+                    // Store totals as jsonb numbers
+                    Allowances = JsonConvert.SerializeObject(totalAllowances),
+                    Deductions = JsonConvert.SerializeObject(totalDeductions),
+                    OvertimeAmount = 0m,
+                    BonusAmount = totalAllowances,
+                    GrossSalary = grossSalary,
+                    // As requested: reflect deductions in TaxAmount
+                    TaxAmount = totalDeductions,
+                    NetSalary = netSalary
+                });
+                
+                entriesCreated++;
+            }
             
-            entriesCreated++;
-        }
-        
-        return entriesCreated;
+            return entriesCreated;
         }
         catch (Exception ex)
         {
             throw;
         }
-
     }
 
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50)
@@ -718,11 +767,13 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 pe.paidat AS PaidAt,
                 CONCAT(e.firstname, ' ', e.lastname) AS EmployeeName, 
                 e.employeecode AS EmployeeCode,
-                d.departmentname AS DepartmentName
+                d.departmentname AS DepartmentName,
+                p.positiontitle AS PositionTitle
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-            INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
+            LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+            LEFT JOIN employee.positions p ON ed.positionid = p.positionid
             INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             WHERE {whereClause}
             ORDER BY e.firstname, e.lastname
