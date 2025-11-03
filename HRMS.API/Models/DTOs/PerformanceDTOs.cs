@@ -281,3 +281,58 @@ public class DepartmentPerformanceDto
     public int CompletedAppraisals { get; set; }
     public int PendingAppraisals { get; set; }
 }
+
+public class CreateSelfAssessmentRequest
+{
+    public Guid EmployeeId { get; set; }
+    public Guid CycleId { get; set; }
+    public Guid? KraId { get; set; }    
+    public Guid? SkillId { get; set; }
+    public decimal Rating { get; set; }
+    public string? Comments { get; set; }
+    public List<string>? EvidenceUrls { get; set; }
+    public string Status { get; set; } = "draft";  // draft | submitted
+}
+
+public class SelfAssessmentDto
+{
+    public Guid SelfAssessmentId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid CycleId { get; set; }
+    public Guid? KraId { get; set; }
+    public Guid? SkillId { get; set; }
+    public decimal Rating { get; set; }
+    public string? Comments { get; set; }
+    public List<string>? EvidenceUrls { get; set; }
+    public string Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class ManagerReviewRequest
+{
+    public Guid ManagerId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid CycleId { get; set; }
+    public decimal OverallRating { get; set; }
+    public string? Feedback { get; set; }
+    public string? ImprovementAreas { get; set; }
+    public string? DevelopmentPlan { get; set; }
+    public Dictionary<Guid, decimal>? KraRatings { get; set; } // KRA ID -> rating
+    public Dictionary<Guid, decimal>? SkillRatings { get; set; } // Skill ID -> rating
+}
+
+public class ManagerReviewDto
+{
+    public Guid ReviewId { get; set; }
+    public Guid ManagerId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid CycleId { get; set; }
+    public decimal OverallRating { get; set; }
+    public string? Feedback { get; set; }
+    public string? ImprovementAreas { get; set; }
+    public string? DevelopmentPlan { get; set; }
+    public string Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}

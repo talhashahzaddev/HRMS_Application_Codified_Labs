@@ -767,7 +767,54 @@ ORDER BY s.category, s.skillname;
         return rowsAffected > 0;
     }
 
+    public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request)
+    {
+        var sql = @"
+        INSERT INTO performance.SelfAssessments
+        (employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat)
+        VALUES
+        (@EmployeeId, @CycleId, @KraId, @SkillId, @Rating, @Comments, @EvidenceUrls::jsonb, @Status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING selfassessmentid, employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat;
+    ";
 
+        return await QuerySingleOrDefaultAsync<SelfAssessmentDto>(sql, request);
+    }
 
+    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
+    {
+        var sql = @"SELECT * FROM performance.SelfAssessments WHERE employeeid = @EmployeeId AND cycleid = @CycleId";
+        return await QueryAsync<SelfAssessmentDto>(sql, new { EmployeeId = employeeId, CycleId = cycleId });
+    }
 
+    public async Task UpdateSelfAssessmentStatusAsync(Guid employeeId, Guid cycleId, string status)
+    {
+        var sql = @"UPDATE performance.SelfAssessments
+                SET status = @Status, updatedat = CURRENT_TIMESTAMP, submittedat = CURRENT_TIMESTAMP
+                WHERE employeeid = @EmployeeId AND cycleid = @CycleId";
+        await ExecuteAsync(sql, new { EmployeeId = employeeId, CycleId = cycleId, Status = status });
+    }
+
+    public async Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId)
+    {
+        var sql = @"
+        SELECT sa.*
+        FROM performance.SelfAssessments sa
+        INNER JOIN employees e ON sa.employeeid = e.employeeid
+        WHERE e.managerid = @ManagerId AND sa.cycleid = @CycleId;
+    ";
+        return await QueryAsync<SelfAssessmentDto>(sql, new { ManagerId = managerId, CycleId = cycleId });
+    }
+
+    public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
+    {
+        var sql = @"
+        INSERT INTO performance.ManagerReviews
+        (managerid, employeeid, cycleid, overallrating, feedback, improvementareas, developmentplan, createdat, updatedat)
+        VALUES
+        (@ManagerId, @EmployeeId, @CycleId, @OverallRating, @Feedback, @ImprovementAreas, @DevelopmentPlan, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        RETURNING reviewid, managerid, employeeid, cycleid, overallrating, feedback, improvementareas, developmentplan, 'submitted' as status, createdat, updatedat;
+    ";
+
+        return await QuerySingleOrDefaultAsync<ManagerReviewDto>(sql, request);
+    }
 }
