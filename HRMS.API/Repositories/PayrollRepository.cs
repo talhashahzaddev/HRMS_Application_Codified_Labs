@@ -403,21 +403,27 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 decimal totalDeductions = 0;
                 
                 // Get applicable salary components/rules for this employee
-                var componentsSql = @"
-                    SELECT 
-                        sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
-                        sr.value_override, sr.ruleid
-                    FROM payroll.salarycomponents sc
-                    LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
-                    WHERE sc.organizationid = @OrganizationId
-                    AND sc.isactive = true";
-                
+                string componentsSql;
                 object componentParams;
                 
                 // Filter by specific rule if provided
                 if (ruleId.HasValue)
                 {
-                    componentsSql += " AND sr.ruleid = @RuleId";
+                    // When a specific rule is selected, use INNER JOIN to ensure we get the rule's component
+                    componentsSql = @"
+                        SELECT 
+                            sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
+                            sr.value_override, sr.ruleid
+                        FROM payroll.salaryrules sr
+                        INNER JOIN payroll.salarycomponents sc ON sr.componentid = sc.componentid
+                        WHERE sr.ruleid = @RuleId
+                        AND sc.organizationid = @OrganizationId
+                        AND sc.isactive = true
+                        AND (
+                            (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
+                            AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
+                        )";
+                    
                     componentParams = new 
                     { 
                         OrganizationId = organizationId,
@@ -428,6 +434,20 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 }
                 else
                 {
+                    // When no specific rule, get all applicable components for the employee
+                    componentsSql = @"
+                        SELECT 
+                            sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
+                            sr.value_override, sr.ruleid
+                        FROM payroll.salarycomponents sc
+                        LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
+                        WHERE sc.organizationid = @OrganizationId
+                        AND sc.isactive = true
+                        AND (
+                            (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
+                            AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
+                        )";
+                    
                     componentParams = new 
                     { 
                         OrganizationId = organizationId,
@@ -436,14 +456,11 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                     };
                 }
                 
-                // Match by department and position
-                componentsSql += @"
-                    AND (
-                        (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
-                        AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
-                    )";
-                
                 var components = await QueryAsync<dynamic>(componentsSql, componentParams);
+                
+                // Track individual allowances and deductions for proper storage
+                var allowancesDict = new Dictionary<string, object>();
+                var deductionsDict = new Dictionary<string, object>();
                 
                 // Calculate each component
                 foreach (var component in components)
@@ -463,18 +480,25 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                         componentValue = valueToUse;
                     }
                     
+                    string componentName = component.name?.ToString() ?? "Unknown";
+                    string componentType = component.type?.ToString()?.ToLower() ?? "";
+                    
                     // Add to earnings or deductions based on component type
-                    if (component.type.ToString().ToLower() == "earning")
+                    // Check for both "allowance" (from frontend) and "earning" (legacy/alternative naming)
+                    if (componentType == "earning" || componentType == "allowance")
                     {
                         totalEarnings += componentValue;
+                        allowancesDict[componentName] = componentValue;
                     }
                     else // deduction
                     {
                         totalDeductions += componentValue;
+                        deductionsDict[componentName] = componentValue;
                     }
                 }
                 
                 // Calculate tax if includeTax is true
+                // IMPORTANT: Tax is calculated on totalEarnings (basic salary + allowances)
                 decimal taxAmount = 0;
                 if (includeTax)
                 {
@@ -498,13 +522,19 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                         @Allowances::jsonb, @Deductions::jsonb, @GrossSalary, @TaxAmount,
                         @NetSalary, 'calculated', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )";
-                    
+                if (deductionsDict == null || deductionsDict.Count == 0)
+                {
+                    if (taxAmount != 0)
+                    {
+                        deductionsDict["Tax"] = taxAmount;
+                    }
+                }
                 await ExecuteAsync(insertSql, new {
                     PeriodId = periodId,
                     EmployeeId = employee.employeeid,
                     BasicSalary = basicSalary,
-                    Allowances = JsonConvert.SerializeObject(totalEarnings - basicSalary), // Additional earnings beyond basic salary
-                    Deductions = JsonConvert.SerializeObject(totalDeductions - taxAmount), // Deductions excluding tax (tax is separate)
+                    Allowances = JsonConvert.SerializeObject(allowancesDict), // Dictionary with component names and values
+                    Deductions = JsonConvert.SerializeObject(deductionsDict), // Dictionary with deduction names and values (excluding tax)
                     GrossSalary = grossSalary,
                     TaxAmount = taxAmount,
                     NetSalary = netSalary
@@ -711,6 +741,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         
         var sql = $@"
             SELECT pe.entryid as entry_id, pe.periodid as period_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
+                   pe.allowances::text as allowances, pe.deductions::text as deductions, 
                    pe.overtimeamount as overtime_amount, pe.bonusamount as bonus_amount, 
                    pe.grosssalary as gross_salary, pe.taxamount as tax_amount, pe.netsalary as net_salary,
                    pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
@@ -728,7 +759,14 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         parameters.Add("limit", limit);
         parameters.Add("offset", (page - 1) * limit);
 
-        var results = await QueryAsync<PayrollEntryDto>(sql, parameters);
+        var results = await QueryAsync<dynamic>(sql, parameters);
+        
+        // Manually map to ensure JSONB columns are properly deserialized
+        var mappedResults = new List<PayrollEntryDto>();
+        foreach (var r in results)
+        {
+            mappedResults.Add(MapPayrollEntryDto(r));
+        }
 
         var countSql = $@"
             SELECT COUNT(*)
@@ -742,7 +780,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
 
         return new PagedResult<PayrollEntryDto>
         {
-            Data = results.ToList(),
+            Data = mappedResults,
             TotalCount = totalCount,
             Page = page,
             PageSize = limit
@@ -758,6 +796,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     {
         var sql = @"
             SELECT pe.entryid as entry_id, pe.periodid as period_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
+                   pe.allowances::text as allowances, pe.deductions::text as deductions, 
                    pe.overtimeamount as overtime_amount, pe.bonusamount as bonus_amount, 
                    pe.grosssalary as gross_salary, pe.taxamount as tax_amount, pe.netsalary as net_salary,
                    pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
@@ -773,19 +812,26 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             ORDER BY pp.startdate DESC
             LIMIT @limit OFFSET @offset";
 
-        var results = await QueryAsync<PayrollEntryDto>(sql, new 
+        var results = await QueryAsync<dynamic>(sql, new 
         { 
             employeeId, 
             limit, 
             offset = (page - 1) * limit 
         });
+        
+        // Manually map to ensure JSONB columns are properly deserialized
+        var mappedResults = new List<PayrollEntryDto>();
+        foreach (var r in results)
+        {
+            mappedResults.Add(MapPayrollEntryDto(r));
+        }
 
         var countSql = "SELECT COUNT(*) FROM payroll.payrollentries WHERE employeeid = @employeeId";
         var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId });
 
         return new PagedResult<PayrollEntryDto>
         {
-            Data = results.ToList(),
+            Data = mappedResults,
             TotalCount = totalCount,
             Page = page,
             PageSize = limit
@@ -796,9 +842,9 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     {
         var sql = @"
             SELECT pe.entryid as entry_id, pe.periodid as period_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
-                   pe.allowances, pe.deductions, pe.overtimeamount as overtime_amount, 
-                   pe.bonusamount as bonus_amount, pe.grosssalary as gross_salary, 
-                   pe.taxamount as tax_amount, pe.netsalary as net_salary,
+                   pe.allowances::text as allowances, pe.deductions::text as deductions, 
+                   pe.overtimeamount as overtime_amount, pe.bonusamount as bonus_amount, 
+                   pe.grosssalary as gross_salary, pe.taxamount as tax_amount, pe.netsalary as net_salary,
                    pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
                    CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code,
                    d.departmentname as department_name, pp.periodname as period_name
@@ -809,7 +855,9 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             LEFT JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             WHERE pe.entryid = @entryId";
 
-        return await QuerySingleOrDefaultAsync<PayrollEntryDto>(sql, new { entryId });
+        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { entryId });
+        if (result == null) return null;
+        return MapPayrollEntryDto(result);
     }
 
     public async Task<PayrollEntry> ApprovePayrollEntryAsync(Guid entryId)
@@ -1201,5 +1249,79 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         {
             throw;
         }
+    }
+
+    private PayrollEntryDto MapPayrollEntryDto(dynamic r)
+    {
+        // Deserialize JSONB columns (allowances and deductions)
+        Dictionary<string, object> allowances = new();
+        Dictionary<string, object> deductions = new();
+
+        try
+        {
+            if (r.allowances != null && !Convert.IsDBNull(r.allowances))
+            {
+                string raw = r.allowances.ToString();
+
+                if (!string.IsNullOrWhiteSpace(raw) && raw.TrimStart().StartsWith("{"))
+                {
+                    allowances = JsonConvert.DeserializeObject<Dictionary<string, object>>(raw) ?? new();
+                }
+                else
+                {
+                    // fallback: wrap primitive value into a dictionary
+                    allowances = new Dictionary<string, object> { { "value", raw } };
+                }
+            }
+        }
+        catch
+        {
+            allowances = new();
+        }
+
+        try
+        {
+            if (r.deductions != null && !Convert.IsDBNull(r.deductions))
+            {
+                string raw = r.deductions.ToString();
+
+                if (!string.IsNullOrWhiteSpace(raw) && raw.TrimStart().StartsWith("{"))
+                {
+                    deductions = JsonConvert.DeserializeObject<Dictionary<string, object>>(raw) ?? new();
+                }
+                else
+                {
+                    deductions = new Dictionary<string, object> { { "value", raw } };
+                }
+            }
+        }
+        catch
+        {
+            deductions = new();
+        }
+
+        return new PayrollEntryDto
+        {
+            EntryId = r.entry_id ?? r.EntryId,
+            PeriodId = r.period_id ?? r.PeriodId,
+            PeriodName = r.period_name?.ToString() ?? r.PeriodName?.ToString() ?? string.Empty,
+            EmployeeId = r.employee_id ?? r.EmployeeId,
+            EmployeeName = r.employee_name?.ToString() ?? r.EmployeeName?.ToString() ?? string.Empty,
+            EmployeeCode = r.employee_code?.ToString() ?? r.EmployeeCode?.ToString() ?? string.Empty,
+            DepartmentName = r.department_name?.ToString() ?? r.DepartmentName?.ToString() ?? string.Empty,
+            PositionTitle = r.position_title?.ToString() ?? r.PositionTitle?.ToString(),
+            BasicSalary = r.basic_salary ?? r.BasicSalary ?? 0,
+            Allowances = allowances,
+            Deductions = deductions,
+            OvertimeAmount = r.overtime_amount ?? r.OvertimeAmount ?? 0,
+            BonusAmount = r.bonus_amount ?? r.BonusAmount ?? 0,
+            GrossSalary = r.gross_salary ?? r.GrossSalary ?? 0,
+            TaxAmount = r.tax_amount ?? r.TaxAmount ?? 0,
+            NetSalary = r.net_salary ?? r.NetSalary ?? 0,
+            Currency = r.currency?.ToString() ?? r.Currency?.ToString() ?? "USD",
+            Status = r.status?.ToString() ?? r.Status?.ToString() ?? string.Empty,
+            CalculatedAt = r.calculated_at ?? r.CalculatedAt,
+            PaidAt = r.paid_at ?? r.PaidAt
+        };
     }
 }
