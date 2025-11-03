@@ -358,7 +358,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         return await QuerySingleOrDefaultAsync<PayrollPeriod>(sql, new { periodId });
     }
 
-    public async Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId)
+    public async Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId, List<Guid>? departmentIds = null, bool includeTax = false)
     {
         try
         {
@@ -371,154 +371,131 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             
             var organizationId = period.OrganizationId;
             
-            // If a rule is provided, fetch its details to get department and position filters
-            Guid? ruleDepartmentId = null;
-            Guid? rulePositionId = null;
-            
-            if (ruleId.HasValue)
-            {
-                var rule = await GetSalaryRuleByIdAsync(ruleId.Value);
-                if (rule == null)
-                {
-                    throw new KeyNotFoundException($"Salary rule with ID {ruleId.Value} not found");
-                }
-                
-                ruleDepartmentId = rule.DepartmentId;
-                rulePositionId = rule.PositionId;
-            }
-            
-            // Build employee query with filters based on rule criteria
+            // Build employee query with optional department filter
             var employeesSql = @"
                 SELECT e.employeeid, e.organizationid, ed.departmentid, ed.positionid, ed.basicsalary
                 FROM employee.employees e
-                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+                JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
                 WHERE e.organizationid = @OrganizationId
                 AND e.status = 'active'";
             
-            object employeesParams;
+            object employeeParams;
             
-            // Add department and position filters if rule is provided
-            if (ruleId.HasValue)
+            // Add department filter if provided
+            if (departmentIds != null && departmentIds.Any())
             {
-                if (ruleDepartmentId.HasValue && rulePositionId.HasValue)
-                {
-                    // Rule has both department and position - filter by both
-                    employeesSql += @" AND ed.departmentid = @DepartmentId AND ed.positionid = @PositionId";
-                    employeesParams = new { OrganizationId = organizationId, DepartmentId = ruleDepartmentId.Value, PositionId = rulePositionId.Value };
-                }
-                else if (ruleDepartmentId.HasValue)
-                {
-                    // Rule has only department - filter by department only
-                    employeesSql += @" AND ed.departmentid = @DepartmentId";
-                    employeesParams = new { OrganizationId = organizationId, DepartmentId = ruleDepartmentId.Value };
-                }
-                else if (rulePositionId.HasValue)
-                {
-                    // Rule has only position - filter by position only
-                    employeesSql += @" AND ed.positionid = @PositionId";
-                    employeesParams = new { OrganizationId = organizationId, PositionId = rulePositionId.Value };
-                }
-                else
-                {
-                    // If rule has neither department nor position, apply to all employees
-                    employeesParams = new { OrganizationId = organizationId };
-                }
+                employeesSql += " AND ed.departmentid = ANY(@DepartmentIds)";
+                employeeParams = new { OrganizationId = organizationId, DepartmentIds = departmentIds.ToArray() };
             }
             else
             {
-                employeesParams = new { OrganizationId = organizationId };
+                employeeParams = new { OrganizationId = organizationId };
             }
             
-            var employees = await QueryAsync<dynamic>(employeesSql, employeesParams);
+            var employees = await QueryAsync<dynamic>(employeesSql, employeeParams);
             
             int entriesCreated = 0;
             
             foreach (var employee in employees)
             {
-                decimal basicSalary = (decimal)(employee.basicsalary ?? 0m);
-                decimal totalAllowances = 0m;
-                decimal totalDeductions = 0m;
+                decimal basicSalary = employee.basicsalary;
+                decimal totalEarnings = basicSalary;
+                decimal totalDeductions = 0;
                 
-                // Get applicable salary components. If a specific rule is selected, limit to that rule.
-                string componentsSql;
-                object componentsParams;
-
+                // Get applicable salary components/rules for this employee
+                var componentsSql = @"
+                    SELECT 
+                        sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
+                        sr.value_override, sr.ruleid
+                    FROM payroll.salarycomponents sc
+                    LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
+                    WHERE sc.organizationid = @OrganizationId
+                    AND sc.isactive = true";
+                
+                object componentParams;
+                
+                // Filter by specific rule if provided
                 if (ruleId.HasValue)
                 {
-                    componentsSql = @"
-                        SELECT 
-                            sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
-                            sr.value_override
-                        FROM payroll.salarycomponents sc
-                        INNER JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
-                        WHERE sc.organizationid = @OrganizationId
-                          AND sc.isactive = true
-                          AND sr.ruleid = @RuleId";
-                    componentsParams = new { OrganizationId = organizationId, RuleId = ruleId.Value };
+                    componentsSql += " AND sr.ruleid = @RuleId";
+                    componentParams = new 
+                    { 
+                        OrganizationId = organizationId,
+                        DepartmentId = employee.departmentid,
+                        PositionId = employee.positionid,
+                        RuleId = ruleId.Value
+                    };
                 }
                 else
                 {
-                    componentsSql = @"
-                        SELECT 
-                            sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
-                            sr.value_override
-                        FROM payroll.salarycomponents sc
-                        LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
-                        WHERE sc.organizationid = @OrganizationId
-                          AND sc.isactive = true
-                          AND (
-                              (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
-                              AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
-                          )";
-                    componentsParams = new { OrganizationId = organizationId, DepartmentId = employee.departmentid, PositionId = employee.positionid };
+                    componentParams = new 
+                    { 
+                        OrganizationId = organizationId,
+                        DepartmentId = employee.departmentid,
+                        PositionId = employee.positionid
+                    };
                 }
-
-                var components = await QueryAsync<dynamic>(componentsSql, componentsParams);
+                
+                // Match by department and position
+                componentsSql += @"
+                    AND (
+                        (sr.departmentid = @DepartmentId OR sr.departmentid IS NULL)
+                        AND (sr.positionid = @PositionId OR sr.positionid IS NULL)
+                    )";
+                
+                var components = await QueryAsync<dynamic>(componentsSql, componentParams);
                 
                 // Calculate each component
                 foreach (var component in components)
                 {
-                    decimal componentValue = 0m;
-
+                    decimal componentValue = 0;
+                    
                     // Use value_override if available, otherwise use the component's default value
                     decimal valueToUse = component.value_override != null ? (decimal)component.value_override : (decimal)component.value;
-
+                    
                     // Calculate based on type
-                    string calculationType = component.calculationtype?.ToString()?.ToLower() ?? "fixed";
-                    if (calculationType == "percentage")
+                    if (component.calculationtype.ToString().ToLower() == "percentage")
                     {
-                        componentValue = (basicSalary * valueToUse) / 100m;
+                        componentValue = (basicSalary * valueToUse) / 100;
                     }
                     else // fixed
                     {
                         componentValue = valueToUse;
                     }
-
-                    // Apply based on component type: 'allowance' adds, 'deduction' subtracts
-                    string compType = component.type?.ToString()?.ToLower() ?? string.Empty;
-                    if (compType == "allowance")
+                    
+                    // Add to earnings or deductions based on component type
+                    if (component.type.ToString().ToLower() == "earning")
                     {
-                        totalAllowances += componentValue;
+                        totalEarnings += componentValue;
                     }
-                    else if (compType == "deduction")
+                    else // deduction
                     {
                         totalDeductions += componentValue;
                     }
                 }
-
-                decimal grossSalary = basicSalary + totalAllowances;
+                
+                // Calculate tax if includeTax is true
+                decimal taxAmount = 0;
+                if (includeTax)
+                {
+                    var taxSummary = await CalculateTaxDeductionsAsync((Guid)employee.employeeid, totalEarnings, periodId);
+                    taxAmount = taxSummary.IncomeTax; // Use income tax from calculation
+                    totalDeductions += taxAmount;
+                }
+                
+                decimal grossSalary = totalEarnings;
                 decimal netSalary = grossSalary - totalDeductions;
                 
                 // Insert payroll entry
                 var insertSql = @"
                     INSERT INTO payroll.payrollentries (
                         entryid, periodid, employeeid, basicsalary, 
-                        allowances, deductions, overtimeamount, bonusamount, grosssalary, taxamount, 
+                        allowances, deductions, grosssalary, taxamount, 
                         netsalary, status, calculatedat, createdat, updatedat
                     )
                     VALUES (
                         uuid_generate_v4(), @PeriodId, @EmployeeId, @BasicSalary,
-                        @Allowances::jsonb, @Deductions::jsonb, @OvertimeAmount, @BonusAmount, @GrossSalary, @TaxAmount,
+                        @Allowances::jsonb, @Deductions::jsonb, @GrossSalary, @TaxAmount,
                         @NetSalary, 'calculated', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
                     )";
                     
@@ -526,14 +503,10 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                     PeriodId = periodId,
                     EmployeeId = employee.employeeid,
                     BasicSalary = basicSalary,
-                    // Store totals as jsonb numbers
-                    Allowances = JsonConvert.SerializeObject(totalAllowances),
-                    Deductions = JsonConvert.SerializeObject(totalDeductions),
-                    OvertimeAmount = 0m,
-                    BonusAmount = totalAllowances,
+                    Allowances = JsonConvert.SerializeObject(totalEarnings - basicSalary), // Additional earnings beyond basic salary
+                    Deductions = JsonConvert.SerializeObject(totalDeductions - taxAmount), // Deductions excluding tax (tax is separate)
                     GrossSalary = grossSalary,
-                    // As requested: reflect deductions in TaxAmount
-                    TaxAmount = totalDeductions,
+                    TaxAmount = taxAmount,
                     NetSalary = netSalary
                 });
                 
@@ -551,26 +524,13 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50)
     {
         var sql = @"
-            SELECT 
-                pe.entryid,
-                pe.periodid,
-                pe.employeeid,
-                pe.basicsalary,
-                pe.overtimeamount,
-                pe.bonusamount,
-                pe.grosssalary,
-                pe.taxamount,
-                pe.netsalary,
-                pe.currency,
-                pe.status,
-                pe.calculatedat,
-                pe.paidat,
-                CONCAT(e.firstname, ' ', e.lastname) as employeename,
-                e.employee_code as employeecode,
-                d.name as departmentname
+            SELECT pe.entryid, pe.employeeid, pe.basicsalary, pe.overtimeamount,
+                   pe.bonusamount, pe.grosssalary, pe.taxamount, pe.netsalary,
+                   pe.currency, pe.status, pe.calculatedat, pe.paidat,
+                   CONCAT(e.firstname, ' ', e.lastname) as employeename,
+                   e.employee_code
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
-            LEFT JOIN employee.departments d ON e.department_id = d.department_id
             WHERE pe.periodid = @periodId
             ORDER BY e.firstname, e.lastname
             LIMIT @pageSize OFFSET @offset";
@@ -750,33 +710,19 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         var whereClause = string.Join(" AND ", whereConditions);
         
         var sql = $@"
-            SELECT 
-                pe.entryid AS EntryId,
-                pe.periodid AS PeriodId,
-                pp.periodname AS PeriodName,
-                pe.employeeid AS EmployeeId,
-                pe.basicsalary AS BasicSalary, 
-                pe.overtimeamount AS OvertimeAmount, 
-                pe.bonusamount AS BonusAmount, 
-                pe.grosssalary AS GrossSalary, 
-                pe.taxamount AS TaxAmount, 
-                pe.netsalary AS NetSalary,
-                pe.currency AS Currency, 
-                pe.status AS Status, 
-                pe.calculatedat AS CalculatedAt, 
-                pe.paidat AS PaidAt,
-                CONCAT(e.firstname, ' ', e.lastname) AS EmployeeName, 
-                e.employeecode AS EmployeeCode,
-                d.departmentname AS DepartmentName,
-                p.positiontitle AS PositionTitle
+            SELECT pe.entryid as entry_id, pe.periodid as period_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
+                   pe.overtimeamount as overtime_amount, pe.bonusamount as bonus_amount, 
+                   pe.grosssalary as gross_salary, pe.taxamount as tax_amount, pe.netsalary as net_salary,
+                   pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
+                   CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code,
+                   d.departmentname as department_name, pp.periodname as period_name
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-            LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
-            LEFT JOIN employee.positions p ON ed.positionid = p.positionid
-            INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
+            INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
+            LEFT JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             WHERE {whereClause}
-            ORDER BY e.firstname, e.lastname
+            ORDER BY pp.periodname, e.firstname, e.lastname
             LIMIT @limit OFFSET @offset";
 
         parameters.Add("limit", limit);
@@ -790,7 +736,6 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
             INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
-            INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             WHERE {whereClause}";
 
         var totalCount = await ExecuteScalarAsync<int>(countSql, parameters.Where(p => p.Key != "limit" && p.Key != "offset").ToDictionary(p => p.Key, p => p.Value));
@@ -812,7 +757,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesByEmployeeAsync(Guid employeeId, int page, int limit)
     {
         var sql = @"
-            SELECT pe.entryid as entry_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
+            SELECT pe.entryid as entry_id, pe.periodid as period_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
                    pe.overtimeamount as overtime_amount, pe.bonusamount as bonus_amount, 
                    pe.grosssalary as gross_salary, pe.taxamount as tax_amount, pe.netsalary as net_salary,
                    pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
@@ -850,17 +795,18 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     public async Task<PayrollEntryDto?> GetPayrollEntryByIdAsync(Guid entryId)
     {
         var sql = @"
-            SELECT pe.entryid as entry_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
+            SELECT pe.entryid as entry_id, pe.periodid as period_id, pe.employeeid as employee_id, pe.basicsalary as basic_salary, 
                    pe.allowances, pe.deductions, pe.overtimeamount as overtime_amount, 
                    pe.bonusamount as bonus_amount, pe.grosssalary as gross_salary, 
                    pe.taxamount as tax_amount, pe.netsalary as net_salary,
                    pe.currency, pe.status, pe.calculatedat as calculated_at, pe.paidat as paid_at,
                    CONCAT(e.firstname, ' ', e.lastname) as employee_name, e.employeecode as employee_code,
-                   d.departmentname as department_name
+                   d.departmentname as department_name, pp.periodname as period_name
             FROM payroll.payrollentries pe
             INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
             INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
+            LEFT JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
             WHERE pe.entryid = @entryId";
 
         return await QuerySingleOrDefaultAsync<PayrollEntryDto>(sql, new { entryId });

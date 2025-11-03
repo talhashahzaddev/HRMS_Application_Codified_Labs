@@ -108,7 +108,12 @@ public class PayrollController : ControllerBase
     {
         try
         {
-            var entriesCreated = await _payrollService.CalculatePayrollAsync(id, request?.RuleId);
+            var entriesCreated = await _payrollService.CalculatePayrollAsync(
+                id, 
+                request?.RuleId, 
+                request?.DepartmentIds, 
+                request?.IncludeTax ?? false
+            );
             
             // Get updated period details
             var period = await _payrollService.GetPayrollPeriodByIdAsync(id);
