@@ -419,6 +419,35 @@ CREATE TABLE performance.EmployeeAppraisals (
     CONSTRAINT UQ_EmployeeAppraisals UNIQUE(CycleId, EmployeeId, ReviewerId, ReviewType)
 );
 
+CREATE TABLE performance.SelfAssessments (
+    SelfAssessmentId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    EmployeeId UUID NOT NULL,
+    CycleId UUID NOT NULL,
+    KraId UUID NULL,
+    SkillId UUID NULL,
+    Rating DECIMAL(3,2),
+    Comments TEXT,
+    EvidenceUrls JSONB DEFAULT '[]',
+    Status VARCHAR(20) DEFAULT 'draft',
+    SubmittedAt TIMESTAMP WITH TIME ZONE,
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE performance.ManagerReviews (
+    ReviewId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    ManagerId UUID NOT NULL,
+    EmployeeId UUID NOT NULL,
+    CycleId UUID NOT NULL,
+    OverallRating DECIMAL(3,2),
+    Feedback TEXT,
+    ImprovementAreas TEXT,
+    DevelopmentPlan TEXT,
+    Status VARCHAR(20) DEFAULT 'submitted',
+    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- ==============================
 -- ADMIN SCHEMA
 -- ==============================

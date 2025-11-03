@@ -639,6 +639,28 @@ public class PerformanceService : IPerformanceService
         return updated;
     }
 
+    public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request)
+    {
+        return await _performanceRepository.CreateSelfAssessmentAsync(request);
+    }
 
+    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
+    {
+        return await _performanceRepository.GetSelfAssessmentsAsync(employeeId, cycleId);
+    }
 
+    public async Task<string> SubmitSelfAssessmentAsync(Guid employeeId, Guid cycleId)
+    {
+        await _performanceRepository.UpdateSelfAssessmentStatusAsync(employeeId, cycleId, "submitted");
+        return "submitted";
+    }
+    public async Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId)
+    {
+        return await _performanceRepository.GetTeamSelfAssessmentsAsync(managerId, cycleId);
+    }
+
+    public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
+    {
+        return await _performanceRepository.SubmitManagerReviewAsync(request);
+    }
 }
