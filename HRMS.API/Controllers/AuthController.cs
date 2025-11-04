@@ -241,7 +241,7 @@ public class AuthController : ControllerBase
             return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
-                Message = "An error occurred while  password reset request"
+                Message = ex.Message
             });
 
         }

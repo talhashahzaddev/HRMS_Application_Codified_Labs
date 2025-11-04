@@ -295,7 +295,7 @@ public class AuthService : IAuthService
         var resetToken = Guid.NewGuid().ToString();
 
         // 2️⃣ Set expiration (e.g., 15 minutes from now)
-        var expiresAt = DateTime.UtcNow.AddMinutes(15);
+        var expiresAt = DateTime.Now.AddMinutes(15);
 
         // 3️⃣ Save to DB
         await _authRepository.SavePasswordResetTokenAsync(user.UserId.Value, resetToken, expiresAt);
@@ -342,11 +342,11 @@ public class AuthService : IAuthService
 
         //Expires function problem
 
-        //if (DateTime.Now <= tokenRecord.expiresat)
-        //{
-        //    _logger.LogWarning("Reset password failed - token expired: {Token}", request.token);
-        //    throw new UnauthorizedAccessException("Token has expired");
-        //}
+        if (tokenRecord.expiresat <= DateTime.Now)
+        {
+            _logger.LogWarning("Reset password failed - token expired: {Token}", request.token);
+            throw new UnauthorizedAccessException("Token has expired");
+        }
 
         // 3) Load user
         var user = await _authRepository.GetUserByIdAsync(tokenRecord.userid);
