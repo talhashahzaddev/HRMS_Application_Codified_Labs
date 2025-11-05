@@ -6,17 +6,20 @@
 -- AUTH SCHEMA
 -- ==============================
 
-CREATE TABLE auth.Organizations (
-    OrganizationId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    Name VARCHAR(255) NOT NULL,
-    SubscriptionType VARCHAR(50) DEFAULT 'basic',
-    Domain VARCHAR(255),
-    LogoUrl VARCHAR(500),
-    Status VARCHAR(20) DEFAULT 'active',
-    Settings JSONB DEFAULT '{}',
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+CREATE TABLE IF NOT EXISTS auth.organizations
+(
+    organizationid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    name character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    subscriptiontype character varying(50) COLLATE pg_catalog."default" DEFAULT 'basic'::character varying,
+    domain character varying(255) COLLATE pg_catalog."default",
+    logourl character varying(500) COLLATE pg_catalog."default",
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'active'::character varying,
+    settings jsonb DEFAULT '{}'::jsonb,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    currency character varying(50) COLLATE pg_catalog."default" DEFAULT NULL::character varying,
+    CONSTRAINT organizations_pkey PRIMARY KEY (organizationid)
+)
 
 CREATE TABLE auth.Roles (
     RoleId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
