@@ -67,53 +67,64 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
 
         try
-{
-    var employeeId = await connection.ExecuteScalarAsync<Guid>(
-        @"SELECT employee.fn_create_employee(
+        {
+            var employeeId = await connection.ExecuteScalarAsync<Guid>(
+                @"SELECT employee.fn_create_employee(
             @organizationId, @userId, @employeeCode, @firstName, @lastName, @email, @phone, 
             @dateOfBirth, @hireDate, @departmentId, @positionId, @basicSalary, @address::jsonb, 
             @workLocation, @reportingManagerId, @nationality, @gender, @maritalStatus, @emergencyContact::jsonb)",
-        new
-        {
-            organizationId = employee.OrganizationId,
-            userId = employee.UserId,
-            employeeCode = employee.EmployeeNumber,
-            firstName = employee.FirstName,
-            lastName = employee.LastName,
-            email = employee.Email,
-            phone = employee.Phone,
-            dateOfBirth = employee.DateOfBirth,
-            hireDate = employee.HireDate,
-            departmentId = employee.DepartmentId,
-            positionId = employee.PositionId,
-            basicSalary = employee.BasicSalary,
-            address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
-            workLocation = employee.WorkLocation,
-            reportingManagerId = employee.ReportingManagerId,
-            nationality = employee.Nationality,
-            gender = employee.Gender,
-            maritalStatus = employee.MaritalStatus,
-            emergencyContact = System.Text.Json.JsonSerializer.Serialize(employee.EmergencyContact)
-        },
-        transaction
-    );
+                new
+                {
+                    organizationId = employee.OrganizationId,
+                    userId = employee.UserId,
+                    employeeCode = employee.EmployeeNumber,
+                    firstName = employee.FirstName,
+                    lastName = employee.LastName,
+                    email = employee.Email,
+                    phone = employee.Phone,
+                    dateOfBirth = employee.DateOfBirth,
+                    hireDate = employee.HireDate,
+                    departmentId = employee.DepartmentId,
+                    positionId = employee.PositionId,
+                    basicSalary = employee.BasicSalary,
+                    address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
+                    workLocation = employee.WorkLocation,
+                    reportingManagerId = employee.ReportingManagerId,
+                    nationality = employee.Nationality,
+                    gender = employee.Gender,
+                    maritalStatus = employee.MaritalStatus,
+                    emergencyContact = System.Text.Json.JsonSerializer.Serialize(employee.EmergencyContact)
+                },
+                transaction
+            );
 
-    await connection.ExecuteAsync(
-        "SELECT attendance.fn_initialize_leave_entitlements(@employeeId, @organizationId)",
-        new { employeeId, employee.OrganizationId },
-        transaction
-    );
+            await connection.ExecuteAsync(
+                "SELECT attendance.fn_initialize_leave_entitlements(@employeeId, @organizationId)",
+                new { employeeId, employee.OrganizationId },
+                transaction
+            );
 
-    await transaction.CommitAsync();
-    employee.EmployeeId = employeeId;
-    return employee;
-}
-catch (Exception ex)
-{
-    await transaction.RollbackAsync();
-    throw new Exception("Error while creating employee record", ex);
+            await transaction.CommitAsync();
+            employee.EmployeeId = employeeId;
+            return employee;
         }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            throw new Exception("Error while creating employee record", ex);
+        }
+    }
 
+
+
+
+    public async Task<bool> UpdateEmploymentDetailCurrencyAsync(Guid employeeId, string currency)
+    {
+        var sql = @"UPDATE employee.employmentdetails 
+                    SET currency = @currency 
+                    WHERE employeeid = @employeeId AND iscurrent = true";
+        var affectedRows = await ExecuteAsync(sql, new { employeeId, currency });
+        return affectedRows > 0;
     }
 
 
@@ -232,11 +243,11 @@ catch (Exception ex)
     public async Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
     Guid? organizationId = null, string? searchTerm = null, Guid? departmentId = null,
     string? status = null, int page = 1, int pageSize = 50)
-{
-    try
     {
-        var results = await QueryAsync<dynamic>(
-            @"SELECT * 
+        try
+        {
+            var results = await QueryAsync<dynamic>(
+                @"SELECT * 
               FROM employee.fn_get_employees(
                    @organizationId, 
                    @searchTerm, 
@@ -244,45 +255,45 @@ catch (Exception ex)
                    @status, 
                    @limit, 
                    @offset)",
-            new
+                new
+                {
+                    organizationId = organizationId == Guid.Empty ? null : organizationId,
+                    searchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+                    departmentId = departmentId == Guid.Empty ? null : departmentId,
+                    status = string.IsNullOrWhiteSpace(status) ? null : status,
+                    limit = pageSize,
+                    offset = (page - 1) * pageSize
+                });
+
+            var employees = results.Select(r => new EmployeeListItemDto
             {
-                organizationId = organizationId == Guid.Empty ? null : organizationId,
-                searchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
-                departmentId = departmentId == Guid.Empty ? null : departmentId,
-                status = string.IsNullOrWhiteSpace(status) ? null : status,
-                limit = pageSize,
-                offset = (page - 1) * pageSize
-            });
+                EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
+                EmployeeCode = r.employeecode,
+                FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
+                Email = r.email,
+                Phone = r.phone,
+                HireDate = r.hiredate,
+                Status = r.status,
+                DepartmentName = r.departmentname,
+                PositionTitle = r.positiontitle
+            }).ToList();
 
-        var employees = results.Select(r => new EmployeeListItemDto
+            var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
+
+            return new PagedResult<EmployeeListItemDto>
+            {
+                Data = employees,
+                TotalCount = (int)totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+        catch (Exception ex)
         {
-            EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
-            EmployeeCode = r.employeecode,
-            FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
-            Email = r.email,
-            Phone = r.phone,
-            HireDate = r.hiredate,
-            Status = r.status,
-            DepartmentName = r.departmentname,
-            PositionTitle = r.positiontitle
-        }).ToList();
-
-        var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
-
-        return new PagedResult<EmployeeListItemDto>
-        {
-            Data = employees,
-            TotalCount = (int)totalCount,
-            Page = page,
-            PageSize = pageSize
-        };
+            // You can log ex here if needed
+            throw;
+        }
     }
-    catch (Exception ex)
-    {
-        // You can log ex here if needed
-        throw;
-    }
-}
 
 
     public async Task<bool> UpdateEmployeeAsync(Employee employee)
@@ -391,16 +402,16 @@ catch (Exception ex)
             RETURNING departmentid";
         try
         {
-        var departmentId = await ExecuteScalarAsync<Guid>(sql, new
-        {
-            organizationId = department.OrganizationId,
-            departmentName = department.DepartmentName,
-            description = department.Description,
-            managerId = department.ManagerId
-        });
+            var departmentId = await ExecuteScalarAsync<Guid>(sql, new
+            {
+                organizationId = department.OrganizationId,
+                departmentName = department.DepartmentName,
+                description = department.Description,
+                managerId = department.ManagerId
+            });
 
-        department.DepartmentId = departmentId;
-        return department;
+            department.DepartmentId = departmentId;
+            return department;
         }
         catch (Exception ex)
         {
@@ -643,15 +654,15 @@ catch (Exception ex)
     {
         try
         {
-        var sql = @"
+            var sql = @"
             SELECT COUNT(*) 
             FROM employee.employees e
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
             WHERE ed.positionid = @positionId AND e.status != 'deleted'";
 
-        return await ExecuteScalarAsync<int>(sql, new { positionId });
+            return await ExecuteScalarAsync<int>(sql, new { positionId });
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             throw;
         }

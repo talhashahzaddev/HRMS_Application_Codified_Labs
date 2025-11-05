@@ -1078,15 +1078,20 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
 
         var sql = $@"
             SELECT 
-                COALESCE(SUM(pe.netsalary), 0) as total_payroll,
-                COALESCE(AVG(pe.netsalary), 0) as average_payroll,
-                COUNT(DISTINCT pe.employeeid) as total_employees,
-                COALESCE(SUM(pe.taxamount + pe.otherdeductions), 0) as total_deductions,
-                COALESCE(SUM(pe.overtimeamount + pe.bonusamount), 0) as total_allowances
-            FROM payroll.payrollentries pe
-            INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
-            INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
-            WHERE e.organizationid = @organizationId{dateFilter}";
+    COALESCE(SUM(pe.netsalary), 0) AS total_payroll,
+    COALESCE(AVG(pe.netsalary), 0) AS average_payroll,
+    COUNT(DISTINCT pe.employeeid) AS total_employees,
+    COALESCE(SUM(pe.taxamount + pe.otherdeductions), 0) AS total_deductions,
+    COALESCE(
+        SUM(
+            pe.overtimeamount + pe.bonusamount +
+            COALESCE((pe.allowances ->> 'Allowance')::numeric, 0)
+        ), 0
+    ) AS total_allowances
+FROM payroll.payrollentries pe
+INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
+INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+WHERE e.organizationid = @organizationId{dateFilter}";
 
         var result = await QuerySingleAsync<dynamic>(sql, parameters);
 

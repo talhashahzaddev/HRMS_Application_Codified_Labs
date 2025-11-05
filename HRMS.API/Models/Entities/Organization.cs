@@ -27,4 +27,7 @@ public class Organization : BaseEntity
     
     [Column("settings")]
     public Dictionary<string, object>? Settings { get; set; } = new();
+    
+    [Column("currency")]
+    public string? Currency { get; set; }
 }
