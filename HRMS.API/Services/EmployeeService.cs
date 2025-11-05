@@ -12,17 +12,20 @@ public class EmployeeService : IEmployeeService
 {
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IAuthService _authService;
+    private readonly ISettingsRepository _settingsRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<EmployeeService> _logger;
 
     public EmployeeService(
         IEmployeeRepository employeeRepository,
         IAuthService authService,
+        ISettingsRepository settingsRepository,
         IMapper mapper,
         ILogger<EmployeeService> logger)
     {
         _employeeRepository = employeeRepository;
         _authService = authService;
+        _settingsRepository = settingsRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -93,7 +96,15 @@ public class EmployeeService : IEmployeeService
             throw new InvalidOperationException($"Failed to create user account for employee: {ex.Message}");
         }
 
-        // Step 2: Create employee record with the created user ID
+        // Step 2: Get organization currency
+        var organizationCurrency = await _settingsRepository.GetCurrencyAsync(organizationId);
+        if (string.IsNullOrEmpty(organizationCurrency))
+        {
+            organizationCurrency = "USD"; // Default to USD if no currency is set
+            _logger.LogWarning("No currency set for organization {OrganizationId}, defaulting to USD", organizationId);
+        }
+
+        // Step 3: Create employee record with the created user ID
         var employee = _mapper.Map<Employee>(request);
         employee.OrganizationId = organizationId;
         employee.UserId = userId;
@@ -102,6 +113,11 @@ public class EmployeeService : IEmployeeService
 
         _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}",
             createdEmployee.EmployeeId, userId);
+
+        // Step 4: Update EmploymentDetail currency to match organization currency
+        await _employeeRepository.UpdateEmploymentDetailCurrencyAsync(createdEmployee.EmployeeId, organizationCurrency);
+        _logger.LogInformation("Updated EmploymentDetail currency to {Currency} for employee {EmployeeId}",
+            organizationCurrency, createdEmployee.EmployeeId);
 
         var result = await _employeeRepository.GetEmployeedetailsAsync(createdEmployee.EmployeeId);
 

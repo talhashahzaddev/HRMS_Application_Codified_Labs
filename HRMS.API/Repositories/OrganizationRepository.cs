@@ -22,7 +22,7 @@ namespace HRMS.API.Repositories
 
         public async Task<Organization?> GetOrganizationByIdAsync(Guid organizationId)
         {
-            var sql = "SELECT * FROM auth.organizations WHERE organization_id = @organizationId";
+            var sql = "SELECT * FROM auth.organizations WHERE organizationid = @organizationId";
             return await QuerySingleOrDefaultAsync<Organization>(sql, new { organizationId });
         }
 
@@ -35,7 +35,7 @@ namespace HRMS.API.Repositories
         public async Task<bool> UpdateOrganizationAsync(Organization organization)
         {
             var sql = @"UPDATE auth.organizations 
-                        SET name = @name, domain = @domain, subscription_type = @subscriptionType, updated_at = CURRENT_TIMESTAMP 
+                        SET name = @name, domain = @domain, subscriptiontype = @subscriptionType, updated_at = CURRENT_TIMESTAMP 
                         WHERE organization_id = @organizationId";
             var affectedRows = await ExecuteAsync(sql, new { name = organization.Name, domain = organization.Domain, subscriptionType = organization.SubscriptionType, organizationId = organization.OrganizationId });
             return affectedRows > 0;
@@ -43,7 +43,7 @@ namespace HRMS.API.Repositories
 
         public async Task<bool> DeleteOrganizationAsync(Guid organizationId)
         {
-            var sql = "DELETE FROM auth.organizations WHERE organization_id = @organizationId";
+            var sql = "DELETE FROM auth.organizations WHERE organizationid = @organizationId";
             var affectedRows = await ExecuteAsync(sql, new { organizationId });
             return affectedRows > 0;
         }
