@@ -22,6 +22,7 @@ namespace HRMS.API.Models.DTOs
         [Required]
         [MaxLength(50)]
         public string SubscriptionType { get; set; }
+        public string? Currency { get; set; }
     }
 
     public class UpdateOrganizationDTO

@@ -197,7 +197,8 @@ public class AuthService : IAuthService
         {
             Name = request.CompanyName,
             Domain = !string.IsNullOrEmpty(request.Website) ? ExtractDomainFromUrl(request.Website) : null,
-            SubscriptionType = GetSubscriptionTypeFromCompanySize(request.CompanySize)
+            SubscriptionType = GetSubscriptionTypeFromCompanySize(request.CompanySize),
+            Currency = !string.IsNullOrWhiteSpace(request.Currency) ? request.Currency.ToUpperInvariant() : "USD"
         };
 
         var orgResponse = await _organizationService.CreateOrganizationAsync(createOrgDto);
