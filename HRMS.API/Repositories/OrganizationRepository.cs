@@ -13,8 +13,8 @@ namespace HRMS.API.Repositories
         public async Task<Organization> CreateOrganizationAsync(Organization organization)
         {
             var organizationId = await ExecuteScalarAsync<Guid>(
-                "SELECT auth.fn_create_organization(@name, @domain, @subscriptionType)",
-                new { name = organization.Name, domain = organization.Domain, subscriptionType = organization.SubscriptionType });
+                "SELECT auth.fn_create_organization(@name, @domain, @subscriptionType,@currency)",
+                new { name = organization.Name, domain = organization.Domain, subscriptionType = organization.SubscriptionType, currency=organization.Currency});
 
             organization.OrganizationId = organizationId;
             return organization;
