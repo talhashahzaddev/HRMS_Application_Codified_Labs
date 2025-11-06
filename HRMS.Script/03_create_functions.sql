@@ -56,37 +56,7 @@ ALTER FUNCTION auth.fn_authenticate_user(character varying, character varying)
 -- ======================================================
 -- Function: fn_create_organization
 -- ======================================================
-CREATE OR REPLACE FUNCTION auth.fn_create_organization(
-    p_name character varying,
-    p_domain character varying DEFAULT NULL::character varying,
-    p_subscription_type character varying DEFAULT 'basic'::character varying
-)
-RETURNS uuid
-LANGUAGE 'plpgsql'
-COST 100
-VOLATILE PARALLEL UNSAFE
-AS $BODY$
-DECLARE
-    newOrgId UUID;
-BEGIN
-    INSERT INTO auth.organizations (name, domain, subscriptionType)
-    VALUES (p_name, p_domain, p_subscription_type)
-    RETURNING organizationId INTO newOrgId;
-    
-    -- Create default roles for the organization
-    INSERT INTO auth.roles (organizationId, roleName, permissions, isSystemRole)
-    VALUES 
-        (newOrgId, 'Super Admin', '{"all": true}', true),
-        (newOrgId, 'HR Manager', '{"employees": "all", "payroll": "all", "attendance": "all", "performance": "all"}', true),
-        (newOrgId, 'Manager', '{"employees": "read", "attendance": "manage_team", "performance": "manage_team"}', true),
-        (newOrgId, 'Employee', '{"employees": "self", "attendance": "self", "performance": "self"}', true);
-    
-    RETURN newOrgId;
-END;
-$BODY$;
-
-ALTER FUNCTION auth.fn_create_organization(character varying, character varying, character varying)
-    OWNER TO postgres;
+fn_create_organization
 
 
 -- ======================================================
