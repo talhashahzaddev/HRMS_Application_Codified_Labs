@@ -5,6 +5,19 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IAttendanceRepository
 {
+    Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request);
+    Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId);
+    Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId);
+    Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId);
+    Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId);
+    Task<bool> RejectShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto);
+    Task<bool> AcceptswapRequestAsync(ApproveShiftSwapRequestDto dto);
+    Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
+    Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);
+    Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId);
+    Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request);
+    Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request);
+
     Task<bool> ClockInOutAsync(Guid employeeId, string action, DateTime timestamp, Dictionary<string, object>? location = null);
     Task<Attendance?> GetTodayAttendanceAsync(Guid employeeId);
     Task<PagedResult<AttendanceDto>> GetAttendanceAsync(Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 100);

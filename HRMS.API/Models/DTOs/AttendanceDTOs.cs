@@ -66,6 +66,98 @@ public class TimeTrackingSessionDto
     public string? CurrentLocation { get; set; }
 }
 
+
+
+public class CreateShiftDto
+{
+    public string ShiftName { get; set; }             // Name of the shift e.g., "Morning", "Evening"
+    public TimeSpan? StartTime { get; set; }           // Start time of the shift
+    public TimeSpan? EndTime { get; set; }             // End time of the shift
+    public int? BreakDuration { get; set; } = 0;     // Optional: Break duration in minutes
+    public int[]? DaysofWeek { get; set; } = new int[] { 1, 2, 3, 4, 5 }; // Optional: Days of week
+    public string? Timezone { get; set; } = "UTC";    // Optional: Timezone
+}
+
+public class UpdateShiftDto 
+{
+    public string ShiftName { get; set; }             // Name of the shift e.g., "Morning", "Evening"
+    public TimeSpan? StartTime { get; set; }           // Start time of the shift
+    public TimeSpan? EndTime { get; set; }             // End time of the shift
+    public int? BreakDuration { get; set; } = 0;     // Optional: Break duration in minutes
+    public int[]? DaysofWeek { get; set; } = new int[] { 1, 2, 3, 4, 5 }; // Optional: Days of week
+    public string? Timezone { get; set; } = "UTC";    // Optional: Timezone
+}
+
+
+public class AssignShiftDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid ShiftId { get; set; }
+}
+
+public class EmployeeShiftDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeCode { get; set; }
+    public string FirstName { get; set; }
+    public string LastName { get; set; }
+    public string Email { get; set; }
+    public string DepartmentName { get; set; }
+    public string PositionName { get; set; }
+    public string ShiftName { get; set; }
+}
+
+
+public class ShiftDto
+{
+    public Guid ShiftId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string ShiftName { get; set; }
+    public TimeSpan StartTime { get; set; }
+    public TimeSpan EndTime { get; set; }
+    public int BreakDuration { get; set; }
+    public int[] DaysOfWeek { get; set; }
+    public string Timezone { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+//Attendace ShiftSwap
+
+public class CreateShiftSwapRequestDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid? CurrentShiftId { get; set; }
+    public Guid RequestedShiftId { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class ApproveShiftSwapRequestDto
+{
+    public Guid RequestId { get; set; }
+    public Guid ApprovedBy { get; set; }
+    public bool IsApproved { get; set; }
+    public string? RejectionReason { get; set; }
+}
+
+
+
+public class PendingShiftSwapDto
+{
+    public Guid RequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+
+    public Guid CurrentShiftId { get; set; }
+    public string CurrentShiftName { get; set; } = string.Empty;
+
+    public Guid RequestedShiftId { get; set; }
+    public string RequestedShiftName { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;  // approved, rejected, pending
+}
+
+
 public class ManualAttendanceRequest
 {
     public Guid EmployeeId { get; set; }

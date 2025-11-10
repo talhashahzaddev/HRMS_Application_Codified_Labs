@@ -5,6 +5,19 @@ namespace HRMS.API.Services.Interfaces;
 
 public interface IAttendanceService
 {
+
+    Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId);
+    Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request);
+
+    Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId);
+    Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId);
+    Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId);
+    Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto);
+    Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
+    Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);
+    Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId);
+    Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request);
+    Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto rquest);
     Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request);
     Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request);
     Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId);

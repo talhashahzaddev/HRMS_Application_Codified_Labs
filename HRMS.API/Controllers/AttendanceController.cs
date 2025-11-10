@@ -407,7 +407,7 @@ public class AttendanceController : ControllerBase
         try
         {
             var calendar = await _attendanceService.GetAttendanceCalendarAsync(employeeId, year, month);
-            
+
             return Ok(new ServiceResponse<List<AttendanceCalendarDto>>
             {
                 Success = true,
@@ -424,6 +424,339 @@ public class AttendanceController : ControllerBase
             });
         }
     }
+
+
+
+    [HttpPost("shift")]
+    public async Task<ActionResult<ServiceResponse<bool>>> CreateShift([FromBody] CreateShiftDto request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var createdShift = await _attendanceService.CreateShiftAsync(organizationId, request);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Shift Created Sucessfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating shift");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while creating the shift"
+            });
+        }
+    }
+
+
+    [HttpPost("assign-shift")]
+    public async Task<ActionResult<ServiceResponse<bool>>> AssignShift([FromBody] AssignShiftDto request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var result = await _attendanceService.AssignShiftToEmployeeAsync(organizationId, request);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Shift assigned successfully.",
+                Data = true
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning shift to employee");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while assigning the shift."
+            });
+        }
+    }
+
+
+    [HttpGet("shift/{shiftId}")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeShiftDto>>>> GetEmployeesByShift(Guid shiftId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employees = await _attendanceService.GetEmployeesByShiftAsync(organizationId, shiftId);
+
+            return Ok(new ServiceResponse<List<EmployeeShiftDto>>
+            {
+                Success = true,
+                Message = "Employees retrieved successfully.",
+                Data = employees
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employees by shift");
+            return StatusCode(500, new ServiceResponse<List<EmployeeShiftDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employees by shift"
+            });
+        }
+    }
+
+    //Shift swap Create
+
+    [HttpPost("shiftswap")]
+    public async Task<ActionResult<ServiceResponse<bool>>> CreateShiftSwapRequest([FromBody] CreateShiftSwapRequestDto requestDto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            // Call service to create the shift swap request
+            var success = await _attendanceService.CreateShiftSwapRequestAsync(organizationId, requestDto);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = success,
+                Message = success ? "Shift swap request created successfully." : "Failed to create shift swap request.",
+                Data = success
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating shift swap request");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while creating the shift swap request",
+                Data = false
+            });
+        }
+    }
+
+    [HttpPost("shiftswap/approve")]
+    public async Task<ActionResult<ServiceResponse<bool>>> ApproveShiftSwapRequest([FromBody] ApproveShiftSwapRequestDto dto)
+    {
+        try
+        {
+            var status = dto.IsApproved ? "approved" : " rejected";
+            var success = await _attendanceService.ApproveShiftSwapRequestAsync(dto);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = success,
+                Message = success ? $"Shift swap request {status} successfully." : "Failed to process request.",
+                Data = success
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing shift swap request {RequestId}", dto.RequestId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while processing the shift swap request.",
+                Data = false
+            });
+        }
+    }
+
+    [HttpGet("shiftswap/pending")]
+    public async Task<ActionResult<ServiceResponse<List<PendingShiftSwapDto>>>> GetPendingShiftSwapRequests()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId(); // method to get org id from context
+            var requests = await _attendanceService.GetPendingShiftSwapRequestsAsync(organizationId);
+
+            return Ok(new ServiceResponse<List<PendingShiftSwapDto>>
+            {
+                Success = true,
+                Message = "Pending shift swap requests retrieved successfully.",
+                Data = requests
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching pending shift swap requests");
+            return StatusCode(500, new ServiceResponse<List<PendingShiftSwapDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching pending shift swap requests.",
+                Data = null
+            });
+        }
+    }
+
+    //Getting employee All shifts
+
+    [HttpGet("shiftswap/eemployeeShifts/{employeeId}")]
+    public async Task<ActionResult<ServiceResponse<List<PendingShiftSwapDto>>>> GetShiftSwapRequestsByEmployee(Guid employeeId)
+    {
+        try
+        {
+            var requests = await _attendanceService.GetShiftSwapRequestsByEmployeeAsync(employeeId);
+
+            return Ok(new ServiceResponse<List<PendingShiftSwapDto>>
+            {
+                Success = true,
+                Message = requests.Count > 0 ? "Shift swap requests retrieved successfully." : "No shift swap requests found.",
+                Data = requests
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching shift swap requests for employee {EmployeeId}", employeeId);
+            return StatusCode(500, new ServiceResponse<List<PendingShiftSwapDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching the employee's shift swap requests.",
+                Data = null
+            });
+        }
+    }
+
+
+
+
+
+    //Getting Employee Current Shift of Employee
+
+
+    [HttpGet("CurrentShift/{employeeId}")]
+    public async Task<ActionResult<ServiceResponse<ShiftDto>>> GetShiftByEmployeeId(Guid employeeId)
+    {
+        try
+        {
+            var shift = await _attendanceService.GetShiftByEmployeeIdAsync(employeeId);
+
+            if (shift == null)
+            {
+                return NotFound(new ServiceResponse<ShiftDto>
+                {
+                    Success = false,
+                    Message = "Shift not found for the given employee.",
+                    Data = null
+                });
+            }
+
+            return Ok(new ServiceResponse<ShiftDto>
+            {
+                Success = true,
+                Message = "Employee shift retrieved successfully.",
+                Data = shift
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching shift for employee {EmployeeId}", employeeId);
+            return StatusCode(500, new ServiceResponse<ShiftDto>
+            {
+                Success = false,
+                Message = "An error occurred while fetching the employee shift.",
+                Data = null
+            });
+        }
+    }
+
+
+
+
+
+
+
+
+    [HttpGet("shifts")]
+    public async Task<ActionResult<ServiceResponse<List<ShiftDto>>>> GetAllShifts()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var shifts = await _attendanceService.GetAllShiftsAsync(organizationId);
+
+            return Ok(new ServiceResponse<List<ShiftDto>>
+            {
+                Success = true,
+                Message = "Shifts retrieved successfully.",
+                Data = shifts
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving all shifts");
+            return StatusCode(500, new ServiceResponse<List<ShiftDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving shifts."
+            });
+        }
+    }
+
+    [HttpPut("shift/{shiftId}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateShift(Guid shiftId, [FromBody] UpdateShiftDto request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var success = await _attendanceService.UpdateShiftAsync(organizationId, shiftId, request);
+
+            if (!success)
+                return NotFound(new ServiceResponse<bool> { Success = false, Message = "Shift not found" });
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Shift updated successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating shift {ShiftId}", shiftId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating the shift"
+            });
+        }
+    }
+
+    [HttpDelete("shift/{shiftId}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteShift(Guid shiftId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var success = await _attendanceService.DeleteShiftAsync(organizationId, shiftId);
+
+            if (!success)
+                return NotFound(new ServiceResponse<bool> { Success = false, Message = "Shift not found" });
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Shift deleted successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting shift {ShiftId}", shiftId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting the shift"
+            });
+        }
+    }
+
+
 
     [HttpGet("my-calendar")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceCalendarDto>>>> GetMyAttendanceCalendar([FromQuery] int year, [FromQuery] int month)
