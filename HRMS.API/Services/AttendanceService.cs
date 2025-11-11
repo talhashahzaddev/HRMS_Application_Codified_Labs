@@ -217,7 +217,7 @@ public class AttendanceService : IAttendanceService
 
     public async Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime date)
     {
-        _logger.LogInformation("Getting daily attendance stats for organization: {OrganizationId} on {Date}", 
+        _logger.LogInformation("Getting daily attendance stats for organization: {OrganizationId} on {Date}",
             organizationId, date);
 
         var result = await _attendanceRepository.GetDailyAttendanceStatsAsync(organizationId, date);
@@ -227,6 +227,108 @@ public class AttendanceService : IAttendanceService
 
 
     }
+
+
+    //Adding here
+
+    public async Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request)
+
+    {
+        var result = await _attendanceRepository.CreateShiftAsync(organizationId, request);
+
+        return true;
+    }
+
+    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request)
+    {
+        var result = await _attendanceRepository.AssignShiftToEmployeeAsync(organizationId, request);
+
+        return true;
+
+
+    }
+
+
+    public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId)
+    {
+        return await _attendanceRepository.GetEmployeesByShiftAsync(organizationId, shiftId);
+    }
+
+    //Shiftswap 
+
+    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
+    {
+        // You can add validation or business rules here if needed
+        return await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
+    }
+
+    public async Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto)
+    {
+        // Optional: Add business validation
+        // Example: check if the request is still pending
+
+        if (dto.IsApproved == false)
+        {
+            var success = await _attendanceRepository.RejectShiftSwapRequestAsync(dto);
+        }
+        if (dto.IsApproved == true)
+        {
+            var success = await _attendanceRepository.AcceptswapRequestAsync(dto);
+
+        }
+        return true;
+
+
+    }
+
+
+    public async Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId)
+    {
+        return await _attendanceRepository.GetPendingShiftSwapRequestsAsync(organizationId);
+    }
+
+    public async Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId)
+    {
+        return await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+    }
+
+    public async Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId)
+    {
+        return await _attendanceRepository.GetShiftSwapRequestsByEmployeeAsync(employeeId);
+    }
+
+
+
+
+
+    public async Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
+    {
+        try
+        {
+            return await _attendanceRepository.GetAllShiftsAsync(organizationId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving shifts for organization {OrganizationId}", organizationId);
+            throw;
+        }
+    }
+
+
+    public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)
+    {
+        return await _attendanceRepository.UpdateShiftAsync(organizationId, shiftId, request);
+    }
+
+    public async Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId)
+    {
+        return await _attendanceRepository.DeleteShiftAsync(organizationId, shiftId);
+    }
+
+
+
+
+
 
     public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate)
     {
