@@ -229,6 +229,453 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         }
     }
 
+
+    //Chnages here
+
+    public async Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request)
+    {
+        try
+        {
+            var createdAt = DateTime.Now;
+            var sql = @"
+            INSERT INTO attendance.shifts
+                (organizationid, shiftname, starttime, endtime, breakduration, daysofweek, timezone,createdat)
+            VALUES
+                (@OrganizationId, @ShiftName, @StartTime, @EndTime, @BreakDuration, @DaysofWeek, @Timezone,@createdAt);
+        ";
+
+            var parameters = new
+            {
+                createdAt = createdAt,
+                OrganizationId = organizationId,
+                ShiftName = request.ShiftName,
+                StartTime = request.StartTime,
+                EndTime = request.EndTime,
+                BreakDuration = request.BreakDuration ?? 0,
+                DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
+                Timezone = request.Timezone ?? "UTC"
+            };
+
+            var rowsAffected = await ExecuteAsync(sql, parameters);
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating shift for organization {OrganizationId}", organizationId);
+            throw;
+        }
+    }
+
+    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request)
+    {
+        try
+        {
+            var sql = @"
+            UPDATE employee.employmentdetails
+            SET shiftid = @ShiftId
+            WHERE employeeid = @EmployeeId
+          
+        ";
+
+            var parameters = new
+            {
+                ShiftId = request.ShiftId,
+                EmployeeId = request.EmployeeId,
+                //OrganizationId = organizationId
+            };
+
+            var rowsAffected = await ExecuteAsync(sql, parameters);
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assigning shift {ShiftId} to employee {EmployeeId} for organization {OrganizationId}",
+                request.ShiftId, request.EmployeeId, organizationId);
+            throw;
+        }
+
+    }
+
+    //Get by shift
+
+    public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId)
+    {
+        try
+        {
+
+
+            var sql = @"
+         SELECT 
+        e.employeeid,
+        e.firstname,
+        e.lastname,
+        e.email,
+        ed.shiftid,
+        d.departmentname  
+         FROM employee.employees e
+         INNER JOIN employee.employmentdetails ed 
+         ON e.employeeid = ed.employeeid
+         LEFT JOIN employee.departments d
+        ON ed.departmentid = d.departmentid   -- join to get department name
+          WHERE e.organizationid = @OrganizationId
+           AND ed.shiftid = @ShiftId;
+            ";
+
+            var parameters = new { OrganizationId = organizationId, ShiftId = shiftId };
+            var result = await QueryAsync<EmployeeShiftDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employees for shift {ShiftId} in organization {OrganizationId}", shiftId, organizationId);
+            throw;
+        }
+    }
+
+    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
+    {
+        try
+        {
+            var employeeId = await GetEmpId(requestDto.EmployeeId);
+
+
+
+            var sql = @"
+            INSERT INTO attendance.shiftswaprequests
+            (employeeid, currentshiftid, requestedshiftid, reason,organizationid)
+            VALUES
+            (@EmployeeId, @CurrentShiftId, @RequestedShiftId, @Reason,@organizationId);
+        ";
+
+            var parameters = new
+            {
+                EmployeeId = employeeId,
+                CurrentShiftId = requestDto.CurrentShiftId,
+                RequestedShiftId = requestDto.RequestedShiftId,
+                Reason = requestDto.Reason,
+                organizationId = organizationId
+            };
+
+            var rows = await ExecuteAsync(sql, parameters);
+            return rows > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating shift swap request for employee {EmployeeId}", requestDto.EmployeeId);
+            return false;
+        }
+    }
+
+
+    public async Task<bool> RejectShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto)
+    {
+        try
+        {
+            var status = dto.IsApproved ? "approved" : "rejected";
+
+            var sql = @"
+            UPDATE attendance.shiftswaprequests
+            SET status = @Status,
+                approvedby = @ApprovedBy,
+                approvedat = @ApprovedAt,
+                rejectionreason = @RejectionReason,
+                updatedat = @UpdatedAt
+            WHERE requestid = @RequestId;
+        ";
+
+            var parameters = new
+            {
+                Status = status,
+                ApprovedBy = dto.ApprovedBy,
+                ApprovedAt = DateTime.UtcNow,
+                RejectionReason = dto.RejectionReason,
+                UpdatedAt = DateTime.Now,
+                RequestId = dto.RequestId
+            };
+
+            var rows = await ExecuteAsync(sql, parameters);
+            return rows > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving/rejecting shift swap request {RequestId}", dto.RequestId);
+            return false;
+        }
+    }
+
+
+    //Accept Shift Swap Request
+
+    public async Task<bool> AcceptswapRequestAsync(ApproveShiftSwapRequestDto dto)
+    {
+        try
+        {
+            var status = dto.IsApproved ? "approved" : "rejected";
+
+            var sql = @"
+            WITH updated_swap AS (
+                UPDATE attendance.shiftswaprequests
+                SET status = 'approved',
+                    approvedby = @ApprovedBy,
+                    approvedat = @ApprovedAt,
+                    updatedat = NOW()
+                WHERE requestid = @RequestId
+                RETURNING employeeid, requestedshiftid
+            )
+            UPDATE employee.employmentdetails ed
+            SET shiftid = u.requestedshiftid
+            FROM updated_swap u
+            WHERE ed.employeeid = u.employeeid;
+        ";
+
+            var parameters = new
+            {
+                Status = status,
+                ApprovedBy = dto.ApprovedBy,
+                ApprovedAt = DateTime.UtcNow,
+                RejectionReason = dto.RejectionReason,
+                UpdatedAt = DateTime.Now,
+                RequestId = dto.RequestId
+            };
+
+            var rows = await ExecuteAsync(sql, parameters);
+            return rows > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving/rejecting shift swap request {RequestId}", dto.RequestId);
+            return false;
+        }
+    }
+
+
+
+
+    public async Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+    SELECT 
+        ss.requestid,
+        ss.employeeid,
+        e.firstname || ' ' || e.lastname AS EmployeeName,
+        ss.currentshiftid,
+        cs.shiftname AS CurrentShiftName,
+        ss.requestedshiftid,
+        rs.shiftname AS RequestedShiftName,
+        ss.reason,
+        ss.status
+    FROM attendance.shiftswaprequests ss
+    INNER JOIN employee.employees e 
+        ON ss.employeeid = e.employeeid
+    LEFT JOIN attendance.shifts cs
+        ON ss.currentshiftid = cs.shiftid
+    LEFT JOIN attendance.shifts rs
+        ON ss.requestedshiftid = rs.shiftid
+    WHERE ss.organizationid = @OrganizationId
+      AND ss.status = 'pending';
+";
+
+            var parameters = new { OrganizationId = organizationId };
+            var result = await QueryAsync<PendingShiftSwapDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching pending shift swap requests for organization {OrganizationId}", organizationId);
+            throw;
+        }
+    }
+
+
+    public async Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeIdd)
+    {
+        try
+        {
+            var employeeId = await GetEmpId(employeeIdd);
+
+            var sql = @"
+       SELECT 
+    s.shiftid AS ""ShiftId"",
+    s.organizationid AS ""OrganizationId"",
+    s.shiftname AS ""ShiftName"",
+    s.starttime AS ""StartTime"",
+    s.endtime AS ""EndTime"",
+    s.breakduration AS ""BreakDuration"",
+    s.daysofweek AS ""DaysOfWeek""
+FROM employee.employmentdetails ed
+INNER JOIN attendance.shifts s
+    ON ed.shiftid = s.shiftid
+WHERE ed.employeeid = @EmployeeId
+  AND ed.iscurrent = TRUE;
+
+    ";
+
+            var parameters = new { EmployeeId = employeeId };
+            var result = await QuerySingleOrDefaultAsync<ShiftDto>(sql, parameters);
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching shift for employee {EmployeeId}", employeeIdd);
+            throw;
+        }
+    }
+
+
+    //Get employee all request
+
+    public async Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeIdd)
+    {
+        try
+        {
+
+
+            var employeeId = await GetEmpId(employeeIdd);
+
+            var sql = @"
+            SELECT 
+                ss.requestid,
+                ss.employeeid,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                ss.currentshiftid,
+                cs.shiftname AS CurrentShiftName,
+                ss.requestedshiftid,
+                rs.shiftname AS RequestedShiftName,
+                ss.status
+            FROM attendance.shiftswaprequests ss
+            INNER JOIN employee.employees e ON ss.employeeid = e.employeeid
+            LEFT JOIN attendance.shifts cs ON ss.currentshiftid = cs.shiftid
+            INNER JOIN attendance.shifts rs ON ss.requestedshiftid = rs.shiftid
+            WHERE ss.employeeid = @EmployeeId
+            ORDER BY ss.submittedat DESC;
+        ";
+
+            var parameters = new { EmployeeId = employeeId };
+            var result = await QueryAsync<PendingShiftSwapDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching shift swap requests for employee {EmployeeId}");
+            throw;
+        }
+    }
+
+
+
+
+
+
+
+
+
+    public async Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+            SELECT 
+                shiftid AS ShiftId,
+                organizationid AS OrganizationId,
+                shiftname AS ShiftName,
+                starttime AS StartTime,
+                endtime AS EndTime,
+                breakduration AS BreakDuration,
+                daysofweek AS DaysOfWeek,
+                timezone AS Timezone,
+                isactive AS IsActive,
+                createdat AS CreatedAt
+            FROM attendance.shifts
+            WHERE organizationid = @OrganizationId
+            ORDER BY createdat DESC;
+        ";
+
+            var parameters = new { OrganizationId = organizationId };
+            var result = await QueryAsync<ShiftDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching shifts for organization {OrganizationId}", organizationId);
+            throw;
+        }
+    }
+
+
+    public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)
+    {
+        try
+        {
+            var updatedAt = DateTime.Now;
+            var sql = @"
+            UPDATE attendance.shifts
+            SET
+                shiftname = @ShiftName,
+                starttime = @StartTime,
+                endtime = @EndTime,
+                breakduration = @BreakDuration,
+                daysofweek = @DaysofWeek,
+                timezone = @Timezone,
+                updatedat = @UpdatedAt
+            WHERE
+                organizationid = @OrganizationId AND shiftid = @ShiftId;
+        ";
+
+            var parameters = new
+            {
+                OrganizationId = organizationId,
+                ShiftId = shiftId,
+                ShiftName = request.ShiftName,
+                StartTime = request.StartTime,
+                EndTime = request.EndTime,
+                BreakDuration = request.BreakDuration ?? 0,
+                DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
+                Timezone = request.Timezone ?? "UTC",
+                UpdatedAt = updatedAt
+            };
+
+            var rowsAffected = await ExecuteAsync(sql, parameters);
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating shift {ShiftId} for organization {OrganizationId}", shiftId, organizationId);
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId)
+    {
+        try
+        {
+            var sql = @"
+            DELETE FROM attendance.shifts
+            WHERE organizationid = @OrganizationId AND shiftid = @ShiftId;
+        ";
+
+            var parameters = new
+            {
+                OrganizationId = organizationId,
+                ShiftId = shiftId
+            };
+
+            var rowsAffected = await ExecuteAsync(sql, parameters);
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting shift {ShiftId} for organization {OrganizationId}", shiftId, organizationId);
+            throw;
+        }
+    }
+
+
+
+
+
     public async Task<Attendance> CreateAttendanceAsync(Attendance attendance)
     {
         try
