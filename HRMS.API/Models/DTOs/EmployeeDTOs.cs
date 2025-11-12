@@ -47,6 +47,7 @@ public class EmployeeListItemDto
     public string? Status { get; set; } = string.Empty;
     public string? Department { get; set; } = string.Empty;
     public string? DepartmentName { get; set; }
+    public string ProfilePictureUrl { get; set; }
     public string? Position { get; set; } = string.Empty;
     public string? PositionTitle { get; set; }
     public bool? IsActive { get; set; }
