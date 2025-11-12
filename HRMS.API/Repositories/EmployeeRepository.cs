@@ -274,6 +274,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 Phone = r.phone,
                 HireDate = r.hiredate,
                 Status = r.status,
+                ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
                 DepartmentName = r.departmentname,
                 PositionTitle = r.positiontitle
             }).ToList();
