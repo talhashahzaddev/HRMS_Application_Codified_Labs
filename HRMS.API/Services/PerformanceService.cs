@@ -591,31 +591,6 @@ public class PerformanceService : IPerformanceService
         return System.Text.Encoding.UTF8.GetBytes(csvData);
     }
 
-    //Goals
-    public async Task<EmployeeGoalDto> CreateEmployeeGoalAsync(CreateEmployeeGoalRequest goal)
-    {
-        // Just pass the goal directly to repository
-        return await _performanceRepository.CreateEmployeeGoalAsync(goal);
-    }
-
-    public async Task<List<EmployeeGoalDto>> GetEmployeeGoalsAsync(Guid employeeId)
-    {
-        //var empid =await  _performanceRepository.GetEmpId(employeeId);
-
-        return await _performanceRepository.GetEmployeeGoalsAsync(employeeId);
-    }
-
-    public async Task<List<EmployeeGoalDto>> GetAllEmployeeGoalsAsync()
-    {
-        return await _performanceRepository.GetAllEmployeeGoalsAsync();
-    }
-
-    public async Task<bool> GoalAsCompletedAsync(Guid goalId)
-    {
-        // Call repository to update the goal’s status
-        var updated = await _performanceRepository.GoalAsCompletedAsync(goalId);
-        return updated;
-    }
 
     public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request)
     {

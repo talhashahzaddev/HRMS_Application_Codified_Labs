@@ -46,13 +46,6 @@ public interface IPerformanceService
     Task<EmployeeAppraisalDto> ReviewAppraisalAsync(Guid appraisalId, ReviewAppraisalRequest request);
     Task<PerformanceReportDto> GeneratePerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
     Task<byte[]> ExportPerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
-    // 🔹 Employee Goals Management
-    Task<EmployeeGoalDto> CreateEmployeeGoalAsync(CreateEmployeeGoalRequest request);
-
-    Task<List<EmployeeGoalDto>> GetEmployeeGoalsAsync(Guid employeeId);
-    Task<List<EmployeeGoalDto>> GetAllEmployeeGoalsAsync();
-
-    Task<bool> GoalAsCompletedAsync(Guid goalId);
 
     Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request);
     Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId);
