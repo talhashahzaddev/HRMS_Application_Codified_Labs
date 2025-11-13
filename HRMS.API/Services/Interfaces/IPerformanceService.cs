@@ -60,4 +60,13 @@ public interface IPerformanceService
     Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId);
     Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request);
 
+    // Appraisal Cycle Management - Enhanced (New methods only)
+    Task<AppraisalCycleDto?> GetActiveAppraisalCycleAsync(Guid organizationId);
+
+    // Appraisal Consolidation
+    Task<EmployeeAppraisalDto> ConsolidateAppraisalAsync(ConsolidateAppraisalRequest request);
+
+    // Reports and Analytics
+    Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId);
+
 }

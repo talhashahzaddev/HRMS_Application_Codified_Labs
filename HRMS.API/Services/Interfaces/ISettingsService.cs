@@ -8,3 +8,4 @@ public interface ISettingsService
     Task<ServiceResponse<bool>> UpdateCurrencyAsync(Guid organizationId, string currency);
 }
 
+

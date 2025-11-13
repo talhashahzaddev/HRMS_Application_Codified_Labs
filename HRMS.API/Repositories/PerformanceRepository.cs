@@ -399,12 +399,12 @@ ORDER BY s.category, s.skillname;
     public async Task<bool> UpdateAppraisalStatusAsync(Guid appraisalId, string status)
     {
         var sql = @"
-            UPDATE performance.employee_appraisals 
+            UPDATE performance.employeeappraisals 
             SET status = @status, 
-                submitted_at = CASE WHEN @status = 'submitted' THEN CURRENT_TIMESTAMP ELSE submitted_at END,
-                reviewed_at = CASE WHEN @status = 'completed' THEN CURRENT_TIMESTAMP ELSE reviewed_at END,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE appraisal_id = @appraisalId";
+                submittedat = CASE WHEN @status = 'submitted' THEN CURRENT_TIMESTAMP ELSE submittedat END,
+                reviewedat = CASE WHEN @status = 'completed' THEN CURRENT_TIMESTAMP ELSE reviewedat END,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE appraisalid = @appraisalId";
 
         var affected = await ExecuteAsync(sql, new { appraisalId, status });
         return affected > 0;
@@ -413,17 +413,17 @@ ORDER BY s.category, s.skillname;
     public async Task<List<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10)
     {
         var sql = @"
-            SELECT CONCAT(e.first_name, ' ', e.last_name) as employee_name,
-                   AVG(ea.overall_rating) as rating,
-                   d.department_name as department
-            FROM performance.employee_appraisals ea
-            INNER JOIN employee.employees e ON ea.employee_id = e.employee_id
-            LEFT JOIN employee.employment_details ed ON e.employee_id = ed.employee_id AND ed.is_current = true
-            LEFT JOIN employee.departments d ON ed.department_id = d.department_id
-            WHERE e.organization_id = @organizationId
-              AND ea.overall_rating IS NOT NULL
-            GROUP BY e.employee_id, e.first_name, e.last_name, d.department_name
-            ORDER BY AVG(ea.overall_rating) DESC
+            SELECT CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+                   AVG(ea.overallrating) as rating,
+                   d.departmentname as department
+            FROM performance.employeeappraisals ea
+            INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+            WHERE e.organizationid = @organizationId
+              AND ea.overallrating IS NOT NULL
+            GROUP BY e.employeeid, e.firstname, e.lastname, d.departmentname
+            ORDER BY AVG(ea.overallrating) DESC
             LIMIT @count";
 
         var results = await QueryAsync<TopPerformerDto>(sql, new { organizationId, count });
@@ -770,7 +770,7 @@ ORDER BY s.category, s.skillname;
     public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request)
     {
         var sql = @"
-        INSERT INTO performance.SelfAssessments
+        INSERT INTO performance.selfassessments
         (employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat)
         VALUES
         (@EmployeeId, @CycleId, @KraId, @SkillId, @Rating, @Comments, @EvidenceUrls::jsonb, @Status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -782,13 +782,13 @@ ORDER BY s.category, s.skillname;
 
     public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
     {
-        var sql = @"SELECT * FROM performance.SelfAssessments WHERE employeeid = @EmployeeId AND cycleid = @CycleId";
+        var sql = @"SELECT * FROM performance.selfassessments WHERE employeeid = @EmployeeId AND cycleid = @CycleId";
         return await QueryAsync<SelfAssessmentDto>(sql, new { EmployeeId = employeeId, CycleId = cycleId });
     }
 
     public async Task UpdateSelfAssessmentStatusAsync(Guid employeeId, Guid cycleId, string status)
     {
-        var sql = @"UPDATE performance.SelfAssessments
+        var sql = @"UPDATE performance.selfassessments
                 SET status = @Status, updatedat = CURRENT_TIMESTAMP, submittedat = CURRENT_TIMESTAMP
                 WHERE employeeid = @EmployeeId AND cycleid = @CycleId";
         await ExecuteAsync(sql, new { EmployeeId = employeeId, CycleId = cycleId, Status = status });
@@ -798,9 +798,10 @@ ORDER BY s.category, s.skillname;
     {
         var sql = @"
         SELECT sa.*
-        FROM performance.SelfAssessments sa
-        INNER JOIN employees e ON sa.employeeid = e.employeeid
-        WHERE e.managerid = @ManagerId AND sa.cycleid = @CycleId;
+        FROM performance.selfassessments sa
+        INNER JOIN employee.employees e ON sa.employeeid = e.employeeid
+        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        WHERE ed.managerid = @ManagerId AND sa.cycleid = @CycleId;
     ";
         return await QueryAsync<SelfAssessmentDto>(sql, new { ManagerId = managerId, CycleId = cycleId });
     }
@@ -808,7 +809,7 @@ ORDER BY s.category, s.skillname;
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
     {
         var sql = @"
-        INSERT INTO performance.ManagerReviews
+        INSERT INTO performance.managerreviews
         (managerid, employeeid, cycleid, overallrating, feedback, improvementareas, developmentplan, createdat, updatedat)
         VALUES
         (@ManagerId, @EmployeeId, @CycleId, @OverallRating, @Feedback, @ImprovementAreas, @DevelopmentPlan, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
@@ -816,5 +817,315 @@ ORDER BY s.category, s.skillname;
     ";
 
         return await QuerySingleOrDefaultAsync<ManagerReviewDto>(sql, request);
+    }
+
+    // Appraisal Cycle Management - Enhanced
+    public async Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId)
+    {
+        var sql = @"
+            SELECT ac.cycleid, ac.cyclename, ac.description, ac.startdate, ac.enddate,
+                   ac.status, ac.ratingscale, ac.selfreviewenabled, ac.peerreviewenabled,
+                   ac.managerreviewenabled,
+                   COUNT(ea.appraisalid) as total_appraisals,
+                   COUNT(CASE WHEN ea.status = 'completed' THEN 1 END) as completed_appraisals
+            FROM performance.appraisalcycles ac
+            LEFT JOIN performance.employeeappraisals ea ON ac.cycleid = ea.cycleid
+            WHERE ac.cycleid = @cycleId
+            GROUP BY ac.cycleid, ac.cyclename, ac.description, ac.startdate, ac.enddate,
+                     ac.status, ac.ratingscale, ac.selfreviewenabled, ac.peerreviewenabled,
+                     ac.managerreviewenabled";
+
+        var result = await QuerySingleOrDefaultAsync<AppraisalCycleDto>(sql, new { cycleId });
+        return result;
+    }
+
+    public async Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request)
+    {
+        var sql = @"
+            UPDATE performance.appraisalcycles
+            SET cyclename = @CycleName,
+                description = @Description,
+                startdate = @StartDate,
+                enddate = @EndDate,
+                status = @Status,
+                ratingscale = @RatingScale::jsonb,
+                selfreviewenabled = @SelfReviewEnabled,
+                peerreviewenabled = @PeerReviewEnabled,
+                managerreviewenabled = @ManagerReviewEnabled
+            WHERE cycleid = @CycleId
+            RETURNING cycleid, cyclename, description, startdate, enddate, status, 
+                     ratingscale, selfreviewenabled, peerreviewenabled, managerreviewenabled,
+                     (SELECT COUNT(*) FROM performance.employeeappraisals WHERE cycleid = @CycleId) as total_appraisals,
+                     (SELECT COUNT(*) FROM performance.employeeappraisals WHERE cycleid = @CycleId AND status = 'completed') as completed_appraisals";
+
+        var ratingScaleJson = System.Text.Json.JsonSerializer.Serialize(request.RatingScale);
+        var result = await QuerySingleOrDefaultAsync<AppraisalCycleDto>(sql, new
+        {
+            CycleId = cycleId,
+            CycleName = request.CycleName,
+            Description = request.Description,
+            StartDate = request.StartDate,
+            EndDate = request.EndDate,
+            Status = request.Status,
+            RatingScale = ratingScaleJson,
+            SelfReviewEnabled = request.SelfReviewEnabled,
+            PeerReviewEnabled = request.PeerReviewEnabled,
+            ManagerReviewEnabled = request.ManagerReviewEnabled
+        });
+
+        return result!;
+    }
+
+    public async Task<bool> DeleteAppraisalCycleAsync(Guid cycleId)
+    {
+        // Check if cycle has any appraisals
+        var hasAppraisals = await QuerySingleOrDefaultAsync<int>(
+            "SELECT COUNT(*) FROM performance.employeeappraisals WHERE cycleid = @CycleId",
+            new { CycleId = cycleId });
+
+        if (hasAppraisals > 0)
+        {
+            throw new InvalidOperationException("Cannot delete appraisal cycle with existing appraisals. Please archive it instead.");
+        }
+
+        var sql = @"DELETE FROM performance.appraisalcycles WHERE cycleid = @CycleId";
+        var affected = await ExecuteAsync(sql, new { CycleId = cycleId });
+        return affected > 0;
+    }
+
+    public async Task<AppraisalCycleDto?> GetActiveAppraisalCycleAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT ac.cycleid, ac.cyclename, ac.description, ac.startdate, ac.enddate,
+                   ac.status, ac.ratingscale, ac.selfreviewenabled, ac.peerreviewenabled,
+                   ac.managerreviewenabled,
+                   COUNT(ea.appraisalid) as total_appraisals,
+                   COUNT(CASE WHEN ea.status = 'completed' THEN 1 END) as completed_appraisals
+            FROM performance.appraisalcycles ac
+            LEFT JOIN performance.employeeappraisals ea ON ac.cycleid = ea.cycleid
+            WHERE ac.organizationid = @organizationId
+              AND ac.status = 'active'
+              AND CURRENT_DATE BETWEEN ac.startdate AND ac.enddate
+            GROUP BY ac.cycleid, ac.cyclename, ac.description, ac.startdate, ac.enddate,
+                     ac.status, ac.ratingscale, ac.selfreviewenabled, ac.peerreviewenabled,
+                     ac.managerreviewenabled
+            ORDER BY ac.startdate DESC
+            LIMIT 1";
+
+        var result = await QuerySingleOrDefaultAsync<AppraisalCycleDto>(sql, new { organizationId });
+        return result;
+    }
+
+    // KRA Management - Enhanced
+    public async Task<bool> DeleteKRAAsync(Guid kraId)
+    {
+        var sql = @"DELETE FROM performance.kras WHERE kraid = @KraId";
+        var affected = await ExecuteAsync(sql, new { KraId = kraId });
+        return affected > 0;
+    }
+
+    // Appraisal Consolidation
+    public async Task<EmployeeAppraisalDto> ConsolidateAppraisalAsync(ConsolidateAppraisalRequest request)
+    {
+        // Get self-assessment data
+        var selfAssessments = await GetSelfAssessmentsAsync(request.EmployeeId, request.CycleId);
+        var selfAssessmentList = selfAssessments.ToList();
+
+        // Get manager review data
+        var managerReviewSql = @"
+            SELECT reviewid, managerid, employeeid, cycleid, overallrating, feedback, 
+                   improvementareas, developmentplan, status, createdat, updatedat
+            FROM performance.managerreviews
+            WHERE employeeid = @EmployeeId AND cycleid = @CycleId
+            ORDER BY createdat DESC
+            LIMIT 1";
+
+        var managerReview = await QuerySingleOrDefaultAsync<ManagerReviewDto>(managerReviewSql, new
+        {
+            EmployeeId = request.EmployeeId,
+            CycleId = request.CycleId
+        });
+
+        if (managerReview == null)
+        {
+            throw new InvalidOperationException("Manager review not found. Cannot consolidate appraisal.");
+        }
+
+        // Calculate KRA ratings from self-assessment
+        var kraRatings = new Dictionary<string, object>();
+        var kraRatingsList = selfAssessmentList.Where(s => s.KraId.HasValue).ToList();
+        foreach (var sa in kraRatingsList)
+        {
+            kraRatings[sa.KraId!.Value.ToString()] = sa.Rating;
+        }
+
+        // Calculate Skill ratings from self-assessment
+        var skillRatings = new Dictionary<string, object>();
+        var skillRatingsList = selfAssessmentList.Where(s => s.SkillId.HasValue).ToList();
+        foreach (var sa in skillRatingsList)
+        {
+            skillRatings[sa.SkillId!.Value.ToString()] = sa.Rating;
+        }
+
+        // Calculate overall rating with weightage: KRAs 60%, Skills 30%, Manager feedback 10%
+        decimal overallRating = 0;
+        decimal kraAverage = 0;
+        decimal skillAverage = 0;
+
+        if (kraRatingsList.Any())
+        {
+            kraAverage = (decimal)kraRatingsList.Average(s => (double)s.Rating);
+        }
+
+        if (skillRatingsList.Any())
+        {
+            skillAverage = (decimal)skillRatingsList.Average(s => (double)s.Rating);
+        }
+
+        overallRating = (kraAverage * 0.6m) + (skillAverage * 0.3m) + (managerReview.OverallRating * 0.1m);
+
+        // Create consolidated appraisal
+        var appraisal = new EmployeeAppraisal
+        {
+            AppraisalId = Guid.NewGuid(),
+            CycleId = request.CycleId,
+            EmployeeId = request.EmployeeId,
+            ReviewerId = request.ReviewerId,
+            ReviewType = "consolidated",
+            OverallRating = overallRating,
+            KraRatings = kraRatings,
+            SkillRatings = skillRatings,
+            Feedback = managerReview.Feedback,
+            ImprovementAreas = managerReview.ImprovementAreas,
+            DevelopmentPlan = managerReview.DevelopmentPlan,
+            Status = "completed",
+            SubmittedAt = DateTime.UtcNow,
+            ReviewedAt = DateTime.UtcNow
+        };
+
+        var createdAppraisal = await CreateEmployeeAppraisalAsync(appraisal);
+
+        // Map to DTO
+        var employeeSql = @"
+            SELECT CONCAT(firstname, ' ', lastname) as employee_name
+            FROM employee.employees
+            WHERE employeeid = @EmployeeId";
+
+        var employeeName = await QuerySingleOrDefaultAsync<string>(employeeSql, new { EmployeeId = request.EmployeeId });
+
+        var cycleSql = @"
+            SELECT cyclename
+            FROM performance.appraisalcycles
+            WHERE cycleid = @CycleId";
+
+        var cycleName = await QuerySingleOrDefaultAsync<string>(cycleSql, new { CycleId = request.CycleId });
+
+        return new EmployeeAppraisalDto
+        {
+            AppraisalId = createdAppraisal.AppraisalId,
+            EmployeeId = createdAppraisal.EmployeeId,
+            CycleId = createdAppraisal.CycleId,
+            EmployeeName = employeeName ?? string.Empty,
+            CycleName = cycleName ?? string.Empty,
+            ReviewerName = null,
+            ReviewType = createdAppraisal.ReviewType,
+            OverallRating = createdAppraisal.OverallRating,
+            KraRatings = createdAppraisal.KraRatings,
+            SkillRatings = createdAppraisal.SkillRatings,
+            Feedback = createdAppraisal.Feedback,
+            ImprovementAreas = createdAppraisal.ImprovementAreas,
+            Status = createdAppraisal.Status,
+            SubmittedAt = createdAppraisal.SubmittedAt,
+            ReviewedAt = createdAppraisal.ReviewedAt
+        };
+    }
+
+    // Reports and Analytics
+    public async Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId)
+    {
+        var employeeSql = @"
+            SELECT CONCAT(firstname, ' ', lastname) as employee_name
+            FROM employee.employees
+            WHERE employeeid = @EmployeeId";
+
+        var employeeName = await QuerySingleOrDefaultAsync<string>(employeeSql, new { EmployeeId = employeeId });
+
+        if (string.IsNullOrEmpty(employeeName))
+        {
+            throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
+        }
+
+        var appraisals = await GetEmployeeAppraisalsByEmployeeAsync(employeeId);
+
+        var averageRating = appraisals.Any() && appraisals.Any(a => a.OverallRating.HasValue)
+            ? (decimal?)appraisals.Where(a => a.OverallRating.HasValue).Average(a => a.OverallRating!.Value)
+            : null;
+
+        // Get skill gaps
+        var skillGapsSql = @"
+            SELECT 
+                s.skillid,
+                s.skillname,
+                4 as required_level, -- Default required level, can be customized
+                COALESCE(MAX(es.proficiencylevel), 0) as current_level,
+                (4 - COALESCE(MAX(es.proficiencylevel), 0)) as gap
+            FROM performance.skillsets s
+            LEFT JOIN performance.employeeskills es ON s.skillid = es.skillid AND es.employeeid = @EmployeeId
+            WHERE s.isactive = true
+            GROUP BY s.skillid, s.skillname
+            HAVING (4 - COALESCE(MAX(es.proficiencylevel), 0)) > 0
+            ORDER BY gap DESC";
+
+        var skillGaps = await QueryAsync<SkillGapAnalysisDto>(skillGapsSql, new { EmployeeId = employeeId });
+
+        return new EmployeePerformanceHistoryDto
+        {
+            EmployeeId = employeeId,
+            EmployeeName = employeeName,
+            Appraisals = appraisals,
+            AverageRating = averageRating,
+            TotalAppraisals = appraisals.Count,
+            CompletedAppraisals = appraisals.Count(a => a.Status == "completed"),
+            SkillGaps = skillGaps.ToList()
+        };
+    }
+
+    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId)
+    {
+        var sql = @"
+            SELECT ea.appraisalid, ea.employeeid, ea.reviewerid, ea.reviewtype, ea.cycleid,
+                   ea.overallrating, ea.kraratings, ea.skillratings, ea.feedback,
+                   ea.improvementareas, ea.status, ea.submittedat, ea.reviewedat,
+                   CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+                   CONCAT(r.firstname, ' ', r.lastname) as reviewer_name,
+                   ac.cyclename
+            FROM performance.employeeappraisals ea
+            INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
+            LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
+            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+            WHERE ea.employeeid = @employeeId
+            ORDER BY ea.createdat DESC";
+
+        var results = await QueryAsync<EmployeeAppraisalDto>(sql, new { employeeId });
+        return results.ToList();
+    }
+
+    public async Task<EmployeeAppraisalDto?> GetEmployeeAppraisalByIdAsync(Guid appraisalId)
+    {
+        var sql = @"
+            SELECT ea.appraisalid, ea.employeeid, ea.reviewerid, ea.reviewtype, ea.cycleid,
+                   ea.overallrating, ea.kraratings, ea.skillratings, ea.feedback,
+                   ea.improvementareas, ea.status, ea.submittedat, ea.reviewedat,
+                   CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+                   CONCAT(r.firstname, ' ', r.lastname) as reviewer_name,
+                   ac.cyclename
+            FROM performance.employeeappraisals ea
+            INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
+            LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
+            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+            WHERE ea.appraisalid = @appraisalId";
+
+        var result = await QuerySingleOrDefaultAsync<EmployeeAppraisalDto>(sql, new { appraisalId });
+        return result;
     }
 }

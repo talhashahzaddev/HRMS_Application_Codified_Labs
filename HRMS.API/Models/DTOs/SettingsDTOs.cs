@@ -12,3 +12,4 @@ public class UpdateCurrencyRequest
     public string Currency { get; set; } = string.Empty;
 }
 
+

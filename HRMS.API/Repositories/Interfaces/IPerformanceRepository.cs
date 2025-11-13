@@ -39,4 +39,21 @@ public interface IPerformanceRepository
     Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId);
     Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request);
 
+    // Appraisal Cycle Management - Enhanced
+    Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId);
+    Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request);
+    Task<bool> DeleteAppraisalCycleAsync(Guid cycleId);
+    Task<AppraisalCycleDto?> GetActiveAppraisalCycleAsync(Guid organizationId);
+
+    // KRA Management - Enhanced
+    Task<bool> DeleteKRAAsync(Guid kraId);
+
+    // Appraisal Consolidation
+    Task<EmployeeAppraisalDto> ConsolidateAppraisalAsync(ConsolidateAppraisalRequest request);
+
+    // Reports and Analytics
+    Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId);
+    Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId);
+    Task<EmployeeAppraisalDto?> GetEmployeeAppraisalByIdAsync(Guid appraisalId);
+
 }

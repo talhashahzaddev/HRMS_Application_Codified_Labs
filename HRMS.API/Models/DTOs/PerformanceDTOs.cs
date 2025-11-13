@@ -172,6 +172,8 @@ public class UpdateEmployeeSkillRequest
 public class KRADto
 {
     public Guid KRAId { get; set; }
+    public Guid? OrganizationId { get; set; }
+    public Guid? PositionId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
@@ -335,4 +337,31 @@ public class ManagerReviewDto
     public string Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+
+public class ConsolidateAppraisalRequest
+{
+    public Guid EmployeeId { get; set; }
+    public Guid CycleId { get; set; }
+    public Guid ReviewerId { get; set; }
+}
+
+public class EmployeePerformanceHistoryDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public List<EmployeeAppraisalDto> Appraisals { get; set; } = new();
+    public decimal? AverageRating { get; set; }
+    public int TotalAppraisals { get; set; }
+    public int CompletedAppraisals { get; set; }
+    public List<SkillGapAnalysisDto> SkillGaps { get; set; } = new();
+}
+
+public class SkillGapAnalysisDto
+{
+    public Guid SkillId { get; set; }
+    public string SkillName { get; set; } = string.Empty;
+    public int RequiredLevel { get; set; }
+    public int CurrentLevel { get; set; }
+    public int Gap { get; set; }
 }

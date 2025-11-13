@@ -672,6 +672,306 @@ public class PerformanceController : ControllerBase
         }
     }
 
+    // Appraisal Cycle Management - Enhanced
+    [HttpGet("cycles/{cycleId}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> GetAppraisalCycleById(Guid cycleId)
+    {
+        try
+        {
+            var cycle = await _performanceService.GetAppraisalCycleByIdAsync(cycleId);
+            if (cycle == null)
+            {
+                return NotFound(new ServiceResponse<AppraisalCycleDto>
+                {
+                    Success = false,
+                    Message = "Appraisal cycle not found"
+                });
+            }
+
+            return Ok(new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = true,
+                Data = cycle
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving appraisal cycle {CycleId}", cycleId);
+            return StatusCode(500, new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving appraisal cycle"
+            });
+        }
+    }
+
+    [HttpPut("cycles/{cycleId}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> UpdateAppraisalCycle(Guid cycleId, [FromBody] UpdateAppraisalCycleRequest request)
+    {
+        try
+        {
+            var cycle = await _performanceService.UpdateAppraisalCycleAsync(cycleId, request);
+            return Ok(new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = true,
+                Message = "Appraisal cycle updated successfully",
+                Data = cycle
+            });
+        }
+        catch (KeyNotFoundException)
+        {
+            return NotFound(new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = false,
+                Message = "Appraisal cycle not found"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating appraisal cycle {CycleId}", cycleId);
+            return StatusCode(500, new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating appraisal cycle"
+            });
+        }
+    }
+
+    [HttpDelete("cycles/{cycleId}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteAppraisalCycle(Guid cycleId)
+    {
+        try
+        {
+            var result = await _performanceService.DeleteAppraisalCycleAsync(cycleId);
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Appraisal cycle not found or could not be deleted"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Appraisal cycle deleted successfully",
+                Data = true
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting appraisal cycle {CycleId}", cycleId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting appraisal cycle"
+            });
+        }
+    }
+
+    [HttpGet("cycles/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> GetActiveAppraisalCycle()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var cycle = await _performanceService.GetActiveAppraisalCycleAsync(organizationId);
+            
+            if (cycle == null)
+            {
+                return NotFound(new ServiceResponse<AppraisalCycleDto>
+                {
+                    Success = false,
+                    Message = "No active appraisal cycle found"
+                });
+            }
+
+            return Ok(new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = true,
+                Data = cycle
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active appraisal cycle");
+            return StatusCode(500, new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving active appraisal cycle"
+            });
+        }
+    }
+
+    // KRA Management - Enhanced
+    [HttpDelete("Kra/{kraId}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteKRA(Guid kraId)
+    {
+        try
+        {
+            var result = await _performanceService.DeleteKRAAsync(kraId);
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "KRA not found or could not be deleted"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "KRA deleted successfully",
+                Data = true
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting KRA {KRAId}", kraId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting KRA"
+            });
+        }
+    }
+
+    // Appraisal Consolidation
+    [HttpPost("appraisals/consolidate")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> ConsolidateAppraisal([FromBody] ConsolidateAppraisalRequest request)
+    {
+        try
+        {
+            var reviewerId = GetCurrentEmployeeId();
+            request.ReviewerId = reviewerId;
+            
+            var appraisal = await _performanceService.ConsolidateAppraisalAsync(request);
+            return Ok(new ServiceResponse<EmployeeAppraisalDto>
+            {
+                Success = true,
+                Message = "Appraisal consolidated successfully",
+                Data = appraisal
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<EmployeeAppraisalDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error consolidating appraisal");
+            return StatusCode(500, new ServiceResponse<EmployeeAppraisalDto>
+            {
+                Success = false,
+                Message = "An error occurred while consolidating appraisal"
+            });
+        }
+    }
+
+    // Reports and Analytics
+    [HttpGet("employee/{employeeId}/history")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<EmployeePerformanceHistoryDto>>> GetEmployeePerformanceHistory(Guid employeeId)
+    {
+        try
+        {
+            var currentEmployeeId = GetCurrentEmployeeId();
+            var organizationId = GetCurrentOrganizationId();
+
+            // Employees can only view their own history
+            var userRoles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+            if (userRoles.Contains("Employee") && currentEmployeeId != employeeId)
+            {
+                return Forbid();
+            }
+
+            var history = await _performanceService.GetEmployeePerformanceHistoryAsync(employeeId);
+            return Ok(new ServiceResponse<EmployeePerformanceHistoryDto>
+            {
+                Success = true,
+                Data = history
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<EmployeePerformanceHistoryDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving performance history for employee {EmployeeId}", employeeId);
+            return StatusCode(500, new ServiceResponse<EmployeePerformanceHistoryDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving performance history"
+            });
+        }
+    }
+
+    [HttpGet("appraisals/{appraisalId}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> GetEmployeeAppraisalById(Guid appraisalId)
+    {
+        try
+        {
+            var appraisal = await _performanceService.GetEmployeeAppraisalByIdAsync(appraisalId);
+            if (appraisal == null)
+            {
+                return NotFound(new ServiceResponse<EmployeeAppraisalDto>
+                {
+                    Success = false,
+                    Message = "Appraisal not found"
+                });
+            }
+
+            // Employees can only view their own appraisals
+            var currentEmployeeId = GetCurrentEmployeeId();
+            var userRoles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
+            if (userRoles.Contains("Employee") && currentEmployeeId != appraisal.EmployeeId)
+            {
+                return Forbid();
+            }
+
+            return Ok(new ServiceResponse<EmployeeAppraisalDto>
+            {
+                Success = true,
+                Data = appraisal
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving appraisal {AppraisalId}", appraisalId);
+            return StatusCode(500, new ServiceResponse<EmployeeAppraisalDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving appraisal"
+            });
+        }
+    }
+
     [HttpPost("Manager/Review")]
     [Authorize(Roles = "Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ManagerReviewDto>>> SubmitManagerReview([FromBody] ManagerReviewRequest request)

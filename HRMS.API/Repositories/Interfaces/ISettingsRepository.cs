@@ -6,3 +6,4 @@ public interface ISettingsRepository
     Task<bool> UpdateCurrencyAsync(Guid organizationId, string currency);
 }
 
+

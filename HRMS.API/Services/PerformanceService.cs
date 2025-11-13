@@ -90,7 +90,7 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetEmployeeAppraisalsAsync(cycleId, employeeId);
     }
 
-    public async Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
+    public async Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
     {
         try
         {
@@ -442,7 +442,7 @@ public class PerformanceService : IPerformanceService
     public async Task<bool> DeleteKRAAsync(Guid kraId)
     {
         _logger.LogInformation("Deleting KRA: {KRAId}", kraId);
-        return true;
+        return await _performanceRepository.DeleteKRAAsync(kraId);
     }
 
     public async Task<PagedResult<AppraisalCycleDto>> GetAppraisalCyclesPagedAsync(Guid organizationId, int page, int limit, string? search)
@@ -469,32 +469,19 @@ public class PerformanceService : IPerformanceService
     public async Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId)
     {
         _logger.LogInformation("Getting appraisal cycle by ID: {CycleId}", cycleId);
-
-        var cycles = await GetAppraisalCyclesAsync(Guid.NewGuid());
-        return cycles.FirstOrDefault(c => c.CycleId == cycleId);
+        return await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
     }
 
     public async Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request)
     {
         _logger.LogInformation("Updating appraisal cycle: {CycleId}", cycleId);
-
-        var cycle = await GetAppraisalCycleByIdAsync(cycleId);
-        if (cycle == null)
-            throw new KeyNotFoundException($"Appraisal cycle with ID {cycleId} not found");
-
-        cycle.CycleName = request.CycleName;
-        cycle.StartDate = request.StartDate;
-        cycle.EndDate = request.EndDate;
-        cycle.Description = request.Description;
-        cycle.Status = request.Status;
-
-        return cycle;
+        return await _performanceRepository.UpdateAppraisalCycleAsync(cycleId, request);
     }
 
     public async Task<bool> DeleteAppraisalCycleAsync(Guid cycleId)
     {
         _logger.LogInformation("Deleting appraisal cycle: {CycleId}", cycleId);
-        return true;
+        return await _performanceRepository.DeleteAppraisalCycleAsync(cycleId);
     }
 
     public async Task<PagedResult<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit)
@@ -539,16 +526,7 @@ public class PerformanceService : IPerformanceService
     public async Task<EmployeeAppraisalDto?> GetEmployeeAppraisalByIdAsync(Guid appraisalId)
     {
         _logger.LogInformation("Getting employee appraisal by ID: {AppraisalId}", appraisalId);
-
-        return new EmployeeAppraisalDto
-        {
-            AppraisalId = appraisalId,
-            EmployeeId = Guid.NewGuid(),
-            CycleId = Guid.NewGuid(),
-            Status = "Completed",
-            OverallRating = 4.5m,
-            SubmittedAt = DateTime.UtcNow.AddDays(-10)
-        };
+        return await _performanceRepository.GetEmployeeAppraisalByIdAsync(appraisalId);
     }
 
     public async Task<EmployeeAppraisalDto> SubmitAppraisalAsync(Guid appraisalId, SubmitAppraisalRequest request)
@@ -662,5 +640,26 @@ public class PerformanceService : IPerformanceService
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
     {
         return await _performanceRepository.SubmitManagerReviewAsync(request);
+    }
+
+    // Appraisal Cycle Management - Enhanced (New methods only)
+    public async Task<AppraisalCycleDto?> GetActiveAppraisalCycleAsync(Guid organizationId)
+    {
+        _logger.LogInformation("Getting active appraisal cycle for organization: {OrganizationId}", organizationId);
+        return await _performanceRepository.GetActiveAppraisalCycleAsync(organizationId);
+    }
+
+    // Appraisal Consolidation
+    public async Task<EmployeeAppraisalDto> ConsolidateAppraisalAsync(ConsolidateAppraisalRequest request)
+    {
+        _logger.LogInformation("Consolidating appraisal for employee: {EmployeeId}, cycle: {CycleId}", request.EmployeeId, request.CycleId);
+        return await _performanceRepository.ConsolidateAppraisalAsync(request);
+    }
+
+    // Reports and Analytics
+    public async Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId)
+    {
+        _logger.LogInformation("Getting performance history for employee: {EmployeeId}", employeeId);
+        return await _performanceRepository.GetEmployeePerformanceHistoryAsync(employeeId);
     }
 }
