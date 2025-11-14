@@ -128,6 +128,7 @@ public class PerformanceService : IPerformanceService
 
     public async Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(Guid organizationId, Guid? cycleId = null)
     {
+        _logger.LogInformation("Getting performance summary for organization: {OrganizationId}, cycle: {CycleId}", organizationId, cycleId);
         return await _performanceRepository.GetPerformanceSummaryAsync(organizationId, cycleId);
     }
 
@@ -140,7 +141,9 @@ public class PerformanceService : IPerformanceService
     public async Task<PerformanceSummaryDto> GetPerformanceDashboardSummaryAsync(Guid organizationId)
     {
         _logger.LogInformation("Getting performance dashboard summary for organization: {OrganizationId}", organizationId);
-        return await GetPerformanceSummaryAsync(organizationId);
+        // Get active cycle if available
+        var activeCycle = await _performanceRepository.GetActiveAppraisalCycleAsync(organizationId);
+        return await GetPerformanceSummaryAsync(organizationId, activeCycle?.CycleId);
     }
 
     public async Task<PagedResult<SkillSetDto>> GetSkillSetsPagedAsync(Guid organizationId, SkillSetFilterRequest filter, int page, int limit)
@@ -148,6 +151,7 @@ public class PerformanceService : IPerformanceService
         _logger.LogInformation("Getting paged skill sets for organization: {OrganizationId}", organizationId);
         var skillSets = await GetSkillSetsAsync(organizationId);
 
+        // Apply filters
         if (!string.IsNullOrEmpty(filter.Category))
             skillSets = skillSets.Where(s => s.Category == filter.Category).ToList();
         if (filter.IsActive.HasValue)
@@ -170,8 +174,7 @@ public class PerformanceService : IPerformanceService
     public async Task<SkillSetDto?> GetSkillSetByIdAsync(Guid skillSetId)
     {
         _logger.LogInformation("Getting skill set by ID: {SkillSetId}", skillSetId);
-        var skillSets = await GetSkillSetsAsync(Guid.NewGuid());
-        return skillSets.FirstOrDefault(s => s.SkillId == skillSetId);
+        return await _performanceRepository.GetSkillSetByIdAsync(skillSetId);
     }
 
     //public async Task<SkillSetDto> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
@@ -197,37 +200,32 @@ public class PerformanceService : IPerformanceService
         if (skillSet == null)
             throw new KeyNotFoundException($"Skill set with ID {skillSetId} not found");
 
-        skillSet.SkillName = request.SkillName;
-        skillSet.Category = request.Category ?? skillSet.Category;
-        skillSet.Description = request.Description;
-        skillSet.IsActive = request.IsActive;
-
-        return skillSet;
+        return await _performanceRepository.UpdateSkillSetAsync(skillSetId, request);
     }
 
     public async Task<bool> DeleteSkillSetAsync(Guid skillSetId)
     {
         _logger.LogInformation("Deleting skill set: {SkillSetId}", skillSetId);
-        return true;
+        return await _performanceRepository.DeleteSkillSetAsync(skillSetId);
     }
 
     public async Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit)
     {
         _logger.LogInformation("Getting paged employee skills for organization: {OrganizationId}", organizationId);
 
-        var skills = new List<EmployeeSkillDto>
-        {
-            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 4, AssessedBy = Guid.NewGuid(), LastAssessed = DateTime.UtcNow.AddDays(-30) },
-            new() { EmployeeSkillId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), SkillId = Guid.NewGuid(), ProficiencyLevel = 3, AssessedBy = Guid.NewGuid(), LastAssessed = DateTime.UtcNow.AddDays(-45) }
-        };
+        // Get all employee skills for the organization with filters
+        var allSkills = await _performanceRepository.GetEmployeeSkillsByOrganizationAsync(organizationId, filter);
 
-        if (filter.EmployeeId.HasValue)
-            skills = skills.Where(s => s.EmployeeId == filter.EmployeeId).ToList();
+        // Apply additional filters that can't be done in SQL easily
         if (filter.ProficiencyLevel.HasValue)
-            skills = skills.Where(s => s.ProficiencyLevel == filter.ProficiencyLevel).ToList();
+            allSkills = allSkills.Where(s => s.ProficiencyLevel == filter.ProficiencyLevel.Value).ToList();
+        if (!string.IsNullOrEmpty(filter.Search))
+            allSkills = allSkills.Where(s => 
+                s.SkillName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase) ||
+                s.EmployeeName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase)).ToList();
 
-        var totalItems = skills.Count;
-        var pagedItems = skills.Skip((page - 1) * limit).Take(limit).ToList();
+        var totalItems = allSkills.Count;
+        var pagedItems = allSkills.Skip((page - 1) * limit).Take(limit).ToList();
 
         return new PagedResult<EmployeeSkillDto>
         {
@@ -247,16 +245,7 @@ public class PerformanceService : IPerformanceService
     public async Task<EmployeeSkillDto?> GetEmployeeSkillByIdAsync(Guid employeeSkillId)
     {
         _logger.LogInformation("Getting employee skill by ID: {EmployeeSkillId}", employeeSkillId);
-
-        return new EmployeeSkillDto
-        {
-            EmployeeSkillId = employeeSkillId,
-            EmployeeId = Guid.NewGuid(),
-            SkillId = Guid.NewGuid(),
-            ProficiencyLevel = 4,
-            AssessedBy = Guid.NewGuid(),
-            LastAssessed = DateTime.UtcNow.AddDays(-30)
-        };
+        return await _performanceRepository.GetEmployeeSkillByIdAsync(employeeSkillId);
     }
 
     public async Task<EmployeeSkillDto> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
@@ -350,18 +339,13 @@ public class PerformanceService : IPerformanceService
         if (skill == null)
             throw new KeyNotFoundException($"Employee skill with ID {employeeSkillId} not found");
 
-        skill.ProficiencyLevel = request.ProficiencyLevel;
-        skill.AssessedBy = request.AssessedBy;
-        skill.LastAssessed = request.LastAssessed ?? skill.LastAssessed;
-        skill.Notes = request.Notes;
-
-        return skill;
+        return await _performanceRepository.UpdateEmployeeSkillAsync(employeeSkillId, request);
     }
 
     public async Task<bool> DeleteEmployeeSkillAsync(Guid employeeSkillId)
     {
         _logger.LogInformation("Deleting employee skill: {EmployeeSkillId}", employeeSkillId);
-        return true;
+        return await _performanceRepository.DeleteEmployeeSkillAsync(employeeSkillId);
     }
 
     public async Task<PagedResult<KRADto>> GetKRAsAsync(Guid organizationId, int page, int limit, string? search)
@@ -488,26 +472,13 @@ public class PerformanceService : IPerformanceService
     {
         _logger.LogInformation("Getting paged employee appraisals for organization: {OrganizationId}", organizationId);
 
-        var appraisals = new List<EmployeeAppraisalDto>
-        {
-            new() { AppraisalId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), CycleId = Guid.NewGuid(), Status = "Completed", OverallRating = 4.5m, SubmittedAt = DateTime.UtcNow.AddDays(-10) },
-            new() { AppraisalId = Guid.NewGuid(), EmployeeId = Guid.NewGuid(), CycleId = Guid.NewGuid(), Status = "Pending", OverallRating = null, SubmittedAt = null }
-        };
-
-        if (filter.AppraisalCycleId.HasValue)
-            appraisals = appraisals.Where(a => a.CycleId == filter.AppraisalCycleId).ToList();
-        if (!string.IsNullOrEmpty(filter.Status))
-            appraisals = appraisals.Where(a => a.Status == filter.Status).ToList();
-        if (filter.EmployeeId.HasValue)
-            appraisals = appraisals.Where(a => a.EmployeeId == filter.EmployeeId).ToList();
-
-        var totalItems = appraisals.Count;
-        var pagedItems = appraisals.Skip((page - 1) * limit).Take(limit).ToList();
+        var appraisals = await _performanceRepository.GetEmployeeAppraisalsPagedAsync(organizationId, filter, page, limit);
+        var totalCount = await _performanceRepository.GetEmployeeAppraisalsCountAsync(organizationId, filter);
 
         return new PagedResult<EmployeeAppraisalDto>
         {
-            Data = pagedItems,
-            TotalCount = totalItems,
+            Data = appraisals,
+            TotalCount = totalCount,
             Page = page,
             PageSize = limit
         };
@@ -516,11 +487,7 @@ public class PerformanceService : IPerformanceService
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId)
     {
         _logger.LogInformation("Getting employee appraisals for employee: {EmployeeId}", employeeId);
-
-        return new List<EmployeeAppraisalDto>
-        {
-            new() { AppraisalId = Guid.NewGuid(), EmployeeId = employeeId, CycleId = Guid.NewGuid(), Status = "Completed", OverallRating = 4.5m, SubmittedAt = DateTime.UtcNow.AddDays(-10) }
-        };
+        return await _performanceRepository.GetEmployeeAppraisalsByEmployeeAsync(employeeId);
     }
 
     public async Task<EmployeeAppraisalDto?> GetEmployeeAppraisalByIdAsync(Guid appraisalId)
@@ -562,17 +529,57 @@ public class PerformanceService : IPerformanceService
     {
         _logger.LogInformation("Generating performance report for organization: {OrganizationId}", organizationId);
 
+        // Get appraisals within the date range
+        var cycleFilter = new AppraisalFilterRequest
+        {
+            AppraisalCycleId = filter.AppraisalCycleId
+        };
+
+        // Get all appraisals for the organization
+        var allAppraisals = await _performanceRepository.GetEmployeeAppraisalsPagedAsync(
+            organizationId, 
+            cycleFilter, 
+            1, 
+            10000); // Get all appraisals
+
+        // Filter by date range if provided
+        var filteredAppraisals = allAppraisals.Where(a => 
+            (!filter.StartDate.HasValue || (a.SubmittedAt ?? a.ReviewedAt ?? DateTime.MinValue) >= filter.StartDate.Value) &&
+            (!filter.EndDate.HasValue || (a.SubmittedAt ?? a.ReviewedAt ?? DateTime.MinValue) <= filter.EndDate.Value)
+        ).ToList();
+
+        // Filter by department if provided
+        if (!string.IsNullOrEmpty(filter.Department))
+        {
+            // Note: This would require joining with employee departments
+            // For now, we'll keep all appraisals and filter can be done at report level
+        }
+
+        // Filter by rating if provided
+        if (filter.Rating.HasValue)
+        {
+            filteredAppraisals = filteredAppraisals.Where(a => 
+                a.OverallRating.HasValue && 
+                Math.Floor(a.OverallRating.Value) == Math.Floor(filter.Rating.Value)
+            ).ToList();
+        }
+
+        // Get department breakdown
+        var departmentBreakdown = await _performanceRepository.GetDepartmentPerformanceBreakdownAsync(
+            organizationId, 
+            filter.StartDate, 
+            filter.EndDate);
+
+        // Get summary
+        var summary = await GetPerformanceSummaryAsync(organizationId, filter.AppraisalCycleId);
+
         return new PerformanceReportDto
         {
             StartDate = filter.StartDate ?? DateTime.Now.AddMonths(-3),
             EndDate = filter.EndDate ?? DateTime.Now,
-            Appraisals = new List<EmployeeAppraisalDto>(),
-            Summary = await GetPerformanceSummaryAsync(organizationId),
-            DepartmentBreakdown = new List<DepartmentPerformanceDto>
-            {
-                new() { DepartmentName = "Engineering", AverageRating = 4.2m, EmployeeCount = 60, CompletedAppraisals = 55, PendingAppraisals = 5 },
-                new() { DepartmentName = "Sales", AverageRating = 4.0m, EmployeeCount = 30, CompletedAppraisals = 28, PendingAppraisals = 2 }
-            },
+            Appraisals = filteredAppraisals,
+            Summary = summary,
+            DepartmentBreakdown = departmentBreakdown,
             TopPerformers = await GetTopPerformersAsync(organizationId, 10)
         };
     }
@@ -583,10 +590,20 @@ public class PerformanceService : IPerformanceService
 
         var report = await GeneratePerformanceReportAsync(organizationId, filter);
 
-        // Mock CSV export
-        var csvData = "Employee,Department,OverallRating,Status,CompletionDate\n";
-        csvData += "John Doe,Engineering,4.5,Completed,2024-01-15\n";
-        csvData += "Jane Smith,Sales,4.2,Completed,2024-01-20\n";
+        // Generate CSV from actual data
+        var csvData = "Employee,Department,OverallRating,Status,CompletionDate,Cycle\n";
+        
+        foreach (var appraisal in report.Appraisals)
+        {
+            // Get department for employee
+            var departmentName = await _performanceRepository.GetEmployeeDepartmentAsync(appraisal.EmployeeId) ?? "N/A";
+            
+            var completionDate = appraisal.ReviewedAt?.ToString("yyyy-MM-dd") 
+                ?? appraisal.SubmittedAt?.ToString("yyyy-MM-dd") 
+                ?? "N/A";
+            
+            csvData += $"{appraisal.EmployeeName},{departmentName},{appraisal.OverallRating?.ToString("F2") ?? "N/A"},{appraisal.Status},{completionDate},{appraisal.CycleName}\n";
+        }
 
         return System.Text.Encoding.UTF8.GetBytes(csvData);
     }

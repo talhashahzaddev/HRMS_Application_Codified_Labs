@@ -98,6 +98,49 @@ public class PerformanceController : ControllerBase
         }
     }
 
+    [HttpGet("appraisals")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeAppraisalDto>>>> GetEmployeeAppraisals(
+        [FromQuery] Guid? appraisalCycleId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] string? department = null,
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] Guid? managerId = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 10)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var filter = new AppraisalFilterRequest
+            {
+                AppraisalCycleId = appraisalCycleId,
+                Status = status,
+                Department = department,
+                EmployeeId = employeeId,
+                ManagerId = managerId,
+                Search = search
+            };
+
+            var result = await _performanceService.GetEmployeeAppraisalsPagedAsync(organizationId, filter, page, limit);
+
+            return Ok(new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee appraisals");
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee appraisals"
+            });
+        }
+    }
+
     [HttpPost("appraisals")]
     public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> CreateEmployeeAppraisal([FromBody] CreateAppraisalRequest request)
     {
@@ -839,7 +882,7 @@ public class PerformanceController : ControllerBase
             var userRoles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
             if (userRoles.Contains("Employee") && currentEmployeeId != appraisal.EmployeeId)
             {
-                return Forbid();
+                return Forbid(); 
             }
 
             return Ok(new ServiceResponse<EmployeeAppraisalDto>

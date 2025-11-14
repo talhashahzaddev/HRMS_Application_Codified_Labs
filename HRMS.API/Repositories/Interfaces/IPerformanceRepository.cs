@@ -11,8 +11,15 @@ public interface IPerformanceRepository
     Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null);
     Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId);
     Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId);
+    Task<SkillSetDto?> GetSkillSetByIdAsync(Guid skillSetId);
+    Task<SkillSetDto> UpdateSkillSetAsync(Guid skillSetId, UpdateSkillSetRequest request);
+    Task<bool> DeleteSkillSetAsync(Guid skillSetId);
     Task<EmployeeSkillDto?> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request);
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId);
+    Task<List<EmployeeSkillDto>> GetEmployeeSkillsByOrganizationAsync(Guid organizationId, EmployeeSkillFilterRequest filter);
+    Task<EmployeeSkillDto?> GetEmployeeSkillByIdAsync(Guid employeeSkillId);
+    Task<EmployeeSkillDto> UpdateEmployeeSkillAsync(Guid employeeSkillId, UpdateEmployeeSkillRequest request);
+    Task<bool> DeleteEmployeeSkillAsync(Guid employeeSkillId);
     Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(Guid organizationId, Guid? cycleId = null);
     Task<bool> UpdateAppraisalStatusAsync(Guid appraisalId, string status);
     Task<List<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10);
@@ -47,5 +54,13 @@ public interface IPerformanceRepository
     Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId);
     Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId);
     Task<EmployeeAppraisalDto?> GetEmployeeAppraisalByIdAsync(Guid appraisalId);
+    
+    // Paged Appraisals
+    Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit);
+    Task<int> GetEmployeeAppraisalsCountAsync(Guid organizationId, AppraisalFilterRequest filter);
+    
+    // Reports
+    Task<List<DepartmentPerformanceDto>> GetDepartmentPerformanceBreakdownAsync(Guid organizationId, DateTime? startDate, DateTime? endDate);
+    Task<string?> GetEmployeeDepartmentAsync(Guid employeeId);
 
 }
