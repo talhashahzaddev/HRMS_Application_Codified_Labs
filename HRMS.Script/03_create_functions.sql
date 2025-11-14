@@ -261,27 +261,18 @@ $$ LANGUAGE plpgsql;
 
 -- Function: Get Employees (with pagination & filters)
 CREATE OR REPLACE FUNCTION employee.fn_get_employees(
-    p_organization_id uuid DEFAULT NULL::uuid,
-    p_search_term character varying DEFAULT NULL::character varying,
-    p_department_id uuid DEFAULT NULL::uuid,
-    p_status character varying DEFAULT NULL::character varying,
-    p_limit integer DEFAULT 50,
-    p_offset integer DEFAULT 0
-)
-RETURNS TABLE(
-    employeeid uuid,
-    employeecode character varying,
-    firstname character varying,
-    lastname character varying,
-    email character varying,
-    phone character varying,
-    hiredate date,
-    status character varying,
-    departmentname character varying,
-    positiontitle character varying,
-    totalcount bigint
-) 
-LANGUAGE 'plpgsql'
+	p_organization_id uuid DEFAULT NULL::uuid,
+	p_search_term character varying DEFAULT NULL::character varying,
+	p_department_id uuid DEFAULT NULL::uuid,
+	p_status character varying DEFAULT NULL::character varying,
+	p_limit integer DEFAULT 50,
+	p_offset integer DEFAULT 0)
+    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentname character varying,profilepictureurl character varying, positiontitle character varying, totalcount bigint) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
 AS $BODY$
 DECLARE
     total_records BIGINT;
@@ -312,6 +303,7 @@ BEGIN
         e.hiredate,
         e.status,
         d.departmentname,
+		e.profilepictureurl,
         pos.positiontitle,
         total_records
     FROM employee.employees e

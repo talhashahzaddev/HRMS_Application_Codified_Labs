@@ -77,6 +77,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
             SELECT lr.requestid, lr.employeeid, lr.leavetypeid, lr.startdate, lr.enddate,
                    lr.daysrequested, lr.reason, lr.status, lr.submittedat, lr.approvedat,
                    CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+                   e.profilepictureurl,
                    lt.typename as leave_type_name,
                    CONCAT(a.firstname, ' ', a.lastname) as approver_name
             FROM attendance.leaverequests lr
@@ -112,6 +113,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                 Status = r.status ?? string.Empty,
                 SubmittedAt = r.submittedat ?? DateTime.MinValue, // ✅ Nullable support
                 ApproverName = r.approver_name ?? string.Empty,
+                ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
                 ApprovedAt = r.approvedat // This is nullable in DTO
             }).ToList();
 
