@@ -263,9 +263,13 @@ public class PerformanceService : IPerformanceService
             if (!request.LastAssessed.HasValue)
                 request.LastAssessed = DateTime.UtcNow;
 
-            // agar assessedBy empty hai to default (e.g., system user / HR)
-            if (!request.AssessedBy.HasValue)
-                request.AssessedBy = Guid.Parse("00000000-0000-0000-0000-000000000000");
+            // AssessedBy should already be set by the controller from the current user context
+            // Only validate it's not empty GUID here
+            if (!request.AssessedBy.HasValue || request.AssessedBy == Guid.Empty)
+            {
+                _logger.LogWarning("AssessedBy is not set. This should be handled by the controller.");
+                throw new ArgumentException("AssessedBy must be provided. The assessor ID is required.");
+            }
 
             // ✅ 3. Call repository
             var result = await _performanceRepository.CreateEmployeeSkillAsync(request);
@@ -653,5 +657,10 @@ public class PerformanceService : IPerformanceService
     {
         _logger.LogInformation("Getting performance history for employee: {EmployeeId}", employeeId);
         return await _performanceRepository.GetEmployeePerformanceHistoryAsync(employeeId);
+    }
+    public async Task<Guid> GetEmployeeFromTable(Guid Userid)
+    {
+        _logger.LogInformation("Getting Employee Id against User id: {EmployeeId}", Userid);
+        return await _performanceRepository.GetEmployeeFromTable(Userid);
     }
 }

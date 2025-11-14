@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
+using System.Threading.Tasks;
 
 namespace HRMS.API.Controllers;
 
@@ -146,7 +147,7 @@ public class PerformanceController : ControllerBase
     {
         try
         {
-            var reviewerId = GetCurrentEmployeeId();
+            var reviewerId = await GetCurrentEmployeeId();
             var appraisal = await _performanceService.CreateEmployeeAppraisalAsync(request, reviewerId);
 
             return Ok(new ServiceResponse<EmployeeAppraisalDto>
@@ -235,6 +236,19 @@ public class PerformanceController : ControllerBase
 
         try
         {
+            // Get current logged-in user ID
+            var currentUserId = await GetCurrentEmployeeId();
+            
+            // If AssessedBy is not provided, set it to current user ID (the person assessing)
+            // If it's self-assessment (employeeId == currentUserId), it will already be set correctly from frontend
+            // If it's someone else assessing, AssessedBy should be the current logged-in user
+            if (request.AssessedBy == request.EmployeeId)
+            {
+                // If employee is assessing themselves, use their own ID
+                // Otherwise, use the current logged-in user ID (HR/Manager assessing)
+                request.AssessedBy = request.EmployeeId = currentUserId;
+            }
+            
             var result = await _performanceService.CreateEmployeeSkillAsync(request);
 
             if (result == null)
@@ -263,7 +277,8 @@ public class PerformanceController : ControllerBase
     {
         try
         {
-            var skills = await _performanceService.GetEmployeeSkillsAsync(employeeId);
+            var employeeTableId = await GetCurrentEmployeeId();
+            var skills = await _performanceService.GetEmployeeSkillsAsync(employeeTableId);
 
             return Ok(new ServiceResponse<List<EmployeeSkillDto>>
             {
@@ -788,7 +803,7 @@ public class PerformanceController : ControllerBase
     {
         try
         {
-            var reviewerId = GetCurrentEmployeeId();
+            var reviewerId = await GetCurrentEmployeeId();
             request.ReviewerId = reviewerId;
             
             var appraisal = await _performanceService.ConsolidateAppraisalAsync(request);
@@ -825,7 +840,7 @@ public class PerformanceController : ControllerBase
     {
         try
         {
-            var currentEmployeeId = GetCurrentEmployeeId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
 
             // Employees can only view their own history
@@ -878,7 +893,7 @@ public class PerformanceController : ControllerBase
             }
 
             // Employees can only view their own appraisals
-            var currentEmployeeId = GetCurrentEmployeeId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
             var userRoles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
             if (userRoles.Contains("Employee") && currentEmployeeId != appraisal.EmployeeId)
             {
@@ -927,7 +942,7 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    private Guid GetCurrentEmployeeId()
+    private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -942,8 +957,8 @@ public class PerformanceController : ControllerBase
             _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
             throw new UnauthorizedAccessException("Invalid user ID format");
         }
-
-        return userId;
+        var employeeId=await _performanceService.GetEmployeeFromTable(userId);
+        return employeeId;
     }
 
     private Guid GetCurrentOrganizationId()

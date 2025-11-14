@@ -1286,4 +1286,16 @@ WHERE es.employeeskillid = @employeeSkillId";
         
         return await QuerySingleOrDefaultAsync<string>(sql, new { employeeId });
     }
+    public async Task<Guid> GetEmployeeFromTable(Guid Userid)
+    {
+        try
+        {
+            var sql = @"SELECT employeeid FROM employee.employees WHERE userid = @Userid";
+            return await QuerySingleOrDefaultAsync<Guid>(sql, new { Userid });
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
 }

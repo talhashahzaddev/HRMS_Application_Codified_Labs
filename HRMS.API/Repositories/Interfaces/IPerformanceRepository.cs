@@ -62,5 +62,6 @@ public interface IPerformanceRepository
     // Reports
     Task<List<DepartmentPerformanceDto>> GetDepartmentPerformanceBreakdownAsync(Guid organizationId, DateTime? startDate, DateTime? endDate);
     Task<string?> GetEmployeeDepartmentAsync(Guid employeeId);
+    Task<Guid> GetEmployeeFromTable(Guid Userid);
 
 }
