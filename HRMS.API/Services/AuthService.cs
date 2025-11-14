@@ -22,14 +22,15 @@ public class AuthService : IAuthService
     private readonly JwtSettings _jwtSettings;
     private readonly IMapper _mapper;
     private readonly ILogger<AuthService> _logger;
-     private readonly IEmailService _emailService;
-
+    private readonly IEmailService _emailService;
+    private readonly ICloudinaryService _cloudinaryService;
     public AuthService(
         IAuthRepository authRepository,
         IOrganizationService organizationService,
         IOptions<JwtSettings> jwtSettings,
         IMapper mapper,
         ILogger<AuthService> logger,
+        ICloudinaryService cloudinaryService,
          IEmailService emailService)
     {
         _authRepository = authRepository;
@@ -38,6 +39,8 @@ public class AuthService : IAuthService
         _mapper = mapper;
         _logger = logger;
         _emailService = emailService;
+        _cloudinaryService = cloudinaryService;
+
     }
 
     public async Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request)
@@ -370,9 +373,7 @@ public class AuthService : IAuthService
         return true;
     }
 
-
-
-    public async Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request,IFormFile? profileurl)
+    public async Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, IFormFile? profileurl)
     {
 
         //Update user Table
@@ -389,26 +390,19 @@ public class AuthService : IAuthService
 
         if (profileurl != null)
         {
-            var folderPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "profile_pictures");
-            if (!Directory.Exists(folderPath))
-                Directory.CreateDirectory(folderPath);
+            // Upload to Cloudinary
+            var uploadedUrl = await _cloudinaryService.UploadProfilePictureAsync(profileurl);
 
-            var fileName = $"{Guid.NewGuid()}_{profileurl.FileName}";
-            var filePath = Path.Combine(folderPath, fileName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            if (!string.IsNullOrEmpty(uploadedUrl))
             {
-                await profileurl.CopyToAsync(stream);
+                profileUrl = uploadedUrl; // Use Cloudinary URL
             }
-
-            // Save relative URL to DB
-            profileUrl = $"/profile_pictures/{fileName}";
         }
 
 
         //_mapper.Map(request, employee);
         //Update Employee table
-        var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request,profileUrl);
+        var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request, profileUrl);
 
         //Update Employee Details table
 
@@ -417,6 +411,7 @@ public class AuthService : IAuthService
         return updateEmployeetable && updateEmployeeDetails;
 
     }
+
 
 
     public async Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordRequest request)

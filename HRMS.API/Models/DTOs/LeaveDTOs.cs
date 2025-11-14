@@ -16,6 +16,7 @@ public class LeaveRequestDto
     public string? ApproverName { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? RejectionReason { get; set; }
+    public string ProfilePictureUrl { get; set; }
 }
 
 public class CreateLeaveRequest
