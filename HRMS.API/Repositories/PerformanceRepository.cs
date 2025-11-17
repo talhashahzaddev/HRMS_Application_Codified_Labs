@@ -1165,56 +1165,161 @@ WHERE es.employeeskillid = @employeeSkillId";
 
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit)
     {
-        var sql = @"
-            SELECT 
-                ea.appraisalid, 
-                ea.employeeid, 
-                ea.reviewerid, 
-                ea.reviewtype, 
-                ea.cycleid,
-                ea.overallrating, 
-                ea.kraratings, 
-                ea.skillratings, 
-                ea.feedback,
-                ea.improvementareas, 
-                ea.developmentplan,
-                ea.status, 
-                ea.submittedat, 
-                ea.reviewedat,
-                ea.createdat,
-                CONCAT(e.firstname, ' ', e.lastname) as employee_name,
-                CONCAT(r.firstname, ' ', r.lastname) as reviewer_name,
-                ac.cyclename
-            FROM performance.employeeappraisals ea
-            INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
-            LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
-            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
-            WHERE e.organizationid = @organizationId
-              AND (@appraisalCycleId IS NULL OR ea.cycleid = @appraisalCycleId)
-              AND (@status IS NULL OR ea.status = @status)
-              AND (@employeeId IS NULL OR ea.employeeid = @employeeId)
-              AND (@managerId IS NULL OR ea.reviewerid = @managerId)
-              AND (@search IS NULL OR 
-                   LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER('%' || @search || '%') OR
-                   LOWER(ac.cyclename) LIKE LOWER('%' || @search || '%'))
-            ORDER BY ea.createdat DESC
-            LIMIT @limit OFFSET @offset";
+        try
+        {
 
-        var offset = (page - 1) * limit;
-        var results = await QueryAsync<EmployeeAppraisalDto>(sql, new 
-        { 
-            organizationId,
-            appraisalCycleId = filter.AppraisalCycleId,
-            status = filter.Status,
-            employeeId = filter.EmployeeId,
-            managerId = filter.ManagerId,
-            search = filter.Search,
-            limit,
-            offset
-        });
-        
-        return results.ToList();
+            var sql = @"
+            SELECT 
+    ea.appraisalid, 
+    ea.employeeid, 
+    ea.reviewerid, 
+    ea.reviewtype, 
+    ea.cycleid,
+
+    /* ===========================================
+         FINAL OVERALL RATING — ALL CASES
+       =========================================== */
+    CASE
+        /* ------------------------------
+           CASE 1: NO KRA & NO SKILL
+           ------------------------------ */
+        WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+        THEN ea.overallrating
+
+
+        /* ------------------------------
+           CASE 2: ONLY KRA EXISTS
+           ------------------------------ */
+        WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+        THEN (
+            SELECT SUM(
+                (
+                    (k.weightpercentage::numeric 
+                        / NULLIF(
+                            (SELECT SUM(weightpercentage) 
+                             FROM performance.kras 
+                             WHERE kraid IN (
+                                SELECT kra_id::uuid 
+                                FROM jsonb_each_text(ea.kraratings)
+                             )
+                            ), 
+                            0
+                        )
+                    ) * 100.0 / 100.0
+                ) * kr.rating::numeric
+            )
+            FROM jsonb_each_text(ea.kraratings) kr(kra_id, rating)
+            JOIN performance.kras k 
+              ON k.kraid = kr.kra_id::uuid
+        )
+
+
+        /* ------------------------------
+           CASE 3: ONLY SKILL EXISTS
+           ------------------------------ */
+        WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
+        THEN (
+            SELECT AVG(s.rating::numeric)
+            FROM jsonb_each_text(ea.skillratings) AS s(skill_id, rating)
+        )
+
+
+        /* ------------------------------
+           CASE 4: BOTH EXIST — weighted
+           ------------------------------ */
+        ELSE (
+            COALESCE((
+                /* Weighted KRA portion */
+                SELECT 
+                    SUM((k.weightpercentage / 100.0) * kr.rating::numeric)
+                FROM jsonb_each_text(ea.kraratings) AS kr(kra_id, rating)
+                JOIN performance.kras k 
+                    ON k.kraid = kr.kra_id::uuid
+                WHERE k.organizationid = e.organizationid
+            ), 0)
+            +
+            COALESCE((
+                /* Weighted Skill portion */
+                SELECT 
+                    SUM(
+                        (
+                            (
+                                (100 - (SELECT COALESCE(SUM(weightpercentage), 0)
+                                        FROM performance.kras
+                                        WHERE organizationid = e.organizationid))
+                                / NULLIF(
+                                    (SELECT COUNT(*) 
+                                     FROM jsonb_each_text(ea.skillratings)),
+                                    0
+                                )
+                            ) / 100.0
+                        ) * s.rating::numeric
+                    )
+                FROM jsonb_each_text(ea.skillratings) AS s(skill_id, rating)
+            ), 0)
+        )
+    END AS overallrating,
+
+    /* Existing Fields */
+    ea.kraratings, 
+    ea.skillratings, 
+    ea.feedback,
+    ea.improvementareas, 
+    ea.developmentplan,
+    ea.status, 
+    ea.submittedat, 
+    ea.reviewedat,
+    ea.createdat,
+
+    CONCAT(e.firstname, ' ', e.lastname) AS employee_name,
+    CONCAT(r.firstname, ' ', r.lastname) AS reviewer_name,
+    ac.cyclename
+
+FROM performance.employeeappraisals ea
+INNER JOIN employee.employees e 
+    ON ea.employeeid = e.employeeid
+
+LEFT JOIN employee.employees r 
+    ON ea.reviewerid = r.employeeid
+
+INNER JOIN performance.appraisalcycles ac 
+    ON ea.cycleid = ac.cycleid
+
+WHERE e.organizationid = @organizationId
+  AND (@appraisalCycleId IS NULL OR ea.cycleid = @appraisalCycleId)
+  AND (@status IS NULL OR ea.status = @status)
+  AND (@employeeId IS NULL OR ea.employeeid = @employeeId)
+  AND (@managerId IS NULL OR ea.reviewerid = @managerId)
+  AND (
+        @search IS NULL 
+        OR LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER('%' || @search || '%') 
+        OR LOWER(ac.cyclename) LIKE LOWER('%' || @search || '%')
+      )
+ORDER BY ea.createdat DESC
+LIMIT @limit OFFSET @offset;
+";
+
+            var offset = (page - 1) * limit;
+            var results = await QueryAsync<EmployeeAppraisalDto>(sql, new
+            {
+                organizationId,
+                appraisalCycleId = filter.AppraisalCycleId,
+                status = filter.Status,
+                employeeId = filter.EmployeeId,
+                managerId = filter.ManagerId,
+                search = filter.Search,
+                limit,
+                offset
+            });
+
+            return results.ToList();
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
+   
 
     public async Task<int> GetEmployeeAppraisalsCountAsync(Guid organizationId, AppraisalFilterRequest filter)
     {
