@@ -246,7 +246,8 @@ public class PerformanceController : ControllerBase
             {
                 // If employee is assessing themselves, use their own ID
                 // Otherwise, use the current logged-in user ID (HR/Manager assessing)
-                request.AssessedBy = request.EmployeeId = currentUserId;
+                 request.EmployeeId = currentUserId;
+                request.AssessedBy = null;
             }
             
             var result = await _performanceService.CreateEmployeeSkillAsync(request);
@@ -272,6 +273,70 @@ public class PerformanceController : ControllerBase
         }
     }
 
+    [HttpPut("employee-skills/{employeeSkillId}")]
+    public async Task<IActionResult> UpdateEmployeeSkill(Guid employeeSkillId, [FromBody] UpdateEmployeeSkillRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        try
+        {
+            // Get current logged-in user ID
+            var currentUserId = await GetCurrentEmployeeId();
+            
+            // Set AssessedBy to current logged-in user (the person assessing/rating)
+            //if (!request.AssessedBy.HasValue || request.AssessedBy == Guid.Empty)
+            //{
+                request.AssessedBy = currentUserId;
+            //}
+            
+            // Set LastAssessed to current time if not provided
+            if (!request.LastAssessed.HasValue)
+            {
+                request.LastAssessed = DateTime.UtcNow;
+            }
+            
+            var result = await _performanceService.UpdateEmployeeSkillAsync(employeeSkillId, request);
+
+            if (result == null)
+                return StatusCode(500, new { success = false, message = "Failed to update employee skill." });
+
+            return Ok(new
+            {
+                success = true,
+                message = "Employee skill updated successfully.",
+                data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Employee skill not found: {EmployeeSkillId}", employeeSkillId);
+            return NotFound(new
+            {
+                success = false,
+                message = $"Employee skill with ID {employeeSkillId} not found."
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid request for updating employee skill: {EmployeeSkillId}", employeeSkillId);
+            return BadRequest(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while updating employee skill");
+            return StatusCode(500, new
+            {
+                success = false,
+                message = "An unexpected error occurred while updating the employee skill."
+            });
+        }
+    }
+
     [HttpGet("employees/{employeeId}/skills")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeSkillDto>>>> GetEmployeeSkills(Guid employeeId)
     {
@@ -290,6 +355,73 @@ public class PerformanceController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving employee skills for {EmployeeId}", employeeId);
             return StatusCode(500, new ServiceResponse<List<EmployeeSkillDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee skills"
+            });
+        }
+    }
+    [HttpGet("Otheremployees/{employeeId}/skills")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeSkillDto>>>> GetOtherEmployeeSkills(Guid employeeId)
+    {
+        try
+        {
+            //var employeeTableId = await GetCurrentEmployeeId();
+            var skills = await _performanceService.GetEmployeeSkillsAsync(employeeId);
+
+            return Ok(new ServiceResponse<List<EmployeeSkillDto>>
+            {
+                Success = true,
+                Data = skills
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee skills for {EmployeeId}", employeeId);
+            return StatusCode(500, new ServiceResponse<List<EmployeeSkillDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee skills"
+            });
+        }
+    }
+
+    [HttpGet("employee-skills")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetAllEmployeeSkills(
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] Guid? skillSetId = null,
+        [FromQuery] string? department = null,
+        [FromQuery] int? proficiencyLevel = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 20)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var filter = new EmployeeSkillFilterRequest
+            {
+                EmployeeId = employeeId,
+                SkillSetId = skillSetId,
+                Department = department,
+                ProficiencyLevel = proficiencyLevel,
+                Search = search
+            };
+
+            var result = await _performanceService.GetEmployeeSkillsPagedAsync(organizationId, filter, page, limit);
+
+            return Ok(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving all employee skills");
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee skills"
@@ -498,7 +630,6 @@ public class PerformanceController : ControllerBase
         {
             if (request == null)
                 return BadRequest("Invalid self-assessment data");
-
             var result = await _performanceService.CreateSelfAssessmentAsync(request);
 
             return Ok(new ServiceResponse<SelfAssessmentDto>

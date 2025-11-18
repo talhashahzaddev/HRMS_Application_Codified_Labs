@@ -31,6 +31,7 @@ public class EmployeeSkillDto
     public Guid? AssessedBy { get; set; }
     public DateTime? LastAssessed { get; set; }
     public string? Notes { get; set; }
+    public string? AssessorName { get; set; }
 }
 
 public class AppraisalCycleDto

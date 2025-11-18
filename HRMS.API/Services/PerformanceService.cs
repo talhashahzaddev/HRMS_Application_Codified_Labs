@@ -265,11 +265,11 @@ public class PerformanceService : IPerformanceService
 
             // AssessedBy should already be set by the controller from the current user context
             // Only validate it's not empty GUID here
-            if (!request.AssessedBy.HasValue || request.AssessedBy == Guid.Empty)
-            {
-                _logger.LogWarning("AssessedBy is not set. This should be handled by the controller.");
-                throw new ArgumentException("AssessedBy must be provided. The assessor ID is required.");
-            }
+            //if (!request.AssessedBy.HasValue || request.AssessedBy == Guid.Empty)
+            //{
+            //    _logger.LogWarning("AssessedBy is not set. This should be handled by the controller.");
+            //    throw new ArgumentException("AssessedBy must be provided. The assessor ID is required.");
+            //}
 
             // ✅ 3. Call repository
             var result = await _performanceRepository.CreateEmployeeSkillAsync(request);

@@ -438,6 +438,9 @@ RETURNING
     //    }
     public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
     {
+        try
+        {
+
         var sql = @"
             SELECT 
     es.employeeskillid,
@@ -447,23 +450,40 @@ RETURNING
     es.assessedby,
     es.lastassessed,
     es.notes,
+
+    /* Employee being assessed */
     CONCAT(e.firstname, ' ', e.lastname) AS employee_name,
+
+    /* Skill info */
     s.skillname,
     s.category AS skill_category,
-    CONCAT(a.firstname, ' ', a.lastname) AS assessor_name
+
+    /* Assessed by (manager or person who evaluated) */
+    CONCAT(a.firstname, ' ', a.lastname) AS AssessorName,
+    a.email AS assessor_email
+
 FROM performance.employeeskills es
+
 INNER JOIN employee.employees e 
     ON es.employeeid = e.employeeid
+
 INNER JOIN performance.skillsets s 
     ON es.skillid = s.skillid
+
 LEFT JOIN employee.employees a 
     ON es.assessedby = a.employeeid
+
 WHERE es.employeeid = @employeeId
 ORDER BY s.category, s.skillname;
 ";
 
         var results = await QueryAsync<EmployeeSkillDto>(sql, new { employeeId });
         return results.ToList();
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
     public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsByOrganizationAsync(Guid organizationId, EmployeeSkillFilterRequest filter)
@@ -807,7 +827,7 @@ WHERE es.employeeskillid = @employeeSkillId";
         INSERT INTO performance.selfassessments
         (employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat)
         VALUES
-        (@EmployeeId, @CycleId, @KraId, @SkillId, @Rating, @Comments, @EvidenceUrls::jsonb, @Status, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (@EmployeeId, @CycleId, @KraId, @SkillId, @Rating, @Comments, @EvidenceUrls::jsonb, 'Submitted', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING selfassessmentid, employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat;
     ";
 
