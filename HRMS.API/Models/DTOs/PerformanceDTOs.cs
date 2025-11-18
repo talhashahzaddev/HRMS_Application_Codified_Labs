@@ -31,6 +31,7 @@ public class EmployeeSkillDto
     public Guid? AssessedBy { get; set; }
     public DateTime? LastAssessed { get; set; }
     public string? Notes { get; set; }
+    public string? AssessorName { get; set; }
 }
 
 public class AppraisalCycleDto
@@ -66,6 +67,17 @@ public class EmployeeAppraisalDto
     public string Status { get; set; } = string.Empty;
     public DateTime? SubmittedAt { get; set; }
     public DateTime? ReviewedAt { get; set; }
+}
+
+public class EmployeeAppraisalForEmployeeDto
+{
+    public Guid AppraisalId { get; set; }
+    public Guid CycleId { get; set; }
+    public string CycleName { get; set; } = string.Empty;
+    public string? KraName { get; set; }
+    public decimal? Rating { get; set; }
+    public string? ReviewerName { get; set; }
+    public DateTime? SubmittedAt { get; set; }
 }
 
 public class CreateAppraisalRequest
@@ -172,6 +184,8 @@ public class UpdateEmployeeSkillRequest
 public class KRADto
 {
     public Guid KRAId { get; set; }
+    public Guid? OrganizationId { get; set; }
+    public Guid? PositionId { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Category { get; set; } = string.Empty;
@@ -234,35 +248,6 @@ public class ReviewAppraisalRequest
     public string? ReviewComments { get; set; }
     public string Status { get; set; } = string.Empty;
 }
-
-
-public class EmployeeGoalDto
-{
-    public Guid GoalId { get; set; }
-    public Guid EmployeeId { get; set; }
-    public string employee_name { get; set; }
-    public string Title { get; set; } = null!;
-    public string? Description { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
-    public string Status { get; set; } = "pending"; // default
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-}
-
-
-public class CreateEmployeeGoalRequest
-{
-    public Guid EmployeeId { get; set; }
-    public string Title { get; set; } = null!;
-    public string? Description { get; set; }
-    public DateTime StartDate { get; set; }
-    public DateTime EndDate { get; set; }
-    public string Status { get; set; } = "pending";
-}
-
-
-
 public class PerformanceReportDto
 {
     public DateTime StartDate { get; set; }
@@ -307,6 +292,8 @@ public class SelfAssessmentDto
     public string Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public string? CycleName { get; set; }
+    public string? KraName { get; set; }
 }
 
 public class ManagerReviewRequest
@@ -335,4 +322,31 @@ public class ManagerReviewDto
     public string Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+
+public class ConsolidateAppraisalRequest
+{
+    public Guid EmployeeId { get; set; }
+    public Guid CycleId { get; set; }
+    public Guid ReviewerId { get; set; }
+}
+
+public class EmployeePerformanceHistoryDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public List<EmployeeAppraisalDto> Appraisals { get; set; } = new();
+    public decimal? AverageRating { get; set; }
+    public int TotalAppraisals { get; set; }
+    public int CompletedAppraisals { get; set; }
+    public List<SkillGapAnalysisDto> SkillGaps { get; set; } = new();
+}
+
+public class SkillGapAnalysisDto
+{
+    public Guid SkillId { get; set; }
+    public string SkillName { get; set; } = string.Empty;
+    public int RequiredLevel { get; set; }
+    public int CurrentLevel { get; set; }
+    public int Gap { get; set; }
 }
