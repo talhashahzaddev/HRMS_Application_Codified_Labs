@@ -346,110 +346,181 @@ ALTER TABLE IF EXISTS payroll.salarycomponents
 -- PERFORMANCE SCHEMA
 -- ==============================
 
-CREATE TABLE performance.SkillSets (
-    SkillId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    OrganizationId UUID,
-    SkillName VARCHAR(100) NOT NULL,
-    Category VARCHAR(100),
-    Description TEXT,
-    SkillLevelScale JSONB DEFAULT '[1,2,3,4,5]',
-    IsActive BOOLEAN DEFAULT true,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT UQ_SkillSets UNIQUE(OrganizationId, SkillName)
-);
+-- Table: performance.appraisalcycles
 
-CREATE TABLE performance.EmployeeSkills (
-    EmployeeSkillId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    EmployeeId UUID,
-    SkillId UUID,
-    ProficiencyLevel INTEGER DEFAULT 1,
-    AssessedBy UUID,
-    LastAssessed DATE,
-    Notes TEXT,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT UQ_EmployeeSkills UNIQUE(EmployeeId, SkillId)
-);
+-- DROP TABLE IF EXISTS performance.appraisalcycles;
 
-CREATE TABLE performance.KRAs (
-    KraId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    OrganizationId UUID,
-    PositionId UUID,
-    KraTitle VARCHAR(255) NOT NULL,
-    Description TEXT,
-    WeightPercentage INTEGER DEFAULT 0,
-    MeasurementCriteria TEXT,
-    IsActive BOOLEAN DEFAULT true,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+CREATE TABLE IF NOT EXISTS performance.appraisalcycles
+(
+    cycleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid,
+    cyclename character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    startdate date NOT NULL,
+    enddate date NOT NULL,
+    reviewperiodstart date,
+    reviewperiodend date,
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'active'::character varying,
+    ratingscale jsonb DEFAULT '{"type": "5-point", "scale": [1, 2, 3, 4, 5]}'::jsonb,
+    selfreviewenabled boolean DEFAULT true,
+    peerreviewenabled boolean DEFAULT false,
+    managerreviewenabled boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT appraisalcycles_pkey PRIMARY KEY (cycleid),
+    CONSTRAINT uq_appraisalcycles UNIQUE (organizationid, cyclename)
+)
 
-CREATE TABLE performance.AppraisalCycles (
-    CycleId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    OrganizationId UUID,
-    CycleName VARCHAR(100) NOT NULL,
-    Description TEXT,
-    StartDate DATE NOT NULL,
-    EndDate DATE NOT NULL,
-    ReviewPeriodStart DATE,
-    ReviewPeriodEnd DATE,
-    Status VARCHAR(20) DEFAULT 'active',
-    RatingScale JSONB DEFAULT '{"type": "5-point", "scale": [1,2,3,4,5]}',
-    SelfReviewEnabled BOOLEAN DEFAULT true,
-    PeerReviewEnabled BOOLEAN DEFAULT false,
-    ManagerReviewEnabled BOOLEAN DEFAULT true,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT UQ_AppraisalCycles UNIQUE(OrganizationId, CycleName)
-);
+TABLESPACE pg_default;
 
-CREATE TABLE performance.EmployeeAppraisals (
-    AppraisalId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    CycleId UUID,
-    EmployeeId UUID,
-    ReviewerId UUID,
-    ReviewType VARCHAR(20) DEFAULT 'manager',
-    OverallRating DECIMAL(3, 2),
-    KraRatings JSONB DEFAULT '{}',
-    SkillRatings JSONB DEFAULT '{}',
-    GoalsAchieved JSONB DEFAULT '{}',
-    Feedback TEXT,
-    ImprovementAreas TEXT,
-    DevelopmentPlan TEXT,
-    Status VARCHAR(20) DEFAULT 'draft',
-    SubmittedAt TIMESTAMP WITH TIME ZONE,
-    ReviewedAt TIMESTAMP WITH TIME ZONE,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT UQ_EmployeeAppraisals UNIQUE(CycleId, EmployeeId, ReviewerId, ReviewType)
-);
+ALTER TABLE IF EXISTS performance.appraisalcycles
+    OWNER to postgres;
+-- Table: performance.employeeappraisals
 
-CREATE TABLE performance.SelfAssessments (
-    SelfAssessmentId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    EmployeeId UUID NOT NULL,
-    CycleId UUID NOT NULL,
-    KraId UUID NULL,
-    SkillId UUID NULL,
-    Rating DECIMAL(3,2),
-    Comments TEXT,
-    EvidenceUrls JSONB DEFAULT '[]',
-    Status VARCHAR(20) DEFAULT 'draft',
-    SubmittedAt TIMESTAMP WITH TIME ZONE,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+-- DROP TABLE IF EXISTS performance.employeeappraisals;
 
-CREATE TABLE performance.ManagerReviews (
-    ReviewId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    ManagerId UUID NOT NULL,
-    EmployeeId UUID NOT NULL,
-    CycleId UUID NOT NULL,
-    OverallRating DECIMAL(3,2),
-    Feedback TEXT,
-    ImprovementAreas TEXT,
-    DevelopmentPlan TEXT,
-    Status VARCHAR(20) DEFAULT 'submitted',
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+CREATE TABLE IF NOT EXISTS performance.employeeappraisals
+(
+    appraisalid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    cycleid uuid,
+    employeeid uuid,
+    reviewerid uuid,
+    reviewtype character varying(20) COLLATE pg_catalog."default" DEFAULT 'manager'::character varying,
+    overallrating numeric(3,2),
+    kraratings jsonb DEFAULT '{}'::jsonb,
+    skillratings jsonb DEFAULT '{}'::jsonb,
+    goalsachieved jsonb DEFAULT '{}'::jsonb,
+    feedback text COLLATE pg_catalog."default",
+    improvementareas text COLLATE pg_catalog."default",
+    developmentplan text COLLATE pg_catalog."default",
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'draft'::character varying,
+    submittedat timestamp with time zone,
+    reviewedat timestamp with time zone,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT employeeappraisals_pkey PRIMARY KEY (appraisalid),
+    CONSTRAINT uq_employeeappraisals UNIQUE (cycleid, employeeid, reviewerid, reviewtype)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS performance.employeeappraisals
+    OWNER to postgres;
+-- Table: performance.employeeskills
+
+-- DROP TABLE IF EXISTS performance.employeeskills;
+
+CREATE TABLE IF NOT EXISTS performance.employeeskills
+(
+    employeeskillid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    employeeid uuid,
+    skillid uuid,
+    proficiencylevel integer DEFAULT 1,
+    assessedby uuid,
+    lastassessed date,
+    notes text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT employeeskills_pkey PRIMARY KEY (employeeskillid),
+    CONSTRAINT uq_employeeskills UNIQUE (employeeid, skillid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS performance.employeeskills
+    OWNER to postgres;
+-- Table: performance.kras
+
+-- DROP TABLE IF EXISTS performance.kras;
+
+CREATE TABLE IF NOT EXISTS performance.kras
+(
+    kraid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid,
+    positionid uuid,
+    kratitle character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    weightpercentage integer DEFAULT 0,
+    measurementcriteria text COLLATE pg_catalog."default",
+    isactive boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT kras_pkey PRIMARY KEY (kraid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS performance.kras
+    OWNER to postgres;
+-- Table: performance.managerreviews
+
+-- DROP TABLE IF EXISTS performance.managerreviews;
+
+CREATE TABLE IF NOT EXISTS performance.managerreviews
+(
+    reviewid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    managerid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    cycleid uuid NOT NULL,
+    overallrating numeric(3,2),
+    feedback text COLLATE pg_catalog."default",
+    improvementareas text COLLATE pg_catalog."default",
+    developmentplan text COLLATE pg_catalog."default",
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'submitted'::character varying,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT managerreviews_pkey PRIMARY KEY (reviewid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS performance.managerreviews
+    OWNER to postgres;
+-- Table: performance.selfassessments
+
+-- DROP TABLE IF EXISTS performance.selfassessments;
+
+CREATE TABLE IF NOT EXISTS performance.selfassessments
+(
+    selfassessmentid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    employeeid uuid NOT NULL,
+    cycleid uuid NOT NULL,
+    kraid uuid,
+    skillid uuid,
+    rating numeric(3,2),
+    comments text COLLATE pg_catalog."default",
+    evidenceurls jsonb DEFAULT '[]'::jsonb,
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'draft'::character varying,
+    submittedat timestamp with time zone,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT selfassessments_pkey PRIMARY KEY (selfassessmentid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS performance.selfassessments
+    OWNER to postgres;
+-- Table: performance.skillsets
+
+-- DROP TABLE IF EXISTS performance.skillsets;
+
+CREATE TABLE IF NOT EXISTS performance.skillsets
+(
+    skillid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid,
+    skillname character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    category character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    skilllevelscale jsonb DEFAULT '[1, 2, 3, 4, 5]'::jsonb,
+    isactive boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT skillsets_pkey PRIMARY KEY (skillid),
+    CONSTRAINT uq_skillsets UNIQUE (organizationid, skillname)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS performance.skillsets
+    OWNER to postgres;
 
 -- ==============================
 -- ADMIN SCHEMA

@@ -46,18 +46,23 @@ public interface IPerformanceService
     Task<EmployeeAppraisalDto> ReviewAppraisalAsync(Guid appraisalId, ReviewAppraisalRequest request);
     Task<PerformanceReportDto> GeneratePerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
     Task<byte[]> ExportPerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
-    // 🔹 Employee Goals Management
-    Task<EmployeeGoalDto> CreateEmployeeGoalAsync(CreateEmployeeGoalRequest request);
-
-    Task<List<EmployeeGoalDto>> GetEmployeeGoalsAsync(Guid employeeId);
-    Task<List<EmployeeGoalDto>> GetAllEmployeeGoalsAsync();
-
-    Task<bool> GoalAsCompletedAsync(Guid goalId);
 
     Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request);
     Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId);
+    Task<IEnumerable<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null);
     Task<string> SubmitSelfAssessmentAsync(Guid employeeId, Guid cycleId);
     Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId);
     Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request);
+    Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null);
+
+    // Appraisal Cycle Management - Enhanced (New methods only)
+    Task<AppraisalCycleDto?> GetActiveAppraisalCycleAsync(Guid organizationId);
+
+    // Appraisal Consolidation
+    Task<EmployeeAppraisalDto> ConsolidateAppraisalAsync(ConsolidateAppraisalRequest request);
+
+    // Reports and Analytics
+    Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId);
+    Task<Guid> GetEmployeeFromTable(Guid Userid);
 
 }

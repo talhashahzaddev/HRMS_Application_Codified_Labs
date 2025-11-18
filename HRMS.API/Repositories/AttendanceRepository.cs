@@ -609,7 +609,7 @@ WHERE ed.employeeid = @EmployeeId
     {
         try
         {
-            var updatedAt = DateTime.Now;
+          
             var sql = @"
             UPDATE attendance.shifts
             SET
@@ -619,7 +619,7 @@ WHERE ed.employeeid = @EmployeeId
                 breakduration = @BreakDuration,
                 daysofweek = @DaysofWeek,
                 timezone = @Timezone,
-                updatedat = @UpdatedAt
+               
             WHERE
                 organizationid = @OrganizationId AND shiftid = @ShiftId;
         ";
@@ -634,7 +634,7 @@ WHERE ed.employeeid = @EmployeeId
                 BreakDuration = request.BreakDuration ?? 0,
                 DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
                 Timezone = request.Timezone ?? "UTC",
-                UpdatedAt = updatedAt
+               
             };
 
             var rowsAffected = await ExecuteAsync(sql, parameters);

@@ -115,6 +115,12 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("CloudinarySettings"));
+
+builder.Services.AddSingleton<CloudinaryService>();
+
 // Add CORS
 builder.Services.AddCors(options =>
 {
@@ -149,6 +155,8 @@ builder.Services.AddScoped<IPerformanceService, PerformanceService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
+// Add Cloudinary service
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 
 // Add Repositories
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
