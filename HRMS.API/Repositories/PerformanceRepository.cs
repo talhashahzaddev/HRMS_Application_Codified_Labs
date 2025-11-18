@@ -840,6 +840,57 @@ WHERE es.employeeskillid = @employeeSkillId";
         return await QueryAsync<SelfAssessmentDto>(sql, new { EmployeeId = employeeId, CycleId = cycleId });
     }
 
+    public async Task<IEnumerable<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
+    {
+        var whereConditions = new List<string> { "sa.employeeid = @EmployeeId" };
+        var parameters = new Dictionary<string, object> { { "EmployeeId", employeeId } };
+
+        if (cycleId.HasValue)
+        {
+            whereConditions.Add("sa.cycleid = @CycleId");
+            parameters.Add("CycleId", cycleId.Value);
+        }
+
+        if (kraId.HasValue)
+        {
+            whereConditions.Add("sa.kraid = @KraId");
+            parameters.Add("KraId", kraId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(sa.comments) LIKE LOWER(@Search))");
+            parameters.Add("Search", $"%{search.Trim()}%");
+        }
+
+        var whereClause = string.Join(" AND ", whereConditions);
+
+        var sql = $@"
+            SELECT 
+                sa.selfassessmentid as SelfAssessmentId,
+                sa.employeeid as EmployeeId,
+                sa.cycleid as CycleId,
+                sa.kraid as KraId,
+                sa.skillid as SkillId,
+                sa.rating as Rating,
+                sa.comments as Comments,
+                sa.evidenceurls as EvidenceUrls,
+                sa.status as Status,
+                sa.submittedat as SubmittedAt,
+                sa.createdat as CreatedAt,
+                sa.updatedat as UpdatedAt,
+                ac.cyclename as CycleName,
+                k.kratitle as KraName
+            FROM performance.selfassessments sa
+            LEFT JOIN performance.appraisalcycles ac ON sa.cycleid = ac.cycleid
+            LEFT JOIN performance.kras k ON sa.kraid = k.kraid
+            WHERE {whereClause}
+            ORDER BY sa.createdat DESC";
+        
+        var results = await QueryAsync<SelfAssessmentDto>(sql, parameters);
+        return results;
+    }
+
     public async Task UpdateSelfAssessmentStatusAsync(Guid employeeId, Guid cycleId, string status)
     {
         var sql = @"UPDATE performance.selfassessments
@@ -871,6 +922,52 @@ WHERE es.employeeskillid = @employeeSkillId";
     ";
 
         return await QuerySingleOrDefaultAsync<ManagerReviewDto>(sql, request);
+    }
+
+    public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
+    {
+        var whereConditions = new List<string> { "ea.employeeid = @EmployeeId" };
+        var parameters = new Dictionary<string, object> { { "EmployeeId", employeeId } };
+
+        if (cycleId.HasValue)
+        {
+            whereConditions.Add("ea.cycleid = @CycleId");
+            parameters.Add("CycleId", cycleId.Value);
+        }
+
+        if (kraId.HasValue)
+        {
+            whereConditions.Add("k.kraid = @KraId");
+            parameters.Add("KraId", kraId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(CONCAT(r.firstname, ' ', r.lastname)) LIKE LOWER(@Search))");
+            parameters.Add("Search", $"%{search.Trim()}%");
+        }
+
+        var whereClause = string.Join(" AND ", whereConditions);
+
+        var sql = $@"
+            SELECT DISTINCT
+                ea.appraisalid as AppraisalId,
+                ea.cycleid as CycleId,
+                ac.cyclename as CycleName,
+                k.kratitle as KraName,
+                (ea.kraratings->>k.kraid::text)::numeric as Rating,
+                CONCAT(r.firstname, ' ', r.lastname) as ReviewerName,
+                ea.submittedat as SubmittedAt
+            FROM performance.employeeappraisals ea
+            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+            LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
+            CROSS JOIN LATERAL jsonb_object_keys(ea.kraratings) AS kra_key
+            INNER JOIN performance.kras k ON kra_key::uuid = k.kraid
+            WHERE {whereClause}
+            ORDER BY ea.submittedat DESC, k.kratitle";
+
+        var results = await QueryAsync<EmployeeAppraisalForEmployeeDto>(sql, parameters);
+        return results;
     }
 
     // Appraisal Cycle Management - Enhanced

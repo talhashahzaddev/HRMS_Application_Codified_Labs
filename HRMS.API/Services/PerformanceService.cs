@@ -623,6 +623,11 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetSelfAssessmentsAsync(employeeId, cycleId);
     }
 
+    public async Task<IEnumerable<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
+    {
+        return await _performanceRepository.GetMySelfAssessmentsAsync(employeeId, cycleId, kraId, search);
+    }
+
     public async Task<string> SubmitSelfAssessmentAsync(Guid employeeId, Guid cycleId)
     {
         await _performanceRepository.UpdateSelfAssessmentStatusAsync(employeeId, cycleId, "submitted");
@@ -636,6 +641,11 @@ public class PerformanceService : IPerformanceService
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
     {
         return await _performanceRepository.SubmitManagerReviewAsync(request);
+    }
+
+    public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
+    {
+        return await _performanceRepository.GetEmployeeAppraisalsForEmployeeAsync(employeeId, cycleId, kraId, search);
     }
 
     // Appraisal Cycle Management - Enhanced (New methods only)

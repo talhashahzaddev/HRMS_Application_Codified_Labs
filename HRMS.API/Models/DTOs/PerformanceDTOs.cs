@@ -69,6 +69,17 @@ public class EmployeeAppraisalDto
     public DateTime? ReviewedAt { get; set; }
 }
 
+public class EmployeeAppraisalForEmployeeDto
+{
+    public Guid AppraisalId { get; set; }
+    public Guid CycleId { get; set; }
+    public string CycleName { get; set; } = string.Empty;
+    public string? KraName { get; set; }
+    public decimal? Rating { get; set; }
+    public string? ReviewerName { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+}
+
 public class CreateAppraisalRequest
 {
     public Guid CycleId { get; set; }
@@ -281,6 +292,8 @@ public class SelfAssessmentDto
     public string Status { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public string? CycleName { get; set; }
+    public string? KraName { get; set; }
 }
 
 public class ManagerReviewRequest

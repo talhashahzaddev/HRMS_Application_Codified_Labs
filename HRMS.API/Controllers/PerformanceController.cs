@@ -628,6 +628,8 @@ public class PerformanceController : ControllerBase
     {
         try
         {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            request.EmployeeId = currentEmployeeId;
             if (request == null)
                 return BadRequest("Invalid self-assessment data");
             var result = await _performanceService.CreateSelfAssessmentAsync(request);
@@ -670,6 +672,62 @@ public class PerformanceController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while fetching self-assessment"
+            });
+        }
+    }
+
+    [HttpGet("SelfAssessment/my-assessments")]
+    [Authorize(Roles = "Employee")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMySelfAssessments(
+        [FromQuery] Guid? cycleId = null,
+        [FromQuery] Guid? kraId = null,
+        [FromQuery] string? search = null)
+    {
+        try
+        {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var assessments = await _performanceService.GetMySelfAssessmentsAsync(currentEmployeeId, cycleId, kraId, search);
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = assessments
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching my self-assessments");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching self-assessments"
+            });
+        }
+    }
+
+    [HttpGet("appraisals/my-appraisals")]
+    [Authorize(Roles = "Employee")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>>> GetMyAppraisals(
+        [FromQuery] Guid? cycleId = null,
+        [FromQuery] Guid? kraId = null,
+        [FromQuery] string? search = null)
+    {
+        try
+        {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var appraisals = await _performanceService.GetEmployeeAppraisalsForEmployeeAsync(currentEmployeeId, cycleId, kraId, search);
+            return Ok(new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
+            {
+                Success = true,
+                Data = appraisals
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching my appraisals");
+            return StatusCode(500, new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching appraisals"
             });
         }
     }

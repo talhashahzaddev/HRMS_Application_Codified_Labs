@@ -34,9 +34,11 @@ public interface IPerformanceRepository
     Task<bool> UpdateKRAStatusAsync(Guid kraId, bool isActive);
     Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request);
     Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId);
+    Task<IEnumerable<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null);
     Task UpdateSelfAssessmentStatusAsync(Guid employeeId, Guid cycleId, string status);
     Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId);
     Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request);
+    Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null);
 
     // Appraisal Cycle Management - Enhanced
     Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId);
