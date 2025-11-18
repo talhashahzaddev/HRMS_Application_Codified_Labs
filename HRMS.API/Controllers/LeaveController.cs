@@ -156,6 +156,8 @@ public class LeaveController : ControllerBase
     {
         try
         {
+
+
             var approvedBy = GetCurrentEmployeeId();
             var request = new UpdateLeaveRequestStatusRequest { Status = "approved" };
             var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
