@@ -14,7 +14,7 @@ public interface IAttendanceRepository
     Task<bool> AcceptswapRequestAsync(ApproveShiftSwapRequestDto dto);
     Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
     Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);
-    Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId);
+    Task<PagedResult<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId, int page, int pageSize, string search);
     Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request);
     Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request);
 

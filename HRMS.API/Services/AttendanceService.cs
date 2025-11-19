@@ -249,9 +249,9 @@ public class AttendanceService : IAttendanceService
     }
 
 
-    public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId)
+    public async Task<PagedResult<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId, int page, int pageSize, string search)
     {
-        return await _attendanceRepository.GetEmployeesByShiftAsync(organizationId, shiftId);
+        return await _attendanceRepository.GetEmployeesByShiftAsync(organizationId, shiftId, page, pageSize, search);
     }
 
     //Shiftswap 
@@ -313,6 +313,7 @@ public class AttendanceService : IAttendanceService
             throw;
         }
     }
+
 
 
     public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)

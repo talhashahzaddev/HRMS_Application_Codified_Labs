@@ -483,14 +483,15 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("shift/{shiftId}")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeShiftDto>>>> GetEmployeesByShift(Guid shiftId)
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeShiftDto>>>> GetEmployeesByShift(Guid shiftId, [FromQuery] int page = 1, [FromQuery] int pageSize = 10,
+    [FromQuery] string search = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var employees = await _attendanceService.GetEmployeesByShiftAsync(organizationId, shiftId);
+            var employees = await _attendanceService.GetEmployeesByShiftAsync(organizationId, shiftId, page, pageSize, search);
 
-            return Ok(new ServiceResponse<List<EmployeeShiftDto>>
+            return Ok(new ServiceResponse<PagedResult<EmployeeShiftDto>>
             {
                 Success = true,
                 Message = "Employees retrieved successfully.",
@@ -507,6 +508,8 @@ public class AttendanceController : ControllerBase
             });
         }
     }
+
+
 
     //Shift swap Create
 

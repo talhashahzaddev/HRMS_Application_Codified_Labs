@@ -298,32 +298,81 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
     //Get by shift
 
-    public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId)
+    public async Task<PagedResult<EmployeeShiftDto>> GetEmployeesByShiftAsync(
+    Guid organizationId,
+    Guid shiftId,
+    int page,
+    int pageSize,
+    string search)
     {
         try
         {
+            // Pagination math
+            int offset = (page - 1) * pageSize;
 
-
+            // Main SQL (single query)
             var sql = @"
-         SELECT 
-        e.employeeid,
-        e.firstname,
-        e.lastname,
-        e.email,
-        ed.shiftid,
-        d.departmentname  
-         FROM employee.employees e
-         INNER JOIN employee.employmentdetails ed 
-         ON e.employeeid = ed.employeeid
-         LEFT JOIN employee.departments d
-        ON ed.departmentid = d.departmentid   -- join to get department name
-          WHERE e.organizationid = @OrganizationId
-           AND ed.shiftid = @ShiftId;
-            ";
+            SELECT 
+                e.employeeid,
+                e.firstname,
+                e.lastname,
+                e.email,
+                ed.shiftid,
+                d.departmentname
+            FROM employee.employees e
+            INNER JOIN employee.employmentdetails ed 
+                ON e.employeeid = ed.employeeid
+            LEFT JOIN employee.departments d
+                ON ed.departmentid = d.departmentid
+            WHERE 
+                e.organizationid = @OrganizationId
+                AND ed.shiftid = @ShiftId
+                AND (
+                     @Search = '' 
+                     OR e.firstname ILIKE '%' || @Search || '%'
+                     OR e.lastname ILIKE '%' || @Search || '%'
+                     OR e.email ILIKE '%' || @Search || '%'
+                )
+            ORDER BY e.firstname
+            LIMIT @PageSize OFFSET @Offset;
+        ";
 
-            var parameters = new { OrganizationId = organizationId, ShiftId = shiftId };
-            var result = await QueryAsync<EmployeeShiftDto>(sql, parameters);
-            return result.ToList();
+            // Total count (for pagination UI)
+            var countSql = @"
+            SELECT COUNT(*)
+            FROM employee.employees e
+            INNER JOIN employee.employmentdetails ed 
+                ON e.employeeid = ed.employeeid
+            WHERE 
+                e.organizationid = @OrganizationId
+                AND ed.shiftid = @ShiftId
+                AND (
+                     @Search = '' 
+                     OR e.firstname ILIKE '%' || @Search || '%'
+                     OR e.lastname ILIKE '%' || @Search || '%'
+                     OR e.email ILIKE '%' || @Search || '%'
+                );
+        ";
+
+            var parameters = new
+            {
+                OrganizationId = organizationId,
+                ShiftId = shiftId,
+                Search = search ?? "",
+                PageSize = pageSize,
+                Offset = offset
+            };
+
+            var items = await QueryAsync<EmployeeShiftDto>(sql, parameters);
+            var totalCount = await ExecuteScalarAsync<int>(countSql, parameters);
+
+            return new PagedResult<EmployeeShiftDto>
+            {
+                Data = items.ToList(),
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
         }
         catch (Exception ex)
         {
@@ -618,8 +667,7 @@ WHERE ed.employeeid = @EmployeeId
                 endtime = @EndTime,
                 breakduration = @BreakDuration,
                 daysofweek = @DaysofWeek,
-                timezone = @Timezone,
-               
+                timezone = @Timezone               
             WHERE
                 organizationid = @OrganizationId AND shiftid = @ShiftId;
         ";
