@@ -16,6 +16,8 @@ namespace HRMS.API.Controllers;
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
+
+
     private readonly IAuthService _authService;
     private readonly ILogger<AuthController> _logger;
 
