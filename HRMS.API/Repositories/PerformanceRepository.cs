@@ -372,6 +372,20 @@ WHERE skillid = @skillSetId";
 
     public async Task<EmployeeSkillDto?> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
     {
+        // Check if skill already exists for this employee
+        var checkSql = @"
+SELECT COUNT(*) 
+FROM performance.employeeskills 
+WHERE employeeid = @EmployeeId AND skillid = @SkillId;";
+
+        using var connection = CreateConnection();
+        var existingCount = await connection.ExecuteScalarAsync<int>(checkSql, new { request.EmployeeId, request.SkillId });
+        
+        if (existingCount > 0)
+        {
+            throw new InvalidOperationException("This skill has already been added to the employee. Cannot add duplicate skills.");
+        }
+
         var sql = @"
 INSERT INTO performance.employeeskills
     (employeeid, skillid, proficiencylevel, assessedby, lastassessed, notes)
@@ -388,12 +402,16 @@ RETURNING
 
         try
         {
-            using var connection = CreateConnection();
             var result = await connection.QuerySingleOrDefaultAsync<EmployeeSkillDto>(sql, request);
             return result;
         }
         catch (PostgresException ex)
         {
+            // Handle unique constraint violation (backup check)
+            if (ex.SqlState == "23505") // unique_violation
+            {
+                throw new InvalidOperationException("This skill has already been added to the employee. Cannot add duplicate skills.");
+            }
             throw new Exception($"Database error: {ex.MessageText}");
         }
         catch (Exception ex)
@@ -911,6 +929,65 @@ WHERE es.employeeskillid = @employeeSkillId";
         return await QueryAsync<SelfAssessmentDto>(sql, new { ManagerId = managerId, CycleId = cycleId });
     }
 
+    public async Task<IEnumerable<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    {
+        var whereConditions = new List<string> { "e.organizationid = @OrganizationId" };
+        var parameters = new Dictionary<string, object> { { "OrganizationId", organizationId } };
+
+        if (cycleId.HasValue)
+        {
+            whereConditions.Add("sa.cycleid = @CycleId");
+            parameters.Add("CycleId", cycleId.Value);
+        }
+
+        if (employeeId.HasValue)
+        {
+            whereConditions.Add("sa.employeeid = @EmployeeId");
+            parameters.Add("EmployeeId", employeeId.Value);
+        }
+
+        if (kraId.HasValue)
+        {
+            whereConditions.Add("sa.kraid = @KraId");
+            parameters.Add("KraId", kraId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(sa.comments) LIKE LOWER(@Search) OR LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search))");
+            parameters.Add("Search", $"%{search.Trim()}%");
+        }
+
+        var whereClause = string.Join(" AND ", whereConditions);
+
+        var sql = $@"
+            SELECT 
+                sa.selfassessmentid as SelfAssessmentId,
+                sa.employeeid as EmployeeId,
+                sa.cycleid as CycleId,
+                sa.kraid as KraId,
+                sa.skillid as SkillId,
+                sa.rating as Rating,
+                sa.comments as Comments,
+                sa.evidenceurls as EvidenceUrls,
+                sa.status as Status,
+                sa.submittedat as SubmittedAt,
+                sa.createdat as CreatedAt,
+                sa.updatedat as UpdatedAt,
+                ac.cyclename as CycleName,
+                k.kratitle as KraName,
+                CONCAT(e.firstname, ' ', e.lastname) as EmployeeName
+            FROM performance.selfassessments sa
+            INNER JOIN employee.employees e ON sa.employeeid = e.employeeid
+            LEFT JOIN performance.appraisalcycles ac ON sa.cycleid = ac.cycleid
+            LEFT JOIN performance.kras k ON sa.kraid = k.kraid
+            WHERE {whereClause}
+            ORDER BY sa.createdat DESC";
+        
+        var results = await QueryAsync<SelfAssessmentDto>(sql, parameters);
+        return results;
+    }
+
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
     {
         var sql = @"
@@ -1301,89 +1378,94 @@ WHERE es.employeeskillid = @employeeSkillId";
     ea.cycleid,
 
     /* ===========================================
-         FINAL OVERALL RATING — ALL CASES
+         FINAL OVERALL RATING (0–5 NORMALIZED)
        =========================================== */
-    CASE
-        /* ------------------------------
-           CASE 1: NO KRA & NO SKILL
-           ------------------------------ */
-        WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
-        THEN ea.overallrating
+           CASE
+
+    /* --------------------------------------
+       1) NO KRA & NO SKILL → RETURN DIRECT
+       -------------------------------------- */
+    WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+    THEN LEAST(GREATEST(ea.overallrating, 0), 5)
 
 
-        /* ------------------------------
-           CASE 2: ONLY KRA EXISTS
-           ------------------------------ */
-        WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
-        THEN (
-            SELECT SUM(
+    /* --------------------------------------
+       2) ONLY KRA EXISTS → KRA = 100%
+       -------------------------------------- */
+    WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+    THEN (
+        SELECT 
+            SUM(
                 (
-                    (k.weightpercentage::numeric 
-                        / NULLIF(
-                            (SELECT SUM(weightpercentage) 
-                             FROM performance.kras 
-                             WHERE kraid IN (
-                                SELECT kra_id::uuid 
-                                FROM jsonb_each_text(ea.kraratings)
-                             )
-                            ), 
-                            0
-                        )
-                    ) * 100.0 / 100.0
+                    k.weightpercentage::numeric
+                    / NULLIF(
+                        (SELECT SUM(weightpercentage)
+                         FROM performance.kras
+                         WHERE kraid IN (
+                             SELECT kraid::uuid
+                             FROM jsonb_each_text(ea.kraratings)
+                         )
+                        ), 0
+                    )
                 ) * kr.rating::numeric
             )
-            FROM jsonb_each_text(ea.kraratings) kr(kra_id, rating)
-            JOIN performance.kras k 
-              ON k.kraid = kr.kra_id::uuid
+        FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+        JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+    )
+
+
+    /* --------------------------------------
+       3) ONLY SKILL EXISTS → SKILL = 100%
+       -------------------------------------- */
+    WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
+    THEN (
+        SELECT AVG(s.rating::numeric)
+        FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
+    )
+
+
+    /* --------------------------------------
+       4) BOTH EXIST → Normalize to 0–5
+       -------------------------------------- */
+    ELSE (
+        WITH 
+        kra_total AS (
+            SELECT COALESCE(SUM(weightpercentage), 0) AS wt
+            FROM performance.kras
+            WHERE kraid IN (
+                SELECT kraid::uuid
+                FROM jsonb_each_text(ea.kraratings)
+            )
+        ),
+        kra_score AS (
+            SELECT SUM(
+                (
+                    k.weightpercentage::numeric 
+                    / NULLIF((SELECT wt FROM kra_total), 0)
+                ) * kr.rating::numeric
+            ) AS score
+            FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+            JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+        ),
+        skill_score AS (
+            SELECT AVG(s.rating::numeric) AS score
+            FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
         )
-
-
-        /* ------------------------------
-           CASE 3: ONLY SKILL EXISTS
-           ------------------------------ */
-        WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
-        THEN (
-            SELECT AVG(s.rating::numeric)
-            FROM jsonb_each_text(ea.skillratings) AS s(skill_id, rating)
-        )
-
-
-        /* ------------------------------
-           CASE 4: BOTH EXIST — weighted
-           ------------------------------ */
-        ELSE (
-            COALESCE((
-                /* Weighted KRA portion */
-                SELECT 
-                    SUM((k.weightpercentage / 100.0) * kr.rating::numeric)
-                FROM jsonb_each_text(ea.kraratings) AS kr(kra_id, rating)
-                JOIN performance.kras k 
-                    ON k.kraid = kr.kra_id::uuid
-                WHERE k.organizationid = e.organizationid
-            ), 0)
+        SELECT 
+            (
+                /* KRA portion weighted */
+                (SELECT score FROM kra_score) * 
+                ((SELECT wt FROM kra_total) / 100.0)
+            )
             +
-            COALESCE((
-                /* Weighted Skill portion */
-                SELECT 
-                    SUM(
-                        (
-                            (
-                                (100 - (SELECT COALESCE(SUM(weightpercentage), 0)
-                                        FROM performance.kras
-                                        WHERE organizationid = e.organizationid))
-                                / NULLIF(
-                                    (SELECT COUNT(*) 
-                                     FROM jsonb_each_text(ea.skillratings)),
-                                    0
-                                )
-                            ) / 100.0
-                        ) * s.rating::numeric
-                    )
-                FROM jsonb_each_text(ea.skillratings) AS s(skill_id, rating)
-            ), 0)
-        )
-    END AS overallrating,
+            (
+                /* SKILL portion weighted */
+                (SELECT score FROM skill_score) * 
+                ((100 - (SELECT wt FROM kra_total)) / 100.0)
+            )
+    )
 
+END AS overallrating,
     /* Existing Fields */
     ea.kraratings, 
     ea.skillratings, 

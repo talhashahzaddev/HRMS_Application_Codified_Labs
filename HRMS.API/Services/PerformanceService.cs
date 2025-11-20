@@ -271,7 +271,14 @@ public class PerformanceService : IPerformanceService
             //    throw new ArgumentException("AssessedBy must be provided. The assessor ID is required.");
             //}
 
-            // ✅ 3. Call repository
+            // ✅ 3. Check for duplicate skill
+            var existingSkills = await _performanceRepository.GetEmployeeSkillsAsync(request.EmployeeId);
+            if (existingSkills.Any(s => s.SkillId == request.SkillId))
+            {
+                throw new InvalidOperationException("This skill has already been added to the employee. Cannot add duplicate skills.");
+            }
+
+            // ✅ 4. Call repository
             var result = await _performanceRepository.CreateEmployeeSkillAsync(request);
 
             if (result == null)
@@ -280,6 +287,11 @@ public class PerformanceService : IPerformanceService
             _logger.LogInformation("✅ Successfully created skill for employee {EmployeeId}", request.EmployeeId);
 
             return result;
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "⚠ Duplicate skill detected for employee");
+            throw;
         }
         catch (ArgumentException ex)
         {
@@ -642,6 +654,11 @@ public class PerformanceService : IPerformanceService
     public async Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId)
     {
         return await _performanceRepository.GetTeamSelfAssessmentsAsync(managerId, cycleId);
+    }
+
+    public async Task<IEnumerable<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    {
+        return await _performanceRepository.GetAllEmployeeSelfAssessmentsAsync(organizationId, cycleId, employeeId, kraId, search);
     }
 
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)

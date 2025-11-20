@@ -262,6 +262,15 @@ public class PerformanceController : ControllerBase
                 data = result
             });
         }
+        catch (InvalidOperationException ex)
+        {
+            // Handle duplicate skill error
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while creating employee skill");
@@ -802,6 +811,35 @@ public class PerformanceController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while fetching employee self-assessment"
+            });
+        }
+    }
+
+    [HttpGet("SelfAssessment/all-employee-assessments")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetAllEmployeeSelfAssessments(
+        [FromQuery] Guid? cycleId = null,
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] Guid? kraId = null,
+        [FromQuery] string? search = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var assessments = await _performanceService.GetAllEmployeeSelfAssessmentsAsync(organizationId, cycleId, employeeId, kraId, search);
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = assessments
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching all employee self-assessments");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee self-assessments"
             });
         }
     }

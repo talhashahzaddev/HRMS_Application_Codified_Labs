@@ -294,6 +294,7 @@ public class SelfAssessmentDto
     public DateTime UpdatedAt { get; set; }
     public string? CycleName { get; set; }
     public string? KraName { get; set; }
+    public string? EmployeeName { get; set; }
 }
 
 public class ManagerReviewRequest
