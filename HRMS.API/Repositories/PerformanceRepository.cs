@@ -1280,6 +1280,13 @@ WHERE es.employeeskillid = @employeeSkillId";
         return result;
     }
 
+    public async Task<bool> DeleteEmployeeAppraisalAsync(Guid appraisalId)
+    {
+        var sql = @"DELETE FROM performance.employeeappraisals WHERE appraisalid = @AppraisalId";
+        var affected = await ExecuteAsync(sql, new { AppraisalId = appraisalId });
+        return affected > 0;
+    }
+
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit)
     {
         try

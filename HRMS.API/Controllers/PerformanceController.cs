@@ -1131,6 +1131,40 @@ public class PerformanceController : ControllerBase
         }
     }
 
+    [HttpDelete("appraisals/{appraisalId}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployeeAppraisal(Guid appraisalId)
+    {
+        try
+        {
+            var result = await _performanceService.DeleteEmployeeAppraisalAsync(appraisalId);
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Appraisal not found or could not be deleted"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Appraisal deleted successfully",
+                Data = true
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting appraisal {AppraisalId}", appraisalId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting appraisal"
+            });
+        }
+    }
+
     private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

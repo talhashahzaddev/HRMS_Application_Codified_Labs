@@ -50,7 +50,7 @@ public class PerformanceService : IPerformanceService
                 Feedback = request.Feedback,
                 ImprovementAreas = request.ImprovementAreas,
                 DevelopmentPlan = request.DevelopmentPlan,
-                Status = "draft",
+                Status = "Submitted",
                 SubmittedAt = null,
                 ReviewedAt = null,
                 GoalsAchieved = new Dictionary<string, object>() // keep empty for now
@@ -498,6 +498,12 @@ public class PerformanceService : IPerformanceService
     {
         _logger.LogInformation("Getting employee appraisal by ID: {AppraisalId}", appraisalId);
         return await _performanceRepository.GetEmployeeAppraisalByIdAsync(appraisalId);
+    }
+
+    public async Task<bool> DeleteEmployeeAppraisalAsync(Guid appraisalId)
+    {
+        _logger.LogInformation("Deleting employee appraisal: {AppraisalId}", appraisalId);
+        return await _performanceRepository.DeleteEmployeeAppraisalAsync(appraisalId);
     }
 
     public async Task<EmployeeAppraisalDto> SubmitAppraisalAsync(Guid appraisalId, SubmitAppraisalRequest request)
