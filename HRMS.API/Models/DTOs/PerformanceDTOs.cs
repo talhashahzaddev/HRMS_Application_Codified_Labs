@@ -74,10 +74,17 @@ public class EmployeeAppraisalForEmployeeDto
     public Guid AppraisalId { get; set; }
     public Guid CycleId { get; set; }
     public string CycleName { get; set; } = string.Empty;
-    public string? KraName { get; set; }
-    public decimal? Rating { get; set; }
     public string? ReviewerName { get; set; }
+    public string ReviewType { get; set; } = string.Empty;
+    public decimal? OverallRating { get; set; }
+    public Dictionary<string, object> KraRatings { get; set; } = new();
+    public Dictionary<string, object> SkillRatings { get; set; } = new();
+    public string? Feedback { get; set; }
+    public string? ImprovementAreas { get; set; }
+    public string? DevelopmentPlan { get; set; }
+    public string Status { get; set; } = string.Empty;
     public DateTime? SubmittedAt { get; set; }
+    public DateTime? ReviewedAt { get; set; }
 }
 
 public class CreateAppraisalRequest

@@ -296,6 +296,61 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         }
     }
 
+    public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                SELECT 
+                    e.employeeid,
+                    e.employeecode,
+                    e.firstname,
+                    e.lastname,
+                    e.email,
+                    e.phone,
+                    e.hiredate,
+                    e.status,
+                    e.profilepictureurl,
+                    d.departmentname,
+                    p.positiontitle
+                FROM employee.employees e
+                INNER JOIN employee.employmentdetails ed 
+                    ON e.employeeid = ed.employeeid 
+                    AND ed.iscurrent = true
+                    AND ed.reportingmanagerid = @ManagerEmployeeId
+                LEFT JOIN employee.departments d 
+                    ON ed.departmentid = d.departmentid
+                LEFT JOIN employee.positions p 
+                    ON ed.positionid = p.positionid
+                WHERE e.organizationid = @OrganizationId
+                    AND e.status != 'deleted'
+                ORDER BY e.firstname, e.lastname";
+
+            var results = await QueryAsync<dynamic>(sql, new { ManagerEmployeeId = managerEmployeeId, OrganizationId = organizationId });
+
+            var employees = results.Select(r => new EmployeeListItemDto
+            {
+                EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
+                EmployeeCode = r.employeecode,
+                FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
+                Email = r.email,
+                Phone = r.phone,
+                HireDate = r.hiredate,
+                Status = r.status,
+                ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
+                DepartmentName = r.departmentname,
+                PositionTitle = r.positiontitle,
+                IsActive = r.status?.ToString().ToLower() == "active"
+            }).ToList();
+
+            return employees;
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
+
 
     public async Task<bool> UpdateEmployeeAsync(Employee employee)
     {

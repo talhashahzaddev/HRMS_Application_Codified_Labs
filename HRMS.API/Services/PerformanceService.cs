@@ -85,7 +85,7 @@ public class PerformanceService : IPerformanceService
         }
     }
 
-    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null)
+    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId)
     {
         return await _performanceRepository.GetEmployeeAppraisalsAsync(cycleId, employeeId);
     }
@@ -223,6 +223,25 @@ public class PerformanceService : IPerformanceService
             allSkills = allSkills.Where(s => 
                 s.SkillName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase) ||
                 s.EmployeeName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase)).ToList();
+
+        var totalItems = allSkills.Count;
+        var pagedItems = allSkills.Skip((page - 1) * limit).Take(limit).ToList();
+
+        return new PagedResult<EmployeeSkillDto>
+        {
+            Data = pagedItems,
+            TotalCount = totalItems,
+            Page = page,
+            PageSize = limit
+        };
+    }
+
+    public async Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsByManagerPagedAsync(Guid managerEmployeeId, EmployeeSkillFilterRequest filter, int page, int limit)
+    {
+        _logger.LogInformation("Getting paged employee skills for manager: {ManagerEmployeeId}", managerEmployeeId);
+
+        // Get employee skills for the manager's team with filters
+        var allSkills = await _performanceRepository.GetEmployeeSkillsByManagerAsync(managerEmployeeId, filter);
 
         var totalItems = allSkills.Count;
         var pagedItems = allSkills.Skip((page - 1) * limit).Take(limit).ToList();
@@ -661,14 +680,19 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetAllEmployeeSelfAssessmentsAsync(organizationId, cycleId, employeeId, kraId, search);
     }
 
+    public async Task<IEnumerable<SelfAssessmentDto>> GetMyTeamSelfAssessmentsAsync(Guid managerEmployeeId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    {
+        return await _performanceRepository.GetMyTeamSelfAssessmentsAsync(managerEmployeeId, cycleId, employeeId, kraId, search);
+    }
+
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
     {
         return await _performanceRepository.SubmitManagerReviewAsync(request);
     }
 
-    public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
+    public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null)
     {
-        return await _performanceRepository.GetEmployeeAppraisalsForEmployeeAsync(employeeId, cycleId, kraId, search);
+        return await _performanceRepository.GetEmployeeAppraisalsForEmployeeAsync(employeeId, cycleId, kraId, search, status);
     }
 
     // Appraisal Cycle Management - Enhanced (New methods only)

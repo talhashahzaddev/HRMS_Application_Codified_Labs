@@ -8,7 +8,7 @@ public interface IPerformanceRepository
     Task<AppraisalCycle> CreateAppraisalCycleAsync(Guid organizationId, string cycleName, DateTime startDate, DateTime endDate, string? description = null);
     Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId);
     Task<EmployeeAppraisal> CreateEmployeeAppraisalAsync(EmployeeAppraisal appraisal);
-    Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? employeeId = null);
+    Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId);
     Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId);
     Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId);
     Task<SkillSetDto?> GetSkillSetByIdAsync(Guid skillSetId);
@@ -17,6 +17,7 @@ public interface IPerformanceRepository
     Task<EmployeeSkillDto?> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request);
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId);
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsByOrganizationAsync(Guid organizationId, EmployeeSkillFilterRequest filter);
+    Task<List<EmployeeSkillDto>> GetEmployeeSkillsByManagerAsync(Guid managerEmployeeId, EmployeeSkillFilterRequest filter);
     Task<EmployeeSkillDto?> GetEmployeeSkillByIdAsync(Guid employeeSkillId);
     Task<EmployeeSkillDto> UpdateEmployeeSkillAsync(Guid employeeSkillId, UpdateEmployeeSkillRequest request);
     Task<bool> DeleteEmployeeSkillAsync(Guid employeeSkillId);
@@ -38,8 +39,9 @@ public interface IPerformanceRepository
     Task UpdateSelfAssessmentStatusAsync(Guid employeeId, Guid cycleId, string status);
     Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId);
     Task<IEnumerable<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null);
+    Task<IEnumerable<SelfAssessmentDto>> GetMyTeamSelfAssessmentsAsync(Guid managerEmployeeId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null);
     Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request);
-    Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null);
+    Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null);
 
     // Appraisal Cycle Management - Enhanced
     Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId);
