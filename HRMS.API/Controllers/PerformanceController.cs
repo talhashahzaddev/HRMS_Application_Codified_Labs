@@ -13,11 +13,16 @@ namespace HRMS.API.Controllers;
 public class PerformanceController : ControllerBase
 {
     private readonly IPerformanceService _performanceService;
+    private readonly IEmployeeService _employeeService;
     private readonly ILogger<PerformanceController> _logger;
 
-    public PerformanceController(IPerformanceService performanceService, ILogger<PerformanceController> logger)
+    public PerformanceController(
+        IPerformanceService performanceService, 
+        IEmployeeService employeeService,
+        ILogger<PerformanceController> logger)
     {
         _performanceService = performanceService;
+        _employeeService = employeeService;
         _logger = logger;
     }
 
@@ -78,9 +83,10 @@ public class PerformanceController : ControllerBase
     [HttpGet("cycles/{cycleId}/appraisals")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeAppraisalDto>>>> GetEmployeeAppraisals(Guid cycleId, [FromQuery] Guid? employeeId = null)
     {
+        var employeeIdToUse = await GetCurrentEmployeeId();
         try
         {
-            var appraisals = await _performanceService.GetEmployeeAppraisalsAsync(cycleId, employeeId);
+            var appraisals = await _performanceService.GetEmployeeAppraisalsAsync(cycleId, employeeIdToUse);
 
             return Ok(new ServiceResponse<List<EmployeeAppraisalDto>>
             {
@@ -138,6 +144,121 @@ public class PerformanceController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee appraisals"
+            });
+        }
+    }
+
+    [HttpGet("appraisals/my-team-employees")]
+    [Authorize(Roles = "Manager")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeListItemDto>>>> GetMyTeamEmployees()
+    {
+        try
+        {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var organizationId = GetCurrentOrganizationId();
+            
+            if (currentEmployeeId == Guid.Empty)
+            {
+                return Ok(new ServiceResponse<List<EmployeeListItemDto>>
+                {
+                    Success = true,
+                    Data = new List<EmployeeListItemDto>(),
+                    Message = "No employee record found for this user"
+                });
+            }
+            
+            var employees = await _employeeService.GetEmployeesByManagerAsync(currentEmployeeId, organizationId);
+            
+            return Ok(new ServiceResponse<List<EmployeeListItemDto>>
+            {
+                Success = true,
+                Data = employees
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access attempt for my team employees");
+            return StatusCode(403, new ServiceResponse<List<EmployeeListItemDto>>
+            {
+                Success = false,
+                Message = "You do not have permission to access this resource."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my team employees");
+            return StatusCode(500, new ServiceResponse<List<EmployeeListItemDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving team employees"
+            });
+        }
+    }
+
+    [HttpGet("appraisals/my-created-appraisals")]
+    [Authorize(Roles = "Manager,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeAppraisalDto>>>> GetMyCreatedAppraisals(
+        [FromQuery] Guid? appraisalCycleId = null,
+        [FromQuery] string? status = null,
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 10)
+    {
+        try
+        {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var organizationId = GetCurrentOrganizationId();
+            
+            if (currentEmployeeId == Guid.Empty)
+            {
+                return Ok(new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
+                {
+                    Success = true,
+                    Data = new PagedResult<EmployeeAppraisalDto>
+                    {
+                        Data = new List<EmployeeAppraisalDto>(),
+                        TotalCount = 0,
+                        Page = page,
+                        PageSize = limit
+                    },
+                    Message = "No employee record found for this user"
+                });
+            }
+            
+            var filter = new AppraisalFilterRequest
+            {
+                AppraisalCycleId = appraisalCycleId,
+                Status = status,
+                EmployeeId = employeeId,
+                ManagerId = currentEmployeeId, // Filter by current manager's employee ID
+                Search = search
+            };
+
+            var result = await _performanceService.GetEmployeeAppraisalsPagedAsync(organizationId, filter, page, limit);
+
+            return Ok(new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access attempt for my created appraisals");
+            return StatusCode(403, new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
+            {
+                Success = false,
+                Message = "You do not have permission to access this resource."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my created appraisals");
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving appraisals"
             });
         }
     }
@@ -262,6 +383,15 @@ public class PerformanceController : ControllerBase
                 data = result
             });
         }
+        catch (InvalidOperationException ex)
+        {
+            // Handle duplicate skill error
+            return Conflict(new
+            {
+                success = false,
+                message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while creating employee skill");
@@ -380,6 +510,72 @@ public class PerformanceController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving employee skills for {EmployeeId}", employeeId);
             return StatusCode(500, new ServiceResponse<List<EmployeeSkillDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee skills"
+            });
+        }
+    }
+
+    [HttpGet("employee-skills/my-team")]
+    [Authorize(Roles = "Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetMyTeamEmployeeSkills(
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] Guid? skillSetId = null,
+        [FromQuery] int? proficiencyLevel = null,
+        [FromQuery] string? search = null,
+        [FromQuery] int page = 1,
+        [FromQuery] int limit = 20)
+    {
+        try
+        {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            
+            if (currentEmployeeId == Guid.Empty)
+            {
+                return Ok(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+                {
+                    Success = true,
+                    Data = new PagedResult<EmployeeSkillDto>
+                    {
+                        Data = new List<EmployeeSkillDto>(),
+                        TotalCount = 0,
+                        Page = page,
+                        PageSize = limit
+                    },
+                    Message = "No employee record found for this user"
+                });
+            }
+            
+            var filter = new EmployeeSkillFilterRequest
+            {
+                EmployeeId = employeeId,
+                SkillSetId = skillSetId,
+                ProficiencyLevel = proficiencyLevel,
+                Search = search
+            };
+
+            var result = await _performanceService.GetEmployeeSkillsByManagerPagedAsync(currentEmployeeId, filter, page, limit);
+
+            return Ok(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access attempt for my team employee skills");
+            return StatusCode(403, new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            {
+                Success = false,
+                Message = "You do not have permission to access this resource."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my team employee skills");
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee skills"
@@ -677,7 +873,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/my-assessments")]
-    [Authorize(Roles = "Employee")]
+    [Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMySelfAssessments(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? kraId = null,
@@ -705,20 +901,43 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/my-appraisals")]
-    [Authorize(Roles = "Employee")]
+    [Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>>> GetMyAppraisals(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? kraId = null,
-        [FromQuery] string? search = null)
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null)
     {
         try
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
-            var appraisals = await _performanceService.GetEmployeeAppraisalsForEmployeeAsync(currentEmployeeId, cycleId, kraId, search);
+            
+            // Check if employee ID is valid (not empty)
+            if (currentEmployeeId == Guid.Empty)
+            {
+                _logger.LogWarning("User does not have an associated employee record");
+                return Ok(new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
+                {
+                    Success = true,
+                    Data = new List<EmployeeAppraisalForEmployeeDto>(),
+                    Message = "No employee record found for this user"
+                });
+            }
+            
+            var appraisals = await _performanceService.GetEmployeeAppraisalsForEmployeeAsync(currentEmployeeId, cycleId, kraId, search, status);
             return Ok(new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
             {
                 Success = true,
                 Data = appraisals
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access attempt for my appraisals");
+            return StatusCode(403, new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
+            {
+                Success = false,
+                Message = "You do not have permission to access this resource. Please ensure you have an employee record associated with your account."
             });
         }
         catch (Exception ex)
@@ -733,7 +952,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("SelfAssessment/Submit")]
-    [Authorize(Roles = "Employee")]
+    [Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
     public async Task<ActionResult<ServiceResponse<string>>> SubmitSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
     {
         try
@@ -802,6 +1021,84 @@ public class PerformanceController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while fetching employee self-assessment"
+            });
+        }
+    }
+
+    [HttpGet("SelfAssessment/all-employee-assessments")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetAllEmployeeSelfAssessments(
+        [FromQuery] Guid? cycleId = null,
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] Guid? kraId = null,
+        [FromQuery] string? search = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var assessments = await _performanceService.GetAllEmployeeSelfAssessmentsAsync(organizationId, cycleId, employeeId, kraId, search);
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = assessments
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching all employee self-assessments");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee self-assessments"
+            });
+        }
+    }
+
+    [HttpGet("SelfAssessment/my-team-assessments")]
+    [Authorize(Roles = "Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMyTeamSelfAssessments(
+        [FromQuery] Guid? cycleId = null,
+        [FromQuery] Guid? employeeId = null,
+        [FromQuery] Guid? kraId = null,
+        [FromQuery] string? search = null)
+    {
+        try
+        {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            
+            if (currentEmployeeId == Guid.Empty)
+            {
+                return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+                {
+                    Success = true,
+                    Data = new List<SelfAssessmentDto>(),
+                    Message = "No employee record found for this user"
+                });
+            }
+            
+            var assessments = await _performanceService.GetMyTeamSelfAssessmentsAsync(currentEmployeeId, cycleId, employeeId, kraId, search);
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = assessments
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access attempt for my team self-assessments");
+            return StatusCode(403, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "You do not have permission to access this resource."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching my team self-assessments");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching team self-assessments"
             });
         }
     }
@@ -1127,6 +1424,40 @@ public class PerformanceController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while submitting manager review"
+            });
+        }
+    }
+
+    [HttpDelete("appraisals/{appraisalId}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployeeAppraisal(Guid appraisalId)
+    {
+        try
+        {
+            var result = await _performanceService.DeleteEmployeeAppraisalAsync(appraisalId);
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Appraisal not found or could not be deleted"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Appraisal deleted successfully",
+                Data = true
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting appraisal {AppraisalId}", appraisalId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting appraisal"
             });
         }
     }

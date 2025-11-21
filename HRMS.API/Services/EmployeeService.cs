@@ -449,4 +449,9 @@ public class EmployeeService : IEmployeeService
         
         return System.Text.Encoding.UTF8.GetBytes(csvData);
     }
+
+    public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
+    {
+        return await _employeeRepository.GetEmployeesByManagerAsync(managerEmployeeId, organizationId);
+    }
 }
