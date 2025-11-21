@@ -33,4 +33,5 @@ public interface IEmployeeRepository
     Task<List<Employee>> GetEmployeesByPositionAsync(Guid positionId);
     Task<List<Employee>> GetManagersAsync(Guid organizationId);
     Task<bool> UpdateEmploymentDetailCurrencyAsync(Guid employeeId, string currency);
+    Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
 }

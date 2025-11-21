@@ -76,20 +76,90 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
     {
         try
         {
-            var sql = @"
-            INSERT INTO performance.employeeappraisals (
-                cycleid, employeeid, reviewerid, reviewtype, overallrating,
-                kraratings, skillratings, goalsachieved, feedback, improvementareas,
-                developmentplan, status
-            )
-            VALUES (
-                @cycleId, @employeeId, @reviewerId, @reviewType, @overallRating,
-                @kraRatings::jsonb, @skillRatings::jsonb, @goalsAchieved::jsonb,
-                @feedback, @improvementAreas, @developmentPlan, @status
-            )
-            RETURNING appraisalid";
+            // Step 1: Check if record already exists 
+            var checkSql = @"
+        SELECT appraisalid
+        FROM performance.employeeappraisals
+        WHERE cycleid = @cycleId 
+          AND employeeid = @employeeId
+          AND reviewerid = @reviewerId
+          AND reviewtype = @reviewType
+    ";
 
-            var appraisalId = await ExecuteScalarAsync<Guid>(sql, new
+            var existingId = await ExecuteScalarAsync<Guid?>(checkSql, new
+            {
+                cycleId = appraisal.CycleId,
+                employeeId = appraisal.EmployeeId,
+                reviewerId = appraisal.ReviewerId,
+                reviewType = appraisal.ReviewType
+            });
+
+            // ---------------------------------------------------------------
+            // CASE 1: RECORD EXISTS → UPDATE
+            // ---------------------------------------------------------------
+            if (existingId != null)
+            {
+                var updateSql = @"
+    UPDATE performance.employeeappraisals
+    SET
+        kraratings = COALESCE(kraratings, '{}'::jsonb) 
+                     || COALESCE(@kraRatings::jsonb, '{}'::jsonb),
+
+        feedback = CASE 
+                      WHEN @feedback IS NOT NULL AND @feedback <> '' 
+                      THEN COALESCE(feedback, '') || E'\n' || @feedback
+                      ELSE feedback
+                   END,
+
+        improvementareas = CASE 
+                              WHEN @improvementAreas IS NOT NULL AND @improvementAreas <> '' 
+                              THEN COALESCE(improvementareas, '') || E'\n' || @improvementAreas
+                              ELSE improvementareas
+                           END,
+
+        developmentplan = CASE 
+                              WHEN @developmentPlan IS NOT NULL AND @developmentPlan <> '' 
+                              THEN COALESCE(developmentplan, '') || E'\n' || @developmentPlan
+                              ELSE developmentplan
+                          END,
+
+        updatedat = NOW()
+    WHERE appraisalid = @id
+    RETURNING appraisalid;
+";
+
+                var updatedId = await ExecuteScalarAsync<Guid>(updateSql, new
+                {
+                    id = existingId,
+                    kraRatings = System.Text.Json.JsonSerializer.Serialize(appraisal.KraRatings),
+                    feedback = appraisal.Feedback,
+                    improvementAreas = appraisal.ImprovementAreas,
+                    developmentPlan = appraisal.DevelopmentPlan
+                });
+
+
+                appraisal.AppraisalId = updatedId;
+                return appraisal;
+            }
+
+            // ---------------------------------------------------------------
+            // CASE 2: RECORD DOES NOT EXIST → INSERT
+            // ---------------------------------------------------------------
+            var insertSql = @"
+        INSERT INTO performance.employeeappraisals (
+            cycleid, employeeid, reviewerid, reviewtype, overallrating,
+            kraratings, skillratings, goalsachieved, feedback, 
+            improvementareas, developmentplan, status
+        )
+        VALUES (
+            @cycleId, @employeeId, @reviewerId, @reviewType, @overallRating,
+            @kraRatings::jsonb, @skillRatings::jsonb, @goalsAchieved::jsonb,
+            @feedback, @improvementAreas, @developmentPlan, @status
+        )
+        RETURNING appraisalid;
+    ";
+
+            var newId = await ExecuteScalarAsync<Guid>(insertSql, new
             {
                 cycleId = appraisal.CycleId,
                 employeeId = appraisal.EmployeeId,
@@ -105,34 +175,124 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
                 status = appraisal.Status
             });
 
-            appraisal.AppraisalId = appraisalId;
+            appraisal.AppraisalId = newId;
             return appraisal;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             return null;
         }
+
     }
 
-    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid? userId = null)
+    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId)
     {
-        var employeeId = await GetEmpId(userId);
-
-
         var sql = @"
-            SELECT ea.appraisalid, ea.employeeid, ea.reviewerid, ea.reviewtype,ea.cycleid,
-                   ea.overallrating, ea.kraratings, ea.skillratings, ea.feedback,
-                   ea.improvementareas, ea.status, ea.submittedat, ea.reviewedat,
-                   CONCAT(e.firstname, ' ', e.lastname) as employee_name,
-                   CONCAT(r.firstname, ' ', r.lastname) as reviewer_name,
-                   ac.cyclename
-            FROM performance.employeeappraisals ea
-            INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
-            LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
-            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
-            WHERE ea.cycleid = @cycleId
-              AND (@employeeId IS NULL OR ea.employeeid = @employeeId)
-            ORDER BY e.firstname, e.lastname";
+    SELECT 
+        ea.appraisalid, 
+        ea.employeeid, 
+        ea.reviewerid, 
+        ea.reviewtype,
+        ea.cycleid,
+
+        /* ===========================================
+           FINAL OVERALL RATING (WEIGHTED)
+        =========================================== */
+        CASE
+            /* No KRA & No Skill */
+            WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+            THEN COALESCE(ea.overallrating, 0)
+
+            /* Only KRA Exists → 100% KRA */
+            WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+            THEN (
+                SELECT 
+                    SUM(
+                        (
+                            k.weightpercentage::numeric
+                            / NULLIF(
+                                (SELECT SUM(weightpercentage)
+                                 FROM performance.kras
+                                 WHERE kraid IN (
+                                     SELECT kraid::uuid
+                                     FROM jsonb_each_text(ea.kraratings)
+                                 )
+                                ), 0
+                            )
+                        ) * kr.rating::numeric
+                    )
+                FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+                JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+            )
+
+            /* Only Skill Exists → 100% Skill */
+            WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
+            THEN (
+                SELECT AVG(s.rating::numeric)
+                FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
+            )
+
+            /* Both Exist → Weighted */
+            ELSE (
+                WITH 
+                kra_total AS (
+                    SELECT COALESCE(SUM(weightpercentage), 0) AS wt
+                    FROM performance.kras
+                    WHERE kraid IN (
+                        SELECT kraid::uuid
+                        FROM jsonb_each_text(ea.kraratings)
+                    )
+                ),
+                kra_score AS (
+                    SELECT SUM(
+                        (
+                            k.weightpercentage::numeric 
+                            / NULLIF((SELECT wt FROM kra_total), 0)
+                        ) * kr.rating::numeric
+                    ) AS score
+                    FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+                    JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                ),
+                skill_score AS (
+                    SELECT AVG(s.rating::numeric) AS score
+                    FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
+                )
+                SELECT 
+                    /* KRA weighted part */
+                    (SELECT score FROM kra_score) *
+                    ((SELECT wt FROM kra_total) / 100.0)
+
+                    +
+
+                    /* Skill weighted part */
+                    (SELECT score FROM skill_score) *
+                    ((100 - (SELECT wt FROM kra_total)) / 100.0)
+            )
+        END AS overallrating,
+
+        ea.kraratings,
+        ea.skillratings,
+        ea.feedback,
+        ea.improvementareas,
+        ea.status,
+        ea.submittedat,
+        ea.reviewedat,
+
+        CONCAT(e.firstname, ' ', e.lastname) AS employee_name,
+        CONCAT(r.firstname, ' ', r.lastname) AS reviewer_name,
+        ac.cyclename
+
+    FROM performance.employeeappraisals ea
+    INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
+    LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
+    INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+
+    WHERE ea.cycleid = @cycleId
+      AND (@employeeId IS NULL OR ea.employeeid = @employeeId)
+
+    ORDER BY e.firstname, e.lastname;
+";
+
 
         var results = await QueryAsync<EmployeeAppraisalDto>(sql, new { cycleId, employeeId });
         return results.ToList();
@@ -372,6 +532,20 @@ WHERE skillid = @skillSetId";
 
     public async Task<EmployeeSkillDto?> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
     {
+        // Check if skill already exists for this employee
+        var checkSql = @"
+SELECT COUNT(*) 
+FROM performance.employeeskills 
+WHERE employeeid = @EmployeeId AND skillid = @SkillId;";
+
+        using var connection = CreateConnection();
+        var existingCount = await connection.ExecuteScalarAsync<int>(checkSql, new { request.EmployeeId, request.SkillId });
+        
+        if (existingCount > 0)
+        {
+            throw new InvalidOperationException("This skill has already been added to the employee. Cannot add duplicate skills.");
+        }
+
         var sql = @"
 INSERT INTO performance.employeeskills
     (employeeid, skillid, proficiencylevel, assessedby, lastassessed, notes)
@@ -388,12 +562,16 @@ RETURNING
 
         try
         {
-            using var connection = CreateConnection();
             var result = await connection.QuerySingleOrDefaultAsync<EmployeeSkillDto>(sql, request);
             return result;
         }
         catch (PostgresException ex)
         {
+            // Handle unique constraint violation (backup check)
+            if (ex.SqlState == "23505") // unique_violation
+            {
+                throw new InvalidOperationException("This skill has already been added to the employee. Cannot add duplicate skills.");
+            }
             throw new Exception($"Database error: {ex.MessageText}");
         }
         catch (Exception ex)
@@ -514,6 +692,66 @@ ORDER BY s.category, s.skillname;
 ";
 
         var results = await QueryAsync<EmployeeSkillDto>(sql, new { organizationId, employeeId = filter.EmployeeId });
+        return results.ToList();
+    }
+
+    public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsByManagerAsync(Guid managerEmployeeId, EmployeeSkillFilterRequest filter)
+    {
+        var whereConditions = new List<string> { "ed.reportingmanagerid = @ManagerEmployeeId", "ed.iscurrent = true" };
+        var parameters = new Dictionary<string, object> { { "ManagerEmployeeId", managerEmployeeId } };
+
+        if (filter.EmployeeId.HasValue)
+        {
+            whereConditions.Add("es.employeeid = @EmployeeId");
+            parameters.Add("EmployeeId", filter.EmployeeId.Value);
+        }
+
+        if (filter.SkillSetId.HasValue)
+        {
+            whereConditions.Add("es.skillid = @SkillSetId");
+            parameters.Add("SkillSetId", filter.SkillSetId.Value);
+        }
+
+        if (filter.ProficiencyLevel.HasValue)
+        {
+            whereConditions.Add("es.proficiencylevel = @ProficiencyLevel");
+            parameters.Add("ProficiencyLevel", filter.ProficiencyLevel.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            whereConditions.Add("(LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search) OR LOWER(s.skillname) LIKE LOWER(@Search) OR LOWER(s.category) LIKE LOWER(@Search))");
+            parameters.Add("Search", $"%{filter.Search.Trim()}%");
+        }
+
+        var whereClause = string.Join(" AND ", whereConditions);
+
+        var sql = $@"
+            SELECT 
+                es.employeeskillid,
+                es.employeeid,
+                es.skillid,
+                es.proficiencylevel,
+                es.assessedby,
+                es.lastassessed,
+                es.notes,
+                CONCAT(e.firstname, ' ', e.lastname) AS employee_name,
+                s.skillname,
+                s.category AS skill_category,
+                CONCAT(a.firstname, ' ', a.lastname) AS assessor_name
+            FROM performance.employeeskills es
+            INNER JOIN employee.employees e 
+                ON es.employeeid = e.employeeid
+            INNER JOIN employee.employmentdetails ed 
+                ON e.employeeid = ed.employeeid
+            INNER JOIN performance.skillsets s 
+                ON es.skillid = s.skillid
+            LEFT JOIN employee.employees a 
+                ON es.assessedby = a.employeeid
+            WHERE {whereClause}
+            ORDER BY s.category, s.skillname";
+
+        var results = await QueryAsync<EmployeeSkillDto>(sql, parameters);
         return results.ToList();
     }
 
@@ -911,6 +1149,125 @@ WHERE es.employeeskillid = @employeeSkillId";
         return await QueryAsync<SelfAssessmentDto>(sql, new { ManagerId = managerId, CycleId = cycleId });
     }
 
+    public async Task<IEnumerable<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    {
+        var whereConditions = new List<string> { "e.organizationid = @OrganizationId" };
+        var parameters = new Dictionary<string, object> { { "OrganizationId", organizationId } };
+
+        if (cycleId.HasValue)
+        {
+            whereConditions.Add("sa.cycleid = @CycleId");
+            parameters.Add("CycleId", cycleId.Value);
+        }
+
+        if (employeeId.HasValue)
+        {
+            whereConditions.Add("sa.employeeid = @EmployeeId");
+            parameters.Add("EmployeeId", employeeId.Value);
+        }
+
+        if (kraId.HasValue)
+        {
+            whereConditions.Add("sa.kraid = @KraId");
+            parameters.Add("KraId", kraId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(sa.comments) LIKE LOWER(@Search) OR LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search))");
+            parameters.Add("Search", $"%{search.Trim()}%");
+        }
+
+        var whereClause = string.Join(" AND ", whereConditions);
+
+        var sql = $@"
+            SELECT 
+                sa.selfassessmentid as SelfAssessmentId,
+                sa.employeeid as EmployeeId,
+                sa.cycleid as CycleId,
+                sa.kraid as KraId,
+                sa.skillid as SkillId,
+                sa.rating as Rating,
+                sa.comments as Comments,
+                sa.evidenceurls as EvidenceUrls,
+                sa.status as Status,
+                sa.submittedat as SubmittedAt,
+                sa.createdat as CreatedAt,
+                sa.updatedat as UpdatedAt,
+                ac.cyclename as CycleName,
+                k.kratitle as KraName,
+                CONCAT(e.firstname, ' ', e.lastname) as EmployeeName
+            FROM performance.selfassessments sa
+            INNER JOIN employee.employees e ON sa.employeeid = e.employeeid
+            LEFT JOIN performance.appraisalcycles ac ON sa.cycleid = ac.cycleid
+            LEFT JOIN performance.kras k ON sa.kraid = k.kraid
+            WHERE {whereClause}
+            ORDER BY sa.createdat DESC";
+        
+        var results = await QueryAsync<SelfAssessmentDto>(sql, parameters);
+        return results;
+    }
+
+    public async Task<IEnumerable<SelfAssessmentDto>> GetMyTeamSelfAssessmentsAsync(Guid managerEmployeeId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    {
+        var whereConditions = new List<string> { "ed.reportingmanagerid = @ManagerEmployeeId", "ed.iscurrent = true" };
+        var parameters = new Dictionary<string, object> { { "ManagerEmployeeId", managerEmployeeId } };
+
+        if (cycleId.HasValue)
+        {
+            whereConditions.Add("sa.cycleid = @CycleId");
+            parameters.Add("CycleId", cycleId.Value);
+        }
+
+        if (employeeId.HasValue)
+        {
+            whereConditions.Add("sa.employeeid = @EmployeeId");
+            parameters.Add("EmployeeId", employeeId.Value);
+        }
+
+        if (kraId.HasValue)
+        {
+            whereConditions.Add("sa.kraid = @KraId");
+            parameters.Add("KraId", kraId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(sa.comments) LIKE LOWER(@Search) OR LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search))");
+            parameters.Add("Search", $"%{search.Trim()}%");
+        }
+
+        var whereClause = string.Join(" AND ", whereConditions);
+
+        var sql = $@"
+            SELECT 
+                sa.selfassessmentid as SelfAssessmentId,
+                sa.employeeid as EmployeeId,
+                sa.cycleid as CycleId,
+                sa.kraid as KraId,
+                sa.skillid as SkillId,
+                sa.rating as Rating,
+                sa.comments as Comments,
+                sa.evidenceurls as EvidenceUrls,
+                sa.status as Status,
+                sa.submittedat as SubmittedAt,
+                sa.createdat as CreatedAt,
+                sa.updatedat as UpdatedAt,
+                ac.cyclename as CycleName,
+                k.kratitle as KraName,
+                CONCAT(e.firstname, ' ', e.lastname) as EmployeeName
+            FROM performance.selfassessments sa
+            INNER JOIN employee.employees e ON sa.employeeid = e.employeeid
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+            LEFT JOIN performance.appraisalcycles ac ON sa.cycleid = ac.cycleid
+            LEFT JOIN performance.kras k ON sa.kraid = k.kraid
+            WHERE {whereClause}
+            ORDER BY sa.createdat DESC";
+        
+        var results = await QueryAsync<SelfAssessmentDto>(sql, parameters);
+        return results;
+    }
+
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
     {
         var sql = @"
@@ -924,7 +1281,7 @@ WHERE es.employeeskillid = @employeeSkillId";
         return await QuerySingleOrDefaultAsync<ManagerReviewDto>(sql, request);
     }
 
-    public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
+    public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null)
     {
         var whereConditions = new List<string> { "ea.employeeid = @EmployeeId" };
         var parameters = new Dictionary<string, object> { { "EmployeeId", employeeId } };
@@ -935,36 +1292,121 @@ WHERE es.employeeskillid = @employeeSkillId";
             parameters.Add("CycleId", cycleId.Value);
         }
 
-        if (kraId.HasValue)
+        if (!string.IsNullOrWhiteSpace(status))
         {
-            whereConditions.Add("k.kraid = @KraId");
-            parameters.Add("KraId", kraId.Value);
+            whereConditions.Add("LOWER(ea.status) = LOWER(@Status)");
+            parameters.Add("Status", status.Trim());
         }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(CONCAT(r.firstname, ' ', r.lastname)) LIKE LOWER(@Search))");
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(CONCAT(r.firstname, ' ', r.lastname)) LIKE LOWER(@Search) OR LOWER(ea.feedback) LIKE LOWER(@Search) OR LOWER(ea.improvementareas) LIKE LOWER(@Search))");
             parameters.Add("Search", $"%{search.Trim()}%");
         }
 
         var whereClause = string.Join(" AND ", whereConditions);
 
         var sql = $@"
-            SELECT DISTINCT
+            SELECT 
                 ea.appraisalid as AppraisalId,
                 ea.cycleid as CycleId,
                 ac.cyclename as CycleName,
-                k.kratitle as KraName,
-                (ea.kraratings->>k.kraid::text)::numeric as Rating,
                 CONCAT(r.firstname, ' ', r.lastname) as ReviewerName,
-                ea.submittedat as SubmittedAt
+                ea.reviewtype as ReviewType,
+                /* ===========================================
+                     FINAL OVERALL RATING (0–5 NORMALIZED)
+                   =========================================== */
+                CASE
+                    /* --------------------------------------
+                       1) NO KRA & NO SKILL → RETURN DIRECT
+                       -------------------------------------- */
+                    WHEN (ea.kraratings = '{{}}'::jsonb AND ea.skillratings = '{{}}'::jsonb)
+                    THEN LEAST(GREATEST(ea.overallrating, 0), 5)
+                    /* --------------------------------------
+                       2) ONLY KRA EXISTS → KRA = 100%
+                       -------------------------------------- */
+                    WHEN (ea.kraratings != '{{}}'::jsonb AND ea.skillratings = '{{}}'::jsonb)
+                    THEN (
+                        SELECT 
+                            SUM(
+                                (
+                                    k.weightpercentage::numeric
+                                    / NULLIF(
+                                        (SELECT SUM(weightpercentage)
+                                         FROM performance.kras
+                                         WHERE kraid IN (
+                                             SELECT kraid::uuid
+                                             FROM jsonb_each_text(ea.kraratings)
+                                         )
+                                        ), 0
+                                    )
+                                ) * kr.rating::numeric
+                            )
+                        FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+                        JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                    )
+                    /* --------------------------------------
+                       3) ONLY SKILL EXISTS → SKILL = 100%
+                       -------------------------------------- */
+                    WHEN (ea.kraratings = '{{}}'::jsonb AND ea.skillratings != '{{}}'::jsonb)
+                    THEN (
+                        SELECT AVG(s.rating::numeric)
+                        FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
+                    )
+                    /* --------------------------------------
+                       4) BOTH EXIST → Normalize to 0–5
+                       -------------------------------------- */
+                    ELSE (
+                        WITH 
+                        kra_total AS (
+                            SELECT COALESCE(SUM(weightpercentage), 0) AS wt
+                            FROM performance.kras
+                            WHERE kraid IN (
+                                SELECT kraid::uuid
+                                FROM jsonb_each_text(ea.kraratings)
+                            )
+                        ),
+                        kra_score AS (
+                            SELECT SUM(
+                                (
+                                    k.weightpercentage::numeric 
+                                    / NULLIF((SELECT wt FROM kra_total), 0)
+                                ) * kr.rating::numeric
+                            ) AS score
+                            FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+                            JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                        ),
+                        skill_score AS (
+                            SELECT AVG(s.rating::numeric) AS score
+                            FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
+                        )
+                        SELECT 
+                            (
+                                /* KRA portion weighted */
+                                (SELECT score FROM kra_score) * 
+                                ((SELECT wt FROM kra_total) / 100.0)
+                            )
+                            +
+                            (
+                                /* SKILL portion weighted */
+                                (SELECT score FROM skill_score) * 
+                                ((100 - (SELECT wt FROM kra_total)) / 100.0)
+                            )
+                    )
+                END as OverallRating,
+                ea.kraratings as KraRatings,
+                ea.skillratings as SkillRatings,
+                ea.feedback as Feedback,
+                ea.improvementareas as ImprovementAreas,
+                COALESCE(ea.developmentplan, '') as DevelopmentPlan,
+                ea.status as Status,
+                ea.submittedat as SubmittedAt,
+                ea.reviewedat as ReviewedAt
             FROM performance.employeeappraisals ea
             INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
             LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
-            CROSS JOIN LATERAL jsonb_object_keys(ea.kraratings) AS kra_key
-            INNER JOIN performance.kras k ON kra_key::uuid = k.kraid
             WHERE {whereClause}
-            ORDER BY ea.submittedat DESC, k.kratitle";
+            ORDER BY ea.submittedat DESC";
 
         var results = await QueryAsync<EmployeeAppraisalForEmployeeDto>(sql, parameters);
         return results;
@@ -1280,6 +1722,13 @@ WHERE es.employeeskillid = @employeeSkillId";
         return result;
     }
 
+    public async Task<bool> DeleteEmployeeAppraisalAsync(Guid appraisalId)
+    {
+        var sql = @"DELETE FROM performance.employeeappraisals WHERE appraisalid = @AppraisalId";
+        var affected = await ExecuteAsync(sql, new { AppraisalId = appraisalId });
+        return affected > 0;
+    }
+
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit)
     {
         try
@@ -1294,89 +1743,94 @@ WHERE es.employeeskillid = @employeeSkillId";
     ea.cycleid,
 
     /* ===========================================
-         FINAL OVERALL RATING — ALL CASES
+         FINAL OVERALL RATING (0–5 NORMALIZED)
        =========================================== */
-    CASE
-        /* ------------------------------
-           CASE 1: NO KRA & NO SKILL
-           ------------------------------ */
-        WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
-        THEN ea.overallrating
+           CASE
+
+    /* --------------------------------------
+       1) NO KRA & NO SKILL → RETURN DIRECT
+       -------------------------------------- */
+    WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+    THEN LEAST(GREATEST(ea.overallrating, 0), 5)
 
 
-        /* ------------------------------
-           CASE 2: ONLY KRA EXISTS
-           ------------------------------ */
-        WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
-        THEN (
-            SELECT SUM(
+    /* --------------------------------------
+       2) ONLY KRA EXISTS → KRA = 100%
+       -------------------------------------- */
+    WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+    THEN (
+        SELECT 
+            SUM(
                 (
-                    (k.weightpercentage::numeric 
-                        / NULLIF(
-                            (SELECT SUM(weightpercentage) 
-                             FROM performance.kras 
-                             WHERE kraid IN (
-                                SELECT kra_id::uuid 
-                                FROM jsonb_each_text(ea.kraratings)
-                             )
-                            ), 
-                            0
-                        )
-                    ) * 100.0 / 100.0
+                    k.weightpercentage::numeric
+                    / NULLIF(
+                        (SELECT SUM(weightpercentage)
+                         FROM performance.kras
+                         WHERE kraid IN (
+                             SELECT kraid::uuid
+                             FROM jsonb_each_text(ea.kraratings)
+                         )
+                        ), 0
+                    )
                 ) * kr.rating::numeric
             )
-            FROM jsonb_each_text(ea.kraratings) kr(kra_id, rating)
-            JOIN performance.kras k 
-              ON k.kraid = kr.kra_id::uuid
+        FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+        JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+    )
+
+
+    /* --------------------------------------
+       3) ONLY SKILL EXISTS → SKILL = 100%
+       -------------------------------------- */
+    WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
+    THEN (
+        SELECT AVG(s.rating::numeric)
+        FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
+    )
+
+
+    /* --------------------------------------
+       4) BOTH EXIST → Normalize to 0–5
+       -------------------------------------- */
+    ELSE (
+        WITH 
+        kra_total AS (
+            SELECT COALESCE(SUM(weightpercentage), 0) AS wt
+            FROM performance.kras
+            WHERE kraid IN (
+                SELECT kraid::uuid
+                FROM jsonb_each_text(ea.kraratings)
+            )
+        ),
+        kra_score AS (
+            SELECT SUM(
+                (
+                    k.weightpercentage::numeric 
+                    / NULLIF((SELECT wt FROM kra_total), 0)
+                ) * kr.rating::numeric
+            ) AS score
+            FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+            JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+        ),
+        skill_score AS (
+            SELECT AVG(s.rating::numeric) AS score
+            FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
         )
-
-
-        /* ------------------------------
-           CASE 3: ONLY SKILL EXISTS
-           ------------------------------ */
-        WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
-        THEN (
-            SELECT AVG(s.rating::numeric)
-            FROM jsonb_each_text(ea.skillratings) AS s(skill_id, rating)
-        )
-
-
-        /* ------------------------------
-           CASE 4: BOTH EXIST — weighted
-           ------------------------------ */
-        ELSE (
-            COALESCE((
-                /* Weighted KRA portion */
-                SELECT 
-                    SUM((k.weightpercentage / 100.0) * kr.rating::numeric)
-                FROM jsonb_each_text(ea.kraratings) AS kr(kra_id, rating)
-                JOIN performance.kras k 
-                    ON k.kraid = kr.kra_id::uuid
-                WHERE k.organizationid = e.organizationid
-            ), 0)
+        SELECT 
+            (
+                /* KRA portion weighted */
+                (SELECT score FROM kra_score) * 
+                ((SELECT wt FROM kra_total) / 100.0)
+            )
             +
-            COALESCE((
-                /* Weighted Skill portion */
-                SELECT 
-                    SUM(
-                        (
-                            (
-                                (100 - (SELECT COALESCE(SUM(weightpercentage), 0)
-                                        FROM performance.kras
-                                        WHERE organizationid = e.organizationid))
-                                / NULLIF(
-                                    (SELECT COUNT(*) 
-                                     FROM jsonb_each_text(ea.skillratings)),
-                                    0
-                                )
-                            ) / 100.0
-                        ) * s.rating::numeric
-                    )
-                FROM jsonb_each_text(ea.skillratings) AS s(skill_id, rating)
-            ), 0)
-        )
-    END AS overallrating,
+            (
+                /* SKILL portion weighted */
+                (SELECT score FROM skill_score) * 
+                ((100 - (SELECT wt FROM kra_total)) / 100.0)
+            )
+    )
 
+END AS overallrating,
     /* Existing Fields */
     ea.kraratings, 
     ea.skillratings, 
@@ -1513,11 +1967,22 @@ LIMIT @limit OFFSET @offset;
         try
         {
             var sql = @"SELECT employeeid FROM employee.employees WHERE userid = @Userid";
-            return await QuerySingleOrDefaultAsync<Guid>(sql, new { Userid });
+            var employeeId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { Userid });
+            
+            if (!employeeId.HasValue || employeeId.Value == Guid.Empty)
+            {
+                throw new UnauthorizedAccessException($"No employee record found for user {Userid}. Please ensure your user account is linked to an employee record.");
+            }
+            
+            return employeeId.Value;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            throw;
+            throw new Exception($"Error retrieving employee ID for user {Userid}", ex);
         }
     }
 }

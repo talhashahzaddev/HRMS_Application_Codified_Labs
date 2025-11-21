@@ -32,4 +32,5 @@ public interface IEmployeeService
     Task<bool> BulkActivateEmployeesAsync(List<Guid> employeeIds);
     Task<bool> BulkDeactivateEmployeesAsync(List<Guid> employeeIds);
     Task<byte[]> ExportEmployeesAsync(Guid organizationId, string format);
+    Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
 }
