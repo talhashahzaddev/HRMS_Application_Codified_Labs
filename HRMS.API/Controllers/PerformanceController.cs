@@ -651,6 +651,53 @@ public class PerformanceController : ControllerBase
         }
     }
 
+    [HttpGet("team-performance-overview")]
+    [Authorize(Roles = "Manager,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TeamPerformanceOverviewDto>>> GetTeamPerformanceOverview()
+    {
+        try
+        {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var organizationId = GetCurrentOrganizationId();
+            
+            if (currentEmployeeId == Guid.Empty)
+            {
+                return Ok(new ServiceResponse<TeamPerformanceOverviewDto>
+                {
+                    Success = true,
+                    Data = new TeamPerformanceOverviewDto { Employees = new List<TeamPerformanceEmployeeDto>() },
+                    Message = "No employee record found for this user"
+                });
+            }
+            
+            var result = await _performanceService.GetTeamPerformanceOverviewAsync(currentEmployeeId, organizationId);
+
+            return Ok(new ServiceResponse<TeamPerformanceOverviewDto>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access attempt for team performance overview");
+            return StatusCode(403, new ServiceResponse<TeamPerformanceOverviewDto>
+            {
+                Success = false,
+                Message = "You do not have permission to access this resource."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving team performance overview");
+            return StatusCode(500, new ServiceResponse<TeamPerformanceOverviewDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving team performance overview"
+            });
+        }
+    }
+
 
 
     [HttpPost("Kra")]

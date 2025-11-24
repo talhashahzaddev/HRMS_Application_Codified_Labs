@@ -358,3 +358,24 @@ public class SkillGapAnalysisDto
     public int CurrentLevel { get; set; }
     public int Gap { get; set; }
 }
+
+// Team Performance Overview DTOs
+public class TeamPerformanceOverviewDto
+{
+    public List<TeamPerformanceEmployeeDto> Employees { get; set; } = new();
+}
+
+public class TeamPerformanceEmployeeDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public List<CycleRatingDto> CycleRatings { get; set; } = new();
+    public List<string> AssessedSkills { get; set; } = new();
+}
+
+public class CycleRatingDto
+{
+    public Guid CycleId { get; set; }
+    public string CycleName { get; set; } = string.Empty;
+    public decimal? Rating { get; set; }
+}

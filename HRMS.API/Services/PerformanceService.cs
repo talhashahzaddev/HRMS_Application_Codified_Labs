@@ -720,4 +720,10 @@ public class PerformanceService : IPerformanceService
         _logger.LogInformation("Getting Employee Id against User id: {EmployeeId}", Userid);
         return await _performanceRepository.GetEmployeeFromTable(Userid);
     }
+
+    public async Task<TeamPerformanceOverviewDto> GetTeamPerformanceOverviewAsync(Guid managerEmployeeId, Guid organizationId)
+    {
+        _logger.LogInformation("Getting team performance overview for manager: {ManagerEmployeeId}, organization: {OrganizationId}", managerEmployeeId, organizationId);
+        return await _performanceRepository.GetTeamPerformanceOverviewAsync(managerEmployeeId, organizationId);
+    }
 }
