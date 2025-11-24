@@ -1985,4 +1985,141 @@ LIMIT @limit OFFSET @offset;
             throw new Exception($"Error retrieving employee ID for user {Userid}", ex);
         }
     }
+
+    public async Task<TeamPerformanceOverviewDto> GetTeamPerformanceOverviewAsync(Guid managerEmployeeId, Guid organizationId)
+    {
+        try
+        {
+            // Step 1: Get all employees reporting to this manager
+            var employeesSql = @"
+                SELECT DISTINCT
+                    e.employeeid,
+                    CONCAT(e.firstname, ' ', e.lastname) AS employeename
+                FROM employee.employees e
+                INNER JOIN employee.employmentdetails ed 
+                    ON e.employeeid = ed.employeeid 
+                    AND ed.iscurrent = true
+                    AND ed.reportingmanagerid = @ManagerEmployeeId
+                WHERE e.organizationid = @OrganizationId
+                    AND e.status != 'deleted'
+                ORDER BY employeename";
+
+            var employees = await QueryAsync<dynamic>(employeesSql, new { ManagerEmployeeId = managerEmployeeId, OrganizationId = organizationId });
+            
+            var result = new TeamPerformanceOverviewDto();
+
+            foreach (var emp in employees)
+            {
+                var employeeId = (Guid)emp.employeeid;
+                var employeeName = (string)emp.employeename;
+
+                // Step 2: Get all appraisals with calculated ratings per cycle for this employee
+                var appraisalsSql = @"
+                    SELECT DISTINCT
+                        ac.cycleid,
+                        ac.cyclename,
+                        ac.startdate,
+                        CASE
+                            /* No KRA & No Skill */
+                            WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+                            THEN COALESCE(ea.overallrating, 0)
+
+                            /* Only KRA Exists → 100% KRA */
+                            WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
+                            THEN (
+                                SELECT 
+                                    SUM(
+                                        (
+                                            k.weightpercentage::numeric
+                                            / NULLIF(
+                                                (SELECT SUM(weightpercentage)
+                                                 FROM performance.kras
+                                                 WHERE kraid IN (
+                                                     SELECT kraid::uuid
+                                                     FROM jsonb_each_text(ea.kraratings)
+                                                 )
+                                                ), 0
+                                            )
+                                        ) * kr.rating::numeric
+                                    )
+                                FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+                                JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                            )
+
+                            /* Only Skill Exists → 100% Skill */
+                            WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
+                            THEN (
+                                SELECT AVG(s.rating::numeric)
+                                FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
+                            )
+
+                            /* Both Exist → Weighted */
+                            ELSE (
+                                WITH 
+                                kra_total AS (
+                                    SELECT COALESCE(SUM(weightpercentage), 0) AS wt
+                                    FROM performance.kras
+                                    WHERE kraid IN (
+                                        SELECT kraid::uuid
+                                        FROM jsonb_each_text(ea.kraratings)
+                                    )
+                                ),
+                                kra_score AS (
+                                    SELECT SUM(
+                                        (
+                                            k.weightpercentage::numeric 
+                                            / NULLIF((SELECT wt FROM kra_total), 0)
+                                        ) * kr.rating::numeric
+                                    ) AS score
+                                    FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
+                                    JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                                ),
+                                skill_score AS (
+                                    SELECT AVG(s.rating::numeric) AS score
+                                    FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
+                                )
+                                SELECT 
+                                    (SELECT score FROM kra_score) *
+                                    ((SELECT wt FROM kra_total) / 100.0)
+                                    +
+                                    (SELECT score FROM skill_score) *
+                                    ((100 - (SELECT wt FROM kra_total)) / 100.0)
+                            )
+                        END AS rating
+                    FROM performance.employeeappraisals ea
+                    INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+                    WHERE ea.employeeid = @EmployeeId
+                    ORDER BY ac.startdate DESC";
+
+                var cycleRatings = await QueryAsync<CycleRatingDto>(appraisalsSql, new { EmployeeId = employeeId });
+
+                // Step 3: Get all assessed skills for this employee
+                var skillsSql = @"
+                    SELECT DISTINCT
+                        ss.skillname
+                    FROM performance.employeeskills es
+                    INNER JOIN performance.skillsets ss ON es.skillid = ss.skillid
+                    WHERE es.employeeid = @EmployeeId
+                        AND es.assessedby IS NOT NULL
+                        AND ss.isactive = true
+                    ORDER BY ss.skillname";
+
+                var skills = await QueryAsync<string>(skillsSql, new { EmployeeId = employeeId });
+
+                result.Employees.Add(new TeamPerformanceEmployeeDto
+                {
+                    EmployeeId = employeeId,
+                    EmployeeName = employeeName,
+                    CycleRatings = cycleRatings.ToList(),
+                    AssessedSkills = skills.ToList()
+                });
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error retrieving team performance overview for manager {managerEmployeeId}", ex);
+        }
+    }
 }

@@ -68,5 +68,6 @@ public interface IPerformanceService
     // Reports and Analytics
     Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId);
     Task<Guid> GetEmployeeFromTable(Guid Userid);
+    Task<TeamPerformanceOverviewDto> GetTeamPerformanceOverviewAsync(Guid managerEmployeeId, Guid organizationId);
 
 }
