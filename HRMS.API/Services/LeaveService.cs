@@ -2,24 +2,32 @@ using AutoMapper;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
+using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Requests;
 using HRMS.API.Services.Interfaces;
+using static HRMS.API.Models.DTOs.NotificationDto;
 
 namespace HRMS.API.Services;
 
 public class LeaveService : ILeaveService
 {
     private readonly ILeaveRepository _leaveRepository;
+    private readonly INotificationRepository _notificationRepository;
+    private readonly IEmployeeRepository _employeeRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<LeaveService> _logger;
 
     public LeaveService(
         ILeaveRepository leaveRepository,
+        INotificationRepository notificationRepository,
+        IEmployeeRepository employeeRepository,
         IMapper mapper,
         ILogger<LeaveService> logger)
     {
         _leaveRepository = leaveRepository;
+        _notificationRepository = notificationRepository;
+        _employeeRepository = employeeRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -36,6 +44,31 @@ public class LeaveService : ILeaveService
         var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
             empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
+        //Create Notification
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        //Getting reciverid
+        var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
+
+        var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
+        if (leaveRequest!=null)
+
+        {
+            var notification = new NotificationCreateDto
+            {
+                Receiveruserid = reciverid,
+                Senderuserid = employee.EmployeeId,
+                Ttitle = "Leave Request",
+                RequestId = leaveRequest.RequestId,
+                Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  request a Leave ",
+                Notificationtype = "Request",
+                Createdby = employee.EmployeeId,
+                moduletype="Leave",
+                Redirecturl= "/leave/team",
+                organizationId = employee.OrganizationId
+            };
+            await _notificationRepository.CreateNotificationAsync(employee.OrganizationId, notification);
+        }
+
         return _mapper.Map<LeaveRequestDto>(leaveRequest);
     }
     public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
@@ -47,7 +80,48 @@ public class LeaveService : ILeaveService
 
     public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy)
     {
-        return await _leaveRepository.UpdateLeaveRequestStatusAsync(requestId, request.Status, approvedBy, request.RejectionReason);
+
+        //Create Notification
+        var Originalnotification = await _notificationRepository.getnotificationdetailAsync(requestId);
+
+        var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(Originalnotification.requestid, request.Status, approvedBy, request.RejectionReason);
+
+       
+        if (Originalnotification == null)
+            return false;
+
+        // 3. Build the notification message based on status
+        string message;
+        if (request.Status.ToLower() == "approved")
+        {
+            message = "Your leave request has been approved";
+        }
+        else if (request.Status.ToLower() == "rejected")
+        {
+            message = $"Your leave request has been rejected. Reason: {request.RejectionReason}";
+        }
+        else
+        {
+            message = $"Your leave request status has been updated to {request.Status}";
+        }
+
+
+        {
+            var notification = new NotificationCreateDto
+            {
+                Receiveruserid = Originalnotification.SenderUserId,
+                Senderuserid = Originalnotification.ReceiverUserId,
+                Ttitle = "Leave Request",
+                RequestId = Originalnotification.requestid,
+                Message = message,
+                Notificationtype = "Message",
+                Createdby = Originalnotification.SenderUserId,
+            };
+            return await _notificationRepository.CreateNotificationAsync(Originalnotification.organizationId, notification);
+        }
+
+        return true;
+
     }
 
     public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(LeaveRequestSearchViewModel searchModel, Guid organizationId)
