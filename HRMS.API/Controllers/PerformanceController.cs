@@ -269,7 +269,8 @@ public class PerformanceController : ControllerBase
         try
         {
             var reviewerId = await GetCurrentEmployeeId();
-            var appraisal = await _performanceService.CreateEmployeeAppraisalAsync(request, reviewerId);
+            var organizationId = GetCurrentOrganizationId();
+            var appraisal = await _performanceService.CreateEmployeeAppraisalAsync(request, reviewerId, organizationId);
 
             return Ok(new ServiceResponse<EmployeeAppraisalDto>
             {
@@ -872,10 +873,11 @@ public class PerformanceController : ControllerBase
         try
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
+            var organizationId = GetCurrentOrganizationId();
             request.EmployeeId = currentEmployeeId;
             if (request == null)
                 return BadRequest("Invalid self-assessment data");
-            var result = await _performanceService.CreateSelfAssessmentAsync(request);
+            var result = await _performanceService.CreateSelfAssessmentAsync(request, organizationId);
 
             return Ok(new ServiceResponse<SelfAssessmentDto>
             {
@@ -890,7 +892,7 @@ public class PerformanceController : ControllerBase
             return StatusCode(500, new ServiceResponse<SelfAssessmentDto>
             {
                 Success = false,
-                Message = "An error occurred while saving self-assessment"
+                Message = ex.Message
             });
         }
     }

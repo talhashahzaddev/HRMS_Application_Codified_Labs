@@ -3,21 +3,31 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using static HRMS.API.Models.DTOs.NotificationDto;
 
 namespace HRMS.API.Services;
 
 public class PerformanceService : IPerformanceService
 {
     private readonly IPerformanceRepository _performanceRepository;
+    private readonly INotificationService _notificationService;
+    private readonly INotificationRepository _notificationRepository;
+    private readonly IEmployeeRepository _employeeRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<PerformanceService> _logger;
 
     public PerformanceService(
         IPerformanceRepository performanceRepository,
+        INotificationService notificationService,
+        INotificationRepository notificationRepository,
+        IEmployeeRepository employeeRepository,
         IMapper mapper,
         ILogger<PerformanceService> logger)
     {
         _performanceRepository = performanceRepository;
+        _notificationService = notificationService;
+        _notificationRepository = notificationRepository;
+        _employeeRepository = employeeRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -33,7 +43,7 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetAppraisalCyclesAsync(organizationId);
     }
 
-    public async Task<EmployeeAppraisalDto> CreateEmployeeAppraisalAsync(CreateAppraisalRequest request, Guid reviewerId)
+    public async Task<EmployeeAppraisalDto> CreateEmployeeAppraisalAsync(CreateAppraisalRequest request, Guid reviewerId, Guid organizationId)
     {
         try
         {
@@ -76,6 +86,42 @@ public class PerformanceService : IPerformanceService
                 SubmittedAt = createdAppraisal.SubmittedAt,
                 ReviewedAt = createdAppraisal.ReviewedAt
             };
+
+            // Create notification for the employee
+            try
+            {
+                // Get sender (reviewer) employee details
+                var reviewerEmployee = await _employeeRepository.GetEmployeedetailsAsync(reviewerId);
+                
+                // Get receiver (employee) details
+                var employeeDetails = await _employeeRepository.GetEmployeedetailsAsync(request.EmployeeId);
+
+                if (reviewerEmployee != null && employeeDetails != null)
+                {
+                    var senderName = $"{reviewerEmployee.FirstName} {reviewerEmployee.LastName}".Trim();
+                    
+                    var notification = new NotificationCreateDto
+                    {
+                        Receiveruserid = request.EmployeeId, // Employee for whom appraisal is created
+                        Senderuserid = reviewerId, // Manager/HR who created the appraisal
+                        Ttitle = "Appraisal Created",
+                        Notificationtype = "Performance",
+                        Message = $"{senderName} has created an appraisal for you",
+                        Redirecturl = "/performance/appraisals",
+                        moduletype = "Performance",
+                        RequestId = createdAppraisal.AppraisalId,
+                        Createdby = reviewerId,
+                        organizationId = organizationId
+                    };
+
+                    await _notificationService.CreateNotificationAsync(organizationId, notification);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail the appraisal creation
+                _logger.LogError(ex, "Error creating notification for appraisal {AppraisalId}", createdAppraisal.AppraisalId);
+            }
 
             return dto;
         }
@@ -650,9 +696,57 @@ public class PerformanceService : IPerformanceService
     }
 
 
-    public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request)
+    public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request, Guid organizationId)
     {
-        return await _performanceRepository.CreateSelfAssessmentAsync(request);
+        var result = await _performanceRepository.CreateSelfAssessmentAsync(request);
+        
+        // Create notification for the reporting manager
+        try
+        {
+            // Get employee details for the sender (current employee who created self-assessment)
+            var employeeDetails = await _employeeRepository.GetEmployeedetailsAsync(request.EmployeeId);
+            
+            if (employeeDetails != null)
+            {
+                // Get reporting manager ID from employment details
+                var reportingManagerEmployeeId = await _notificationRepository.GetReciveridAsync(request.EmployeeId);
+                
+                if (reportingManagerEmployeeId != Guid.Empty)
+                {
+                    // Get reporting manager employee details
+                    var managerDetails = await _employeeRepository.GetEmployeedetailsAsync(reportingManagerEmployeeId);
+                    
+                    if (managerDetails != null)
+                    {
+                        var employeeName = $"{employeeDetails.FirstName} {employeeDetails.LastName}".Trim();
+                        
+                        var notification = new NotificationCreateDto
+                        {
+                            Receiveruserid = reportingManagerEmployeeId, // Reporting manager
+                            Senderuserid = request.EmployeeId, // Employee who created self-assessment
+                            Ttitle = "Self-Assessment Created",
+                            Notificationtype = "Performance",
+                            Message = $"{employeeName} has submitted a self-assessment",
+                            Redirecturl = "/performance/appraisals",
+                            moduletype = "Performance",
+                            RequestId = result.SelfAssessmentId,
+                            Createdby = request.EmployeeId,
+                            organizationId = organizationId
+                        };
+
+                        await _notificationService.CreateNotificationAsync(organizationId, notification);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            // Log the error but don't fail the self-assessment creation
+            _logger.LogError(ex, "Error creating notification for self-assessment {SelfAssessmentId}", result.SelfAssessmentId);
+            throw;
+        }
+        
+        return result;
     }
 
     public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
