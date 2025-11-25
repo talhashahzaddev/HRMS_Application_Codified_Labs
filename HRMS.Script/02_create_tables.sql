@@ -566,3 +566,24 @@ CREATE TABLE IF NOT EXISTS performance.employeegoals
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT employeegoals_pkey PRIMARY KEY (goalid)
 )
+
+--NOtifications Table
+CREATE TABLE IF NOT EXISTS notification.notifications
+(
+    notificationid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    receiveruserid uuid NOT NULL,
+    senderuserid uuid,
+    title character varying(50) COLLATE pg_catalog."default",
+    notificationtype character varying(50) COLLATE pg_catalog."default",
+    message character varying(500) COLLATE pg_catalog."default" NOT NULL,
+    redirecturl character varying(200) COLLATE pg_catalog."default",
+    isread boolean DEFAULT false,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    createdby uuid,
+    requestid uuid,
+    moduletype character varying(50) COLLATE pg_catalog."default",
+    CONSTRAINT notifications_pkey PRIMARY KEY (notificationid)
+)
+
+TABLESPACE pg_default;
