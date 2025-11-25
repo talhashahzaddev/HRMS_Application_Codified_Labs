@@ -62,7 +62,8 @@ public class LeaveService : ILeaveService
                 Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  request a Leave ",
                 Notificationtype = "Request",
                 Createdby = employee.EmployeeId,
-
+                moduletype="Leave",
+                Redirecturl= "/leave/team",
                 organizationId = employee.OrganizationId
             };
             await _notificationRepository.CreateNotificationAsync(employee.OrganizationId, notification);
@@ -79,10 +80,12 @@ public class LeaveService : ILeaveService
 
     public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy)
     {
-        var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(requestId, request.Status, approvedBy, request.RejectionReason);
 
         //Create Notification
         var Originalnotification = await _notificationRepository.getnotificationdetailAsync(requestId);
+
+        var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(Originalnotification.requestid, request.Status, approvedBy, request.RejectionReason);
+
        
         if (Originalnotification == null)
             return false;

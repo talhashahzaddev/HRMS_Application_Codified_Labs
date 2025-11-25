@@ -278,31 +278,28 @@ public class AttendanceService : IAttendanceService
 
         var employee = await _employeeRepository.GetEmployeeByIdAsync(requestDto.EmployeeId);
         //Getting reciverid
-        var reciverid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
-
+        var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
+        //Getting manager employeeid
+        var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
         if (result)
 
         {
             var notification = new NotificationCreateDto
             {
-                Receiveruserid=reciverid,
+                Receiveruserid= reciverid,
                 Senderuserid = employee.EmployeeId,
                 Ttitle = "Swap Request",
                 Message = $"Employee {employee.FirstName } Department {employee.DepartmentName}  requested shift swap.",
-                Notificationtype = "Request ShiftSwap",
+                Notificationtype = "Request",
                 Createdby = requestDto.EmployeeId,
+                moduletype="attendance",
+                Redirecturl="/leave/team",
                 organizationId = organizationId
             };
             await _notificationRepository.CreateNotificationAsync(organizationId, notification);
         }
  
         return result;
-
-
-
-
-
-
 
     }
 

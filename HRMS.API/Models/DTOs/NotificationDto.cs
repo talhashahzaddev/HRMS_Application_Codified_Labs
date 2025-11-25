@@ -12,6 +12,7 @@
             public Guid RequestId { get; set; }  //For getting request id 
             public string Message { get; set; }
             public string Redirecturl { get; set; }
+            public string moduletype { get; set; }
             public Guid? Createdby { get; set; }
             public Guid? organizationId { get; set; }
         }
@@ -27,6 +28,7 @@
             public Guid requestid { get; set; }
             public string Message { get; set; }
             public string RedirectUrl { get; set; }
+            public string moduletype { get; set; }
             public bool IsRead { get; set; }
             public DateTime CreatedAt { get; set; }
         }
