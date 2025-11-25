@@ -1061,7 +1061,28 @@ WHERE es.employeeskillid = @employeeSkillId";
 
     public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request)
     {
-        var sql = @"
+        // ---------------------------------------------
+        // 1) Check if the same KRA already exists for the employee & cycle
+        // ---------------------------------------------
+        var checkSql = @"
+        SELECT COUNT(*) 
+        FROM performance.selfassessments
+        WHERE employeeid = @EmployeeId 
+          AND cycleid = @CycleId
+          AND kraid = @KraId;
+    ";
+
+        var existingCount = await QuerySingleOrDefaultAsync<int>(checkSql, request);
+
+        if (existingCount > 0)
+        {
+            throw new Exception("A self-assessment for this KRA already exists for the selected cycle and employee.");
+        }
+
+        // ---------------------------------------------
+        // 2) Insert new self-assessment
+        // ---------------------------------------------
+        var insertSql = @"
         INSERT INTO performance.selfassessments
         (employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat)
         VALUES
@@ -1069,8 +1090,9 @@ WHERE es.employeeskillid = @employeeSkillId";
         RETURNING selfassessmentid, employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat;
     ";
 
-        return await QuerySingleOrDefaultAsync<SelfAssessmentDto>(sql, request);
+        return await QuerySingleOrDefaultAsync<SelfAssessmentDto>(insertSql, request);
     }
+
 
     public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
     {
