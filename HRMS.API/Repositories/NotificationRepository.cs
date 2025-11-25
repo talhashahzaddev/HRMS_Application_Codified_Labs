@@ -75,6 +75,7 @@ namespace HRMS.API.Repositories
                 redirecturl, 
                 requestid,
                 isread,
+                moduletype,
                 createdby
             )
             VALUES
@@ -88,6 +89,7 @@ namespace HRMS.API.Repositories
                 @redirectUrl,
                 @requestId,
                 false,
+                @Moduletype,
                 @senderUserId
             )";
 
@@ -100,7 +102,8 @@ namespace HRMS.API.Repositories
                 notificationType = request.Notificationtype,
                 message = request.Message,
                 requestId=request.RequestId,
-                redirectUrl = request.Redirecturl
+                redirectUrl = request.Redirecturl,
+                Moduletype=request.moduletype,
             });
 
             return affectedRows > 0;
@@ -132,7 +135,7 @@ namespace HRMS.API.Repositories
             var sql = @"
             SELECT *
             FROM notification.notifications
-            WHERE requestid = @requestId
+            WHERE notificationid = @requestId
         ";
 
             // Execute query and map results to Notification objects
