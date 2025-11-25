@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -6,23 +7,31 @@ using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
+using Org.BouncyCastle.Asn1.Ocsp;
 using System.Drawing;
 using System.Text;
+using static HRMS.API.Models.DTOs.NotificationDto;
 
 namespace HRMS.API.Services;
 
 public class AttendanceService : IAttendanceService
 {
     private readonly IAttendanceRepository _attendanceRepository;
+    private readonly INotificationRepository _notificationRepository;
+    private readonly IEmployeeRepository _employeeRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<AttendanceService> _logger;
 
     public AttendanceService(
         IAttendanceRepository attendanceRepository,
         IMapper mapper,
+        INotificationRepository notificationRepository,
+        IEmployeeRepository employeeRepository,
         ILogger<AttendanceService> logger)
     {
         _attendanceRepository = attendanceRepository;
+        _notificationRepository = notificationRepository;
+        _employeeRepository = employeeRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -251,15 +260,50 @@ public class AttendanceService : IAttendanceService
 
     public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId)
     {
-        return await _attendanceRepository.GetEmployeesByShiftAsync(organizationId, shiftId);
+        var result=await _attendanceRepository.GetEmployeesByShiftAsync(organizationId, shiftId);
+      
+        return result;
+
     }
 
     //Shiftswap 
 
-    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
+
+
+   public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
     {
-        // You can add validation or business rules here if needed
-        return await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
+  
+        var result= await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
+        //Step 2: Create notification
+
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(requestDto.EmployeeId);
+        //Getting reciverid
+        var reciverid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
+
+        if (result)
+
+        {
+            var notification = new NotificationCreateDto
+            {
+                Receiveruserid=reciverid,
+                Senderuserid = employee.EmployeeId,
+                Ttitle = "Swap Request",
+                Message = $"Employee {employee.FirstName } Department {employee.DepartmentName}  requested shift swap.",
+                Notificationtype = "Request ShiftSwap",
+                Createdby = requestDto.EmployeeId,
+                organizationId = organizationId
+            };
+            await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+        }
+ 
+        return result;
+
+
+
+
+
+
+
     }
 
     public async Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto)

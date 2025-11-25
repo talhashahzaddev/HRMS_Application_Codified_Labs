@@ -187,34 +187,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     }
 
 
-    //  public async Task<Employee?> GetEmployeeByIdAsync(Guid userId)
-    //  {
-    //      var sql = @"
-    //    SELECT 
-    //        e.employeeid, e.organizationid, e.userid, e.employeecode AS EmployeeNumber,
-    //        e.firstname, e.lastname, e.email, e.phone, e.address::text, e.profilepictureurl AS ProfilePictureUrl,
-    //        e.dateofbirth, e.gender, e.nationality, e.maritalstatus,
-    //        e.emergencycontact::text AS EmergencyContact, e.hiredate, e.terminationdate, e.status,
-    //        ed.worklocation, ed.basicsalary, ed.departmentid, ed.positionid,
-    //        CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
-    //        p.positiontitle, d.departmentname
-    //    FROM employee.employees AS e
-    //    LEFT JOIN employee.employmentdetails AS ed ON e.employeeid = ed.employeeid
-    //    LEFT JOIN employee.positions AS p ON ed.positionid = p.positionid
-    //    LEFT JOIN employee.departments AS d ON ed.departmentid = d.departmentid
-    //    LEFT JOIN employee.employees AS mgr ON ed.reportingmanagerid = mgr.employeeid
-    //    WHERE e.employeeid = @empid;
-    //";
-
-    //      return await QuerySingleOrDefaultAsync<Employee>(
-    //          sql,
-    //          new { empid = await getemployeeid(userId) }
-    //      );
-
-    //  }
-
-
-
 
     public async Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode)
     {
