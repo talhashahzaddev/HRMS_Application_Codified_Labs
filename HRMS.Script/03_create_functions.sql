@@ -107,31 +107,32 @@ ALTER FUNCTION auth.fn_create_user(uuid, character varying, character varying, c
 -- FUNCTION: employee.fn_create_employee
 -- Updates: Insert into employees + employmentdetails
 
+
 CREATE OR REPLACE FUNCTION employee.fn_create_employee(
-    p_organization_id uuid,
-    p_user_id uuid,
-    p_employee_code character varying,
-    p_first_name character varying,
-    p_last_name character varying,
-    p_email character varying,
-    p_phone character varying,
-    p_date_of_birth timestamp with time zone,
-    p_hire_date timestamp with time zone,
-    p_department_id uuid,
-    p_position_id uuid,
-    p_basic_salary numeric,
-    p_address jsonb,
-    p_work_location character varying DEFAULT NULL::character varying,
-    p_reporting_manager_id uuid DEFAULT NULL::uuid,
-    p_nationality character varying DEFAULT NULL::character varying,
-    p_gender character varying DEFAULT NULL::character varying,
-    p_marital_status character varying DEFAULT NULL::character varying,
-    p_emergency_contact jsonb DEFAULT '{}'::jsonb
-)
-RETURNS uuid
-LANGUAGE 'plpgsql'
-COST 100
-VOLATILE PARALLEL UNSAFE
+	p_organization_id uuid,
+	p_user_id uuid,
+	p_employee_code character varying,
+	p_first_name character varying,
+	p_last_name character varying,
+	p_email character varying,
+	p_phone character varying,
+	p_date_of_birth timestamp with time zone,
+	p_hire_date timestamp with time zone,
+	p_department_id uuid,
+	p_position_id uuid,
+	p_basic_salary numeric,
+	p_address jsonb,
+	p_work_location character varying DEFAULT NULL::character varying,
+	p_reporting_manager_id uuid DEFAULT NULL::uuid,
+	p_employment_type character varying DEFAULT NULL::character varying,
+	p_nationality character varying DEFAULT NULL::character varying,
+	p_gender character varying DEFAULT NULL::character varying,
+	p_marital_status character varying DEFAULT NULL::character varying,
+	p_emergency_contact jsonb DEFAULT '{}'::jsonb)
+    RETURNS uuid
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
 AS $BODY$
 DECLARE
     v_employee_id UUID;
@@ -179,6 +180,7 @@ BEGIN
         basicsalary,
         worklocation,
         reportingmanagerid,
+		employmenttype,
         effectivedate,
         iscurrent
     )
@@ -189,6 +191,7 @@ BEGIN
         p_basic_salary,
         p_work_location,
         p_reporting_manager_id,
+	    p_employment_type,
         p_hire_date::date,
         true
     );
@@ -197,10 +200,8 @@ BEGIN
 END;
 $BODY$;
 
-ALTER FUNCTION employee.fn_create_employee(
-    uuid, uuid, varchar, varchar, varchar, varchar, varchar, timestamptz, timestamptz,
-    uuid, uuid, numeric, jsonb, varchar, uuid, varchar, varchar, varchar, jsonb
-) OWNER TO postgres;
+ALTER FUNCTION employee.fn_create_employee(uuid, uuid, character varying, character varying, character varying, character varying, character varying, timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb, character varying, uuid, character varying, character varying, character varying, character varying, jsonb)
+    OWNER TO postgres;
 
 
 
@@ -260,14 +261,20 @@ $$ LANGUAGE plpgsql;
 
 
 -- Function: Get Employees (with pagination & filters)
+
+
+-- DROP FUNCTION IF EXISTS employee.fn_get_employees(uuid, character varying, uuid, uuid, character varying, character varying, integer, integer);
+
 CREATE OR REPLACE FUNCTION employee.fn_get_employees(
 	p_organization_id uuid DEFAULT NULL::uuid,
 	p_search_term character varying DEFAULT NULL::character varying,
 	p_department_id uuid DEFAULT NULL::uuid,
+	p_position_id uuid DEFAULT NULL::uuid,
+	p_employment_type character varying DEFAULT NULL::character varying,
 	p_status character varying DEFAULT NULL::character varying,
 	p_limit integer DEFAULT 50,
 	p_offset integer DEFAULT 0)
-    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentname character varying,profilepictureurl character varying, positiontitle character varying, totalcount bigint) 
+    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentname character varying, profilepictureurl character varying, positiontitle character varying, employmenttype character varying, totalcount bigint) 
     LANGUAGE 'plpgsql'
     COST 100
     VOLATILE PARALLEL UNSAFE
@@ -277,15 +284,19 @@ AS $BODY$
 DECLARE
     total_records BIGINT;
 BEGIN
-    -- Count with flexible filtering
+    -- Count total records with filters
     SELECT COUNT(*) INTO total_records
     FROM employee.employees e
     LEFT JOIN employee.employmentdetails ed 
            ON e.employeeid = ed.employeeid AND ed.iscurrent = true
     LEFT JOIN employee.departments d 
            ON ed.departmentid = d.departmentid
+    LEFT JOIN employee.positions pos
+           ON ed.positionid = pos.positionid
     WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
       AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
+      AND (p_position_id IS NULL OR ed.positionid = p_position_id)
+      AND (p_employment_type IS NULL OR ed.employmenttype = p_employment_type)
       AND (p_search_term IS NULL OR 
            LOWER(CONCAT(e.firstname, ' ', e.lastname, ' ', e.email, ' ', e.employeecode)) 
            LIKE LOWER('%' || p_search_term || '%'))
@@ -303,8 +314,9 @@ BEGIN
         e.hiredate,
         e.status,
         d.departmentname,
-		e.profilepictureurl,
+        e.profilepictureurl,
         pos.positiontitle,
+        ed.employmenttype,
         total_records
     FROM employee.employees e
     LEFT JOIN employee.employmentdetails ed 
@@ -315,6 +327,8 @@ BEGIN
            ON ed.positionid = pos.positionid
     WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
       AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
+      AND (p_position_id IS NULL OR ed.positionid = p_position_id)
+      AND (p_employment_type IS NULL OR ed.employmenttype = p_employment_type)
       AND (p_search_term IS NULL OR 
            LOWER(CONCAT(e.firstname, ' ', e.lastname, ' ', e.email, ' ', e.employeecode)) 
            LIKE LOWER('%' || p_search_term || '%'))
@@ -324,9 +338,8 @@ BEGIN
 END;
 $BODY$;
 
-ALTER FUNCTION employee.fn_get_employees(
-    uuid, character varying, uuid, character varying, integer, integer
-) OWNER TO postgres;
+ALTER FUNCTION employee.fn_get_employees(uuid, character varying, uuid, uuid, character varying, character varying, integer, integer)
+    OWNER TO postgres;
 
 
 
