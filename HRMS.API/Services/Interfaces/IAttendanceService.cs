@@ -21,7 +21,7 @@ public interface IAttendanceService
     Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request);
     Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request);
     Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId);
-    Task<PagedResult<AttendanceDto>> GetAttendanceAsync(AttendanceSearchViewModel searchModel, Guid organizationId);
+    Task<PagedResult<AttendanceDto>> GetAttendanceAsync(AttendanceSearchViewModel searchModel, Guid organizationId, Guid currentEmployeeId);
     Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<bool> UpdateAttendanceAsync(Guid attendanceId, CreateAttendanceRequest request);
     Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date);
@@ -34,9 +34,10 @@ public interface IAttendanceService
     Task<bool> DeleteAttendanceAsync(Guid attendanceId);
     Task<List<AttendanceDto>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<List<AttendanceCalendarDto>> GetAttendanceCalendarAsync(Guid employeeId, int year, int month);
-    Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime date);
-    Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate);
-    Task<byte[]> ExportAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, string format, Guid? employeeId);
+    Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid employeeId,Guid organizationId, DateTime date);
+    Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId);
+    Task<byte[]> ExportAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, string format, Guid? employeeId, Guid currentEmployeeId);
     Task<bool> BulkApproveAttendanceAsync(List<Guid> attendanceIds);
     Task<bool> BulkRejectAttendanceAsync(List<Guid> attendanceIds, string? reason);
+    Task<Guid> GetEmployeeFromTable(Guid Userid);
 }
