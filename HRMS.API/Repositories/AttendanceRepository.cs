@@ -976,4 +976,201 @@ SELECT
             throw;
         }
     }
+    public async Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsForManagerAsync(Guid employeeId,Guid organizationId, DateTime date)
+    {
+        try
+        {
+            const string sql = @"
+WITH emp AS (
+    SELECT DISTINCT e.employeeid
+    FROM employee.employees e
+    INNER JOIN employee.employmentdetails ed 
+        ON ed.employeeid = e.employeeid 
+        AND ed.iscurrent = true
+    WHERE e.organizationid = @organizationId
+      AND ed.reportingmanagerid = @employeeId
+      AND e.status != 'deleted'
+),
+PresentEmployees AS (
+    SELECT DISTINCT a.employeeid
+    FROM attendance.attendance a
+    INNER JOIN emp ON emp.employeeid = a.employeeid
+    WHERE a.workdate = @date
+      AND LOWER(TRIM(a.status)) = 'present'
+),
+OnLeaveEmployees AS (
+    SELECT DISTINCT lr.employeeid
+    FROM attendance.leaverequests lr
+    INNER JOIN emp ON emp.employeeid = lr.employeeid
+    WHERE LOWER(TRIM(lr.status)) = 'approved'
+      AND @date BETWEEN lr.startdate AND lr.enddate
+)
+SELECT
+    @date AS ""Date"",
+    COALESCE((SELECT COUNT(*) FROM emp), 0) AS ""TotalEmployees"",
+    COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0) AS ""PresentEmployees"",
+    COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0) AS ""OnLeaveEmployees"",
+    GREATEST(
+        COALESCE((SELECT COUNT(*) FROM emp), 0)
+        - COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0)
+        - COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0),
+        0
+    ) AS ""AbsentEmployees"",
+    ROUND(
+        (COALESCE((SELECT COUNT(*)::numeric FROM PresentEmployees), 0)
+         / NULLIF(COALESCE((SELECT COUNT(*)::numeric FROM emp),0), 0)
+        ) * 100,
+    2) AS ""AttendancePercentage"";
+
+";
+
+            var parameters = new DynamicParameters();
+            parameters.Add("organizationId", organizationId, DbType.Guid);
+            parameters.Add("employeeId", employeeId, DbType.Guid);
+            parameters.Add("date", date.Date, DbType.Date);
+
+            return await QuerySingleOrDefaultAsync<DailyAttendanceStatsDto>(sql, parameters);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error getting daily attendance stats for manager {EmployeeId} in organization {OrganizationId} on {Date}",
+                employeeId, organizationId, date);
+            throw;
+        }
+    }
+    public async Task<Guid> GetEmployeeFromTable(Guid Userid)
+    {
+        try
+        {
+            var sql = @"SELECT employeeid FROM employee.employees WHERE userid = @Userid";
+            var employeeId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { Userid });
+
+            if (!employeeId.HasValue || employeeId.Value == Guid.Empty)
+            {
+                throw new UnauthorizedAccessException($"No employee record found for user {Userid}. Please ensure your user account is linked to an employee record.");
+            }
+
+            return employeeId.Value;
+        }
+        catch (UnauthorizedAccessException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error retrieving employee ID for user {Userid}", ex);
+        }
+    }
+//    Task<bool> IsHRManagerAsync(Guid employeeId, Guid organizationId)
+//    {
+//        try
+//        {
+//            var sql = @"SELECT 
+//    CASE 
+//        WHEN r.rolename = 'HR Manager' THEN TRUE
+//        ELSE FALSE
+//    END AS is_hr_manager
+//FROM employee.employee e
+//JOIN auth.users u ON u.userid = e.userid
+//JOIN auth.roles r ON r.roleid = u.roleid
+//WHERE e.employeeid = @employeeid and u.organizationId=@organizationId;
+//";
+//            var parameters = new
+//            {
+//                employeeId,
+//                organizationId
+//            };
+//            var isHRManager = QuerySingleAsync<bool>(sql, parameters);
+//            return isHRManager;
+//        }
+//        catch (Exception ex)
+//        {
+//            throw new Exception($"Error checking HR manager status for employee {employeeId} in organization {organizationId}", ex);
+//        }
+//    }
+
+    async Task<bool> IAttendanceRepository.IsHRManagerAsync(Guid employeeId, Guid organizationId)
+    {
+        try
+        {
+            var sql = @"SELECT 
+    CASE 
+        WHEN r.rolename = 'HR Manager' THEN TRUE
+        ELSE FALSE
+    END AS is_hr_manager
+FROM employee.employees e
+JOIN auth.users u ON u.userid = e.userid
+JOIN auth.roles r ON r.roleid = u.roleid
+WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
+";
+            var parameters = new
+            {
+                employeeId,
+                organizationId
+            };
+            var isHRManager = await QuerySingleAsync<bool>(sql, parameters);
+            return isHRManager;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error checking HR manager status for employee {employeeId} in organization {organizationId}", ex);
+        }
+    }
+
+    async Task<bool> IAttendanceRepository.IsAdminOrHRAsync(Guid employeeId, Guid organizationId)
+    {
+        try
+        {
+            var sql = @"SELECT 
+    CASE 
+        WHEN r.rolename IN ('Super Admin', 'HR Manager') THEN TRUE
+        ELSE FALSE
+    END AS is_admin_or_hr
+FROM employee.employees e
+JOIN auth.users u ON u.userid = e.userid
+JOIN auth.roles r ON r.roleid = u.roleid
+WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
+";
+            var parameters = new
+            {
+                employeeId,
+                organizationId
+            };
+            var isAdminOrHR = await QuerySingleAsync<bool>(sql, parameters);
+            return isAdminOrHR;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error checking Admin/HR status for employee {employeeId} in organization {organizationId}", ex);
+        }
+    }
+
+    async Task<List<Guid>> IAttendanceRepository.GetTeamEmployeeIdsAsync(Guid managerEmployeeId, Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                SELECT DISTINCT e.employeeid
+                FROM employee.employees e
+                INNER JOIN employee.employmentdetails ed 
+                    ON ed.employeeid = e.employeeid 
+                    AND ed.iscurrent = true
+                WHERE e.organizationid = @organizationId
+                  AND ed.reportingmanagerid = @managerEmployeeId
+                  AND e.status != 'deleted';
+";
+            var parameters = new
+            {
+                managerEmployeeId,
+                organizationId
+            };
+            var teamEmployeeIds = await QueryAsync<Guid>(sql, parameters);
+            return teamEmployeeIds.ToList();
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"Error getting team employee IDs for manager {managerEmployeeId} in organization {organizationId}", ex);
+        }
+    }
 }
