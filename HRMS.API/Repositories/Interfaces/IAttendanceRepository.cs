@@ -36,4 +36,9 @@ public interface IAttendanceRepository
     Task<List<AttendanceDto>> GetAttendanceRecordsAsync(Guid organizationId, DateTime startDate, DateTime endDate);
     Task<Guid> GetEmpId(Guid? employeeId);
     Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime date);
+    Task<Guid> GetEmployeeFromTable(Guid Userid);
+    Task<bool> IsHRManagerAsync(Guid employeeId, Guid organizationId);
+    Task<bool> IsAdminOrHRAsync(Guid employeeId, Guid organizationId);
+    Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsForManagerAsync(Guid employeeId, Guid organizationId, DateTime date);
+    Task<List<Guid>> GetTeamEmployeeIdsAsync(Guid managerEmployeeId, Guid organizationId);
 }

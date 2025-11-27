@@ -1,9 +1,10 @@
+using HRMS.API.Models.DTOs;
+using HRMS.API.Models.ViewModels;
+using HRMS.API.Services;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Models.ViewModels;
-using HRMS.API.Services.Interfaces;
 
 namespace HRMS.API.Controllers;
 
@@ -26,7 +27,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId(); // This would need to be implemented
+            var employeeId = await GetCurrentEmployeeId(); // This would need to be implemented
             var result = await _attendanceService.ClockInAsync(employeeId, request);
             
             return Ok(new ServiceResponse<bool>
@@ -52,7 +53,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeId();
             var result = await _attendanceService.ClockOutAsync(employeeId, request);
             
             return Ok(new ServiceResponse<bool>
@@ -78,7 +79,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var empId = employeeId ?? GetCurrentEmployeeId();
+            var empId = employeeId ?? await GetCurrentEmployeeId();
             var attendance = await _attendanceService.GetTodayAttendanceAsync(empId);
             
             return Ok(new ServiceResponse<AttendanceDto>
@@ -104,7 +105,8 @@ public class AttendanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var attendance = await _attendanceService.GetAttendanceAsync(searchModel, organizationId);
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var attendance = await _attendanceService.GetAttendanceAsync(searchModel, organizationId, currentEmployeeId);
             
             return Ok(new ServiceResponse<PagedResult<AttendanceDto>>
             {
@@ -128,7 +130,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var empId = employeeId ?? GetCurrentEmployeeId();
+            var empId = employeeId ?? await GetCurrentEmployeeId();
             var summary = await _attendanceService.GetAttendanceSummaryAsync(empId, startDate, endDate);
             
             return Ok(new ServiceResponse<AttendanceSummaryDto>
@@ -179,7 +181,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeId();
             var session = await _attendanceService.GetCurrentSessionAsync(employeeId);
             
             return Ok(new ServiceResponse<TimeTrackingSessionDto>
@@ -330,7 +332,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeId();
             var attendance = await _attendanceService.GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
             
             return Ok(new ServiceResponse<List<AttendanceDto>>
@@ -355,7 +357,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeId();
             var summary = await _attendanceService.GetAttendanceSummaryAsync(employeeId, startDate, endDate);
             
             return Ok(new ServiceResponse<AttendanceSummaryDto>
@@ -381,7 +383,8 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var attendance = await _attendanceService.GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
+            var empid = await GetCurrentEmployeeId();
+            var attendance = await _attendanceService.GetEmployeeAttendanceAsync(empid, startDate, endDate);
             
             return Ok(new ServiceResponse<List<AttendanceDto>>
             {
@@ -637,7 +640,7 @@ public class AttendanceController : ControllerBase
 
             if (shift == null)
             {
-                return NotFound(new ServiceResponse<ShiftDto>
+                return Ok(new ServiceResponse<ShiftDto>
                 {
                     Success = false,
                     Message = "Shift not found for the given employee.",
@@ -763,7 +766,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeId();
             var calendar = await _attendanceService.GetAttendanceCalendarAsync(employeeId, year, month);
             
             return Ok(new ServiceResponse<List<AttendanceCalendarDto>>
@@ -789,8 +792,9 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            var employeeId = await GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
-            var stats = await _attendanceService.GetDailyAttendanceStatsAsync(organizationId, date ?? DateTime.Today);
+            var stats = await _attendanceService.GetDailyAttendanceStatsAsync(employeeId,organizationId, date ?? DateTime.Today);
             
             return Ok(new ServiceResponse<DailyAttendanceStatsDto>
             {
@@ -816,7 +820,8 @@ public class AttendanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate);
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate, currentEmployeeId);
             
             return Ok(new ServiceResponse<AttendanceReportDto>
             {
@@ -842,7 +847,8 @@ public class AttendanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var fileBytes = await _attendanceService.ExportAttendanceReportAsync(organizationId, startDate, endDate, format, employeeId);
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var fileBytes = await _attendanceService.ExportAttendanceReportAsync(organizationId, startDate, endDate, format, employeeId, currentEmployeeId);
             
             var contentType = format.ToLower() == "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             var fileName = $"attendance-report-{startDate:yyyy-MM-dd}-to-{endDate:yyyy-MM-dd}.{format}";
@@ -912,25 +918,23 @@ public class AttendanceController : ControllerBase
         }
     }
 
-    private Guid GetCurrentEmployeeId()
+    private async Task<Guid> GetCurrentEmployeeId()
     {
-        // This would typically query the database to get employee ID from user ID
-        // For now, using user ID as placeholder
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        
+
         if (string.IsNullOrEmpty(userIdClaim))
         {
             _logger.LogError("User ID claim not found in JWT token");
             throw new UnauthorizedAccessException("User ID not found in token");
         }
-        
+
         if (!Guid.TryParse(userIdClaim, out var userId))
         {
             _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
             throw new UnauthorizedAccessException("Invalid user ID format");
         }
-        
-        return userId;
+        var employeeId = await _attendanceService.GetEmployeeFromTable(userId);
+        return employeeId;
     }
 
     private Guid GetCurrentOrganizationId()
