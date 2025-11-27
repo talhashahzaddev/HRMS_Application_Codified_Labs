@@ -82,6 +82,7 @@ public class Employee : BaseEntity
     [Column("reporting_manager_id")]
     public Guid? ReportingManagerId { get; set; }
 
+    public string employmenttype { get; set; }
     public string ReportingManagerName { get; set; }
 
     // Navigation properties

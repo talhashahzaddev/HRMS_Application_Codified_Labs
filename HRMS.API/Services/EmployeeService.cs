@@ -138,6 +138,8 @@ public class EmployeeService : IEmployeeService
             organizationId,
             searchModel.SearchTerm,
             searchModel.DepartmentId,
+            searchModel.PositionId,       // pass it
+            searchModel.EmploymentType,
             searchModel.Status,
             searchModel.Page,
             searchModel.PageSize);
@@ -438,7 +440,7 @@ public class EmployeeService : IEmployeeService
     {
         _logger.LogInformation("Exporting employees for organization: {OrganizationId} in format: {Format}", organizationId, format);
         
-        var employees = await _employeeRepository.GetEmployeesAsync(organizationId, null, null, null, 1, 1000);
+        var employees = await _employeeRepository.GetEmployeesAsync(organizationId, null, null, null,null,null, 1, 1000);
         
         // Mock implementation - generate simple CSV or Excel data
         var csvData = "EmployeeCode,FirstName,LastName,Email,Department,Position,HireDate,Status\n";

@@ -49,6 +49,8 @@ public class EmployeeListItemDto
     public string? DepartmentName { get; set; }
     public string ProfilePictureUrl { get; set; }
     public string? Position { get; set; } = string.Empty;
+    public string? employmentType { get; set; } = string.Empty;
+    public Guid? positionid { get; set; }
     public string? PositionTitle { get; set; }
     public bool? IsActive { get; set; }
 }
@@ -68,6 +70,7 @@ public class CreateEmployeeRequest
     public decimal? BasicSalary { get; set; }
     public Guid? ReportingManagerId { get; set; }
     public string? WorkLocation { get; set; }
+    public string employmentType { get; set; }
     public string? Gender { get; set; }
     public string? MaritalStatus { get; set; }
     public string? Nationality { get; set; }
