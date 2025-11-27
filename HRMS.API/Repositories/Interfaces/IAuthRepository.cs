@@ -32,7 +32,9 @@ public interface IAuthRepository
     Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt);
     Task<bool> UpdateLastLoginAsync(Guid? userId);
     Task<string> GetHashedPassword(string email);
-    
+    //Inserting Admin into Employee table
+    Task<bool> adminIntoEmployeeAsync(User createUser);
+    //Task<string> GenerateEmployeeCodeAsync()
     Task<Role?> GetRoleByNameAsync(Guid? organizationId, string roleName);
     Task<List<Role>> GetOrganizationRolesAsync(Guid? organizationId);
     Task<Role> CreateRoleAsync(Role role);

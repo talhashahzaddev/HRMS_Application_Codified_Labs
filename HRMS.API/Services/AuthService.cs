@@ -187,7 +187,7 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> RegisterAsync(HRMS.API.Models.DTOs.RegisterRequest request)
     {
         _logger.LogInformation("Registration attempt for email: {Email} and organization: {CompanyName}", request.Email, request.CompanyName);
-        
+
         // Check if user already exists
         var existingUser = await _authRepository.GetUserByEmailAsync(request.Email);
         if (existingUser != null)
@@ -229,14 +229,21 @@ public class AuthService : IAuthService
         };
 
         var createdUser = await _authRepository.CreateUserAsync(user);
-        
+
         // Generate tokens for immediate login
         var (accessToken, refreshToken) = await GenerateTokensAsync(createdUser);
-        
+
         // Update refresh token in database
         await _authRepository.UpdateRefreshTokenAsync(createdUser.UserId, refreshToken, DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays));
 
         _logger.LogInformation("SuperAdmin user {UserId} created successfully for organization {OrganizationId}", createdUser.UserId, organizationId);
+
+
+        //Generating Employee Code for employee table
+        createdUser.employeecode = GenerateEmployeeCode();
+
+        //Inserting Super Admin into Employee table
+        await _authRepository.adminIntoEmployeeAsync(createdUser);
 
         return new AuthResponse
         {
@@ -252,6 +259,7 @@ public class AuthService : IAuthService
         };
     }
 
+   
     private string? ExtractDomainFromUrl(string url)
     {
         try
@@ -585,6 +593,14 @@ public class AuthService : IAuthService
     {
         return await _authRepository.UpdateUserRoleAsync(userId, roleId);
     }
+
+    public string GenerateEmployeeCode()
+    {
+        var random = new Random();
+        int number = random.Next(1000, 9999);
+        return $"EMP{number}";
+    }
+
 
     private static RoleDto MapToRoleDto(Role role)
     {
