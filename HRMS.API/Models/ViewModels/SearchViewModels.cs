@@ -1,9 +1,14 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace HRMS.API.Models.ViewModels;
 
 public class EmployeeSearchViewModel
 {
     public string? SearchTerm { get; set; }
     public Guid? DepartmentId { get; set; }
+    public Guid? PositionId { get; set; }      // Add this
+    public string? EmploymentType { get; set; } // Add this
+    [FromQuery(Name = "employmentStatus")]
     public string? Status { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;

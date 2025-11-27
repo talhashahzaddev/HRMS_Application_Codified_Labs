@@ -19,60 +19,13 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
         using var transaction = await connection.BeginTransactionAsync();
 
-        //try
-        //{
-        //    var employeeId = await connection.ExecuteScalarAsync<Guid>(
-        //        @"SELECT employee.fn_create_employee(
-        //        @organizationId, @userId, @employeeCode, @firstName, @lastName, 
-        //        @email, @phone, @dateOfBirth, @hireDate, @departmentId, 
-        //        @positionId, @basicSalary, @address::jsonb,@workLocation, @reportingManagerId)",
-
-        //        new
-        //        {
-        //            organizationId = employee.OrganizationId,
-        //            userId = employee.UserId,
-        //            employeeCode = employee.EmployeeNumber,
-        //            firstName = employee.FirstName,
-        //            lastName = employee.LastName,
-        //            email = employee.Email,
-        //            phone = employee.Phone,
-        //            dateOfBirth = employee.DateOfBirth,
-        //            hireDate = employee.HireDate,
-        //            departmentId = employee.DepartmentId,
-        //            positionId = employee.PositionId,
-        //            basicSalary = employee.BasicSalary,
-        //            address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
-        //            workLocation = employee.WorkLocation,
-        //            reportingManagerId = employee.ReportingManagerId
-        //        },
-        //        transaction
-        //    );
-
-        //    await connection.ExecuteAsync(
-        //        "SELECT attendance.fn_initialize_leave_entitlements(@employeeId, @organizationId)",
-        //        new { employeeId, employee.OrganizationId },
-        //        transaction
-        //    );
-
-        //    await transaction.CommitAsync();
-
-        //    employee.EmployeeId = employeeId;
-        //    return employee;
-        //}
-        //catch
-        //{
-        //    await transaction.RollbackAsync();
-        //    throw;
-        //}
-
-
         try
         {
             var employeeId = await connection.ExecuteScalarAsync<Guid>(
                 @"SELECT employee.fn_create_employee(
             @organizationId, @userId, @employeeCode, @firstName, @lastName, @email, @phone, 
             @dateOfBirth, @hireDate, @departmentId, @positionId, @basicSalary, @address::jsonb, 
-            @workLocation, @reportingManagerId, @nationality, @gender, @maritalStatus, @emergencyContact::jsonb)",
+            @workLocation, @reportingManagerId,@employmentType, @nationality, @gender, @maritalStatus, @emergencyContact::jsonb)",
                 new
                 {
                     organizationId = employee.OrganizationId,
@@ -90,6 +43,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                     address = System.Text.Json.JsonSerializer.Serialize(employee.Address),
                     workLocation = employee.WorkLocation,
                     reportingManagerId = employee.ReportingManagerId,
+                    employmentType=employee.employmenttype,
                     nationality = employee.Nationality,
                     gender = employee.Gender,
                     maritalStatus = employee.MaritalStatus,
@@ -213,25 +167,35 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     }
 
     public async Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
-    Guid? organizationId = null, string? searchTerm = null, Guid? departmentId = null,
-    string? status = null, int page = 1, int pageSize = 50)
+    Guid? organizationId = null,
+    string? searchTerm = null,
+    Guid? departmentId = null,
+    Guid? positionId = null,
+    string? employmentType = null,
+    string? status = null,
+    int page = 1,
+    int pageSize = 50)
     {
         try
         {
             var results = await QueryAsync<dynamic>(
                 @"SELECT * 
               FROM employee.fn_get_employees(
-                   @organizationId, 
-                   @searchTerm, 
-                   @departmentId, 
-                   @status, 
-                   @limit, 
-                   @offset)",
+                  @organizationId, 
+                  @searchTerm, 
+                  @departmentId, 
+                  @positionId,
+                  @employmentType, 
+                  @status, 
+                  @limit, 
+                  @offset)",
                 new
                 {
                     organizationId = organizationId == Guid.Empty ? null : organizationId,
                     searchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
                     departmentId = departmentId == Guid.Empty ? null : departmentId,
+                    positionId = positionId == Guid.Empty ? null : positionId,
+                    employmentType = string.IsNullOrWhiteSpace(employmentType) ? null : employmentType,
                     status = string.IsNullOrWhiteSpace(status) ? null : status,
                     limit = pageSize,
                     offset = (page - 1) * pageSize
@@ -245,6 +209,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 Email = r.email,
                 Phone = r.phone,
                 HireDate = r.hiredate,
+                employmentType = r.employmenttype ?? "full_time",
                 Status = r.status,
                 ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
                 DepartmentName = r.departmentname,
@@ -263,7 +228,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         }
         catch (Exception ex)
         {
-            // You can log ex here if needed
+            // Log exception if needed
             throw;
         }
     }
