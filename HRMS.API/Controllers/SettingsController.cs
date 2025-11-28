@@ -21,7 +21,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("organization")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<OrganizationSettingsDto>>> GetOrganizationSettings()
     {
         try
