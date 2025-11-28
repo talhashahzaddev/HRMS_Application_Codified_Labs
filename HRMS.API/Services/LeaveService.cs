@@ -34,13 +34,13 @@ public class LeaveService : ILeaveService
 
     public async Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequest request, Guid employeeId)
     {
+        var empId = await _leaveRepository.GetEmpId(employeeId);
         // Check for overlapping leave requests
-        var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(employeeId, request.StartDate, request.EndDate);
+        var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(empId, request.StartDate, request.EndDate);
         if (hasOverlap)
         {
             throw new InvalidOperationException("Leave request overlaps with existing leave");
         }
-        var empId = await _leaveRepository.GetEmpId(employeeId);
         var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
             empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
@@ -49,13 +49,13 @@ public class LeaveService : ILeaveService
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
 
-        var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
+        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
         if (leaveRequest!=null)
 
         {
             var notification = new NotificationCreateDto
             {
-                Receiveruserid = reciverid,
+                Receiveruserid = reportingmangerid,
                 Senderuserid = employee.EmployeeId,
                 Ttitle = "Leave Request",
                 RequestId = leaveRequest.RequestId,
@@ -80,17 +80,20 @@ public class LeaveService : ILeaveService
 
     public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy)
     {
+        var empId = await _leaveRepository.GetEmpId(approvedBy);
+        // First, update the leave request status using the requestId parameter directly
+        var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(requestId, request.Status, empId, request.RejectionReason);
+        
+        if (!result)
+        {
+            _logger.LogWarning("Failed to update leave request status for RequestId: {RequestId}", requestId);
+            return false;
+        }
 
-        //Create Notification
+        // Try to get the original notification (if it exists)
         var Originalnotification = await _notificationRepository.getnotificationdetailAsync(requestId);
 
-        var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(Originalnotification.requestid, request.Status, approvedBy, request.RejectionReason);
-
-       
-        if (Originalnotification == null)
-            return false;
-
-        // 3. Build the notification message based on status
+        // Build the notification message based on status
         string message;
         if (request.Status.ToLower() == "approved")
         {
@@ -105,7 +108,8 @@ public class LeaveService : ILeaveService
             message = $"Your leave request status has been updated to {request.Status}";
         }
 
-
+        // If original notification exists, use it to create response notification
+        if (Originalnotification != null)
         {
             var notification = new NotificationCreateDto
             {
@@ -117,17 +121,55 @@ public class LeaveService : ILeaveService
                 Notificationtype = "Message",
                 Createdby = Originalnotification.SenderUserId,
             };
-            return await _notificationRepository.CreateNotificationAsync(Originalnotification.organizationId, notification);
+            await _notificationRepository.CreateNotificationAsync(Originalnotification.organizationId, notification);
+        }
+        else
+        {
+            // If no original notification exists (e.g., approved/rejected from pending approvals section),
+            // get leave request details to find the employee and create notification
+            var leaveRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
+            if (leaveRequest != null)
+            {
+                // Get employee userId and organizationId from employeeId
+                var employeeInfo = await _notificationRepository.GetEmployeeUserInfoAsync(leaveRequest.EmployeeId);
+                if (employeeInfo.HasValue)
+                {
+                    var notification = new NotificationCreateDto
+                    {
+                        Receiveruserid = employeeInfo.Value.userId, // Employee who requested leave (userId)
+                        Senderuserid = empId, // Manager/HR who approved/rejected (userId)
+                        Ttitle = "Leave Request",
+                        RequestId = requestId,
+                        Message = message,
+                        Notificationtype = "Message",
+                        Createdby = empId,
+                        moduletype = "Leave",
+                        Redirecturl = "/leave/my-leaves",
+                        organizationId = employeeInfo.Value.organizationId
+                    };
+                    await _notificationRepository.CreateNotificationAsync(employeeInfo.Value.organizationId, notification);
+                }
+            }
         }
 
         return true;
-
     }
 
-    public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(LeaveRequestSearchViewModel searchModel, Guid organizationId)
+    public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid userId, LeaveRequestSearchViewModel searchModel, Guid organizationId)
     {
+        Guid ? empid= await _leaveRepository.GetEmpId(userId);
+         searchModel.EmployeeId = empid;
         return await _leaveRepository.GetLeaveRequestsAsync(
             searchModel.EmployeeId,
+            organizationId,
+            searchModel.Status,
+            searchModel.Page,
+            searchModel.PageSize);
+    }
+
+    public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsByOrganizationAsync(LeaveRequestSearchViewModel searchModel, Guid organizationId)
+    {
+        return await _leaveRepository.GetLeaveRequestsByOrganizationAsync(
             organizationId,
             searchModel.Status,
             searchModel.Page,
@@ -184,6 +226,82 @@ public class LeaveService : ILeaveService
     {
         var leaveRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
         return leaveRequest != null ? _mapper.Map<LeaveRequestDto>(leaveRequest) : null;
+    }
+
+    public async Task<LeaveRequestDto?> UpdateLeaveRequestAsync(Guid requestId, UpdateLeaveRequest request, Guid employeeId)
+    {
+        // First check if the request exists and is pending
+        var existingRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
+        if (existingRequest == null)
+        {
+            throw new InvalidOperationException("Leave request not found");
+        }
+
+        if (existingRequest.Status.ToLower() != "pending")
+        {
+            throw new InvalidOperationException("Only pending leave requests can be updated");
+        }
+
+        // Verify the request belongs to the employee
+        var empId = await _leaveRepository.GetEmpId(employeeId);
+        if (existingRequest.EmployeeId != empId)
+        {
+            throw new UnauthorizedAccessException("You can only update your own leave requests");
+        }
+
+        // Check for overlapping leave requests (excluding current request)
+        var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(empId, request.StartDate, request.EndDate, requestId);
+        if (hasOverlap)
+        {
+            throw new InvalidOperationException("Leave request overlaps with existing leave");
+        }
+
+        // Calculate days requested
+        var daysRequested = (decimal)(request.EndDate - request.StartDate).TotalDays + 1;
+
+        // Update the request
+        var updated = await _leaveRepository.UpdateLeaveRequestAsync(
+            requestId, 
+            request.LeaveTypeId, 
+            request.StartDate, 
+            request.EndDate, 
+            daysRequested, 
+            request.Reason
+        );
+
+        if (!updated)
+        {
+            throw new InvalidOperationException("Failed to update leave request");
+        }
+
+        // Return updated request
+        var updatedRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
+        return updatedRequest != null ? _mapper.Map<LeaveRequestDto>(updatedRequest) : null;
+    }
+
+    public async Task<bool> CancelLeaveRequestAsync(Guid requestId, Guid employeeId)
+    {
+        // First check if the request exists and is pending
+        var existingRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
+        if (existingRequest == null)
+        {
+            throw new InvalidOperationException("Leave request not found");
+        }
+
+        if (existingRequest.Status.ToLower() != "pending")
+        {
+            throw new InvalidOperationException("Only pending leave requests can be cancelled");
+        }
+
+        // Verify the request belongs to the employee
+        var empId = await _leaveRepository.GetEmpId(employeeId);
+        if (existingRequest.EmployeeId != empId)
+        {
+            throw new UnauthorizedAccessException("You can only cancel your own leave requests");
+        }
+
+        // Cancel the request
+        return await _leaveRepository.CancelLeaveRequestAsync(requestId);
     }
     public async Task<List<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {

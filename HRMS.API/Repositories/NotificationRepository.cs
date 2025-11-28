@@ -135,7 +135,9 @@ namespace HRMS.API.Repositories
             var sql = @"
             SELECT *
             FROM notification.notifications
-            WHERE notificationid = @requestId
+            WHERE requestid = @requestId
+            ORDER BY createdat DESC
+            LIMIT 1
         ";
 
             // Execute query and map results to Notification objects
@@ -143,6 +145,26 @@ namespace HRMS.API.Repositories
 
             return notifications.FirstOrDefault();
 
+        }
+
+        // Get userId and organizationId from employeeId
+        public async Task<(Guid userId, Guid organizationId)?> GetEmployeeUserInfoAsync(Guid employeeId)
+        {
+            try
+            {
+                var sql = @"
+                    SELECT userid, organizationid
+                    FROM employee.employees
+                    WHERE employeeid = @employeeId
+                    LIMIT 1";
+
+                var result = await QuerySingleOrDefaultAsync<(Guid userId, Guid organizationId)?>(sql, new { employeeId });
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return null;
+            }
         }
 
 

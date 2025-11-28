@@ -34,6 +34,15 @@ public class UpdateLeaveRequestStatusRequest
     public string? RejectionReason { get; set; }
 }
 
+public class UpdateLeaveRequest
+{
+    public Guid LeaveTypeId { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public string? Reason { get; set; }
+    public string? AttachmentUrl { get; set; }
+}
+
 public class LeaveTypeDto
 {
     public Guid LeaveTypeId { get; set; }
