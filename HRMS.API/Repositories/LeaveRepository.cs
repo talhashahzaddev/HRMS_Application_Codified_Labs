@@ -69,26 +69,27 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         }
     }
 
-    public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid? employeeId = null, Guid? organizationId = null, string? status = null, int page = 1, int pageSize = 50)
+    public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid? employeeId, Guid organizationId, string? status = null, int page = 1, int pageSize = 50)
     {
-       try
+        try
         {
             var sql = @"
-            SELECT lr.requestid, lr.employeeid, lr.leavetypeid, lr.startdate, lr.enddate,
-                   lr.daysrequested, lr.reason, lr.status, lr.submittedat, lr.approvedat,
-                   CONCAT(e.firstname, ' ', e.lastname) as employee_name,
-                   e.profilepictureurl,
-                   lt.typename as leave_type_name,
-                   CONCAT(a.firstname, ' ', a.lastname) as approver_name
-            FROM attendance.leaverequests lr
-            INNER JOIN employee.employees e ON lr.employeeid = e.employeeid
-            INNER JOIN attendance.leavetypes lt ON lr.leavetypeid = lt.leavetypeid
-            LEFT JOIN employee.employees a ON lr.approvedby = a.employeeid
-            WHERE (@employeeId IS NULL OR lr.employeeid = @employeeId)
-              AND (@organizationId IS NULL OR e.organizationid = @organizationId)
-              AND (@status IS NULL OR lr.status = @status)
-            ORDER BY lr.submittedat DESC
-            LIMIT @pageSize OFFSET @offset";
+        SELECT lr.requestid, lr.employeeid, lr.leavetypeid, lr.startdate, lr.enddate,
+               lr.daysrequested, lr.reason, lr.status, lr.submittedat, lr.approvedat,
+               CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+               e.profilepictureurl,
+               lt.typename as leave_type_name,
+               CONCAT(a.firstname, ' ', a.lastname) as approver_name
+        FROM attendance.leaverequests lr
+        INNER JOIN employee.employees e ON lr.employeeid = e.employeeid
+        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        INNER JOIN attendance.leavetypes lt ON lr.leavetypeid = lt.leavetypeid
+        LEFT JOIN employee.employees a ON lr.approvedby = a.employeeid
+        WHERE ed.reportingmanagerid = @employeeId   -- ✅ Only employees under this manager
+          AND (@organizationId IS NULL OR e.organizationid = @organizationId)
+          AND (@status IS NULL OR lr.status = @status)
+        ORDER BY lr.submittedat DESC
+        LIMIT @pageSize OFFSET @offset";
 
             var results = await QueryAsync<dynamic>(sql, new
             {
@@ -106,25 +107,26 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                 EmployeeName = r.employee_name ?? string.Empty,
                 LeaveTypeId = r.leavetypeid ?? Guid.Empty,
                 LeaveTypeName = r.leave_type_name ?? string.Empty,
-                StartDate = r.startdate ?? DateTime.MinValue,  // ✅ Avoids null crash
-                EndDate = r.enddate ?? DateTime.MinValue,      // ✅ Avoids null crash
+                StartDate = r.startdate ?? DateTime.MinValue,
+                EndDate = r.enddate ?? DateTime.MinValue,
                 DaysRequested = r.daysrequested ?? 0,
                 Reason = r.reason ?? string.Empty,
                 Status = r.status ?? string.Empty,
-                SubmittedAt = r.submittedat ?? DateTime.MinValue, // ✅ Nullable support
+                SubmittedAt = r.submittedat ?? DateTime.MinValue,
                 ApproverName = r.approver_name ?? string.Empty,
                 ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
-                ApprovedAt = r.approvedat // This is nullable in DTO
+                ApprovedAt = r.approvedat
             }).ToList();
 
-            // Get total count
+            // Total count with manager-filter
             var countSql = @"
-            SELECT COUNT(*)
-            FROM attendance.leaverequests lr
-            INNER JOIN employee.employees e ON lr.employeeid = e.employeeid
-            WHERE (@employeeId IS NULL OR lr.employeeid = @employeeId)
-              AND (@organizationId IS NULL OR e.organizationid = @organizationId)
-              AND (@status IS NULL OR lr.status = @status)";
+        SELECT COUNT(*)
+        FROM attendance.leaverequests lr
+        INNER JOIN employee.employees e ON lr.employeeid = e.employeeid
+        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        WHERE ed.reportingmanagerid = @employeeId
+          AND (@organizationId IS NULL OR e.organizationid = @organizationId)
+          AND (@status IS NULL OR lr.status = @status)";
 
             var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, organizationId, status });
 
@@ -136,7 +138,78 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                 PageSize = pageSize
             };
         }
-        catch(Exception ex)
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsByOrganizationAsync(Guid organizationId, string? status = null, int page = 1, int pageSize = 50)
+    {
+        try
+        {
+            var sql = @"
+        SELECT lr.requestid, lr.employeeid, lr.leavetypeid, lr.startdate, lr.enddate,
+               lr.daysrequested, lr.reason, lr.status, lr.submittedat, lr.approvedat,
+               CONCAT(e.firstname, ' ', e.lastname) as employee_name,
+               e.profilepictureurl,
+               lt.typename as leave_type_name,
+               CONCAT(a.firstname, ' ', a.lastname) as approver_name
+        FROM attendance.leaverequests lr
+        INNER JOIN employee.employees e ON lr.employeeid = e.employeeid
+        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        INNER JOIN attendance.leavetypes lt ON lr.leavetypeid = lt.leavetypeid
+        LEFT JOIN employee.employees a ON lr.approvedby = a.employeeid
+        WHERE e.organizationid = @organizationId
+          AND (@status IS NULL OR lr.status = @status)
+        ORDER BY lr.submittedat DESC
+        LIMIT @pageSize OFFSET @offset";
+
+            var results = await QueryAsync<dynamic>(sql, new
+            {
+                organizationId,
+                status,
+                pageSize,
+                offset = (page - 1) * pageSize
+            });
+
+            var leaveRequests = results.Select(r => new LeaveRequestDto
+            {
+                RequestId = r.requestid ?? Guid.Empty,
+                EmployeeId = r.employeeid ?? Guid.Empty,
+                EmployeeName = r.employee_name ?? string.Empty,
+                LeaveTypeId = r.leavetypeid ?? Guid.Empty,
+                LeaveTypeName = r.leave_type_name ?? string.Empty,
+                StartDate = r.startdate ?? DateTime.MinValue,
+                EndDate = r.enddate ?? DateTime.MinValue,
+                DaysRequested = r.daysrequested ?? 0,
+                Reason = r.reason ?? string.Empty,
+                Status = r.status ?? string.Empty,
+                SubmittedAt = r.submittedat ?? DateTime.MinValue,
+                ApproverName = r.approver_name ?? string.Empty,
+                ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
+                ApprovedAt = r.approvedat
+            }).ToList();
+
+            // Total count by organization
+            var countSql = @"
+        SELECT COUNT(*)
+        FROM attendance.leaverequests lr
+        INNER JOIN employee.employees e ON lr.employeeid = e.employeeid
+        WHERE e.organizationid = @organizationId
+          AND (@status IS NULL OR lr.status = @status)";
+
+            var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, status });
+
+            return new PagedResult<LeaveRequestDto>
+            {
+                Data = leaveRequests,
+                TotalCount = totalCount,
+                Page = page,
+                PageSize = pageSize
+            };
+        }
+        catch
         {
             return null;
         }
@@ -262,6 +335,57 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         catch(Exception ex)
         {
             return null;
+        }
+    }
+
+    public async Task<bool> UpdateLeaveRequestAsync(Guid requestId, Guid leaveTypeId, DateTime startDate, DateTime endDate, decimal daysRequested, string? reason = null)
+    {
+        try
+        {
+            var sql = @"
+                UPDATE attendance.leaverequests
+                SET leavetypeid = @leaveTypeId,
+                    startdate = @startDate,
+                    enddate = @endDate,
+                    daysrequested = @daysRequested,
+                    reason = @reason,
+                    updatedat = CURRENT_TIMESTAMP
+                WHERE requestid = @requestId
+                  AND status = 'pending'";
+
+            var rowsAffected = await ExecuteAsync(sql, new 
+            { 
+                requestId, 
+                leaveTypeId, 
+                startDate, 
+                endDate, 
+                daysRequested, 
+                reason 
+            });
+
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            return false;
+        }
+    }
+
+    public async Task<bool> CancelLeaveRequestAsync(Guid requestId)
+    {
+        try
+        {
+            var sql = @"
+                DELETE FROM attendance.leaverequests
+                WHERE requestid = @requestId
+                  AND status = 'pending'";
+
+            var rowsAffected = await ExecuteAsync(sql, new { requestId });
+            return rowsAffected > 0;
+        }
+        catch (Exception ex)
+        {
+            return false;
         }
     }
 

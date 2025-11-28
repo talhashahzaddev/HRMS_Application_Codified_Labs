@@ -10,5 +10,6 @@ namespace HRMS.API.Repositories.Interfaces
         Task<Guid> GetEmpId(Guid? employeeId);
         Task<Guid> GetReciveridAsync(Guid employeeId);
         Task<Notification> getnotificationdetailAsync(Guid requestId);
+        Task<(Guid userId, Guid organizationId)?> GetEmployeeUserInfoAsync(Guid employeeId);
     }
 }
