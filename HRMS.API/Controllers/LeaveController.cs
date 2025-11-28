@@ -28,8 +28,9 @@ public class LeaveController : ControllerBase
     {
         try
         {
+            var currentUserId = GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
-            var requests = await _leaveService.GetLeaveRequestsAsync(searchModel, organizationId);
+            var requests = await _leaveService.GetLeaveRequestsAsync(currentUserId,searchModel, organizationId);
             
             return Ok(new ServiceResponse<PagedResult<LeaveRequestDto>>
             {
@@ -40,6 +41,32 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave requests");
+            return StatusCode(500, new ServiceResponse<PagedResult<LeaveRequestDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving leave requests"
+            });
+        }
+    }
+
+    [HttpGet("requests/hr")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<LeaveRequestDto>>>> GetLeaveRequestsForHR([FromQuery] LeaveRequestSearchViewModel searchModel)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var requests = await _leaveService.GetLeaveRequestsByOrganizationAsync(searchModel, organizationId);
+            
+            return Ok(new ServiceResponse<PagedResult<LeaveRequestDto>>
+            {
+                Success = true,
+                Data = requests
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving leave requests for HR");
             return StatusCode(500, new ServiceResponse<PagedResult<LeaveRequestDto>>
             {
                 Success = false,
@@ -202,6 +229,100 @@ public class LeaveController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while rejecting leave request"
+            });
+        }
+    }
+
+    [HttpPut("requests/{id}")]
+    public async Task<ActionResult<ServiceResponse<LeaveRequestDto>>> UpdateLeaveRequest(Guid id, [FromBody] UpdateLeaveRequest request)
+    {
+        try
+        {
+            var employeeId = GetCurrentEmployeeId();
+            var updatedRequest = await _leaveService.UpdateLeaveRequestAsync(id, request, employeeId);
+            
+            if (updatedRequest == null)
+            {
+                return NotFound(new ServiceResponse<LeaveRequestDto>
+                {
+                    Success = false,
+                    Message = "Leave request not found or cannot be updated"
+                });
+            }
+
+            return Ok(new ServiceResponse<LeaveRequestDto>
+            {
+                Success = true,
+                Message = "Leave request updated successfully",
+                Data = updatedRequest
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<LeaveRequestDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating leave request {RequestId}", id);
+            return StatusCode(500, new ServiceResponse<LeaveRequestDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating leave request"
+            });
+        }
+    }
+
+    [HttpDelete("requests/{id}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> CancelLeaveRequest(Guid id)
+    {
+        try
+        {
+            var employeeId = GetCurrentEmployeeId();
+            var result = await _leaveService.CancelLeaveRequestAsync(id, employeeId);
+            
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Leave request not found or cannot be cancelled"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Leave request cancelled successfully",
+                Data = result
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling leave request {RequestId}", id);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while cancelling leave request"
             });
         }
     }

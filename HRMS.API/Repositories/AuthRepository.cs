@@ -4,6 +4,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Newtonsoft.Json;
+using Org.BouncyCastle.Asn1.Ocsp;
 using System.Data;
 using System.Text.Json;
 
@@ -320,6 +321,36 @@ WHERE token = @token;
 
         return affected > 0;
     }
+
+
+    public async Task<bool> adminIntoEmployeeAsync(User createUser)
+    {
+       
+           
+            var sql = @"insert into employee.employees
+            (userid,organizationid,firstname,lastname,email,createdat,updatedat,employeecode,hiredate)
+            values (@userId,@Organizationid,@firstName,@lastName,@email,@createdAt,@updatedAt,@employeeCode,@hireDate) ";
+
+            var parameters = new
+            {
+                employeeCode=createUser.employeecode,
+                createdat = createUser.CreatedAt,
+                Organizationid = createUser.OrganizationId,
+                userId = createUser.UserId,
+                firstName = createUser.FirstName,
+                lastName = createUser.LastName,
+                status = createUser.IsActive,
+                email = createUser.Email,
+                updatedAt = createUser.UpdatedAt,
+                hireDate=createUser.CreatedAt
+            };
+
+            var rowsAffected = await ExecuteAsync(sql, parameters);
+            return rowsAffected > 0;
+
+
+    }
+
 
 
 

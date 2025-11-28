@@ -9,7 +9,8 @@ public class User : BaseEntity
     [Key]
     [Column("user_id")]
     public Guid? UserId { get; set; }
-    
+    public string? employeecode { get; set; }
+
     [Column("organization_id")]
     public Guid? OrganizationId { get; set; }
     
