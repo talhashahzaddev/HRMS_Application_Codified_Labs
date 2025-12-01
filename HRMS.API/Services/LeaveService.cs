@@ -335,4 +335,77 @@ public class LeaveService : ILeaveService
         };
     }
 
+    public async Task<PagedResult<TeamRemainingLeavesDto>> GetTeamRemainingLeavesAsync(
+        Guid managerUserId, 
+        Guid organizationId, 
+        TeamRemainingLeavesSearchViewModel searchModel)
+    {
+        // Get user role name
+        var roleName = await _leaveRepository.GetUserRoleNameAsync(managerUserId);
+        
+        var year = searchModel.Year ?? DateTime.Now.Year;
+        PagedResult<EmployeeLeaveBalanceDto> rawData;
+
+        // Check if user is HR Manager
+        if (roleName != null && roleName.Equals("HR Manager", StringComparison.OrdinalIgnoreCase) || roleName.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            // HR Manager: Get all employees in the organization
+            rawData = await _leaveRepository.GetTeamRemainingLeavesByOrganizationAsync(
+                organizationId, 
+                year,
+                searchModel.EmployeeName,
+                searchModel.LeaveTypeId,
+                searchModel.Page,
+                searchModel.PageSize,
+                searchModel.SortBy,
+                searchModel.SortOrder);
+        }
+        else
+        {
+            // Regular Manager: Get employees reporting to this manager
+            var managerEmployeeId = await _leaveRepository.GetEmpId(managerUserId);
+            if (managerEmployeeId == Guid.Empty)
+            {
+                throw new InvalidOperationException("Manager employee ID not found");
+            }
+
+            rawData = await _leaveRepository.GetTeamRemainingLeavesAsync(
+                managerEmployeeId, 
+                organizationId, 
+                year,
+                searchModel.EmployeeName,
+                searchModel.LeaveTypeId,
+                searchModel.Page,
+                searchModel.PageSize,
+                searchModel.SortBy,
+                searchModel.SortOrder);
+        }
+        
+        // Group by employee and transform to TeamRemainingLeavesDto
+        var groupedData = rawData.Data
+            .GroupBy(x => new { x.EmployeeId, x.EmployeeName })
+            .Select(g => new TeamRemainingLeavesDto
+            {
+                EmployeeId = g.Key.EmployeeId,
+                EmployeeName = g.Key.EmployeeName,
+                LeaveBalances = g.Select(x => new LeaveTypeBalanceDto
+                {
+                    LeaveTypeId = x.LeaveTypeId,
+                    LeaveTypeName = x.LeaveTypeName,
+                    TotalDays = x.TotalDays,
+                    UsedDays = x.UsedDays,
+                    RemainingDays = x.RemainingDays
+                }).ToList()
+            })
+            .ToList();
+
+        return new PagedResult<TeamRemainingLeavesDto>
+        {
+            Data = groupedData,
+            TotalCount = rawData.TotalCount,
+            Page = rawData.Page,
+            PageSize = rawData.PageSize
+        };
+    }
+
 }

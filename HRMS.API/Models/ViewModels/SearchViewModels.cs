@@ -37,6 +37,17 @@ public class LeaveRequestSearchViewModel
     public int PageSize { get; set; } = 50;
 }
 
+public class TeamRemainingLeavesSearchViewModel
+{
+    public string? EmployeeName { get; set; }
+    public Guid? LeaveTypeId { get; set; }
+    public int? Year { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+    public string? SortBy { get; set; }
+    public string? SortOrder { get; set; } = "asc";
+}
+
 public class PayrollSearchViewModel
 {
     public Guid? PeriodId { get; set; }

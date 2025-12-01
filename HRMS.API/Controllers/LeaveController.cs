@@ -466,6 +466,34 @@ public class LeaveController : ControllerBase
         }
     }
 
+    [HttpGet("team/remaining-leaves")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<TeamRemainingLeavesDto>>>> GetTeamRemainingLeaves([FromQuery] TeamRemainingLeavesSearchViewModel searchModel)
+    {
+        try
+        {
+            var managerUserId = GetCurrentEmployeeId();
+            var organizationId = GetCurrentOrganizationId();
+            
+            var data = await _leaveService.GetTeamRemainingLeavesAsync(managerUserId, organizationId, searchModel);
+
+            return Ok(new ServiceResponse<PagedResult<TeamRemainingLeavesDto>>
+            {
+                Success = true,
+                Data = data
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving team remaining leaves");
+            return StatusCode(500, new ServiceResponse<PagedResult<TeamRemainingLeavesDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving team remaining leaves"
+            });
+        }
+    }
+
 
     private Guid GetCurrentEmployeeId()
     {
