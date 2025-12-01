@@ -335,4 +335,36 @@ public class LeaveService : ILeaveService
         };
     }
 
+    public async Task<List<TeamRemainingLeavesDto>> GetTeamRemainingLeavesAsync(Guid managerUserId, Guid organizationId, int year)
+    {
+        // Convert userId to employeeId
+        var managerEmployeeId = await _leaveRepository.GetEmpId(managerUserId);
+        if (managerEmployeeId == Guid.Empty)
+        {
+            throw new InvalidOperationException("Manager employee ID not found");
+        }
+
+        var rawData = await _leaveRepository.GetTeamRemainingLeavesAsync(managerEmployeeId, organizationId, year);
+        
+        // Group by employee and transform to TeamRemainingLeavesDto
+        var groupedData = rawData
+            .GroupBy(x => new { x.EmployeeId, x.EmployeeName })
+            .Select(g => new TeamRemainingLeavesDto
+            {
+                EmployeeId = g.Key.EmployeeId,
+                EmployeeName = g.Key.EmployeeName,
+                LeaveBalances = g.Select(x => new LeaveTypeBalanceDto
+                {
+                    LeaveTypeId = x.LeaveTypeId,
+                    LeaveTypeName = x.LeaveTypeName,
+                    TotalDays = x.TotalDays,
+                    UsedDays = x.UsedDays,
+                    RemainingDays = x.RemainingDays
+                }).ToList()
+            })
+            .ToList();
+
+        return groupedData;
+    }
+
 }

@@ -462,5 +462,53 @@ WHERE employeeid = @employeeid
         return results.ToList();
     }
 
+    public async Task<List<EmployeeLeaveBalanceDto>> GetTeamRemainingLeavesAsync(Guid managerEmployeeId, Guid organizationId, int year)
+    {
+        var sql = @"
+            WITH TeamEmployees AS (
+                SELECT DISTINCT e.employeeid, 
+                       e.firstname || ' ' || e.lastname AS employeename
+                FROM employee.employees e
+                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+                WHERE ed.reportingmanagerid = @managerEmployeeId
+                  AND ed.iscurrent = true
+                  AND e.organizationid = @organizationId
+                  AND e.status = 'active'
+            ),
+            LeaveTypes AS (
+                SELECT leavetypeid, 
+                       typename, 
+                       maxdaysperyear
+                FROM attendance.leavetypes
+                WHERE organizationid = @organizationId
+                  AND isactive = true
+            ),
+            UsedLeaves AS (
+                SELECT lr.employeeid,
+                       lr.leavetypeid,
+                       COALESCE(SUM(lr.daysrequested), 0) AS useddays
+                FROM attendance.leaverequests lr
+                INNER JOIN TeamEmployees te ON lr.employeeid = te.employeeid
+                WHERE lr.status = 'approved'
+                  AND EXTRACT(YEAR FROM lr.startdate) = @year
+                GROUP BY lr.employeeid, lr.leavetypeid
+            )
+            SELECT te.employeeid AS EmployeeId,
+                   te.employeename AS EmployeeName,
+                   lt.leavetypeid AS LeaveTypeId,
+                   lt.typename AS LeaveTypeName,
+                   lt.maxdaysperyear AS TotalDays,
+                   COALESCE(ul.useddays, 0) AS UsedDays,
+                   (lt.maxdaysperyear - COALESCE(ul.useddays, 0)) AS RemainingDays
+            FROM TeamEmployees te
+            CROSS JOIN LeaveTypes lt
+            LEFT JOIN UsedLeaves ul ON te.employeeid = ul.employeeid 
+                                   AND lt.leavetypeid = ul.leavetypeid
+            ORDER BY te.employeename, lt.typename;";
+
+        var results = await QueryAsync<EmployeeLeaveBalanceDto>(sql, new { managerEmployeeId, organizationId, year });
+        return results.ToList();
+    }
+
 
 }
