@@ -462,5 +462,239 @@ WHERE employeeid = @employeeid
         return results.ToList();
     }
 
+    public async Task<PagedResult<EmployeeLeaveBalanceDto>> GetTeamRemainingLeavesAsync(
+        Guid managerEmployeeId, 
+        Guid organizationId, 
+        int year,
+        string? employeeName = null,
+        Guid? leaveTypeId = null,
+        int page = 1,
+        int pageSize = 50,
+        string? sortBy = null,
+        string? sortOrder = "asc")
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("managerEmployeeId", managerEmployeeId);
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("year", year);
+
+        var employeeFilter = string.IsNullOrWhiteSpace(employeeName) 
+            ? "" 
+            : "AND LOWER(e.firstname || ' ' || e.lastname) LIKE LOWER(@employeeName)";
+        
+        if (!string.IsNullOrWhiteSpace(employeeName))
+        {
+            parameters.Add("employeeName", $"%{employeeName}%");
+        }
+
+        var leaveTypeFilter = leaveTypeId.HasValue ? "AND lt.leavetypeid = @leaveTypeId" : "";
+        if (leaveTypeId.HasValue)
+        {
+            parameters.Add("leaveTypeId", leaveTypeId.Value);
+        }
+
+        // Build ORDER BY clause for employee sorting
+        var employeeOrderBy = "ORDER BY e.firstname || ' ' || e.lastname";
+        if (!string.IsNullOrWhiteSpace(sortBy) && sortBy.ToLower() == "employeename")
+        {
+            employeeOrderBy = $"ORDER BY e.firstname || ' ' || e.lastname {(sortOrder?.ToLower() == "desc" ? "DESC" : "ASC")}";
+        }
+
+        // Count distinct employees
+        var countSql = $@"
+            SELECT COUNT(DISTINCT e.employeeid)
+            FROM employee.employees e
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+            WHERE ed.reportingmanagerid = @managerEmployeeId
+              AND ed.iscurrent = true
+              AND e.organizationid = @organizationId
+              AND e.status = 'active'
+              {employeeFilter}";
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+
+        // Get paginated employees
+        var offset = (page - 1) * pageSize;
+        parameters.Add("offset", offset);
+        parameters.Add("pageSize", pageSize);
+
+        var sql = $@"
+            WITH TeamEmployees AS (
+                SELECT DISTINCT e.employeeid, 
+                       e.firstname || ' ' || e.lastname AS employeename
+                FROM employee.employees e
+                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+                WHERE ed.reportingmanagerid = @managerEmployeeId
+                  AND ed.iscurrent = true
+                  AND e.organizationid = @organizationId
+                  AND e.status = 'active'
+                  {employeeFilter}
+                {employeeOrderBy}
+                LIMIT @pageSize OFFSET @offset
+            ),
+            LeaveTypes AS (
+                SELECT leavetypeid, 
+                       typename, 
+                       maxdaysperyear
+                FROM attendance.leavetypes
+                WHERE organizationid = @organizationId
+                  AND isactive = true
+                  {leaveTypeFilter}
+            ),
+            UsedLeaves AS (
+                SELECT lr.employeeid,
+                       lr.leavetypeid,
+                       COALESCE(SUM(lr.daysrequested), 0) AS useddays
+                FROM attendance.leaverequests lr
+                INNER JOIN TeamEmployees te ON lr.employeeid = te.employeeid
+                WHERE lr.status = 'approved'
+                  AND EXTRACT(YEAR FROM lr.startdate) = @year
+                GROUP BY lr.employeeid, lr.leavetypeid
+            )
+            SELECT te.employeeid AS EmployeeId,
+                   te.employeename AS EmployeeName,
+                   lt.leavetypeid AS LeaveTypeId,
+                   lt.typename AS LeaveTypeName,
+                   lt.maxdaysperyear AS TotalDays,
+                   COALESCE(ul.useddays, 0) AS UsedDays,
+                   (lt.maxdaysperyear - COALESCE(ul.useddays, 0)) AS RemainingDays
+            FROM TeamEmployees te
+            CROSS JOIN LeaveTypes lt
+            LEFT JOIN UsedLeaves ul ON te.employeeid = ul.employeeid 
+                                   AND lt.leavetypeid = ul.leavetypeid
+            ORDER BY te.employeename, lt.typename";
+
+        var results = await QueryAsync<EmployeeLeaveBalanceDto>(sql, parameters);
+
+        return new PagedResult<EmployeeLeaveBalanceDto>
+        {
+            Data = results.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<PagedResult<EmployeeLeaveBalanceDto>> GetTeamRemainingLeavesByOrganizationAsync(
+        Guid organizationId, 
+        int year,
+        string? employeeName = null,
+        Guid? leaveTypeId = null,
+        int page = 1,
+        int pageSize = 50,
+        string? sortBy = null,
+        string? sortOrder = "asc")
+    {
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("year", year);
+
+        var employeeFilter = string.IsNullOrWhiteSpace(employeeName) 
+            ? "" 
+            : "AND LOWER(e.firstname || ' ' || e.lastname) LIKE LOWER(@employeeName)";
+        
+        if (!string.IsNullOrWhiteSpace(employeeName))
+        {
+            parameters.Add("employeeName", $"%{employeeName}%");
+        }
+
+        var leaveTypeFilter = leaveTypeId.HasValue ? "AND lt.leavetypeid = @leaveTypeId" : "";
+        if (leaveTypeId.HasValue)
+        {
+            parameters.Add("leaveTypeId", leaveTypeId.Value);
+        }
+
+        // Build ORDER BY clause for employee sorting
+        var employeeOrderBy = "ORDER BY e.firstname || ' ' || e.lastname";
+        if (!string.IsNullOrWhiteSpace(sortBy) && sortBy.ToLower() == "employeename")
+        {
+            employeeOrderBy = $"ORDER BY e.firstname || ' ' || e.lastname {(sortOrder?.ToLower() == "desc" ? "DESC" : "ASC")}";
+        }
+
+        // Count distinct employees
+        var countSql = $@"
+            SELECT COUNT(DISTINCT e.employeeid)
+            FROM employee.employees e
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+            WHERE ed.iscurrent = true
+              AND e.organizationid = @organizationId
+              AND e.status = 'active'
+              {employeeFilter}";
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+
+        // Get paginated employees
+        var offset = (page - 1) * pageSize;
+        parameters.Add("offset", offset);
+        parameters.Add("pageSize", pageSize);
+
+        var sql = $@"
+            WITH AllEmployees AS (
+                SELECT DISTINCT e.employeeid, 
+                       e.firstname || ' ' || e.lastname AS employeename
+                FROM employee.employees e
+                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+                WHERE ed.iscurrent = true
+                  AND e.organizationid = @organizationId
+                  AND e.status = 'active'
+                  {employeeFilter}
+                {employeeOrderBy}
+                LIMIT @pageSize OFFSET @offset
+            ),
+            LeaveTypes AS (
+                SELECT leavetypeid, 
+                       typename, 
+                       maxdaysperyear
+                FROM attendance.leavetypes
+                WHERE organizationid = @organizationId
+                  AND isactive = true
+                  {leaveTypeFilter}
+            ),
+            UsedLeaves AS (
+                SELECT lr.employeeid,
+                       lr.leavetypeid,
+                       COALESCE(SUM(lr.daysrequested), 0) AS useddays
+                FROM attendance.leaverequests lr
+                INNER JOIN AllEmployees ae ON lr.employeeid = ae.employeeid
+                WHERE lr.status = 'approved'
+                  AND EXTRACT(YEAR FROM lr.startdate) = @year
+                GROUP BY lr.employeeid, lr.leavetypeid
+            )
+            SELECT ae.employeeid AS EmployeeId,
+                   ae.employeename AS EmployeeName,
+                   lt.leavetypeid AS LeaveTypeId,
+                   lt.typename AS LeaveTypeName,
+                   lt.maxdaysperyear AS TotalDays,
+                   COALESCE(ul.useddays, 0) AS UsedDays,
+                   (lt.maxdaysperyear - COALESCE(ul.useddays, 0)) AS RemainingDays
+            FROM AllEmployees ae
+            CROSS JOIN LeaveTypes lt
+            LEFT JOIN UsedLeaves ul ON ae.employeeid = ul.employeeid 
+                                   AND lt.leavetypeid = ul.leavetypeid
+            ORDER BY ae.employeename, lt.typename";
+
+        var results = await QueryAsync<EmployeeLeaveBalanceDto>(sql, parameters);
+
+        return new PagedResult<EmployeeLeaveBalanceDto>
+        {
+            Data = results.ToList(),
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<string?> GetUserRoleNameAsync(Guid userId)
+    {
+        var sql = @"
+            SELECT r.rolename
+            FROM auth.users u
+            INNER JOIN auth.roles r ON u.roleid = r.roleid
+            WHERE u.userid = @userId";
+
+        var result = await QuerySingleOrDefaultAsync<string>(sql, new { userId });
+        return result;
+    }
+
 
 }

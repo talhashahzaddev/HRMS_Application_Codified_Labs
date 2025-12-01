@@ -76,3 +76,30 @@ public class LeaveBalanceDto
     public decimal RemainingDays { get; set; }
     public string Color { get; set; } = string.Empty;
 }
+
+public class EmployeeLeaveBalanceDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid LeaveTypeId { get; set; }
+    public string LeaveTypeName { get; set; } = string.Empty;
+    public int TotalDays { get; set; }
+    public decimal UsedDays { get; set; }
+    public decimal RemainingDays { get; set; }
+}
+
+public class TeamRemainingLeavesDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public List<LeaveTypeBalanceDto> LeaveBalances { get; set; } = new();
+}
+
+public class LeaveTypeBalanceDto
+{
+    public Guid LeaveTypeId { get; set; }
+    public string LeaveTypeName { get; set; } = string.Empty;
+    public int TotalDays { get; set; }
+    public decimal UsedDays { get; set; }
+    public decimal RemainingDays { get; set; }
+}
