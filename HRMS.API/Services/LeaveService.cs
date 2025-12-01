@@ -335,19 +335,54 @@ public class LeaveService : ILeaveService
         };
     }
 
-    public async Task<List<TeamRemainingLeavesDto>> GetTeamRemainingLeavesAsync(Guid managerUserId, Guid organizationId, int year)
+    public async Task<PagedResult<TeamRemainingLeavesDto>> GetTeamRemainingLeavesAsync(
+        Guid managerUserId, 
+        Guid organizationId, 
+        TeamRemainingLeavesSearchViewModel searchModel)
     {
-        // Convert userId to employeeId
-        var managerEmployeeId = await _leaveRepository.GetEmpId(managerUserId);
-        if (managerEmployeeId == Guid.Empty)
-        {
-            throw new InvalidOperationException("Manager employee ID not found");
-        }
+        // Get user role name
+        var roleName = await _leaveRepository.GetUserRoleNameAsync(managerUserId);
+        
+        var year = searchModel.Year ?? DateTime.Now.Year;
+        PagedResult<EmployeeLeaveBalanceDto> rawData;
 
-        var rawData = await _leaveRepository.GetTeamRemainingLeavesAsync(managerEmployeeId, organizationId, year);
+        // Check if user is HR Manager
+        if (roleName != null && roleName.Equals("HR Manager", StringComparison.OrdinalIgnoreCase) || roleName.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+        {
+            // HR Manager: Get all employees in the organization
+            rawData = await _leaveRepository.GetTeamRemainingLeavesByOrganizationAsync(
+                organizationId, 
+                year,
+                searchModel.EmployeeName,
+                searchModel.LeaveTypeId,
+                searchModel.Page,
+                searchModel.PageSize,
+                searchModel.SortBy,
+                searchModel.SortOrder);
+        }
+        else
+        {
+            // Regular Manager: Get employees reporting to this manager
+            var managerEmployeeId = await _leaveRepository.GetEmpId(managerUserId);
+            if (managerEmployeeId == Guid.Empty)
+            {
+                throw new InvalidOperationException("Manager employee ID not found");
+            }
+
+            rawData = await _leaveRepository.GetTeamRemainingLeavesAsync(
+                managerEmployeeId, 
+                organizationId, 
+                year,
+                searchModel.EmployeeName,
+                searchModel.LeaveTypeId,
+                searchModel.Page,
+                searchModel.PageSize,
+                searchModel.SortBy,
+                searchModel.SortOrder);
+        }
         
         // Group by employee and transform to TeamRemainingLeavesDto
-        var groupedData = rawData
+        var groupedData = rawData.Data
             .GroupBy(x => new { x.EmployeeId, x.EmployeeName })
             .Select(g => new TeamRemainingLeavesDto
             {
@@ -364,7 +399,13 @@ public class LeaveService : ILeaveService
             })
             .ToList();
 
-        return groupedData;
+        return new PagedResult<TeamRemainingLeavesDto>
+        {
+            Data = groupedData,
+            TotalCount = rawData.TotalCount,
+            Page = rawData.Page,
+            PageSize = rawData.PageSize
+        };
     }
 
 }

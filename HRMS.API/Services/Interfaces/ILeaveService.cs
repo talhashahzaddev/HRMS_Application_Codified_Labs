@@ -21,5 +21,5 @@ public interface ILeaveService
     Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId(Guid employeeId);
 
     Task<List<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate);
-    Task<List<TeamRemainingLeavesDto>> GetTeamRemainingLeavesAsync(Guid managerEmployeeId, Guid organizationId, int year);
+    Task<PagedResult<TeamRemainingLeavesDto>> GetTeamRemainingLeavesAsync(Guid managerEmployeeId, Guid organizationId, TeamRemainingLeavesSearchViewModel searchModel);
 }
