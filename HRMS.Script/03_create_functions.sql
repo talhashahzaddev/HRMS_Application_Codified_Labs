@@ -348,6 +348,8 @@ ALTER FUNCTION employee.fn_get_employees(uuid, character varying, uuid, uuid, ch
 -- =====================================================================
 
 -- Function to clock in/out
+
+
 CREATE OR REPLACE FUNCTION attendance.fn_clock_in_out(
 	p_employee_id uuid,
 	p_action character varying,
@@ -359,7 +361,9 @@ CREATE OR REPLACE FUNCTION attendance.fn_clock_in_out(
     VOLATILE PARALLEL UNSAFE
 AS $BODY$
 DECLARE
-    todayDate DATE := p_timestamp::DATE;
+    -- GLOBAL FIX: Normalize to UTC BEFORE extracting date
+    todayDate DATE := (p_timestamp AT TIME ZONE 'UTC')::DATE;
+
     attendanceRecord RECORD;
 BEGIN
     -- Step 1: Ensure daily attendance record exists
@@ -375,29 +379,25 @@ BEGIN
 
     -- Step 2: Handle Check-In
     IF p_action = 'in' THEN
-        -- Update main table with latest check-in (reset checkout for new session)
         UPDATE attendance.Attendance 
         SET checkInTime  = p_timestamp,
-            checkOutTime = NULL,  -- ? reset checkout on new check-in
+            checkOutTime = NULL,
             status       = 'present',
             location     = COALESCE(p_location, location),
             updatedAt    = CURRENT_TIMESTAMP
         WHERE attendanceId = attendanceRecord.attendanceId;
 
-        -- Insert new session row
         INSERT INTO attendance.AttendanceSessions (attendanceId, checkInTime, location)
         VALUES (attendanceRecord.attendanceId, p_timestamp, COALESCE(p_location, '{}'));
 
     -- Step 3: Handle Check-Out
     ELSIF p_action = 'out' THEN
-        -- Update main table with latest check-out
         UPDATE attendance.Attendance 
         SET checkOutTime = p_timestamp,
             location     = COALESCE(p_location, location),
             updatedAt    = CURRENT_TIMESTAMP
         WHERE attendanceId = attendanceRecord.attendanceId;
 
-        -- ? Directly update the latest open session
         UPDATE attendance.AttendanceSessions
         SET checkOutTime = p_timestamp,
             updatedAt    = CURRENT_TIMESTAMP
@@ -410,7 +410,6 @@ BEGIN
             LIMIT 1
         );
 
-        -- Recalculate total hours for the day
         UPDATE attendance.Attendance
         SET totalHours = (
             SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (checkOutTime - checkInTime))) / 3600, 0)
@@ -430,14 +429,17 @@ $BODY$;
 
 -- DROP FUNCTION IF EXISTS attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer);
 
+
 CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
 	p_employee_id uuid DEFAULT NULL::uuid,
 	p_organization_id uuid DEFAULT NULL::uuid,
+	p_department_id uuid DEFAULT NULL::uuid,
+	p_status character varying DEFAULT NULL::character varying,
 	p_start_date timestamp with time zone DEFAULT NULL::timestamp with time zone,
 	p_end_date timestamp with time zone DEFAULT NULL::timestamp with time zone,
 	p_limit integer DEFAULT 100,
 	p_offset integer DEFAULT 0)
-    RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, totalcount bigint) 
+    RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, sessionscount integer, totalcount bigint) 
     LANGUAGE 'plpgsql'
     COST 100
     VOLATILE PARALLEL UNSAFE
@@ -447,35 +449,54 @@ AS $BODY$
 DECLARE
     totalRecords BIGINT;
 BEGIN
-    -- Get total count
+    -- Total employees count including absent
     SELECT COUNT(*) INTO totalRecords
-    FROM attendance.Attendance a
-    INNER JOIN employee.Employees e ON a.employeeId = e.employeeId
-    WHERE (p_employee_id IS NULL OR a.employeeId = p_employee_id)
-      AND (p_organization_id IS NULL OR e.organizationId = p_organization_id)
-      AND (p_start_date IS NULL OR a.workDate >= p_start_date)
-      AND (p_end_date IS NULL OR a.workDate <= p_end_date);
+    FROM employee.Employees e
+    INNER JOIN employee.EmploymentDetails d ON e.employeeId = d.employeeId
+    WHERE (p_organization_id IS NULL OR e.organizationId = p_organization_id)
+      AND (p_department_id IS NULL OR d.departmentId = p_department_id)
+      AND (p_employee_id IS NULL OR e.employeeId = p_employee_id);
 
     RETURN QUERY
     SELECT 
-        a.attendanceId,
-        a.employeeId,
-        CONCAT(e.firstName, ' ', e.lastName)::varchar AS employeeName,
-        a.workDate,
-        a.checkInTime,
-        a.checkOutTime,
-        a.totalHours,
-        a.overtimeHours,
-        a.status,
-        totalRecords
-    FROM attendance.Attendance a
-    INNER JOIN employee.Employees e ON a.employeeId = e.employeeId
-    WHERE (p_employee_id IS NULL OR a.employeeId = p_employee_id)
-      AND (p_organization_id IS NULL OR e.organizationId = p_organization_id)
-      AND (p_start_date IS NULL OR a.workDate >= p_start_date::date)
-      AND (p_end_date IS NULL OR a.workDate <= p_end_date::date)
-    ORDER BY a.workDate DESC, e.firstName
+        a.attendanceid,
+        e.employeeid,
+        CONCAT(e.firstname, ' ', e.lastname)::varchar AS employeename,
+        gs.workdate,
+        a.checkintime,
+        a.checkouttime,
+        COALESCE(a.totalhours,0)::numeric AS totalhours,
+        COALESCE(a.overtimehours,0)::numeric AS overtimehours,
+        COALESCE(a.status,'absent')::varchar AS status,
+        COALESCE(sess.sessionscount,0)::integer AS sessionscount,
+        totalRecords::bigint AS totalcount
+    FROM (
+        SELECT generate_series(
+            COALESCE(p_start_date::date, CURRENT_DATE),
+            COALESCE(p_end_date::date, CURRENT_DATE),
+            interval '1 day'
+        )::date AS workdate
+    ) gs
+    CROSS JOIN (
+        SELECT e.employeeid, e.firstname, e.lastname
+        FROM employee.Employees e
+        INNER JOIN employee.EmploymentDetails d ON e.employeeid = d.employeeid
+        WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
+          AND (p_department_id IS NULL OR d.departmentid = p_department_id)
+          AND (p_employee_id IS NULL OR e.employeeid = p_employee_id)
+    ) e
+    LEFT JOIN attendance.attendance a
+        ON a.employeeid = e.employeeid
+       AND a.workdate = gs.workdate
+    LEFT JOIN LATERAL (
+        SELECT COUNT(*) AS sessionscount
+        FROM attendance.attendancesessions s
+        WHERE s.attendanceid = a.attendanceid
+    ) sess ON TRUE
+    WHERE (p_status IS NULL OR a.status = p_status OR (a.attendanceid IS NULL AND p_status='absent'))
+    ORDER BY gs.workdate DESC, e.firstname
     LIMIT p_limit OFFSET p_offset;
+
 END;
 $BODY$;
 

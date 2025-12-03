@@ -1,11 +1,13 @@
 ﻿using AutoMapper;
 using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
+using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using NPOI.SS.Formula.Functions;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
 using Org.BouncyCastle.Asn1.Ocsp;
@@ -41,13 +43,32 @@ public class AttendanceService : IAttendanceService
     {
         //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
         var result = await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location);
+        //Update Attendace table on first checkin checkout From sessions
+
+        var TodayAttendace = await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+        //check if employee is  late or not 
+        var latecheckin = await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
+
+
+
         return result;
     }
 
     public async Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request)
     {
         //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
-        return await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location);
+        var result =await  _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location);
+
+        //Update Attendace table on first checkin checkout From sessions
+
+        var toTodayAttendaceda = await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+
+        //Calculating OverTime when clockout
+
+        var overtime = await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
+
+
+        return result;
     }
 
     public async Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId)
@@ -56,6 +77,29 @@ public class AttendanceService : IAttendanceService
         var attendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
         return attendance != null ? _mapper.Map<AttendanceDto>(attendance) : null;
     }
+
+
+    //public async Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId)
+    //{
+    //    //get attendce id of curernt date using employee id 
+    //    var attendaceid = await _attendanceRepository.GetAttendanceIdAsync(employeeId);
+    //    //passing attendace id to get today sessions 
+    //    return await _attendanceRepository.GetTodaySessionAsync(attendaceid);
+    //}
+
+    public async Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId, DateTime? date = null)
+    {
+        // Use the provided date, or default to today
+      
+
+        // Get attendance ID for the employee on that date
+        var attendanceId = await _attendanceRepository.GetAttendanceIdAsync(employeeId, date);
+
+        // Fetch sessions for that attendance ID
+        return await _attendanceRepository.GetTodaySessionAsync(attendanceId);
+    }
+
+
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(AttendanceSearchViewModel searchModel, Guid organizationId, Guid currentEmployeeId)
     {
@@ -72,7 +116,8 @@ public class AttendanceService : IAttendanceService
                 searchModel.StartDate,
                 searchModel.EndDate,
                 searchModel.Page,
-                searchModel.PageSize);
+                searchModel.PageSize, searchModel?.departmentid, searchModel?.Status);
+
         }
         else
         {
@@ -132,7 +177,7 @@ public class AttendanceService : IAttendanceService
                 searchModel.StartDate,
                 searchModel.EndDate,
                 1, // Start from page 1
-                100000); // Large page size to get all records (adjust based on expected data size)
+                100000,searchModel?.departmentid, searchModel?.Status); // Large page size to get all records (adjust based on expected data size)
             
             // Filter by team employee IDs
             var filteredAttendance = allAttendance.Data
@@ -474,26 +519,26 @@ public class AttendanceService : IAttendanceService
 
 
 
-    public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId)
+    public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId, Guid? departmentId, string? status, Guid? employeeId)
     {
         try
         {
             // Check if user is Super Admin or HR Manager
             var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
-            
+
             AttendanceReportDto completeReport;
-            
+
             if (isAdminOrHR)
             {
                 // Super Admin or HR Manager: Get all employees' attendance report
                 _logger.LogInformation("User is Super Admin or HR Manager - returning all employees attendance report");
-                completeReport = await GetFullAttendanceReportAsync(organizationId, startDate, endDate);
+                completeReport = await GetFullAttendanceReportAsync(organizationId, startDate, endDate, departmentId, status, employeeId);
             }
             else
             {
                 // Manager: Get only their team's attendance report
                 _logger.LogInformation("User is Manager - returning team employees attendance report for manager: {EmployeeId}", currentEmployeeId);
-                completeReport = await GetManagerAttendanceReportAsync(currentEmployeeId, organizationId, startDate, endDate);
+                completeReport = await GetManagerAttendanceReportAsync(currentEmployeeId, organizationId, startDate, endDate, departmentId, status, employeeId);
             }
 
             return completeReport;
@@ -505,12 +550,44 @@ public class AttendanceService : IAttendanceService
         }
     }
 
-    private async Task<AttendanceReportDto> GetFullAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+ 
+    public async Task<List<EmployeeSimpleDto>> GetdepartmentEmployeesAsync(
+    Guid currentEmployeeId,
+    Guid? departmentId,
+    Guid organizationId)
+    {
+        List<EmployeeDto> result;
+
+        // Check if user is Super Admin or HR Manager
+        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+
+        if (isAdminOrHR)
+        {
+            // Super Admin or HR Manager: Get all employees or filtered by department
+            _logger.LogInformation("User is Super Admin or HR Manager - returning all employees");
+
+            return  await _attendanceRepository.GetEmployeeForAdminAsync(organizationId,departmentId);
+        }
+        else
+        {
+            // Manager: Get only their team's employees, optionally filtered by department
+            _logger.LogInformation("User is Manager - returning team employees for manager: {EmployeeId}", currentEmployeeId);
+
+            return await _attendanceRepository.GetManagerEmployeeAsync(currentEmployeeId, organizationId, departmentId);
+        }
+
+        
+    }
+
+
+
+
+    private async Task<AttendanceReportDto> GetFullAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status,Guid? employeeId)
     {
         var mainReport = await _attendanceRepository.GetAttendanceReportAsync(organizationId, startDate, endDate);
-        var departmentStats = await _attendanceRepository.GetDepartmentAttendanceStatsAsync(organizationId, startDate, endDate);
+        var departmentStats = await _attendanceRepository.GetDepartmentAttendanceStatsAsync(organizationId, startDate, endDate,departmentId);
         var dailyStats = await _attendanceRepository.GetDailyAttendanceStatsAsync(organizationId, startDate, endDate);
-        var attendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate);
+        var attendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate,departmentId,status,employeeId);
 
         var totalWorkDays = Enumerable.Range(0, (endDate - startDate).Days + 1)
             .Select(offset => startDate.AddDays(offset))
@@ -547,7 +624,7 @@ public class AttendanceService : IAttendanceService
         };
     }
 
-    private async Task<AttendanceReportDto> GetManagerAttendanceReportAsync(Guid managerEmployeeId, Guid organizationId, DateTime startDate, DateTime endDate)
+    private async Task<AttendanceReportDto> GetManagerAttendanceReportAsync(Guid managerEmployeeId, Guid organizationId, DateTime startDate, DateTime endDate,Guid? departmentId,string? status,Guid? employeeId)
     {
         // Get team employee IDs
         var teamEmployeeIds = await _attendanceRepository.GetTeamEmployeeIdsAsync(managerEmployeeId, organizationId);
@@ -585,7 +662,7 @@ public class AttendanceService : IAttendanceService
         }
 
         // Get all attendance records and filter by team
-        var allAttendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate);
+        var allAttendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate,departmentId,status,employeeId);
         var teamAttendanceRecords = allAttendanceRecords
             .Where(r => teamEmployeeIds.Contains(r.EmployeeId))
             .ToList();
@@ -596,7 +673,7 @@ public class AttendanceService : IAttendanceService
         // For now, we'll use the filtered records to calculate stats
 
         // Get all department stats - filter to only include departments with team members
-        var allDepartmentStats = await _attendanceRepository.GetDepartmentAttendanceStatsAsync(organizationId, startDate, endDate);
+        var allDepartmentStats = await _attendanceRepository.GetDepartmentAttendanceStatsAsync(organizationId, startDate, endDate,departmentId);
         // Filter department stats based on team members (this is approximate, as department stats are aggregated)
         var teamDepartmentStats = allDepartmentStats
             .Where(d => teamAttendanceRecords.Any(r => 
@@ -669,7 +746,7 @@ public class AttendanceService : IAttendanceService
         };
     }
 
-    public async Task<byte[]> ExportAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, string format, Guid? employeeId, Guid currentEmployeeId)
+    public async Task<byte[]> ExportAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, string format, Guid? employeeId, Guid currentEmployeeId,Guid? departmentId,string? status)
     {
         try
         {
@@ -677,7 +754,7 @@ public class AttendanceService : IAttendanceService
                 organizationId, format);
 
             var attendanceRecords = await GetAttendanceReportAsync(
-                organizationId, startDate, endDate, currentEmployeeId);
+                organizationId, startDate, endDate, currentEmployeeId,departmentId,status,employeeId);
 
             if (format.ToLower() == "csv")
             {
