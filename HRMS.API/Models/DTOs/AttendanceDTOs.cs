@@ -2,7 +2,7 @@ namespace HRMS.API.Models.DTOs;
 
 public class AttendanceDto
 {
-    public Guid AttendanceId { get; set; }
+    public Guid? AttendanceId { get; set; }
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
     public DateTime WorkDate { get; set; }
@@ -12,6 +12,7 @@ public class AttendanceDto
     public string? CheckInLocation { get; set; }
     public string? CheckOutLocation { get; set; }
     public decimal TotalHours { get; set; }
+    public int SessionsCount { get; set; } = 0;
     public decimal OvertimeHours { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
@@ -66,6 +67,14 @@ public class TimeTrackingSessionDto
     public string? CurrentLocation { get; set; }
 }
 
+public class AttendanceSessionDto
+{
+    public Guid SessionId { get; set; }
+    public Guid AttendanceId { get; set; }
+    public DateTime CheckInTime { get; set; }
+    public DateTime? CheckOutTime { get; set; }
+ 
+}
 
 
 public class CreateShiftDto

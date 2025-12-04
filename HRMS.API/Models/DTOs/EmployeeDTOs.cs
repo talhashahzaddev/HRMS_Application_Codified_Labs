@@ -30,6 +30,12 @@ public class EmployeeDto
     public Guid? PositionId { get; set; }
 }
 
+public class EmployeeSimpleDto
+{
+    public Guid EmployeeId { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+}
 
 
 

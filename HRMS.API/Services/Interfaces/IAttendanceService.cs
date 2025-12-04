@@ -8,7 +8,7 @@ public interface IAttendanceService
 
     Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId);
     Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request);
-
+    Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId, DateTime? date);
     Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId);
     Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId);
     Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId);
@@ -35,8 +35,9 @@ public interface IAttendanceService
     Task<List<AttendanceDto>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<List<AttendanceCalendarDto>> GetAttendanceCalendarAsync(Guid employeeId, int year, int month);
     Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid employeeId,Guid organizationId, DateTime date);
-    Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId);
-    Task<byte[]> ExportAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, string format, Guid? employeeId, Guid currentEmployeeId);
+    Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId, Guid? departmentId, string? status, Guid? employeeId);
+    Task<List<EmployeeSimpleDto>> GetdepartmentEmployeesAsync(Guid currentEmployee, Guid? departmentId,Guid organizationId);
+    Task<byte[]> ExportAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, string format, Guid? employeeId, Guid currentEmployeeId, Guid? departmentId, string? status);
     Task<bool> BulkApproveAttendanceAsync(List<Guid> attendanceIds);
     Task<bool> BulkRejectAttendanceAsync(List<Guid> attendanceIds, string? reason);
     Task<Guid> GetEmployeeFromTable(Guid Userid);

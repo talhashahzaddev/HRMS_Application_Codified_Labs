@@ -180,26 +180,56 @@ CREATE TABLE attendance.Shifts (
     CONSTRAINT UQ_Shifts UNIQUE(OrganizationId, ShiftName)
 );
 
-CREATE TABLE attendance.Attendance (
-    AttendanceId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    EmployeeId UUID,
-    WorkDate DATE NOT NULL,
-    CheckInTime TIMESTAMP WITH TIME ZONE,
-    CheckOutTime TIMESTAMP WITH TIME ZONE,
-    BreakStartTime TIMESTAMP WITH TIME ZONE,
-    BreakEndTime TIMESTAMP WITH TIME ZONE,
-    TotalHours DECIMAL(5, 2) DEFAULT 0,
-    OvertimeHours DECIMAL(5, 2) DEFAULT 0,
-    BreakHours DECIMAL(5, 2) DEFAULT 0,
-    Status VARCHAR(20) DEFAULT 'absent',
-    Location JSONB DEFAULT '{}',
-    Notes TEXT,
-    ApprovedBy UUID,
-    ApprovedAt TIMESTAMP WITH TIME ZONE,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT UQ_Attendance UNIQUE(EmployeeId, WorkDate)
-);
+
+CREATE TABLE IF NOT EXISTS attendance.attendance
+(
+    attendanceid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    employeeid uuid,
+    workdate date NOT NULL,
+    checkintime timestamp with time zone,
+    checkouttime timestamp with time zone,
+    breakstarttime timestamp with time zone,
+    breakendtime timestamp with time zone,
+    totalhours numeric(5,2) DEFAULT 0,
+    overtimehours numeric(5,2) DEFAULT 0,
+    breakhours numeric(5,2) DEFAULT 0,
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'absent'::character varying,
+    location jsonb DEFAULT '{}'::jsonb,
+    notes text COLLATE pg_catalog."default",
+    approvedby uuid,
+    approvedat timestamp with time zone,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    islate boolean DEFAULT false,
+    CONSTRAINT attendance_pkey PRIMARY KEY (attendanceid),
+    CONSTRAINT uq_attendance UNIQUE (employeeid, workdate)
+)
+
+TABLESPACE pg_default;
+
+-- ==============================
+-- ATTENDANCE Sessions Table
+-- ==============================
+
+
+CREATE TABLE IF NOT EXISTS attendance.attendancesessions
+(
+    sessionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    attendanceid uuid NOT NULL,
+    checkintime timestamp with time zone NOT NULL,
+    checkouttime timestamp with time zone,
+    location jsonb DEFAULT '{}'::jsonb,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT attendancesessions_pkey PRIMARY KEY (sessionid),
+    CONSTRAINT attendancesessions_attendanceid_fkey FOREIGN KEY (attendanceid)
+        REFERENCES attendance.attendance (attendanceid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+
+TABLESPACE pg_default;
+
 
 CREATE TABLE attendance.LeaveTypes (
     LeaveTypeId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
