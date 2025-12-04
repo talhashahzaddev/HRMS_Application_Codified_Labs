@@ -21,23 +21,148 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         try
         {
-        var result = await ExecuteScalarAsync<bool>(
-            "SELECT attendance.fn_clock_in_out(@employeeId, @action, @timestamp, @location::jsonb)",
-            new 
-            { 
-                employeeId, 
-                action, 
-                timestamp, 
-                location = System.Text.Json.JsonSerializer.Serialize(location ?? new())
-            });
+            var result = await ExecuteScalarAsync<bool>(
+                "SELECT attendance.fn_clock_in_out(@employeeId, @action, @timestamp, @location::jsonb)",
+                new
+                {
+                    employeeId,
+                    action,
+                    timestamp,
+                    location = System.Text.Json.JsonSerializer.Serialize(location ?? new())
+                });
 
-        return result;
+            return result;
         }
         catch (Exception ex)
         {
             throw new Exception("Check in faild", ex.InnerException);
         }
     }
+
+    public async Task<Attendance?> UpdateTodayAttendanceLateStatusAsync(Guid employeeId)
+    {
+        try
+        {
+            var sql = @"
+        UPDATE attendance.attendance a
+        SET 
+            islate = CASE
+                        WHEN a.checkintime IS NULL THEN false
+                        WHEN a.checkintime::time >= s.starttime + INTERVAL '1 hour' THEN true
+                        ELSE false
+                     END,
+            updatedat = NOW() AT TIME ZONE 'UTC'
+        FROM employee.employmentdetails e
+        JOIN attendance.shifts s ON e.shiftid = s.shiftid
+        WHERE a.employeeid = e.employeeid
+          AND a.employeeid = @employeeId
+          AND e.iscurrent = true
+          AND a.workdate = (NOW() AT TIME ZONE 'UTC')::date
+        RETURNING a.*;
+        ";
+
+            return await QuerySingleOrDefaultAsync<Attendance>(
+                sql,
+                new { employeeId }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error updating late status for employee {EmployeeId}",
+                employeeId
+            );
+            throw;
+        }
+    }
+
+    public async Task<Attendance?> UpdateOvertimeHoursAsync(Guid employeeId)
+    {
+        try
+        {
+            var sql = @"
+        UPDATE attendance.attendance
+        SET 
+            overtimehours = CASE
+                                WHEN totalhours > 8 THEN totalhours - 8
+                                ELSE 0
+                            END,
+            updatedat = NOW() AT TIME ZONE 'UTC'
+        WHERE employeeid = @employeeId
+          AND workdate = (NOW() AT TIME ZONE 'UTC')::date
+        RETURNING *;
+        ";
+
+            return await QuerySingleOrDefaultAsync<Attendance>(
+                sql,
+                new { employeeId }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error updating overtime hours for employee {EmployeeId}",
+                employeeId
+            );
+            throw;
+        }
+    }
+
+
+
+
+
+    public async Task<Attendance?> UpdateTodayAttendanceFromSessionsAsync(Guid employeeId)
+    {
+        try
+        {
+            var sql = @"
+        WITH todays_attendance AS (
+            SELECT attendanceid
+            FROM attendance.attendance
+            WHERE employeeid = @employeeId
+              AND workdate = (NOW() AT TIME ZONE 'UTC')::date
+        ),
+        first_session AS (
+            SELECT MIN(checkintime) AS first_checkin
+            FROM attendance.attendancesessions
+            WHERE attendanceid IN (SELECT attendanceid FROM todays_attendance)
+        ),
+        last_session AS (
+            SELECT checkouttime AS last_checkout
+            FROM attendance.attendancesessions
+            WHERE attendanceid IN (SELECT attendanceid FROM todays_attendance)
+            ORDER BY checkintime DESC
+            LIMIT 1
+        )
+        UPDATE attendance.attendance a
+        SET 
+            checkintime  = (SELECT first_checkin FROM first_session),
+            checkouttime = (SELECT last_checkout FROM last_session),
+            updatedat    = NOW() AT TIME ZONE 'UTC'
+        WHERE a.employeeid = @employeeId
+          AND a.workdate = (NOW() AT TIME ZONE 'UTC')::date
+        RETURNING a.*;
+        ";
+
+            return await QuerySingleOrDefaultAsync<Attendance>(
+                sql,
+                new { employeeId }
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Error updating today's attendance from sessions for employee {EmployeeId}",
+                employeeId
+            );
+            throw;
+        }
+    }
+
 
     public async Task<Attendance?> GetTodayAttendanceAsync(Guid employeeId)
     {
@@ -48,7 +173,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                        breakstarttime, breakendtime, totalhours, overtimehours, breakhours,
                        status, location, notes, approvedby, approvedat, createdat, updatedat
                 FROM attendance.attendance 
-                WHERE employeeid = @employeeId AND workdate = CURRENT_DATE";
+                WHERE employeeid = @employeeId AND workdate = (NOW() AT TIME ZONE 'UTC')::date";
 
             return await QuerySingleOrDefaultAsync<Attendance>(sql, new { employeeId });
         }
@@ -60,21 +185,24 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     }
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(
-        Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null, 
-        DateTime? endDate = null, int page = 1, int pageSize = 100)
+        Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null,
+        DateTime? endDate = null, int page = 1, int pageSize = 100, Guid? departmentId = null, string Status = null)
     {
         try
         {
             var results = await QueryAsync<dynamic>(
-                "SELECT * FROM attendance.fn_get_attendance(@employeeId, @organizationId, @startDate, @endDate, @limit, @offset)",
-                new 
+                "SELECT * FROM attendance.fn_get_attendance(@employeeId, @organizationId,@departmentId,@Status,@startDate,@endDate, @limit, @offset)",
+                new
                 {
-                    employeeId, 
-                    organizationId, 
-                    startDate, 
-                    endDate, 
-                    limit = pageSize, 
-                    offset = (page - 1) * pageSize 
+                    employeeId,
+                    organizationId,
+                    startDate,
+                    endDate,
+                    limit = pageSize,
+                    offset = (page - 1) * pageSize,
+                    departmentId,
+                   Status
+
                 });
 
             var attendanceList = results.Select(r => new AttendanceDto
@@ -86,6 +214,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 CheckInTime = r.checkintime,
                 CheckOutTime = r.checkouttime,
                 TotalHours = r.totalhours,
+                SessionsCount = r.sessionscount,
                 OvertimeHours = r.overtimehours,
                 Status = r.status
             }).ToList();
@@ -106,7 +235,139 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
-    
+
+    //Chnages
+
+    //public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId)
+    //{
+    //    try
+    //    {
+    //        var sql = @"
+    //        SELECT attendanceid
+    //        FROM attendance.attendance
+    //        WHERE employeeid = @employeeId
+    //          AND workdate =(NOW() AT TIME ZONE 'UTC')::date
+    //        LIMIT 1;
+    //    ";
+
+    //        return await QuerySingleOrDefaultAsync<Guid?>(sql, new { employeeId });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex,
+    //            "Error getting today's attendance id for employee {EmployeeId}", employeeId);
+    //        throw;
+    //    }
+    //}
+
+
+    //public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId, DateTime? date = null)
+    //{
+    //    try
+    //    {
+    //        // Use provided date or default to today (UTC)
+    //        var targetDate = date?.Date ?? DateTime.UtcNow.Date;
+
+    //        var sql = @"
+    //    SELECT attendanceid
+    //    FROM attendance.attendance
+    //    WHERE employeeid = @employeeId
+    //      AND workdate::date = @workDate
+    //    LIMIT 1;
+    //    ";
+
+    //        return await QuerySingleOrDefaultAsync<Guid?>(sql, new
+    //        {
+    //            employeeId,
+    //            workDate = targetDate
+    //        });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex,
+    //            "Error getting attendance id for employee {EmployeeId} on date {Date}", employeeId, date);
+    //        throw;
+    //    }
+    //}
+
+
+    public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId, DateTime? date = null)
+    {
+        try
+        {
+            string sql;
+            object param;
+
+            if (date == null)
+            {
+                // No date provided ? get today’s attendance
+                sql = @"
+                SELECT attendanceid
+                FROM attendance.attendance
+                WHERE employeeid = @employeeId
+                  AND workdate = (NOW() AT TIME ZONE 'UTC')::date
+                LIMIT 1;
+            ";
+                param = new { employeeId };
+            }
+            else
+            {
+                // Date provided ? match workdate with that date
+                sql = @"
+                SELECT attendanceid
+                FROM attendance.attendance
+                WHERE employeeid = @employeeId
+                  AND workdate::date = @workDate
+                LIMIT 1;
+            ";
+                param = new { employeeId, workDate = date.Value.Date };
+            }
+
+            return await QuerySingleOrDefaultAsync<Guid?>(sql, param);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error getting attendance id for employee {EmployeeId} on date {Date}", employeeId, date);
+            throw;
+        }
+    }
+
+
+
+    public async Task<List<AttendanceSessionDto>> GetTodaySessionAsync(Guid? attendanceId)
+    {
+        try
+        {
+            if (attendanceId == null)
+                return new List<AttendanceSessionDto>(); // return empty list if no attendance
+
+            var sql = @"
+            SELECT 
+                sessionid AS SessionId,
+                attendanceid AS AttendanceId,
+                checkintime AS CheckInTime,
+                checkouttime AS CheckOutTime
+            FROM attendance.attendancesessions
+            WHERE attendanceid = @attendanceId
+            ORDER BY checkintime ASC;
+        ";
+
+            var sessions = await QueryAsync<AttendanceSessionDto>(sql, new
+            {
+                attendanceId
+            });
+
+            return sessions.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error getting today's attendance sessions for attendance {AttendanceId}", attendanceId);
+            throw;
+        }
+    }
+
 
     public async Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
@@ -733,55 +994,78 @@ WHERE ed.employeeid = @EmployeeId
             throw;
         }
     }
+
+
     public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate)
     {
         try
         {
             var sql = @"
-        -- Total Active Employees Count
-        WITH EmployeeCounts AS (
-            SELECT COUNT(*) as TotalEmployees
-            FROM employee.employees e
-            WHERE e.organizationid = @organizationId 
-            AND e.status = 'active'
+        -- Generate all dates in the range
+        WITH date_range AS (
+            SELECT generate_series(@startDate::date, @endDate::date, '1 day') AS workdate
         ),
-        
-        -- Attendance Summary
-        AttendanceSummary AS (
-            SELECT 
-                COUNT(DISTINCT a.employeeid) as TotalEmployeesWithAttendance,
-                COUNT(CASE WHEN a.status = 'present' THEN 1 END) as TotalPresentDays,
-                COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as TotalAbsentDays,
-                COUNT(CASE WHEN a.status = 'late' THEN 1 END) as TotalLateDays,
-                COALESCE(SUM(a.totalhours), 0) as TotalHours,
-                COALESCE(SUM(a.overtimehours), 0) as OvertimeHours
-            FROM attendance.attendance a
-            INNER JOIN employee.employees e ON a.employeeid = e.employeeid
+        -- Active employees in the organization
+        employees AS (
+            SELECT e.employeeid
+            FROM employee.employees e
             WHERE e.organizationid = @organizationId
-            AND a.workdate BETWEEN @startDate AND @endDate
+              AND e.status = 'active'
+        ),
+        -- Cross join employees × dates to create full calendar
+        calendar AS (
+            SELECT dr.workdate, e.employeeid
+            FROM date_range dr
+            CROSS JOIN employees e
+        ),
+        -- Join attendance table to the full calendar
+        attendance_data AS (
+            SELECT 
+                c.workdate,
+                c.employeeid,
+                a.status,
+                a.islate,
+                COALESCE(a.totalhours,0) AS totalhours,
+                COALESCE(a.overtimehours,0) AS overtimehours
+            FROM calendar c
+            LEFT JOIN attendance.attendance a
+                ON a.employeeid = c.employeeid
+               AND a.workdate = c.workdate
+        ),
+        -- Classify absent/present and late
+        classified AS (
+            SELECT 
+                employeeid,
+                workdate,
+                COALESCE(status,'absent') AS status,
+                totalhours,
+                overtimehours,
+                CASE WHEN islate THEN 1 ELSE 0 END AS islate
+            FROM attendance_data
         )
-        
-        SELECT 
-            @startDate as StartDate,
-            @endDate as EndDate,
-            (SELECT TotalEmployees FROM EmployeeCounts) as TotalEmployees,
-            (SELECT TotalPresentDays FROM AttendanceSummary) as TotalPresentDays,
-            (SELECT TotalAbsentDays FROM AttendanceSummary) as TotalAbsentDays,
-            (SELECT TotalLateDays FROM AttendanceSummary) as TotalLateDays,
-            (SELECT TotalHours FROM AttendanceSummary) as TotalHours,
-            (SELECT OvertimeHours FROM AttendanceSummary) as OvertimeHours,
+        -- Final report
+        SELECT
+            @startDate AS StartDate,
+            @endDate AS EndDate,
+            (SELECT COUNT(*) FROM employees) AS TotalEmployees,
+            (SELECT COUNT(*) FROM classified WHERE status = 'present') AS TotalPresentDays,
+            (SELECT COUNT(*) FROM classified WHERE status = 'absent') AS TotalAbsentDays,
+            (SELECT SUM(islate) FROM classified) AS TotalLateDays,
+            (SELECT SUM(totalhours) FROM classified) AS TotalHours,
+            (SELECT SUM(overtimehours) FROM classified) AS OvertimeHours,
             CASE 
-                WHEN (SELECT TotalPresentDays FROM AttendanceSummary) > 0 
+                WHEN (SELECT COUNT(*) FROM classified) > 0
                 THEN ROUND(
-                    (SELECT TotalPresentDays FROM AttendanceSummary) * 100.0 / 
-                    NULLIF((SELECT TotalPresentDays FROM AttendanceSummary) + (SELECT TotalAbsentDays FROM AttendanceSummary), 0), 
-                    2
+                    (SELECT COUNT(*) FROM classified WHERE status = 'present') * 100.0 /
+                    NULLIF((SELECT COUNT(*) FROM classified), 0), 2
                 )
-                ELSE 0 
-            END as AverageAttendanceRate";
+                ELSE 0
+            END AS AverageAttendanceRate
+        ";
+
             using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
             await connection.OpenAsync();
-           
+
             var report = await connection.QueryFirstAsync<AttendanceReportDto>(sql, new
             {
                 organizationId,
@@ -798,33 +1082,64 @@ WHERE ed.employeeid = @EmployeeId
         }
     }
 
-    public async Task<List<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+
+
+    public async Task<List<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(
+    Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId)
     {
         var sql = @"
-        SELECT 
-            d.departmentid as DepartmentId,
-            d.departmentname as DepartmentName,
-            COUNT(DISTINCT e.employeeid) as TotalEmployees,
-            COUNT(CASE WHEN a.status = 'present' THEN 1 END) as PresentEmployees,
-            COUNT(CASE WHEN a.status = 'absent' THEN 1 END) as AbsentEmployees,
-            CASE 
-                WHEN COUNT(DISTINCT e.employeeid) > 0 
-                THEN ROUND(
-                    COUNT(CASE WHEN a.status = 'present' THEN 1 END) * 100.0 / 
-                    NULLIF(COUNT(DISTINCT e.employeeid), 0), 
+    WITH employees AS (
+        SELECT e.employeeid, ed.departmentid
+        FROM employee.employees e
+        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        WHERE e.organizationid = @organizationId
+          AND e.status = 'active'
+          AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
+    ),
+    date_range AS (
+        SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
+    ),
+    calendar AS (
+        SELECT d.employeeid, d.departmentid, dr.workdate
+        FROM employees d
+        CROSS JOIN date_range dr
+    ),
+    attendance_data AS (
+        SELECT c.employeeid, c.departmentid, c.workdate,
+               COALESCE(a.status, 'absent') AS status
+        FROM calendar c
+        LEFT JOIN attendance.attendance a
+            ON a.employeeid = c.employeeid
+           AND a.workdate = c.workdate
+    )
+    SELECT 
+        d.departmentid AS DepartmentId,
+        d.departmentname AS DepartmentName,
+        COUNT(DISTINCT e.employeeid) AS TotalEmployees,
+        SUM(CASE WHEN ad.status = 'present' THEN 1 ELSE 0 END) AS PresentEmployees,
+        SUM(CASE WHEN ad.status = 'absent' THEN 1 ELSE 0 END) AS AbsentEmployees,
+        CASE 
+            WHEN COUNT(DISTINCT e.employeeid) > 0 AND COUNT(DISTINCT dr.workdate) > 0 THEN
+                ROUND(
+                    SUM(CASE WHEN ad.status = 'present' THEN 1 ELSE 0 END) * 100.0 /
+                    NULLIF(COUNT(DISTINCT e.employeeid) * COUNT(DISTINCT dr.workdate), 0),
                     2
                 )
-                ELSE 0 
-            END as AttendanceRate
-        FROM employee.departments d
-        LEFT JOIN employee.employmentdetails ed ON d.departmentid = ed.departmentid AND ed.iscurrent = true
-        LEFT JOIN employee.employees e ON ed.employeeid = e.employeeid AND e.status = 'active'
-        LEFT JOIN attendance.attendance a ON e.employeeid = a.employeeid 
-            AND a.workdate BETWEEN @startDate AND @endDate
-        WHERE d.organizationid = @organizationId
-        AND d.isactive = true
-        GROUP BY d.departmentid, d.departmentname
-        ORDER BY d.departmentname";
+            ELSE 0
+        END AS AttendanceRate
+    FROM employee.departments d
+    LEFT JOIN employee.employmentdetails ed ON d.departmentid = ed.departmentid AND ed.iscurrent = true
+    LEFT JOIN employee.employees e ON ed.employeeid = e.employeeid AND e.status = 'active'
+    CROSS JOIN date_range dr
+    LEFT JOIN attendance_data ad ON ad.employeeid = e.employeeid 
+                                 AND ad.departmentid = d.departmentid
+                                 AND ad.workdate = dr.workdate
+    WHERE d.organizationid = @organizationId
+      AND d.isactive = true
+      AND (@departmentId IS NULL OR d.departmentid = @departmentId)
+    GROUP BY d.departmentid, d.departmentname
+    ORDER BY d.departmentname;
+    ";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
         await connection.OpenAsync();
@@ -832,9 +1147,12 @@ WHERE ed.employeeid = @EmployeeId
         {
             organizationId,
             startDate,
-            endDate
+            endDate,
+            departmentId
         })).ToList();
     }
+
+
 
     public async Task<List<DailyAttendanceStatsDto>> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate)
     {
@@ -870,36 +1188,178 @@ WHERE ed.employeeid = @EmployeeId
         })).ToList();
     }
 
-    public async Task<List<AttendanceDto>> GetAttendanceRecordsAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+   
+
+    public async Task<List<AttendanceDto>> GetAttendanceRecordsAsync(
+    Guid organizationId,
+    DateTime startDate,
+    DateTime endDate,
+    Guid? departmentId = null,
+    string? status = null,
+    Guid? employeeId = null) // make employeeId optional
     {
         var sql = @"
-        SELECT 
-            a.attendanceid as AttendanceId,
-            a.employeeid as EmployeeId,
-            e.firstname || ' ' || e.lastname as EmployeeName,
-            a.workdate as WorkDate,
-            a.workdate as Date,
-            a.checkintime as CheckInTime,
-            a.checkouttime as CheckOutTime,
-            a.totalhours as TotalHours,
-            a.overtimehours as OvertimeHours,
-            a.status as Status,
-            a.notes as Notes
-        FROM attendance.attendance a
-        INNER JOIN employee.employees e ON a.employeeid = e.employeeid
+    -- Get all active employees with optional department and employee filter
+    WITH employees AS (
+        SELECT e.employeeid, e.firstname, e.lastname, ed.departmentid
+        FROM employee.employees e
+        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
         WHERE e.organizationid = @organizationId
-        AND a.workdate BETWEEN @startDate AND @endDate
-        ORDER BY a.workdate DESC, e.firstname, e.lastname";
+          AND e.status = 'active'
+          AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
+          AND (@employeeId IS NULL OR e.employeeid = @employeeId)  -- new filter
+    ),
+    -- Generate the date range
+    date_range AS (
+        SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
+    ),
+    -- Cross join to get all employee × date combinations
+    calendar AS (
+        SELECT emp.employeeid, emp.firstname, emp.lastname, emp.departmentid, dr.workdate
+        FROM employees emp
+        CROSS JOIN date_range dr
+    ),
+    -- Left join attendance to mark present and absent
+    attendance_data AS (
+        SELECT 
+            c.employeeid,
+            c.firstname,
+            c.lastname,
+            c.workdate,
+            COALESCE(a.attendanceid, NULL) AS attendanceid,
+            COALESCE(a.checkintime, NULL) AS checkintime,
+            COALESCE(a.checkouttime, NULL) AS checkouttime,
+            COALESCE(a.totalhours, 0) AS totalhours,
+            COALESCE(a.overtimehours, 0) AS overtimehours,
+            COALESCE(a.status, 'absent') AS status,
+            a.notes,
+            COALESCE(a.islate, false) AS islate
+        FROM calendar c
+        LEFT JOIN attendance.attendance a
+            ON a.employeeid = c.employeeid
+           AND a.workdate = c.workdate
+    )
+    SELECT 
+        attendanceid AS AttendanceId,
+        employeeid AS EmployeeId,
+        firstname || ' ' || lastname AS EmployeeName,
+        workdate AS WorkDate,
+        workdate AS Date,
+        checkintime AS CheckInTime,
+        checkouttime AS CheckOutTime,
+        totalhours AS TotalHours,
+        overtimehours AS OvertimeHours,
+        status AS Status,
+        notes AS Notes,
+        islate AS IsLate
+    FROM attendance_data
+    WHERE (@status IS NULL OR status = @status)
+    ORDER BY workdate DESC, firstname, lastname;
+    ";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
         await connection.OpenAsync();
+
         return (await connection.QueryAsync<AttendanceDto>(sql, new
         {
             organizationId,
             startDate,
-            endDate
+            endDate,
+            departmentId,
+            status,
+            employeeId // pass employeeId to SQL
         })).ToList();
     }
+
+
+    public async Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(
+    Guid organizationId,
+    Guid? departmentId)
+    {
+        try
+        {
+            var sql = @"
+            SELECT 
+                e.employeeid AS EmployeeId,
+                e.firstname AS FirstName,
+                e.lastname AS LastName
+            FROM employee.employees e
+            INNER JOIN employee.employmentdetails d
+                ON e.employeeid = d.employeeid
+            WHERE e.organizationid = @OrganizationId
+              AND e.status = 'active'
+              AND d.iscurrent = true
+              AND (@DepartmentId IS NULL OR d.departmentid = @DepartmentId)
+            ORDER BY e.firstname, e.lastname;
+        ";
+
+            var parameters = new
+            {
+                OrganizationId = organizationId,
+                DepartmentId = departmentId
+            };
+
+            // ?? EXACT same repository pattern you use everywhere
+            var result = await QueryAsync<EmployeeSimpleDto>(sql, parameters);
+
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error retrieving employee list for Admin in Organization {OrganizationId}",
+                organizationId);
+
+            throw;
+        }
+    }
+
+    public async Task<List<EmployeeSimpleDto>> GetManagerEmployeeAsync(
+        Guid managerId,
+        Guid organizationId,
+        Guid? departmentId)
+    {
+        try
+        {
+            var sql = @"
+            SELECT 
+                e.employeeid AS EmployeeId,
+                e.firstname AS FirstName,
+                e.lastname AS LastName
+            FROM employee.employees e
+            INNER JOIN employee.employmentdetails d
+                ON e.employeeid = d.employeeid
+            WHERE e.organizationid = @OrganizationId
+              AND e.status = 'active'
+              AND d.reportingmanagerid = @ManagerId
+              AND d.iscurrent = true
+              AND (@DepartmentId IS NULL OR d.departmentid = @DepartmentId)
+            ORDER BY e.firstname, e.lastname;
+        ";
+
+            var parameters = new
+            {
+                OrganizationId = organizationId,
+                ManagerId = managerId,
+                DepartmentId = departmentId
+            };
+
+            // ?? This matches EXACTLY your UpdateShiftAsync repo style
+            var result = await QueryAsync<EmployeeSimpleDto>(sql, parameters);
+
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error retrieving employees for Manager {ManagerId} in Organization {OrganizationId}",
+                managerId, organizationId);
+
+            throw;
+        }
+    }
+
+
 
     public async Task<Guid> GetEmpId(Guid? employeeId)
     {

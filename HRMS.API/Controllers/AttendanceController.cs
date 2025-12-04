@@ -1,4 +1,6 @@
+using DocumentFormat.OpenXml.Bibliography;
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
@@ -124,7 +126,7 @@ public class AttendanceController : ControllerBase
             });
         }
     }
-
+    
     [HttpGet("summary")]
     public async Task<ActionResult<ServiceResponse<AttendanceSummaryDto>>> GetAttendanceSummary([FromQuery] Guid? employeeId, [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
@@ -183,7 +185,7 @@ public class AttendanceController : ControllerBase
         {
             var employeeId = await GetCurrentEmployeeId();
             var session = await _attendanceService.GetCurrentSessionAsync(employeeId);
-            
+
             return Ok(new ServiceResponse<TimeTrackingSessionDto>
             {
                 Success = true,
@@ -200,6 +202,61 @@ public class AttendanceController : ControllerBase
             });
         }
     }
+
+
+    [HttpGet("employeeSession")]
+    public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeTodaySessions([FromQuery] DateTime? date = null)
+    {
+        try
+        {
+            var employeeId = await GetCurrentEmployeeId();
+            var sessions = await _attendanceService.EmployeeTodaySessions(employeeId, date);
+
+            return Ok(new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = true,
+                Data = sessions
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving current sessions");
+            return StatusCode(500, new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving current sessions"
+            });
+        }
+    }
+
+
+
+    [HttpGet("employeeSession/{id}")]
+    public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByid(Guid id, [FromQuery] DateTime? date = null)
+    {
+        try
+        {
+            //var employeeId = await GetCurrentEmployeeId();
+            var sessions = await _attendanceService.EmployeeTodaySessions(id,date);
+
+            return Ok(new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = true,
+                Data = sessions
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving current sessions");
+            return StatusCode(500, new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving current sessions"
+            });
+        }
+    }
+
+
 
     [HttpGet("{id}")]
     public async Task<ActionResult<ServiceResponse<AttendanceDto>>> GetAttendance(Guid id)
@@ -815,14 +872,14 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("reports")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId)
+    public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var currentEmployeeId = await GetCurrentEmployeeId();
-            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate, currentEmployeeId);
-            
+            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate, currentEmployeeId, departmentId, status, employeeId);
+
             return Ok(new ServiceResponse<AttendanceReportDto>
             {
                 Success = true,
@@ -840,15 +897,73 @@ public class AttendanceController : ControllerBase
         }
     }
 
-    [HttpGet("export")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<IActionResult> ExportAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] string format = "xlsx")
+
+    //[HttpGet("/departmentid{}")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    //public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetEmployeeDepratment(Guid? departmentId)
+    //{
+    //    try
+    //    {
+    //        var organizationId = GetCurrentOrganizationId();
+    //        var currentEmployeeId = await GetCurrentEmployeeId();
+    //        var Getemployees = await _attendanceService.GetdepartmentEmployeesAsync(currentEmployeeId, departmentId,organizationId);
+
+
+
+    //        return Ok(new ServiceResponse<AttendanceReportDto>
+    //        {
+    //            Success = true,
+    //            Data = Getemployees
+    //        });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error generating attendance report");
+    //        return StatusCode(500, new ServiceResponse<AttendanceReportDto>
+    //        {
+    //            Success = false,
+    //            Message = "An error occurred while generating attendance report"
+    //        });
+    //    }
+    //}
+
+
+    [HttpGet("departmentEmployees")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeSimpleDto>>>> GetEmployeesByDepartment([FromQuery] Guid? departmentId)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var currentEmployeeId = await GetCurrentEmployeeId();
-            var fileBytes = await _attendanceService.ExportAttendanceReportAsync(organizationId, startDate, endDate, format, employeeId, currentEmployeeId);
+
+            var employees = await _attendanceService.GetdepartmentEmployeesAsync(currentEmployeeId, departmentId, organizationId);
+
+            return Ok(new ServiceResponse<List<EmployeeSimpleDto>>
+            {
+                Success = true,
+                Data = employees
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employees by department");
+            return StatusCode(500, new ServiceResponse<List<EmployeeSimpleDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employees"
+            });
+        }
+    }
+
+    [HttpGet("export")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> ExportAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] string format = "xlsx")
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var fileBytes = await _attendanceService.ExportAttendanceReportAsync(organizationId, startDate, endDate, format, employeeId, currentEmployeeId,departmentId, status);
             
             var contentType = format.ToLower() == "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             var fileName = $"attendance-report-{startDate:yyyy-MM-dd}-to-{endDate:yyyy-MM-dd}.{format}";
