@@ -25,7 +25,7 @@ public class AttendanceSearchViewModel
     [FromQuery(Name="departmentId")]
     public Guid? departmentid { get; set; }
     public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 50;
+    public int PageSize { get; set; } = 10;
 }
 
 public class LeaveRequestSearchViewModel

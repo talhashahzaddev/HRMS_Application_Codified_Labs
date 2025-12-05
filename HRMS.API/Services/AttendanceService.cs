@@ -217,6 +217,25 @@ public class AttendanceService : IAttendanceService
         return await _attendanceRepository.UpdateAttendanceAsync(attendanceId, attendance);
     }
 
+
+    public async Task<PagedResult<AttendanceSessionWithInfoDto>> EmployeeAllAttendanceAsync(
+    Guid employeeId,
+    DateTime startDate,
+    DateTime endDate,
+    int pageNumber,
+    int pageSize)
+    {
+        return await _attendanceRepository.GetEmployeeSessionsWithInfoAsync(
+            employeeId,
+            startDate,
+            endDate,
+            pageNumber,
+            pageSize
+        );
+    }
+
+
+
     public async Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date)
     {
         return await _attendanceRepository.GetDepartmentAttendanceAsync(departmentId, date);
@@ -471,9 +490,18 @@ public class AttendanceService : IAttendanceService
     }
 
 
-    public async Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId)
+    public async Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId,Guid currentEmployeeId)
     {
-        return await _attendanceRepository.GetPendingShiftSwapRequestsAsync(organizationId);
+        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+        if (isAdminOrHR)
+        {
+            return await _attendanceRepository.GetPendingShiftSwapRequestsAsync(organizationId);
+        }
+        else
+        {
+            return await _attendanceRepository.GetManagerPendingShiftsAsync(organizationId,currentEmployeeId);
+        }
+       
     }
 
     public async Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId)

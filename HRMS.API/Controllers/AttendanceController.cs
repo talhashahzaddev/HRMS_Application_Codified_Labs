@@ -409,6 +409,7 @@ public class AttendanceController : ControllerBase
         }
     }
 
+
     [HttpGet("my-summary")]
     public async Task<ActionResult<ServiceResponse<AttendanceSummaryDto>>> GetMyAttendanceSummary([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
@@ -416,7 +417,7 @@ public class AttendanceController : ControllerBase
         {
             var employeeId = await GetCurrentEmployeeId();
             var summary = await _attendanceService.GetAttendanceSummaryAsync(employeeId, startDate, endDate);
-            
+
             return Ok(new ServiceResponse<AttendanceSummaryDto>
             {
                 Success = true,
@@ -433,6 +434,48 @@ public class AttendanceController : ControllerBase
             });
         }
     }
+
+
+
+
+
+    [HttpGet("EmployeeAllAttendance")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<AttendanceSessionWithInfoDto>>>> EmployeeAllAttendance(
+    [FromQuery] DateTime startDate,
+    [FromQuery] DateTime endDate,
+    [FromQuery] int pageNumber = 1,
+    [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.EmployeeAllAttendanceAsync(
+                employeeId,
+                startDate,
+                endDate,
+                pageNumber,
+                pageSize
+            );
+
+            return Ok(new ServiceResponse<PagedResult<AttendanceSessionWithInfoDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee attendance");
+            return StatusCode(500, new ServiceResponse<PagedResult<AttendanceSessionWithInfoDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee attendance"
+            });
+        }
+    }
+
+
 
     [HttpGet("employee/{employeeId}")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
@@ -632,7 +675,8 @@ public class AttendanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId(); // method to get org id from context
-            var requests = await _attendanceService.GetPendingShiftSwapRequestsAsync(organizationId);
+            var currentEmployee = await GetCurrentEmployeeId();
+            var requests = await _attendanceService.GetPendingShiftSwapRequestsAsync(organizationId,currentEmployee);
 
             return Ok(new ServiceResponse<List<PendingShiftSwapDto>>
             {
