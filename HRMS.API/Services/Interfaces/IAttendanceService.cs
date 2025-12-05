@@ -5,13 +5,20 @@ namespace HRMS.API.Services.Interfaces;
 
 public interface IAttendanceService
 {
+    //Task<List<AttendanceSessionWithInfoDto>> EmployeeAllAttendanceAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber,int pageSize);
+    Task<PagedResult<AttendanceSessionWithInfoDto>> EmployeeAllAttendanceAsync(
+    Guid employeeId,
+    DateTime startDate,
+    DateTime endDate,
+    int pageNumber,
+    int pageSize);
 
     Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId);
     Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request);
     Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId, DateTime? date);
     Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId);
     Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId);
-    Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId);
+    Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId,Guid currentEmpid);
     Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto);
     Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
     Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);

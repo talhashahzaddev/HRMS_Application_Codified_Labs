@@ -186,7 +186,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(
         Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null,
-        DateTime? endDate = null, int page = 1, int pageSize = 100, Guid? departmentId = null, string Status = null)
+        DateTime? endDate = null, int page = 1, int pageSize = 10, Guid? departmentId = null, string Status = null)
     {
         try
         {
@@ -219,7 +219,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 Status = r.status
             }).ToList();
 
-            var totalCount = results.FirstOrDefault()?.total_count ?? 0;
+            var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
 
             return new PagedResult<AttendanceDto>
             {
@@ -373,28 +373,39 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         try
         {
+            // Calculate number of working days between startDate and endDate (Monday to Friday)
+            int totalWorkDays = 0;
+            for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+            {
+                if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+                    totalWorkDays++;
+            }
+
+            // Fetch attendance records for employee in the month
             var sql = @"
-                SELECT 
-                    COUNT(*) as totalworkdays,
-                    COUNT(CASE WHEN status = 'present' THEN 1 END) as presentdays,
-                    COUNT(CASE WHEN status = 'absent' THEN 1 END) as absentdays,
-                    COUNT(CASE WHEN status = 'late' THEN 1 END) as latedays,
-                    COALESCE(SUM(totalhours), 0) as totalhours,
-                    COALESCE(SUM(overtimehours), 0) as overtimehours
-                FROM attendance.attendance
-                WHERE employeeid = @employeeId";
+            SELECT 
+                COUNT(*) FILTER (WHERE status = 'present') AS presentdays,
+                COUNT(*) FILTER (WHERE islate = TRUE) AS latedays,
+                COALESCE(SUM(totalhours), 0) AS totalhours,
+                COALESCE(SUM(overtimehours), 0) AS overtimehours
+            FROM attendance.attendance
+            WHERE employeeid = @employeeId
+              AND workdate BETWEEN @startDate AND @endDate";
 
             var result = await QuerySingleAsync<AttendanceSummaryDto>(sql, new { employeeId, startDate, endDate });
 
+            // Calculate absent days as remaining working days
+            int absentDays = totalWorkDays - (result.PresentDays ?? 0);
+
             return new AttendanceSummaryDto
             {
-                TotalWorkDays = result.TotalWorkDays,
-                PresentDays = result.PresentDays,
-                AbsentDays = result.AbsentDays,
-                LateDays = result.LateDays,
+                TotalWorkDays = totalWorkDays,
+                PresentDays = result.PresentDays ?? 0,
+                AbsentDays = absentDays,
+                LateDays = result.LateDays, // you can calculate similarly if you have a islate column
                 TotalHours = result.TotalHours,
                 OvertimeHours = result.OvertimeHours,
-                AverageHoursPerDay = result.TotalWorkDays > 0 ? result.TotalHours / result.TotalWorkDays : 0
+                AverageHoursPerDay = totalWorkDays > 0 ? result.TotalHours / totalWorkDays : 0
             };
         }
         catch (Exception ex)
@@ -403,7 +414,76 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
-    
+
+
+
+    public async Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(
+        Guid employeeId,
+        DateTime startDate,
+        DateTime endDate,
+        int pageNumber = 1,
+        int pageSize = 10)
+    {
+        var offset = (pageNumber - 1) * pageSize;
+
+        // ? Paginated sessions (existing query)
+        var sql = @"
+      SELECT 
+          s.sessionid AS SessionId,
+          s.attendanceid AS AttendanceId,
+          s.checkintime AS CheckInTime,
+          s.checkouttime AS CheckOutTime,
+          s.location AS Location,
+          (e.firstname || ' ' || e.lastname) AS EmployeeName,
+          a.workdate AS WorkDate
+      FROM attendance.attendance a
+      INNER JOIN attendance.attendancesessions s
+          ON a.attendanceid = s.attendanceid
+      INNER JOIN employee.employees e
+          ON a.employeeid = e.employeeid
+      WHERE a.employeeid = @employeeId
+        AND a.workdate BETWEEN @startDate AND @endDate
+      ORDER BY a.workdate DESC, s.checkintime ASC
+      LIMIT @pageSize OFFSET @offset;
+    ";
+
+        var data = (await QueryAsync<AttendanceSessionWithInfoDto>(sql, new
+        {
+            employeeId,
+            startDate,
+            endDate,
+            pageSize,
+            offset
+        })).ToList();
+
+        // ? Count total sessions, not attendances
+        var countSql = @"
+      SELECT COUNT(*)
+      FROM attendance.attendancesessions s
+      INNER JOIN attendance.attendance a
+          ON s.attendanceid = a.attendanceid
+      WHERE a.employeeid = @employeeId
+        AND a.workdate BETWEEN @startDate AND @endDate;
+    ";
+
+        var totalCount = await QuerySingleAsync<int>(countSql, new
+        {
+            employeeId,
+            startDate,
+            endDate
+        });
+
+        // ? Return paginated result
+        return new PagedResult<AttendanceSessionWithInfoDto>
+        {
+            Data = data,
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
+
 
     public async Task<bool> UpdateAttendanceAsync(Guid attendanceId, Attendance attendance)
     {
@@ -593,19 +673,37 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         }
     }
 
+    public async Task<Guid?> GetReportingManagerIdAsync(Guid employeeId)
+    {
+        var sql = @"
+        SELECT reportingmanagerid
+        FROM employee.employmentdetails
+        WHERE employeeid = @EmployeeId
+        AND iscurrent = true
+        LIMIT 1;
+    ";
+
+        var result = await QuerySingleOrDefaultAsync<Guid?>(sql, new
+        {
+            EmployeeId = employeeId
+        });
+
+         return result; // Returns null if manager not found
+    }
+
     public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
     {
         try
         {
             var employeeId = await GetEmpId(requestDto.EmployeeId);
-
+            var reportingmanagerid = await GetReportingManagerIdAsync(employeeId);
 
 
             var sql = @"
             INSERT INTO attendance.shiftswaprequests
-            (employeeid, currentshiftid, requestedshiftid, reason,organizationid)
+            (employeeid, currentshiftid, requestedshiftid, reason, organizationid, reportingmanagerid)
             VALUES
-            (@EmployeeId, @CurrentShiftId, @RequestedShiftId, @Reason,@organizationId);
+            (@EmployeeId, @CurrentShiftId, @RequestedShiftId, @Reason, @OrganizationId, @ReportingManagerId);
         ";
 
             var parameters = new
@@ -614,7 +712,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 CurrentShiftId = requestDto.CurrentShiftId,
                 RequestedShiftId = requestDto.RequestedShiftId,
                 Reason = requestDto.Reason,
-                organizationId = organizationId
+                organizationId = organizationId,
+                ReportingManagerId=reportingmanagerid
             };
 
             var rows = await ExecuteAsync(sql, parameters);
@@ -745,6 +844,49 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching pending shift swap requests for organization {OrganizationId}", organizationId);
+            throw;
+        }
+    }
+
+    public async Task<List<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId)
+    {
+        try
+        {
+            var sql = @"
+        SELECT 
+            ss.requestid,
+            ss.employeeid,
+            e.firstname || ' ' || e.lastname AS EmployeeName,
+            ss.currentshiftid,
+            cs.shiftname AS CurrentShiftName,
+            ss.requestedshiftid,
+            rs.shiftname AS RequestedShiftName,
+            ss.reason,
+            ss.status
+        FROM attendance.shiftswaprequests ss
+        INNER JOIN employee.employees e 
+            ON ss.employeeid = e.employeeid
+        LEFT JOIN attendance.shifts cs
+            ON ss.currentshiftid = cs.shiftid
+        LEFT JOIN attendance.shifts rs
+            ON ss.requestedshiftid = rs.shiftid
+        WHERE ss.organizationid = @OrganizationId
+          AND ss.reportingmanagerid = @ManagerId
+          AND ss.status = 'pending';
+        ";
+
+            var parameters = new
+            {
+                OrganizationId = organizationId,
+                ManagerId = currentEmployeeId
+            };
+
+            var result = await QueryAsync<PendingShiftSwapDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching pending shift swap requests for manager {ManagerId} in organization {OrganizationId}", currentEmployeeId, organizationId);
             throw;
         }
     }
