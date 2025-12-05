@@ -43,6 +43,8 @@ public class AttendanceSearchRequest
     public int PageSize { get; set; } = 50;
 }
 
+
+
 public class AttendanceSummaryDto
 {
     public int? TotalWorkDays { get; set; }
@@ -53,6 +55,17 @@ public class AttendanceSummaryDto
     public decimal? OvertimeHours { get; set; }
     public decimal? AverageHoursPerDay { get; set; }
 }
+public class AttendanceSessionWithInfoDto
+{
+    public Guid SessionId { get; set; }
+    public Guid AttendanceId { get; set; }
+    public DateTime CheckInTime { get; set; }
+    public DateTime? CheckOutTime { get; set; }
+    public string? Location { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public DateTime WorkDate { get; set; }
+}
+
 
 public class TimeTrackingSessionDto
 {
