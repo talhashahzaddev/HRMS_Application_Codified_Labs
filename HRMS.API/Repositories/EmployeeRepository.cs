@@ -201,11 +201,14 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                     offset = (page - 1) * pageSize
                 });
 
+
             var employees = results.Select(r => new EmployeeListItemDto
             {
                 EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
                 EmployeeCode = r.employeecode,
                 FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
+                FirstName = r.firstname,
+                LastName = r.lastname,
                 Email = r.email,
                 Phone = r.phone,
                 HireDate = r.hiredate,
@@ -213,9 +216,42 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 Status = r.status,
                 ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
                 DepartmentName = r.departmentname,
-                PositionTitle = r.positiontitle
+                PositionTitle = r.positiontitle,
+                PayType = r.paytype,
+                BasicSalary = r.basicsalary,
+                ReportingManagerId = r.reportingmanagerid,
+                ReportingManagerName = r.reportingmanagername ?? string.Empty,
+                Gender = r.gender,
+                Nationality = r.nationality,
+                MaritalStatus = r.maritalstatus
             }).ToList();
 
+
+
+            //// Map results to DTO
+            //var employees = results.Select(r => new EmployeeListItemDto
+            //{
+            //    EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
+            //    EmployeeCode = r.employeecode,
+            //    FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
+            //    FirstName = r.firstname,
+            //    LastName = r.lastname,
+            //    Email = r.email,
+            //    Phone = r.phone,
+            //    HireDate = r.hiredate,
+            //    employmentType = r.employmenttype ?? "full_time",
+            //    Status = r.status,
+            //    ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
+            //    DepartmentName = r.departmentname,
+            //    PositionTitle = r.positiontitle,
+            //    PayType = r.paytype,
+            //    BasicSalary = r.basicsalary,
+            //    ReportingManagerId = r.reportingmanagerid,
+            //    ReportingManagerName = r.reportingmanagername ?? string.Empty, // <- included
+            //    Gender = r.gender,
+            //    Nationality = r.nationality,
+            //    MaritalStatus = r.maritalstatus
+            //}).ToList();
             var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
 
             return new PagedResult<EmployeeListItemDto>
