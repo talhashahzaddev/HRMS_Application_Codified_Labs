@@ -39,7 +39,6 @@ public class EmployeeSimpleDto
 
 
 
-
 public class EmployeeListItemDto
 {
     public Guid? EmployeeId { get; set; }
@@ -59,7 +58,19 @@ public class EmployeeListItemDto
     public Guid? positionid { get; set; }
     public string? PositionTitle { get; set; }
     public bool? IsActive { get; set; }
+
+    // New fields
+    public string? PayType { get; set; }
+    public decimal? BasicSalary { get; set; }
+    public Guid? ReportingManagerId { get; set; }
+    public string? Gender { get; set; }
+    public string? Nationality { get; set; }
+    public string? MaritalStatus { get; set; }
+    public string? ReportingManagerName { get; set; } = string.Empty;
 }
+
+
+
 
 public class CreateEmployeeRequest
 {
