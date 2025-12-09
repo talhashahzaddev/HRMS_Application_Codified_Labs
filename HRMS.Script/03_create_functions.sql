@@ -265,6 +265,7 @@ $$ LANGUAGE plpgsql;
 
 -- DROP FUNCTION IF EXISTS employee.fn_get_employees(uuid, character varying, uuid, uuid, character varying, character varying, integer, integer);
 
+
 CREATE OR REPLACE FUNCTION employee.fn_get_employees(
 	p_organization_id uuid DEFAULT NULL::uuid,
 	p_search_term character varying DEFAULT NULL::character varying,
@@ -274,7 +275,7 @@ CREATE OR REPLACE FUNCTION employee.fn_get_employees(
 	p_status character varying DEFAULT NULL::character varying,
 	p_limit integer DEFAULT 50,
 	p_offset integer DEFAULT 0)
-    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentname character varying, profilepictureurl character varying, positiontitle character varying, employmenttype character varying, totalcount bigint) 
+    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentname character varying, profilepictureurl character varying, positiontitle character varying, employmenttype character varying, paytype character varying, basicsalary numeric, reportingmanagerid uuid, reportingmanagername character varying, gender character varying, nationality character varying, maritalstatus character varying, dateofbirth date, address jsonb, emergencycontact jsonb, totalcount bigint) 
     LANGUAGE 'plpgsql'
     COST 100
     VOLATILE PARALLEL UNSAFE
@@ -284,7 +285,7 @@ AS $BODY$
 DECLARE
     total_records BIGINT;
 BEGIN
-    -- Count total records with filters
+    -- Count total matching records
     SELECT COUNT(*) INTO total_records
     FROM employee.employees e
     LEFT JOIN employee.employmentdetails ed 
@@ -317,7 +318,20 @@ BEGIN
         e.profilepictureurl,
         pos.positiontitle,
         ed.employmenttype,
-        total_records
+        ed.paytype,
+        ed.basicsalary,
+        ed.reportingmanagerid,
+        (CASE 
+            WHEN rm.firstname IS NULL AND rm.lastname IS NULL THEN NULL
+            ELSE rm.firstname || ' ' || rm.lastname
+         END)::character varying AS reportingmanagername,
+        e.gender,
+        e.nationality,
+        e.maritalstatus,
+        e.dateofbirth,
+        e.address::jsonb,
+        e.emergencycontact::jsonb,
+        total_records::bigint
     FROM employee.employees e
     LEFT JOIN employee.employmentdetails ed 
            ON e.employeeid = ed.employeeid AND ed.iscurrent = true
@@ -325,6 +339,8 @@ BEGIN
            ON ed.departmentid = d.departmentid
     LEFT JOIN employee.positions pos 
            ON ed.positionid = pos.positionid
+    LEFT JOIN employee.employees rm
+           ON ed.reportingmanagerid = rm.employeeid
     WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
       AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
       AND (p_position_id IS NULL OR ed.positionid = p_position_id)
@@ -337,10 +353,6 @@ BEGIN
     LIMIT p_limit OFFSET p_offset;
 END;
 $BODY$;
-
-ALTER FUNCTION employee.fn_get_employees(uuid, character varying, uuid, uuid, character varying, character varying, integer, integer)
-    OWNER TO postgres;
-
 
 
 -- =====================================================================
