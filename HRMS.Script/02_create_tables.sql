@@ -280,6 +280,27 @@ CREATE TABLE attendance.LeaveRequests (
     UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS attendance.shiftswaprequests
+(
+    requestid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    currentshiftid uuid,
+    requestedshiftid uuid NOT NULL,
+    reason text COLLATE pg_catalog."default",
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    submittedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    approvedby uuid,
+    approvedat timestamp with time zone,
+    rejectionreason text COLLATE pg_catalog."default",
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    reportingmanagerid uuid,
+    CONSTRAINT shiftswaprequests_pkey PRIMARY KEY (requestid)
+)
+
+TABLESPACE pg_default;
+
+
 -- ==============================
 -- PAYROLL SCHEMA
 -- ==============================

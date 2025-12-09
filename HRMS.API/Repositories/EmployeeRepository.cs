@@ -3,6 +3,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using System.Data;
+using System.Text.Json;
 using Dapper;
 using Npgsql;
 
@@ -166,6 +167,84 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         return result;
     }
 
+    //public async Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
+    //Guid? organizationId = null,
+    //string? searchTerm = null,
+    //Guid? departmentId = null,
+    //Guid? positionId = null,
+    //string? employmentType = null,
+    //string? status = null,
+    //int page = 1,
+    //int pageSize = 50)
+    //{
+    //    try
+    //    {
+    //        var results = await QueryAsync<dynamic>(
+    //            @"SELECT * 
+    //          FROM employee.fn_get_employees(
+    //              @organizationId, 
+    //              @searchTerm, 
+    //              @departmentId, 
+    //              @positionId,
+    //              @employmentType, 
+    //              @status, 
+    //              @limit, 
+    //              @offset)",
+    //            new
+    //            {
+    //                organizationId = organizationId == Guid.Empty ? null : organizationId,
+    //                searchTerm = string.IsNullOrWhiteSpace(searchTerm) ? null : searchTerm,
+    //                departmentId = departmentId == Guid.Empty ? null : departmentId,
+    //                positionId = positionId == Guid.Empty ? null : positionId,
+    //                employmentType = string.IsNullOrWhiteSpace(employmentType) ? null : employmentType,
+    //                status = string.IsNullOrWhiteSpace(status) ? null : status,
+    //                limit = pageSize,
+    //                offset = (page - 1) * pageSize
+    //            });
+
+
+    //        var employees = results.Select(r => new EmployeeListItemDto
+    //        {
+    //            EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
+    //            EmployeeCode = r.employeecode,
+    //            FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
+    //            FirstName = r.firstname,
+    //            LastName = r.lastname,
+    //            Email = r.email,
+    //            Phone = r.phone,
+    //            HireDate = r.hiredate,
+    //            employmentType = r.employmenttype ?? "full_time",
+    //            Status = r.status,
+    //            ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
+    //            DepartmentName = r.departmentname,
+    //            PositionTitle = r.positiontitle,
+    //            PayType = r.paytype,
+    //            BasicSalary = r.basicsalary,
+    //            ReportingManagerId = r.reportingmanagerid,
+    //            ReportingManagerName = r.reportingmanagername ?? string.Empty,
+    //            Gender = r.gender,
+    //            Nationality = r.nationality,
+    //            MaritalStatus = r.maritalstatus
+    //        }).ToList();
+
+    //        var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
+
+    //        return new PagedResult<EmployeeListItemDto>
+    //        {
+    //            Data = employees,
+    //            TotalCount = (int)totalCount,
+    //            Page = page,
+    //            PageSize = pageSize
+    //        };
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        // Log exception if needed
+    //        throw;
+    //    }
+    //}
+
+
     public async Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
     Guid? organizationId = null,
     string? searchTerm = null,
@@ -201,7 +280,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                     offset = (page - 1) * pageSize
                 });
 
-
             var employees = results.Select(r => new EmployeeListItemDto
             {
                 EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
@@ -220,38 +298,19 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 PayType = r.paytype,
                 BasicSalary = r.basicsalary,
                 ReportingManagerId = r.reportingmanagerid,
-                ReportingManagerName = r.reportingmanagername ?? string.Empty,
+                ReportingManagerName = r.reportingmanagername,
                 Gender = r.gender,
                 Nationality = r.nationality,
-                MaritalStatus = r.maritalstatus
+                MaritalStatus = r.maritalstatus,
+                DateOfBirth = r.dateofbirth,
+                Address = r.address != null
+                          ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.address.ToString())
+                          : null,
+                EmergencyContact = r.emergencycontact != null
+                          ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.emergencycontact.ToString())
+                          : null
             }).ToList();
 
-
-
-            //// Map results to DTO
-            //var employees = results.Select(r => new EmployeeListItemDto
-            //{
-            //    EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
-            //    EmployeeCode = r.employeecode,
-            //    FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
-            //    FirstName = r.firstname,
-            //    LastName = r.lastname,
-            //    Email = r.email,
-            //    Phone = r.phone,
-            //    HireDate = r.hiredate,
-            //    employmentType = r.employmenttype ?? "full_time",
-            //    Status = r.status,
-            //    ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
-            //    DepartmentName = r.departmentname,
-            //    PositionTitle = r.positiontitle,
-            //    PayType = r.paytype,
-            //    BasicSalary = r.basicsalary,
-            //    ReportingManagerId = r.reportingmanagerid,
-            //    ReportingManagerName = r.reportingmanagername ?? string.Empty, // <- included
-            //    Gender = r.gender,
-            //    Nationality = r.nationality,
-            //    MaritalStatus = r.maritalstatus
-            //}).ToList();
             var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
 
             return new PagedResult<EmployeeListItemDto>
@@ -264,10 +323,11 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         }
         catch (Exception ex)
         {
-            // Log exception if needed
+            // Optional: log the exception
             throw;
         }
     }
+
 
     public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
     {
