@@ -1457,17 +1457,27 @@ WHERE e.organizationid = @organizationId{dateFilter}";
             });
             
             // Create a set of dates covered by approved leaves
+            // Only include working days from the leave period to match with absence calculation
             var leaveDates = new HashSet<DateTime>();
             foreach (var leave in leaveRequests)
             {
                 DateTime leaveStart = ((DateTime)leave.startdate).Date;
                 DateTime leaveEnd = ((DateTime)leave.enddate).Date;
                 
+                // Only add working days from the leave period
                 for (DateTime date = leaveStart; date <= leaveEnd; date = date.AddDays(1))
                 {
+                    // Check if date is within payroll period
                     if (date >= startDate.Date && date <= endDate.Date)
                     {
-                        leaveDates.Add(date);
+                        // Only add if it's a working day according to shift
+                        DayOfWeek dayOfWeek = date.DayOfWeek;
+                        int dayNumber = dayOfWeek == DayOfWeek.Sunday ? 7 : (int)dayOfWeek;
+                        
+                        if (daysOfWeek.Contains(dayNumber))
+                        {
+                            leaveDates.Add(date);
+                        }
                     }
                 }
             }
@@ -1489,6 +1499,13 @@ WHERE e.organizationid = @organizationId{dateFilter}";
                     continue;
                 }
                 
+                // Skip if this date is covered by an approved leave
+                // (Check this first to avoid unnecessary attendance lookup)
+                if (leaveDates.Contains(date))
+                {
+                    continue; // This day is covered by approved leave, not an absence
+                }
+                
                 // Check if employee was present
                 bool isPresent = false;
                 if (attendanceDict.ContainsKey(date))
@@ -1498,20 +1515,39 @@ WHERE e.organizationid = @organizationId{dateFilter}";
                     isPresent = attendance.HasCheckIn;
                 }
                 
-                // If not present on a working day, it's an absence
+                // If not present on a working day (and not on leave), it's an absence
                 if (!isPresent)
                 {
                     absentDates.Add(date);
                 }
             }
             
-            // Filter out absences that are covered by approved leaves
+            // Absences are already filtered (we skip leave dates above), but double-check for safety
             var taxableAbsentDates = absentDates.Where(date => !leaveDates.Contains(date)).ToList();
             int taxableAbsences = taxableAbsentDates.Count;
             
             if (taxableAbsences == 0)
             {
                 return 0; // No taxable absences
+            }
+            
+            // Calculate total working days in the period for validation
+            int totalWorkingDays = 0;
+            for (DateTime date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+            {
+                DayOfWeek dayOfWeek = date.DayOfWeek;
+                int dayNumber = dayOfWeek == DayOfWeek.Sunday ? 7 : (int)dayOfWeek;
+                if (daysOfWeek.Contains(dayNumber))
+                {
+                    totalWorkingDays++;
+                }
+            }
+            
+            // Safety check: absences cannot exceed total working days
+            if (taxableAbsences > totalWorkingDays)
+            {
+                // This indicates a calculation error - cap absences at working days
+                taxableAbsences = totalWorkingDays;
             }
             
             // Calculate tax based on taxable absences
@@ -1539,13 +1575,18 @@ WHERE e.organizationid = @organizationId{dateFilter}";
         {
             // For percentage: tax per absence = (basicSalary * taxValue / 100)
             // Total tax = tax per absence * number of taxable absences
-            decimal taxPerAbsence = (basicSalary * taxValue) / 100;
+            // Example: If basicSalary = 400, taxValue = 3.33, absences = 5
+            // taxPerAbsence = (400 * 3.33) / 100 = 13.32
+            // taxAmount = 13.32 * 5 = 66.6
+            decimal taxPerAbsence = (basicSalary * taxValue) / 100m;
             taxAmount = taxPerAbsence * taxableAbsences;
         }
         else // fixed
         {
             // For fixed: tax per absence = taxValue
             // Total tax = taxValue * number of taxable absences
+            // Example: If taxValue = 50, absences = 5
+            // taxAmount = 50 * 5 = 250
             taxAmount = taxValue * taxableAbsences;
         }
         
