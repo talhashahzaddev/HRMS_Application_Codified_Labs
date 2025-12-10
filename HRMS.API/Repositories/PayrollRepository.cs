@@ -5,6 +5,7 @@ using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Newtonsoft.Json;
 using System.Data;
+using System.Linq;
 
 namespace HRMS.API.Repositories;
 
@@ -1353,49 +1354,6 @@ WHERE e.organizationid = @organizationId{dateFilter}";
     {
         try
         {
-            // Get all paid leave types for the organization
-            var paidLeaveTypesSql = @"
-                SELECT leavetypeid
-                FROM attendance.leavetypes
-                WHERE organizationid = @OrganizationId
-                AND ispaid = true
-                AND isactive = true";
-            
-            var paidLeaveTypeIds = (await QueryAsync<Guid>(paidLeaveTypesSql, new { OrganizationId = organizationId })).ToList();
-            
-            if (!paidLeaveTypeIds.Any())
-            {
-                // No paid leave types, so all absences are taxable
-                return await CalculateAbsenceTax(employeeId, startDate, endDate, taxValue, calculationType, basicSalary, 0);
-            }
-            
-            // Get leave entitlements for the employee for the current year
-            int currentYear = startDate.Year;
-            var leaveEntitlementsSql = @"
-                SELECT 
-                    leavetypeid,
-                    totaldays,
-                    useddays,
-                    remainingdays
-                FROM attendance.leaveentitlements
-                WHERE employeeid = @EmployeeId
-                AND year = @Year
-                AND leavetypeid = ANY(@LeaveTypeIds)";
-            
-            var leaveEntitlements = await QueryAsync<dynamic>(leaveEntitlementsSql, new
-            {
-                EmployeeId = employeeId,
-                Year = currentYear,
-                LeaveTypeIds = paidLeaveTypeIds.ToArray()
-            });
-            
-            // Calculate total remaining paid leaves
-            decimal totalRemainingLeaves = 0;
-            foreach (var entitlement in leaveEntitlements)
-            {
-                totalRemainingLeaves += (decimal)(entitlement.remainingdays ?? 0);
-            }
-            
             // Get employee's shift information
             var shiftSql = @"
                 SELECT 
@@ -1407,17 +1365,49 @@ WHERE e.organizationid = @organizationId{dateFilter}";
                 LEFT JOIN attendance.shifts s ON ed.shiftid = s.shiftid
                 WHERE ed.employeeid = @EmployeeId
                 AND ed.iscurrent = true";
-            
-            var shiftInfo = await QuerySingleOrDefaultAsync<dynamic>(shiftSql, new { EmployeeId = employeeId });
-            
-            if (shiftInfo == null || shiftInfo.shiftid == null || Convert.IsDBNull(shiftInfo.shiftid))
+
+            var shiftInfo = await QuerySingleOrDefaultAsync<ShiftInfo>(shiftSql, new { EmployeeId = employeeId });
+
+
+            if (shiftInfo == null || shiftInfo.ShiftId == null || Convert.IsDBNull(shiftInfo.ShiftId))
             {
                 return 0; // No shift information, cannot calculate
             }
             
             // Parse days of week (format: {1,2,3,4,5} where 1=Monday, 5=Friday)
-            var daysOfWeekStr = shiftInfo.daysofweek?.ToString() ?? "{}";
-            var daysOfWeek = ParseDaysOfWeek(daysOfWeekStr);
+            List<int> daysOfWeek = new List<int>();
+            
+            if (shiftInfo.DaysofWeek != null && !Convert.IsDBNull(shiftInfo.DaysofWeek))
+            {
+                // Dapper returns PostgreSQL integer arrays as int[] or System.Array
+                if (shiftInfo.DaysofWeek is int[] intArray)
+                {
+                    daysOfWeek = intArray.ToList();
+                }
+                else if (shiftInfo.DaysofWeek is System.Array array)
+                {
+                    // Convert array to list of ints
+                    daysOfWeek = new List<int>();
+                    foreach (var item in array)
+                    {
+                        if (item != null && int.TryParse(item.ToString(), out int day))
+                        {
+                            daysOfWeek.Add(day);
+                        }
+                    }
+                }
+                else
+                {
+                    // Try to parse as string (fallback)
+                    var daysOfWeekStr = shiftInfo.DaysofWeek?.ToString() ?? "{}";
+                    daysOfWeek = ParseDaysOfWeek(daysOfWeekStr);
+                }
+            }
+            
+            if (daysOfWeek == null || daysOfWeek.Count == 0)
+            {
+                return 0; // No working days defined in shift
+            }
             
             // Get attendance records for the period
             var attendanceSql = @"
@@ -1438,26 +1428,65 @@ WHERE e.organizationid = @organizationId{dateFilter}";
                 EndDate = endDate.Date
             });
             
-            // Calculate absences
-            int absences = 0;
+            // Create dictionary of attendance records
             var attendanceDict = attendanceRecords.ToDictionary(
                 r => ((DateTime)r.workdate).Date,
                 r => new { HasCheckIn = r.checkintime != null && !Convert.IsDBNull(r.checkintime), Status = r.status?.ToString() }
             );
             
+            // Get approved leave requests for the period
+            var leaveRequestsSql = @"
+                SELECT 
+                    startdate,
+                    enddate,
+                    daysrequested,
+                    status
+                FROM attendance.leaverequests
+                WHERE employeeid = @EmployeeId
+                AND status = 'approved'
+                AND (
+                    (startdate <= @EndDate AND enddate >= @StartDate)
+                )
+                ORDER BY startdate";
+            
+            var leaveRequests = await QueryAsync<dynamic>(leaveRequestsSql, new
+            {
+                EmployeeId = employeeId,
+                StartDate = startDate.Date,
+                EndDate = endDate.Date
+            });
+            
+            // Create a set of dates covered by approved leaves
+            var leaveDates = new HashSet<DateTime>();
+            foreach (var leave in leaveRequests)
+            {
+                DateTime leaveStart = ((DateTime)leave.startdate).Date;
+                DateTime leaveEnd = ((DateTime)leave.enddate).Date;
+                
+                for (DateTime date = leaveStart; date <= leaveEnd; date = date.AddDays(1))
+                {
+                    if (date >= startDate.Date && date <= endDate.Date)
+                    {
+                        leaveDates.Add(date);
+                    }
+                }
+            }
+            
+            // Calculate absences for working days in the period
+            List<DateTime> absentDates = new List<DateTime>();
+            
             // Iterate through each day in the period
             for (DateTime date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
             {
                 // Check if this day is a working day according to shift
-                // PostgreSQL array uses 0-based indexing where 0=Monday, 6=Sunday
-                // But the array format {1,2,3,4,5} means Monday=1, Tuesday=2, etc.
-                DayOfWeek dayOfWeek = date.DayOfWeek;
                 // Convert C# DayOfWeek (Sunday=0, Monday=1, ..., Saturday=6) to PostgreSQL format (Monday=1, ..., Sunday=7)
+                DayOfWeek dayOfWeek = date.DayOfWeek;
                 int dayNumber = dayOfWeek == DayOfWeek.Sunday ? 7 : (int)dayOfWeek;
                 
+                // Skip if not a working day
                 if (!daysOfWeek.Contains(dayNumber))
                 {
-                    continue; // Not a working day, skip
+                    continue;
                 }
                 
                 // Check if employee was present
@@ -1465,22 +1494,20 @@ WHERE e.organizationid = @organizationId{dateFilter}";
                 if (attendanceDict.ContainsKey(date))
                 {
                     var attendance = attendanceDict[date];
-                    // Check if employee checked in or if status is present/approved
-                    isPresent = attendance.HasCheckIn || 
-                               (attendance.Status != null && 
-                                (attendance.Status.ToLower() == "present" || 
-                                 attendance.Status.ToLower() == "approved"));
+                    // Check if employee checked in
+                    isPresent = attendance.HasCheckIn;
                 }
                 
+                // If not present on a working day, it's an absence
                 if (!isPresent)
                 {
-                    // Employee was absent on this working day
-                    absences++;
+                    absentDates.Add(date);
                 }
             }
             
-            // Calculate taxable absences (absences that exceed remaining leaves)
-            int taxableAbsences = Math.Max(0, absences - (int)Math.Floor(totalRemainingLeaves));
+            // Filter out absences that are covered by approved leaves
+            var taxableAbsentDates = absentDates.Where(date => !leaveDates.Contains(date)).ToList();
+            int taxableAbsences = taxableAbsentDates.Count;
             
             if (taxableAbsences == 0)
             {
@@ -1674,3 +1701,10 @@ WHERE e.organizationid = @organizationId{dateFilter}";
         };
     }
 }
+    public class ShiftInfo
+    {
+        public Guid? ShiftId { get; set; }
+        public int[]? DaysofWeek { get; set; }
+        public TimeSpan? StartTime { get; set; }
+        public TimeSpan? EndTime { get; set; }
+    }
