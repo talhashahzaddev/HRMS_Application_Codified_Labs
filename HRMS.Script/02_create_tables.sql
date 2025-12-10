@@ -165,21 +165,9 @@ CREATE TABLE employee.Documents (
 -- ==============================
 -- ATTENDANCE SCHEMA
 -- ==============================
+-- Table: attendance.attendance
 
-CREATE TABLE attendance.Shifts (
-    ShiftId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    OrganizationId UUID,
-    ShiftName VARCHAR(100) NOT NULL,
-    StartTime TIME NOT NULL,
-    EndTime TIME NOT NULL,
-    BreakDuration INTEGER DEFAULT 0,
-    DaysOfWeek INTEGER[] DEFAULT '{1,2,3,4,5}',
-    Timezone VARCHAR(50) DEFAULT 'UTC',
-    IsActive BOOLEAN DEFAULT true,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT UQ_Shifts UNIQUE(OrganizationId, ShiftName)
-);
-
+-- DROP TABLE IF EXISTS attendance.attendance;
 
 CREATE TABLE IF NOT EXISTS attendance.attendance
 (
@@ -207,10 +195,39 @@ CREATE TABLE IF NOT EXISTS attendance.attendance
 
 TABLESPACE pg_default;
 
--- ==============================
--- ATTENDANCE Sessions Table
--- ==============================
+ALTER TABLE IF EXISTS attendance.attendance
+    OWNER to postgres;
 
+-- Table: attendance.shifts
+
+-- DROP TABLE IF EXISTS attendance.shifts;
+
+CREATE TABLE IF NOT EXISTS attendance.shifts
+(
+    shiftid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid,
+    shiftname character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    starttime time without time zone NOT NULL,
+    endtime time without time zone NOT NULL,
+    breakduration integer DEFAULT 0,
+    daysofweek integer[] DEFAULT '{1,2,3,4,5}'::integer[],
+    timezone character varying(50) COLLATE pg_catalog."default" DEFAULT 'UTC'::character varying,
+    isactive boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT shifts_pkey PRIMARY KEY (shiftid),
+    CONSTRAINT uq_shifts UNIQUE (organizationid, shiftname)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS attendance.shifts
+    OWNER to postgres;
+
+
+
+-- Table: attendance.attendancesessions
+
+-- DROP TABLE IF EXISTS attendance.attendancesessions;
 
 CREATE TABLE IF NOT EXISTS attendance.attendancesessions
 (
@@ -230,56 +247,118 @@ CREATE TABLE IF NOT EXISTS attendance.attendancesessions
 
 TABLESPACE pg_default;
 
+ALTER TABLE IF EXISTS attendance.attendancesessions
+    OWNER to postgres;
 
-CREATE TABLE attendance.LeaveTypes (
-    LeaveTypeId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    OrganizationId UUID,
-    TypeName VARCHAR(100) NOT NULL,
-    Description TEXT,
-    MaxDaysPerYear INTEGER DEFAULT 0,
-    IsPaid BOOLEAN DEFAULT true,
-    CarryForwardAllowed BOOLEAN DEFAULT false,
-    MaxCarryForwardDays INTEGER DEFAULT 0,
-    RequiresApproval BOOLEAN DEFAULT true,
-    AdvanceNoticeDays INTEGER DEFAULT 0,
-    Color VARCHAR(7) DEFAULT '#2196F3',
-    IsActive BOOLEAN DEFAULT true,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT UQ_LeaveTypes UNIQUE(OrganizationId, TypeName)
-);
 
-CREATE TABLE attendance.LeaveEntitlements (
-    EntitlementId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    EmployeeId UUID,
-    LeaveTypeId UUID,
-    Year INTEGER NOT NULL,
-    TotalDays DECIMAL(5, 2) DEFAULT 0,
-    UsedDays DECIMAL(5, 2) DEFAULT 0,
-    RemainingDays DECIMAL(5, 2) DEFAULT 0,
-    CarryForwardDays DECIMAL(5, 2) DEFAULT 0,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT UQ_LeaveEntitlements UNIQUE(EmployeeId, LeaveTypeId, Year)
-);
+-- Table: attendance.leavetypes
 
-CREATE TABLE attendance.LeaveRequests (
-    RequestId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    EmployeeId UUID,
-    LeaveTypeId UUID,
-    StartDate DATE NOT NULL,
-    EndDate DATE NOT NULL,
-    DaysRequested DECIMAL(5, 2) NOT NULL,
-    Reason TEXT,
-    AttachmentUrl VARCHAR(500),
-    Status VARCHAR(20) DEFAULT 'pending',
-    SubmittedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    ApprovedBy UUID,
-    ApprovedAt TIMESTAMP WITH TIME ZONE,
-    RejectionReason TEXT,
-    CreatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+-- DROP TABLE IF EXISTS attendance.leavetypes;
 
+CREATE TABLE IF NOT EXISTS attendance.leavetypes
+(
+    leavetypeid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid,
+    typename character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    maxdaysperyear integer DEFAULT 0,
+    ispaid boolean DEFAULT true,
+    carryforwardallowed boolean DEFAULT false,
+    maxcarryforwarddays integer DEFAULT 0,
+    requiresapproval boolean DEFAULT true,
+    advancenoticedays integer DEFAULT 0,
+    color character varying(7) COLLATE pg_catalog."default" DEFAULT '#2196F3'::character varying,
+    isactive boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT leavetypes_pkey PRIMARY KEY (leavetypeid),
+    CONSTRAINT uq_leavetypes UNIQUE (organizationid, typename)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS attendance.leavetypes
+    OWNER to postgres;
+
+-- Table: attendance.leaveentitlements
+
+-- DROP TABLE IF EXISTS attendance.leaveentitlements;
+
+CREATE TABLE IF NOT EXISTS attendance.leaveentitlements
+(
+    entitlementid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    employeeid uuid,
+    leavetypeid uuid,
+    year integer NOT NULL,
+    totaldays numeric(5,2) DEFAULT 0,
+    useddays numeric(5,2) DEFAULT 0,
+    remainingdays numeric(5,2) DEFAULT 0,
+    carryforwarddays numeric(5,2) DEFAULT 0,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT leaveentitlements_pkey PRIMARY KEY (entitlementid),
+    CONSTRAINT uq_leaveentitlements UNIQUE (employeeid, leavetypeid, year)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS attendance.leaveentitlements
+    OWNER to postgres;
+
+-- Table: attendance.leaverequests
+
+-- DROP TABLE IF EXISTS attendance.leaverequests;
+
+CREATE TABLE IF NOT EXISTS attendance.leaverequests
+(
+    requestid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    employeeid uuid,
+    leavetypeid uuid,
+    startdate date NOT NULL,
+    enddate date NOT NULL,
+    daysrequested numeric(5,2) NOT NULL,
+    reason text COLLATE pg_catalog."default",
+    attachmenturl character varying(500) COLLATE pg_catalog."default",
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    submittedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    approvedby uuid,
+    approvedat timestamp with time zone,
+    rejectionreason text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT leaverequests_pkey PRIMARY KEY (requestid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS attendance.leaverequests
+    OWNER to postgres;
+
+-- Table: attendance.shiftswaprequests
+
+-- DROP TABLE IF EXISTS attendance.shiftswaprequests;
+
+CREATE TABLE IF NOT EXISTS attendance.shiftswaprequests
+(
+    requestid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    currentshiftid uuid,
+    requestedshiftid uuid NOT NULL,
+    reason text COLLATE pg_catalog."default",
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    submittedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    approvedby uuid,
+    approvedat timestamp with time zone,
+    rejectionreason text COLLATE pg_catalog."default",
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    reportingmanagerid uuid,
+    CONSTRAINT shiftswaprequests_pkey PRIMARY KEY (requestid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS attendance.shiftswaprequests
+    OWNER to postgres;
 -- ==============================
 -- PAYROLL SCHEMA
 -- ==============================
@@ -362,6 +441,7 @@ CREATE TABLE IF NOT EXISTS payroll.salarycomponents
     calculationtype character varying(20) COLLATE pg_catalog."default" NOT NULL,
     value numeric(10,2) NOT NULL DEFAULT 0,
     isactive boolean DEFAULT true,
+    isabsenttax boolean DEFAULT false,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT salarycomponents_pkey PRIMARY KEY (componentid)
