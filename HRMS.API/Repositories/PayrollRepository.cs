@@ -5,6 +5,7 @@ using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Newtonsoft.Json;
 using System.Data;
+using System.Linq;
 
 namespace HRMS.API.Repositories;
 
@@ -18,11 +19,14 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     {
         try
         {
+            // Determine if this is an attendance-based tax component based on the name
+            bool isAbsentTax = IsAbsentTaxComponent(request.Name);
+            
             var sql = @"
             INSERT INTO payroll.salarycomponents 
-            (organizationid, name, code, type, calculationtype, value, isactive, createdat)
+            (organizationid, name, code, type, calculationtype, value, isactive, isabsenttax, createdat)
             VALUES 
-            (@OrganizationId, @Name, @Code, @Type, @CalculationType, @Value, @IsActive, NOW())
+            (@OrganizationId, @Name, @Code, @Type, @CalculationType, @Value, @IsActive, @IsAbsentTax, NOW())
             RETURNING componentid, createdat";
 
             var parameters = new
@@ -33,7 +37,8 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 request.Type,
                 request.CalculationType,
                 request.Value,
-                request.IsActive
+                request.IsActive,
+                IsAbsentTax = isAbsentTax
             };
 
             var result = await QuerySingleAsync<dynamic>(sql, parameters);
@@ -100,6 +105,9 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     {
         try
         {
+            // Determine if this is an attendance-based tax component based on the name
+            bool isAbsentTax = IsAbsentTaxComponent(request.Name);
+            
             var sql = @"
             UPDATE payroll.salarycomponents
             SET 
@@ -109,6 +117,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 calculationtype = @CalculationType,
                 value = @Value,
                 isactive = @IsActive,
+                isabsenttax = @IsAbsentTax,
                 updatedat = NOW()
             WHERE componentid = @ComponentId
             RETURNING componentid, organizationid, name, code, type, calculationtype, value, isactive, createdat, updatedat";
@@ -121,7 +130,8 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 request.Type,
                 request.CalculationType,
                 request.Value,
-                request.IsActive
+                request.IsActive,
+                IsAbsentTax = isAbsentTax
             };
 
             return await QuerySingleAsync<SalaryComponent>(sql, parameters);
@@ -358,38 +368,124 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         return await QuerySingleOrDefaultAsync<PayrollPeriod>(sql, new { periodId });
     }
 
-    public async Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId, List<Guid>? departmentIds = null, bool includeTax = false)
+    public async Task<int> CalculatePayrollAsync(Guid periodId, Guid organizationId, Guid? ruleId, List<Guid>? departmentIds = null, bool includeTax = false)
     {
         try
         {
-            // Get the payroll period to determine organization
+            // Get the payroll period to determine dates
             var period = await GetPayrollPeriodByIdAsync(periodId);
             if (period == null)
             {
                 throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
             }
             
-            var organizationId = period.OrganizationId;
+            // Check if ruleId is provided and if the component is attendance-based
+            bool isAttendanceBasedTax = false;
+            Guid? absentTaxComponentId = null;
+            Guid? absentTaxPositionId = null;
+            decimal? absentTaxValue = null;
+            string? absentTaxCalculationType = null;
+            Guid? rulePositionId = null; // Position ID from the salary rule
             
-            // Build employee query with optional department filter
+            if (ruleId.HasValue)
+            {
+                // Check if the rule's component is attendance-based and get rule details
+                var ruleCheckSql = @"
+                    SELECT 
+                        sc.componentid, 
+                        sc.isabsenttax,
+                        sc.calculationtype,
+                        sc.value,
+                        sr.positionid,
+                        sr.departmentid,
+                        sr.value_override
+                    FROM payroll.salaryrules sr
+                    INNER JOIN payroll.salarycomponents sc ON sr.componentid = sc.componentid
+                    WHERE sr.ruleid = @RuleId
+                    AND sc.organizationid = @OrganizationId";
+                
+                var ruleCheck = await QuerySingleOrDefaultAsync<dynamic>(ruleCheckSql, new 
+                { 
+                    RuleId = ruleId.Value,
+                    OrganizationId = organizationId
+                });
+                
+                if (ruleCheck != null)
+                {
+                    // Get position ID from rule (if specified)
+                    if (ruleCheck.positionid != null && !Convert.IsDBNull(ruleCheck.positionid))
+                    {
+                        rulePositionId = (Guid?)ruleCheck.positionid;
+                    }
+                    
+                    // Check if it's attendance-based tax
+                    if (ruleCheck.isabsenttax != null && Convert.ToBoolean(ruleCheck.isabsenttax))
+                    {
+                        isAttendanceBasedTax = true;
+                        absentTaxComponentId = ruleCheck.componentid;
+                        absentTaxPositionId = ruleCheck.positionid;
+                        absentTaxCalculationType = ruleCheck.calculationtype?.ToString()?.ToLower();
+                        absentTaxValue = ruleCheck.value_override != null ? (decimal?)ruleCheck.value_override : (decimal?)ruleCheck.value;
+                    }
+                }
+            }
+            
+            // Build employee query with optional department and position filters
             var employeesSql = @"
-                SELECT e.employeeid, e.organizationid, ed.departmentid, ed.positionid, ed.basicsalary
+                SELECT e.employeeid, e.organizationid, ed.departmentid, ed.positionid, ed.basicsalary, ed.shiftid
                 FROM employee.employees e
                 JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
                 WHERE e.organizationid = @OrganizationId
-                AND e.status = 'active'";
-            
-            object employeeParams;
+                AND e.status = 'active'
+                AND ed.iscurrent = true";
             
             // Add department filter if provided
             if (departmentIds != null && departmentIds.Any())
             {
                 employeesSql += " AND ed.departmentid = ANY(@DepartmentIds)";
-                employeeParams = new { OrganizationId = organizationId, DepartmentIds = departmentIds.ToArray() };
+            }
+            
+            // Add position filter if rule has a specific position ID
+            // This restricts calculation to only employees with matching position
+            // If rule has NULL position ID, it applies to all positions (no filter added)
+            if (ruleId.HasValue && rulePositionId.HasValue)
+            {
+                employeesSql += " AND ed.positionid = @RulePositionId";
+            }
+            
+            // Build parameters object
+            object employeeParams;
+            if (departmentIds != null && departmentIds.Any())
+            {
+                if (ruleId.HasValue && rulePositionId.HasValue)
+                {
+                    employeeParams = new { 
+                        OrganizationId = organizationId, 
+                        DepartmentIds = departmentIds.ToArray(),
+                        RulePositionId = rulePositionId.Value
+                    };
+                }
+                else
+                {
+                    employeeParams = new { 
+                        OrganizationId = organizationId, 
+                        DepartmentIds = departmentIds.ToArray()
+                    };
+                }
             }
             else
             {
-                employeeParams = new { OrganizationId = organizationId };
+                if (ruleId.HasValue && rulePositionId.HasValue)
+                {
+                    employeeParams = new { 
+                        OrganizationId = organizationId,
+                        RulePositionId = rulePositionId.Value
+                    };
+                }
+                else
+                {
+                    employeeParams = new { OrganizationId = organizationId };
+                }
             }
             
             var employees = await QueryAsync<dynamic>(employeesSql, employeeParams);
@@ -410,10 +506,12 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 if (ruleId.HasValue)
                 {
                     // When a specific rule is selected, use INNER JOIN to ensure we get the rule's component
+                    // Note: Employee filtering by position ID is already done at the employee query level above
+                    // This query ensures the rule applies to the employee's department and position
                     componentsSql = @"
                         SELECT 
                             sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
-                            sr.value_override, sr.ruleid
+                            sc.isabsenttax, sr.value_override, sr.ruleid
                         FROM payroll.salaryrules sr
                         INNER JOIN payroll.salarycomponents sc ON sr.componentid = sc.componentid
                         WHERE sr.ruleid = @RuleId
@@ -438,7 +536,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                     componentsSql = @"
                         SELECT 
                             sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
-                            sr.value_override, sr.ruleid
+                            sc.isabsenttax, sr.value_override, sr.ruleid
                         FROM payroll.salarycomponents sc
                         LEFT JOIN payroll.salaryrules sr ON sc.componentid = sr.componentid
                         WHERE sc.organizationid = @OrganizationId
@@ -462,9 +560,16 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 var allowancesDict = new Dictionary<string, object>();
                 var deductionsDict = new Dictionary<string, object>();
                 
-                // Calculate each component
+                // Calculate each component (skip attendance-based tax as it's calculated separately)
                 foreach (var component in components)
                 {
+                    // Skip attendance-based tax component as it's calculated separately
+                    bool isAbsentTax = component.isabsenttax != null && Convert.ToBoolean(component.isabsenttax);
+                    if (isAbsentTax && isAttendanceBasedTax)
+                    {
+                        continue; // Skip this component, it will be calculated based on attendance
+                    }
+                    
                     decimal componentValue = 0;
                     
                     // Use value_override if available, otherwise use the component's default value
@@ -494,6 +599,38 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                     {
                         totalDeductions += componentValue;
                         deductionsDict[componentName] = componentValue;
+                    }
+                }
+                
+                // Calculate attendance-based tax if applicable
+                decimal attendanceTaxAmount = 0;
+                if (isAttendanceBasedTax && absentTaxComponentId.HasValue && absentTaxValue.HasValue)
+                {
+                    // Check if this employee's position matches the rule's position (if specified)
+                    bool applyToEmployee = true;
+                    if (absentTaxPositionId.HasValue && employee.positionid != absentTaxPositionId.Value)
+                    {
+                        applyToEmployee = false;
+                    }
+                    
+                    if (applyToEmployee)
+                    {
+                        attendanceTaxAmount = await CalculateAttendanceBasedTaxAsync(
+                            (Guid)employee.employeeid,
+                            organizationId,
+                            period.StartDate,
+                            period.EndDate,
+                            absentTaxValue.Value,
+                            absentTaxCalculationType ?? "percentage",
+                            basicSalary
+                        );
+                        
+                        if (attendanceTaxAmount > 0)
+                        {
+                            totalDeductions += attendanceTaxAmount;
+                            string absentTaxComponentName = await GetComponentNameAsync(absentTaxComponentId.Value);
+                            deductionsDict[absentTaxComponentName] = attendanceTaxAmount;
+                        }
                     }
                 }
                 
@@ -1256,6 +1393,343 @@ WHERE e.organizationid = @organizationId{dateFilter}";
         }
     }
 
+    private async Task<decimal> CalculateAttendanceBasedTaxAsync(
+        Guid employeeId,
+        Guid organizationId,
+        DateTime startDate,
+        DateTime endDate,
+        decimal taxValue,
+        string calculationType,
+        decimal basicSalary)
+    {
+        try
+        {
+            // Get employee's shift information
+            var shiftSql = @"
+                SELECT 
+                    s.shiftid,
+                    s.daysofweek,
+                    s.starttime,
+                    s.endtime
+                FROM employee.employmentdetails ed
+                LEFT JOIN attendance.shifts s ON ed.shiftid = s.shiftid
+                WHERE ed.employeeid = @EmployeeId
+                AND ed.iscurrent = true";
+
+            var shiftInfo = await QuerySingleOrDefaultAsync<ShiftInfo>(shiftSql, new { EmployeeId = employeeId });
+
+
+            if (shiftInfo == null || shiftInfo.ShiftId == null || Convert.IsDBNull(shiftInfo.ShiftId))
+            {
+                return 0; // No shift information, cannot calculate
+            }
+            
+            // Parse days of week (format: {1,2,3,4,5} where 1=Monday, 5=Friday)
+            List<int> daysOfWeek = new List<int>();
+            
+            if (shiftInfo.DaysofWeek != null && !Convert.IsDBNull(shiftInfo.DaysofWeek))
+            {
+                // Dapper returns PostgreSQL integer arrays as int[] or System.Array
+                if (shiftInfo.DaysofWeek is int[] intArray)
+                {
+                    daysOfWeek = intArray.ToList();
+                }
+                else if (shiftInfo.DaysofWeek is System.Array array)
+                {
+                    // Convert array to list of ints
+                    daysOfWeek = new List<int>();
+                    foreach (var item in array)
+                    {
+                        if (item != null && int.TryParse(item.ToString(), out int day))
+                        {
+                            daysOfWeek.Add(day);
+                        }
+                    }
+                }
+                else
+                {
+                    // Try to parse as string (fallback)
+                    var daysOfWeekStr = shiftInfo.DaysofWeek?.ToString() ?? "{}";
+                    daysOfWeek = ParseDaysOfWeek(daysOfWeekStr);
+                }
+            }
+            
+            if (daysOfWeek == null || daysOfWeek.Count == 0)
+            {
+                return 0; // No working days defined in shift
+            }
+            
+            // Get attendance records for the period
+            var attendanceSql = @"
+                SELECT 
+                    workdate,
+                    checkintime,
+                    status
+                FROM attendance.attendance
+                WHERE employeeid = @EmployeeId
+                AND workdate >= @StartDate
+                AND workdate <= @EndDate
+                ORDER BY workdate";
+            
+            var attendanceRecords = await QueryAsync<dynamic>(attendanceSql, new
+            {
+                EmployeeId = employeeId,
+                StartDate = startDate.Date,
+                EndDate = endDate.Date
+            });
+            
+            // Create dictionary of attendance records
+            var attendanceDict = attendanceRecords.ToDictionary(
+                r => ((DateTime)r.workdate).Date,
+                r => new { HasCheckIn = r.checkintime != null && !Convert.IsDBNull(r.checkintime), Status = r.status?.ToString() }
+            );
+            
+            // Get approved leave requests for the period
+            var leaveRequestsSql = @"
+                SELECT 
+                    startdate,
+                    enddate,
+                    daysrequested,
+                    status
+                FROM attendance.leaverequests
+                WHERE employeeid = @EmployeeId
+                AND status = 'approved'
+                AND (
+                    (startdate <= @EndDate AND enddate >= @StartDate)
+                )
+                ORDER BY startdate";
+            
+            var leaveRequests = await QueryAsync<dynamic>(leaveRequestsSql, new
+            {
+                EmployeeId = employeeId,
+                StartDate = startDate.Date,
+                EndDate = endDate.Date
+            });
+            
+            // Create a set of dates covered by approved leaves
+            // Only include working days from the leave period to match with absence calculation
+            var leaveDates = new HashSet<DateTime>();
+            foreach (var leave in leaveRequests)
+            {
+                DateTime leaveStart = ((DateTime)leave.startdate).Date;
+                DateTime leaveEnd = ((DateTime)leave.enddate).Date;
+                
+                // Only add working days from the leave period
+                for (DateTime date = leaveStart; date <= leaveEnd; date = date.AddDays(1))
+                {
+                    // Check if date is within payroll period
+                    if (date >= startDate.Date && date <= endDate.Date)
+                    {
+                        // Only add if it's a working day according to shift
+                        DayOfWeek dayOfWeek = date.DayOfWeek;
+                        int dayNumber = dayOfWeek == DayOfWeek.Sunday ? 7 : (int)dayOfWeek;
+                        
+                        if (daysOfWeek.Contains(dayNumber))
+                        {
+                            leaveDates.Add(date);
+                        }
+                    }
+                }
+            }
+            
+            // Calculate absences for working days in the period
+            List<DateTime> absentDates = new List<DateTime>();
+            
+            // Iterate through each day in the period
+            for (DateTime date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+            {
+                // Check if this day is a working day according to shift
+                // Convert C# DayOfWeek (Sunday=0, Monday=1, ..., Saturday=6) to PostgreSQL format (Monday=1, ..., Sunday=7)
+                DayOfWeek dayOfWeek = date.DayOfWeek;
+                int dayNumber = dayOfWeek == DayOfWeek.Sunday ? 7 : (int)dayOfWeek;
+                
+                // Skip if not a working day
+                if (!daysOfWeek.Contains(dayNumber))
+                {
+                    continue;
+                }
+                
+                // Skip if this date is covered by an approved leave
+                // (Check this first to avoid unnecessary attendance lookup)
+                if (leaveDates.Contains(date))
+                {
+                    continue; // This day is covered by approved leave, not an absence
+                }
+                
+                // Check if employee was present
+                bool isPresent = false;
+                if (attendanceDict.ContainsKey(date))
+                {
+                    var attendance = attendanceDict[date];
+                    // Check if employee checked in
+                    isPresent = attendance.HasCheckIn;
+                }
+                
+                // If not present on a working day (and not on leave), it's an absence
+                if (!isPresent)
+                {
+                    absentDates.Add(date);
+                }
+            }
+            
+            // Absences are already filtered (we skip leave dates above), but double-check for safety
+            var taxableAbsentDates = absentDates.Where(date => !leaveDates.Contains(date)).ToList();
+            int taxableAbsences = taxableAbsentDates.Count;
+            
+            if (taxableAbsences == 0)
+            {
+                return 0; // No taxable absences
+            }
+            
+            // Calculate total working days in the period for validation
+            int totalWorkingDays = 0;
+            for (DateTime date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+            {
+                DayOfWeek dayOfWeek = date.DayOfWeek;
+                int dayNumber = dayOfWeek == DayOfWeek.Sunday ? 7 : (int)dayOfWeek;
+                if (daysOfWeek.Contains(dayNumber))
+                {
+                    totalWorkingDays++;
+                }
+            }
+            
+            // Safety check: absences cannot exceed total working days
+            if (taxableAbsences > totalWorkingDays)
+            {
+                // This indicates a calculation error - cap absences at working days
+                taxableAbsences = totalWorkingDays;
+            }
+            
+            // Calculate tax based on taxable absences
+            return await CalculateAbsenceTax(employeeId, startDate, endDate, taxValue, calculationType, basicSalary, taxableAbsences);
+        }
+        catch (Exception ex)
+        {
+            // Log error and return 0 to avoid breaking payroll calculation
+            return 0;
+        }
+    }
+    
+    private async Task<decimal> CalculateAbsenceTax(
+        Guid employeeId,
+        DateTime startDate,
+        DateTime endDate,
+        decimal taxValue,
+        string calculationType,
+        decimal basicSalary,
+        int taxableAbsences)
+    {
+        decimal taxAmount = 0;
+        
+        if (calculationType == "percentage")
+        {
+            // For percentage-based absence tax:
+            // 1. Calculate daily salary = basicSalary / 30 (always divide by 30 days)
+            // 2. Tax per absence = (dailySalary * taxValue / 100)
+            // 3. Total tax = tax per absence * number of taxable absences
+            // 
+            // Example: If basicSalary = 100,000, taxValue = 100%, absences = 1
+            // dailySalary = 100,000 / 30 = 3,333.33
+            // taxPerAbsence = (3,333.33 * 100) / 100 = 3,333.33
+            // taxAmount = 3,333.33 * 1 = 3,333.33
+            //
+            // Example: If basicSalary = 100,000, taxValue = 75%, absences = 2
+            // dailySalary = 100,000 / 30 = 3,333.33
+            // taxPerAbsence = (3,333.33 * 75) / 100 = 2,500
+            // taxAmount = 2,500 * 2 = 5,000
+            
+            const int daysPerMonth = 30; // Always use 30 days for daily salary calculation
+            decimal dailySalary = basicSalary / daysPerMonth;
+            decimal taxPerAbsence = (dailySalary * taxValue) / 100m;
+            taxAmount = taxPerAbsence * taxableAbsences;
+        }
+        else // fixed
+        {
+            // For fixed: tax per absence = taxValue
+            // Total tax = taxValue * number of taxable absences
+            // Example: If taxValue = 50, absences = 5
+            // taxAmount = 50 * 5 = 250
+            taxAmount = taxValue * taxableAbsences;
+        }
+        
+        return taxAmount;
+    }
+    
+    private List<int> ParseDaysOfWeek(string daysOfWeekStr)
+    {
+        var days = new List<int>();
+        
+        // Remove braces and split by comma
+        daysOfWeekStr = daysOfWeekStr.Trim('{', '}');
+        if (string.IsNullOrWhiteSpace(daysOfWeekStr))
+        {
+            return days;
+        }
+        
+        var parts = daysOfWeekStr.Split(',');
+        foreach (var part in parts)
+        {
+            if (int.TryParse(part.Trim(), out int day))
+            {
+                days.Add(day);
+            }
+        }
+        
+        return days;
+    }
+    
+    private async Task<string> GetComponentNameAsync(Guid componentId)
+    {
+        try
+        {
+            var sql = "SELECT name FROM payroll.salarycomponents WHERE componentid = @ComponentId";
+            var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { ComponentId = componentId });
+            return result?.name?.ToString() ?? "Absent Tax";
+        }
+        catch
+        {
+            return "Absent Tax";
+        }
+    }
+
+    /// <summary>
+    /// Determines if a salary component name indicates it's an attendance-based tax component
+    /// </summary>
+    private bool IsAbsentTaxComponent(string componentName)
+    {
+        if (string.IsNullOrWhiteSpace(componentName))
+        {
+            return false;
+        }
+        
+        // Convert to lowercase for case-insensitive comparison
+        string nameLower = componentName.ToLower();
+        
+        // Check for keywords related to absent/attendance
+        string[] absentKeywords = { "absent", "absents", "absence", "absences" };
+        string[] attendanceKeywords = { "attendance", "attendence", "attend" };
+        
+        // Check if name contains any absent-related keywords
+        foreach (var keyword in absentKeywords)
+        {
+            if (nameLower.Contains(keyword))
+            {
+                return true;
+            }
+        }
+        
+        // Check if name contains any attendance-related keywords
+        foreach (var keyword in attendanceKeywords)
+        {
+            if (nameLower.Contains(keyword))
+            {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+
     private PayrollEntryDto MapPayrollEntryDto(dynamic r)
     {
         // Deserialize JSONB columns (allowances and deductions)
@@ -1330,3 +1804,10 @@ WHERE e.organizationid = @organizationId{dateFilter}";
         };
     }
 }
+    public class ShiftInfo
+    {
+        public Guid? ShiftId { get; set; }
+        public int[]? DaysofWeek { get; set; }
+        public TimeSpan? StartTime { get; set; }
+        public TimeSpan? EndTime { get; set; }
+    }

@@ -108,8 +108,10 @@ public class PayrollController : ControllerBase
     {
         try
         {
+            var organizationId = GetCurrentOrganizationId();
             var entriesCreated = await _payrollService.CalculatePayrollAsync(
                 id, 
+                organizationId,
                 request?.RuleId, 
                 request?.DepartmentIds, 
                 request?.IncludeTax ?? false
