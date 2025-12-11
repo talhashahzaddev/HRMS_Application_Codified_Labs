@@ -385,10 +385,11 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
             Guid? absentTaxPositionId = null;
             decimal? absentTaxValue = null;
             string? absentTaxCalculationType = null;
+            Guid? rulePositionId = null; // Position ID from the salary rule
             
             if (ruleId.HasValue)
             {
-                // Check if the rule's component is attendance-based
+                // Check if the rule's component is attendance-based and get rule details
                 var ruleCheckSql = @"
                     SELECT 
                         sc.componentid, 
@@ -396,6 +397,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                         sc.calculationtype,
                         sc.value,
                         sr.positionid,
+                        sr.departmentid,
                         sr.value_override
                     FROM payroll.salaryrules sr
                     INNER JOIN payroll.salarycomponents sc ON sr.componentid = sc.componentid
@@ -408,17 +410,27 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                     OrganizationId = organizationId
                 });
                 
-                if (ruleCheck != null && ruleCheck.isabsenttax != null && Convert.ToBoolean(ruleCheck.isabsenttax))
+                if (ruleCheck != null)
                 {
-                    isAttendanceBasedTax = true;
-                    absentTaxComponentId = ruleCheck.componentid;
-                    absentTaxPositionId = ruleCheck.positionid;
-                    absentTaxCalculationType = ruleCheck.calculationtype?.ToString()?.ToLower();
-                    absentTaxValue = ruleCheck.value_override != null ? (decimal?)ruleCheck.value_override : (decimal?)ruleCheck.value;
+                    // Get position ID from rule (if specified)
+                    if (ruleCheck.positionid != null && !Convert.IsDBNull(ruleCheck.positionid))
+                    {
+                        rulePositionId = (Guid?)ruleCheck.positionid;
+                    }
+                    
+                    // Check if it's attendance-based tax
+                    if (ruleCheck.isabsenttax != null && Convert.ToBoolean(ruleCheck.isabsenttax))
+                    {
+                        isAttendanceBasedTax = true;
+                        absentTaxComponentId = ruleCheck.componentid;
+                        absentTaxPositionId = ruleCheck.positionid;
+                        absentTaxCalculationType = ruleCheck.calculationtype?.ToString()?.ToLower();
+                        absentTaxValue = ruleCheck.value_override != null ? (decimal?)ruleCheck.value_override : (decimal?)ruleCheck.value;
+                    }
                 }
             }
             
-            // Build employee query with optional department filter
+            // Build employee query with optional department and position filters
             var employeesSql = @"
                 SELECT e.employeeid, e.organizationid, ed.departmentid, ed.positionid, ed.basicsalary, ed.shiftid
                 FROM employee.employees e
@@ -427,17 +439,53 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 AND e.status = 'active'
                 AND ed.iscurrent = true";
             
-            object employeeParams;
-            
             // Add department filter if provided
             if (departmentIds != null && departmentIds.Any())
             {
                 employeesSql += " AND ed.departmentid = ANY(@DepartmentIds)";
-                employeeParams = new { OrganizationId = organizationId, DepartmentIds = departmentIds.ToArray() };
+            }
+            
+            // Add position filter if rule has a specific position ID
+            // This restricts calculation to only employees with matching position
+            // If rule has NULL position ID, it applies to all positions (no filter added)
+            if (ruleId.HasValue && rulePositionId.HasValue)
+            {
+                employeesSql += " AND ed.positionid = @RulePositionId";
+            }
+            
+            // Build parameters object
+            object employeeParams;
+            if (departmentIds != null && departmentIds.Any())
+            {
+                if (ruleId.HasValue && rulePositionId.HasValue)
+                {
+                    employeeParams = new { 
+                        OrganizationId = organizationId, 
+                        DepartmentIds = departmentIds.ToArray(),
+                        RulePositionId = rulePositionId.Value
+                    };
+                }
+                else
+                {
+                    employeeParams = new { 
+                        OrganizationId = organizationId, 
+                        DepartmentIds = departmentIds.ToArray()
+                    };
+                }
             }
             else
             {
-                employeeParams = new { OrganizationId = organizationId };
+                if (ruleId.HasValue && rulePositionId.HasValue)
+                {
+                    employeeParams = new { 
+                        OrganizationId = organizationId,
+                        RulePositionId = rulePositionId.Value
+                    };
+                }
+                else
+                {
+                    employeeParams = new { OrganizationId = organizationId };
+                }
             }
             
             var employees = await QueryAsync<dynamic>(employeesSql, employeeParams);
@@ -458,6 +506,8 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
                 if (ruleId.HasValue)
                 {
                     // When a specific rule is selected, use INNER JOIN to ensure we get the rule's component
+                    // Note: Employee filtering by position ID is already done at the employee query level above
+                    // This query ensures the rule applies to the employee's department and position
                     componentsSql = @"
                         SELECT 
                             sc.componentid, sc.name, sc.type, sc.calculationtype, sc.value,
