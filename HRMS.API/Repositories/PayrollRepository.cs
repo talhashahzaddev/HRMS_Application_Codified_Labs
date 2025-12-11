@@ -1573,12 +1573,24 @@ WHERE e.organizationid = @organizationId{dateFilter}";
         
         if (calculationType == "percentage")
         {
-            // For percentage: tax per absence = (basicSalary * taxValue / 100)
-            // Total tax = tax per absence * number of taxable absences
-            // Example: If basicSalary = 400, taxValue = 3.33, absences = 5
-            // taxPerAbsence = (400 * 3.33) / 100 = 13.32
-            // taxAmount = 13.32 * 5 = 66.6
-            decimal taxPerAbsence = (basicSalary * taxValue) / 100m;
+            // For percentage-based absence tax:
+            // 1. Calculate daily salary = basicSalary / 30 (always divide by 30 days)
+            // 2. Tax per absence = (dailySalary * taxValue / 100)
+            // 3. Total tax = tax per absence * number of taxable absences
+            // 
+            // Example: If basicSalary = 100,000, taxValue = 100%, absences = 1
+            // dailySalary = 100,000 / 30 = 3,333.33
+            // taxPerAbsence = (3,333.33 * 100) / 100 = 3,333.33
+            // taxAmount = 3,333.33 * 1 = 3,333.33
+            //
+            // Example: If basicSalary = 100,000, taxValue = 75%, absences = 2
+            // dailySalary = 100,000 / 30 = 3,333.33
+            // taxPerAbsence = (3,333.33 * 75) / 100 = 2,500
+            // taxAmount = 2,500 * 2 = 5,000
+            
+            const int daysPerMonth = 30; // Always use 30 days for daily salary calculation
+            decimal dailySalary = basicSalary / daysPerMonth;
+            decimal taxPerAbsence = (dailySalary * taxValue) / 100m;
             taxAmount = taxPerAbsence * taxableAbsences;
         }
         else // fixed
