@@ -167,7 +167,28 @@ CREATE TABLE employee.Documents (
 -- ==============================
 -- Table: attendance.attendance
 
--- DROP TABLE IF EXISTS attendance.attendance;
+CREATE TABLE IF NOT EXISTS attendance.shifts
+(
+    shiftid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid,
+    shiftname character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    starttime time without time zone NOT NULL,
+    endtime time without time zone NOT NULL,
+    breakduration integer DEFAULT 0,
+    breakstarttime time without time zone,
+    breakendtime time without time zone,
+    overtimestarttime time without time zone,
+    maxovertimeinminutes integer DEFAULT 0,
+    daysofweek integer[] DEFAULT '{1,2,3,4,5}'::integer[],
+    timezone character varying(50) COLLATE pg_catalog."default" DEFAULT 'UTC'::character varying,
+    isactive boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT shifts_pkey PRIMARY KEY (shiftid),
+    CONSTRAINT uq_shifts UNIQUE (organizationid, shiftname)
+)
+
+TABLESPACE pg_default;
+
 
 CREATE TABLE IF NOT EXISTS attendance.attendance
 (

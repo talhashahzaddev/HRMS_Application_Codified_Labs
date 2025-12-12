@@ -769,12 +769,6 @@ public class AttendanceController : ControllerBase
     }
 
 
-
-
-
-
-
-
     [HttpGet("shifts")]
     public async Task<ActionResult<ServiceResponse<List<ShiftDto>>>> GetAllShifts()
     {
