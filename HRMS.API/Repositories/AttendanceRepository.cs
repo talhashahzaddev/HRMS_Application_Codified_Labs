@@ -300,7 +300,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
             if (date == null)
             {
-                // No date provided ? get today’s attendance
+                // No date provided ? get todayï¿½s attendance
                 sql = @"
                 SELECT attendanceid
                 FROM attendance.attendance
@@ -1287,7 +1287,7 @@ WHERE ed.employeeid = @EmployeeId
             WHERE e.organizationid = @organizationId
               AND e.status = 'active'
         ),
-        -- Cross join employees × dates to create full calendar
+        -- Cross join employees ï¿½ dates to create full calendar
         calendar AS (
             SELECT dr.workdate, e.employeeid
             FROM date_range dr
@@ -1488,7 +1488,7 @@ WHERE ed.employeeid = @EmployeeId
     date_range AS (
         SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
     ),
-    -- Cross join to get all employee × date combinations
+    -- Cross join to get all employee ï¿½ date combinations
     calendar AS (
         SELECT emp.employeeid, emp.firstname, emp.lastname, emp.departmentid, dr.workdate
         FROM employees emp
