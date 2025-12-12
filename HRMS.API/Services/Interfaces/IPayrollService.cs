@@ -29,7 +29,7 @@ public interface IPayrollService
     // Additional methods based on frontend consumption
     Task<PayrollSummaryDto> GetPayrollDashboardSummaryAsync(Guid organizationId);
     Task<PayrollSummaryDto> GetPayrollReportSummaryAsync(Guid organizationId, PayrollReportFilterRequest filter);
-    Task<PagedResult<PayrollPeriodDto>> GetPayrollPeriodsPagedAsync(Guid organizationId, int page, int limit, string? search);
+    Task<PagedResult<PayrollPeriodDto>> GetPayrollPeriodsPagedAsync(Guid organizationId, int page, int limit, string? search, string? status = null);
     Task<PayrollPeriodDto?> GetCurrentPayrollPeriodAsync(Guid organizationId);
     Task<PayrollPeriodDto> UpdatePayrollPeriodAsync(Guid periodId, UpdatePayrollPeriodRequest request);
     Task<bool> DeletePayrollPeriodAsync(Guid periodId);
