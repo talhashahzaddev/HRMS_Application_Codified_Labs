@@ -182,12 +182,13 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("departments")]
-    public async Task<ActionResult<ServiceResponse<List<DepartmentDto>>>> GetDepartments()
+    public async Task<ActionResult<ServiceResponse<List<DepartmentDto>>>> GetDepartments([FromQuery] string? searchQuery,
+    [FromQuery] bool? status)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var departments = await _employeeService.GetDepartmentsAsync(organizationId);
+            var departments = await _employeeService.GetDepartmentsAsync(organizationId, searchQuery, status);
             
             return Ok(new ServiceResponse<List<DepartmentDto>>
             {
@@ -310,13 +311,14 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("positions")]
-    public async Task<ActionResult<ServiceResponse<List<PositionDto>>>> GetPositions([FromQuery] Guid? departmentId = null)
+    public async Task<ActionResult<ServiceResponse<List<PositionDto>>>> GetPositions([FromQuery] Guid? departmentId = null, [FromQuery] string? search = null,
+    [FromQuery] string? status = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var positions = await _employeeService.GetPositionsAsync(organizationId, departmentId);
-            
+            var positions = await _employeeService.GetPositionsAsync(organizationId, departmentId, search, status);
+
             return Ok(new ServiceResponse<List<PositionDto>>
             {
                 Success = true,
@@ -333,6 +335,96 @@ public class EmployeeController : ControllerBase
             });
         }
     }
+
+
+    [HttpPut("positions/{positionId}/status")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdatePositionStatus(
+    Guid positionId,
+    [FromQuery] bool isActive)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var result = await _employeeService.UpdatePositionStatusAsync(
+                organizationId,
+                positionId,
+                isActive
+            );
+
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Position not found"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = isActive ? "Position activated successfully" : "Position deactivated successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating position status");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating position status"
+            });
+        }
+    }
+
+    [HttpPut("departments/{departmentId}/status")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateDepartmentStatus(
+    Guid departmentId,
+    [FromQuery] bool isActive)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var result = await _employeeService.UpdateDepartmentStatusAsync(
+                organizationId,
+                departmentId,
+                isActive
+            );
+
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Department not found"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = isActive ? "Department activated successfully" : "Department deactivated successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating department status");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating department status"
+            });
+        }
+    }
+
+
+
 
     [HttpPost("positions")]
     [Authorize(Roles = "Super Admin,HR Manager")]

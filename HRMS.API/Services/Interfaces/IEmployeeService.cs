@@ -7,16 +7,18 @@ namespace HRMS.API.Services.Interfaces;
 public interface IEmployeeService
 {
 
+    Task<bool> UpdateDepartmentStatusAsync(Guid organizationId, Guid departmentId, bool isActive);
+    Task<bool> UpdatePositionStatusAsync(Guid organizationId,Guid positionId,bool isActive);
     Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId);
     Task<EmployeeDto?> GetEmployeeByIdAsync(Guid employeeId);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(EmployeeSearchViewModel searchModel, Guid organizationId);
     Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequest request);
     Task<bool> DeleteEmployeeAsync(Guid employeeId);
-    Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId);
+    Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null);
     Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId);
     Task<DepartmentDto> UpdateDepartmentAsync(Guid departmentId, CreateDepartmentRequest request);
     Task<bool> DeleteDepartmentAsync(Guid departmentId);
-    Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null);
+    Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
     Task<List<PositionDto>> GetPositionsAsync(Guid organizationId);
     Task<PositionDto> CreatePositionAsync(CreatePositionRequest request, Guid organizationId);
     Task<PositionDto> UpdatePositionAsync(Guid positionId, CreatePositionRequest request);
