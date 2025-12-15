@@ -164,9 +164,9 @@ public class EmployeeService : IEmployeeService
         return await _employeeRepository.DeleteEmployeeAsync(employeeId);
     }
 
-    public async Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId)
+    public async Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null)
     {
-        var departments = await _employeeRepository.GetDepartmentsAsync(organizationId);
+        var departments = await _employeeRepository.GetDepartmentsAsync(organizationId, searchQuery, status);
 
         return departments.Select(d => new DepartmentDto
         {
@@ -175,12 +175,48 @@ public class EmployeeService : IEmployeeService
             DepartmentName = d.DepartmentName,
             Description = d.Description,
             ManagerId = d.ManagerId,
-            ManagerName = d.Manager ?.FullName,
+            ManagerName = d.Manager?.FullName,
             IsActive = d.IsActive,
             EmployeeCount = d.EmployeeCount,
             CreatedAt = d.CreatedAt
         }).ToList();
     }
+
+    public async Task<bool> UpdatePositionStatusAsync(
+    Guid organizationId,
+    Guid positionId,
+    bool isActive)
+    {
+        // business decision directly
+        bool status = isActive;
+
+        var result = await _employeeRepository.UpdatePositionStatusAsync(
+            organizationId,
+            positionId,
+            status
+        );
+
+        return result;
+    }
+
+
+    public async Task<bool> UpdateDepartmentStatusAsync(
+    Guid organizationId,
+    Guid departmentId,
+    bool isActive)
+    {
+        // business decision directly
+        bool status = isActive;
+
+        var result = await _employeeRepository.UpdateDepartmentStatusAsync(
+            organizationId,
+            departmentId,
+            status
+        );
+
+        return result;
+    }
+
 
     public async Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId)
     {
@@ -191,9 +227,10 @@ public class EmployeeService : IEmployeeService
         return _mapper.Map<DepartmentDto>(createdDepartment);
     }
 
-    public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null)
+    public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,
+    string? status = null)
     {
-        var positions = await _employeeRepository.GetPositionsAsync(organizationId, departmentId);
+        var positions = await _employeeRepository.GetPositionsAsync(organizationId, departmentId,search,status);
         var positionDtos = _mapper.Map<List<PositionDto>>(positions);
 
       

@@ -6,6 +6,7 @@ using System.Data;
 using System.Text.Json;
 using Dapper;
 using Npgsql;
+using NPOI.SS.Formula.Functions;
 
 namespace HRMS.API.Repositories;
 
@@ -417,7 +418,75 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         return affected > 0;
     }
 
-    public async Task<List<Department>> GetDepartmentsAsync(Guid organizationId)
+    //public async Task<List<Department>> GetDepartmentsAsync(Guid organizationId)
+    //{
+    //    try
+    //    {
+    //        var sql = @"
+    //    SELECT 
+    //        d.departmentid, 
+    //        d.organizationid, 
+    //        d.departmentname, 
+    //        d.description, 
+    //        d.managerid, 
+    //        d.parentdepartmentid, 
+    //        d.budget, 
+    //        d.isactive, 
+    //        d.createdat, 
+    //        d.updatedat,
+    //        COALESCE(emp_count.employee_count, 0) as employeecount,
+    //        -- Manager details
+    //        m.firstname AS ManagerFirstName,
+    //        m.lastname AS ManagerLastName,
+    //        m.email AS ManagerEmail
+    //    FROM employee.departments d
+    //    LEFT JOIN (
+    //        SELECT ed.departmentid, COUNT(e.employeeid) as employee_count
+    //        FROM employee.employmentdetails ed
+    //        INNER JOIN employee.employees e ON ed.employeeid = e.employeeid
+    //        WHERE ed.iscurrent = true AND e.organizationid = @organizationId
+    //        GROUP BY ed.departmentid
+    //    ) emp_count ON d.departmentid = emp_count.departmentid
+    //    -- Join for manager details
+    //    LEFT JOIN employee.employees m ON d.managerid = m.employeeid
+    //    WHERE d.organizationid = @organizationId AND d.isactive = true
+    //    ORDER BY d.departmentname";
+
+    //        var results = await QueryAsync<Department>(sql, new { organizationId });
+
+    //        // Map manager details to Manager object
+    //        var departments = results.Select(d => new Department
+    //        {
+    //            DepartmentId = d.DepartmentId,
+    //            OrganizationId = d.OrganizationId,
+    //            DepartmentName = d.DepartmentName,
+    //            Description = d.Description,
+    //            ManagerId = d.ManagerId,
+    //            ParentDepartmentId = d.ParentDepartmentId,
+    //            Budget = d.Budget,
+    //            IsActive = d.IsActive,
+    //            CreatedAt = d.CreatedAt,
+    //            UpdatedAt = d.UpdatedAt,
+    //            EmployeeCount = d.EmployeeCount,
+    //            Manager = d.ManagerId.HasValue ? new Employee
+    //            {
+    //                EmployeeId = d.ManagerId.Value,
+    //                FirstName = d.ManagerFirstName,
+    //                LastName = d.ManagerLastName
+    //            } : null
+    //        }).ToList();
+
+    //        return departments;
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        throw;
+    //    }
+    //}
+    public async Task<List<Department>> GetDepartmentsAsync(
+        Guid organizationId,
+        string? searchQuery = null,
+        bool? status = null)
     {
         try
         {
@@ -434,10 +503,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             d.createdat, 
             d.updatedat,
             COALESCE(emp_count.employee_count, 0) as employeecount,
-            -- Manager details
             m.firstname AS ManagerFirstName,
-            m.lastname AS ManagerLastName,
-            m.email AS ManagerEmail
+            m.lastname AS ManagerLastName
         FROM employee.departments d
         LEFT JOIN (
             SELECT ed.departmentid, COUNT(e.employeeid) as employee_count
@@ -446,14 +513,19 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             WHERE ed.iscurrent = true AND e.organizationid = @organizationId
             GROUP BY ed.departmentid
         ) emp_count ON d.departmentid = emp_count.departmentid
-        -- Join for manager details
         LEFT JOIN employee.employees m ON d.managerid = m.employeeid
-        WHERE d.organizationid = @organizationId AND d.isactive = true
-        ORDER BY d.departmentname";
+        WHERE d.organizationid = @organizationId
+        AND (@status IS NULL OR d.isactive = @status)
+        AND (@searchQuery IS NULL OR d.departmentname ILIKE @searchQuery)
+        ORDER BY d.departmentname;";
 
-            var results = await QueryAsync<Department>(sql, new { organizationId });
+            var parameters = new DynamicParameters();
+            parameters.Add("organizationId", organizationId, System.Data.DbType.Guid);
+            parameters.Add("searchQuery", string.IsNullOrEmpty(searchQuery) ? null : $"%{searchQuery}%", System.Data.DbType.String);
+            parameters.Add("status", status, System.Data.DbType.Boolean);
 
-            // Map manager details to Manager object
+            var results = await QueryAsync<Department>(sql, parameters);
+
             var departments = results.Select(d => new Department
             {
                 DepartmentId = d.DepartmentId,
@@ -479,9 +551,13 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         }
         catch (Exception ex)
         {
+            // Optional: log the exception
             throw;
         }
     }
+
+
+
 
     public async Task<Department> CreateDepartmentAsync(Department department)
     {
@@ -508,7 +584,14 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         }
     }
 
-    public async Task<List<Position>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null)
+  
+
+
+    public async Task<List<Position>> GetPositionsAsync(
+    Guid organizationId,
+    Guid? departmentId = null,
+    string? search = null,
+    string? status = null) // status can be "active"/"inactive" or your column value
     {
         try
         {
@@ -550,20 +633,17 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         FROM employee.positions ep
         LEFT JOIN employee.departments ed ON ep.departmentid = ed.departmentid
         LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
-        -- Join to employment details to find employees in this position
         LEFT JOIN employee.employmentdetails edet ON ep.positionid = edet.positionid AND edet.iscurrent = true
-        -- Join to employees table
-        LEFT JOIN employee.employees ee ON edet.employeeid = ee.employeeid AND ee.status = 'active'
-        -- Join to users table for role matching and user details
+        LEFT JOIN employee.employees ee ON edet.employeeid = ee.employeeid
         LEFT JOIN auth.users au ON ee.userid = au.userid AND au.roleid = ep.roleid
-        WHERE ep.organizationid = @organizationId 
-          AND ep.isactive = true
+        WHERE ep.organizationid = @organizationId
           AND (@departmentId IS NULL OR ep.departmentid = @departmentId)
+          AND (@search IS NULL OR ep.positiontitle ILIKE '%' || @search || '%')
+          AND (@status IS NULL OR ee.status = @status)
         ORDER BY ep.positiontitle, ee.firstname, ee.lastname";
 
-            var results = await QueryAsync<PositionWithEmployees>(sql, new { organizationId, departmentId });
+            var results = await QueryAsync<PositionWithEmployees>(sql, new { organizationId, departmentId, search, status });
 
-            // Group by position and map to your entity
             var positions = results
                 .GroupBy(r => r.PositionId)
                 .Select(g => new Position
@@ -595,12 +675,12 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                             Employee = new Employee
                             {
                                 EmployeeId = e.EmployeeId.Value,
-                                //EmployeeCode = e.EmployeeCode,
                                 FirstName = e.EmployeeFirstName,
                                 LastName = e.EmployeeLastName,
                                 Email = e.EmployeeEmail,
                                 Phone = e.EmployeePhone,
-                                HireDate = e.HireDate
+                                HireDate = e.HireDate,
+                                Status = e.EmployeeStatus
                             }
                         }).ToList()
                 }).ToList();
@@ -612,6 +692,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             throw;
         }
     }
+
+
 
 
     public async Task<Position> CreatePositionAsync(Position position)
@@ -633,6 +715,54 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         position.PositionId = positionId;
         return position;
     }
+
+    public async Task<bool> UpdatePositionStatusAsync(
+    Guid organizationId,
+    Guid positionId,
+    bool isActive)
+    {
+        var sql = @"
+        UPDATE employee.positions
+        SET 
+            isactive = @isActive,
+            updatedat = CURRENT_TIMESTAMP
+        WHERE positionid = @positionId
+          AND organizationid = @organizationId";
+
+        var rowsAffected = await ExecuteAsync(sql, new
+        {
+            positionId = positionId,
+            organizationId = organizationId,
+            isActive = isActive
+        });
+
+        return rowsAffected > 0;
+    }
+
+    public async Task<bool> UpdateDepartmentStatusAsync(
+    Guid organizationId,
+    Guid departmentId,
+    bool isActive)
+    {
+        var sql = @"
+    UPDATE employee.departments
+    SET 
+        isactive = @isActive,
+        updatedat = CURRENT_TIMESTAMP
+    WHERE departmentid = @departmentId
+      AND organizationid = @organizationId";
+
+        var rowsAffected = await ExecuteAsync(sql, new
+        {
+            departmentId = departmentId,
+            organizationId = organizationId,
+            isActive = isActive
+        });
+
+        return rowsAffected > 0;
+    }
+
+
 
     public async Task<Department?> GetDepartmentByIdAsync(Guid departmentId)
     {

@@ -1,5 +1,6 @@
-using HRMS.API.Models.Entities;
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
+using System.Threading.Tasks;
 
 namespace HRMS.API.Repositories.Interfaces;
 
@@ -7,6 +8,8 @@ public interface IEmployeeRepository
 {
 
     //adding this now
+    Task<bool> UpdateDepartmentStatusAsync(Guid organizationId,Guid departmentId,bool isActive);
+    Task<bool> UpdatePositionStatusAsync(Guid organizationId,Guid positionId,bool isActive);
     Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId);
 
     Task<Employee> CreateEmployeeAsync(Employee employee);
@@ -18,13 +21,14 @@ public interface IEmployeeRepository
     string? status = null, int page = 1, int pageSize = 50);
     Task<bool> UpdateEmployeeAsync(Employee employee);
     Task<bool> DeleteEmployeeAsync(Guid employeeId);
-    Task<List<Department>> GetDepartmentsAsync(Guid organizationId);
+    Task<List<Department>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null,
+    bool? status = null);
     Task<Department> CreateDepartmentAsync(Department department);
     Task<Department?> GetDepartmentByIdAsync(Guid departmentId);
     Task<Department> UpdateDepartmentAsync(Department department);
     Task<bool> DeleteDepartmentAsync(Guid departmentId);
     Task<int> GetEmployeeCountByDepartmentAsync(Guid departmentId);
-    Task<List<Position>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null);
+    Task<List<Position>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
     Task<Position> CreatePositionAsync(Position position);
     Task<Position?> GetPositionByIdAsync(Guid positionId);
     Task<Position> UpdatePositionAsync(Position position);
