@@ -1,10 +1,12 @@
 using AutoMapper;
+using ClosedXML.Excel;
 using DocumentFormat.OpenXml.Bibliography;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using OfficeOpenXml;
 
 namespace HRMS.API.Services;
 
@@ -157,10 +159,6 @@ public class EmployeeService : IEmployeeService
 
     public async Task<bool> DeleteEmployeeAsync(Guid employeeId)
     {
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
-        if (employee == null)
-            throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
-
         return await _employeeRepository.DeleteEmployeeAsync(employeeId);
     }
 
@@ -475,18 +473,48 @@ public class EmployeeService : IEmployeeService
 
     public async Task<byte[]> ExportEmployeesAsync(Guid organizationId, string format)
     {
-        _logger.LogInformation("Exporting employees for organization: {OrganizationId} in format: {Format}", organizationId, format);
-        
-        var employees = await _employeeRepository.GetEmployeesAsync(organizationId, null, null, null,null,null, 1, 1000);
-        
-        // Mock implementation - generate simple CSV or Excel data
-        var csvData = "EmployeeCode,FirstName,LastName,Email,Department,Position,HireDate,Status\n";
-        foreach (var employee in employees.Data)
+        _logger.LogInformation(
+            "Exporting employees for organization: {OrganizationId}", organizationId);
+
+        var employees = await _employeeRepository.GetEmployeesAsync(
+            organizationId, null, null, null, null, null, 1, 1000);
+
+        using var workbook = new XLWorkbook();
+        var sheet = workbook.Worksheets.Add("Employees");
+
+        // ===== HEADERS =====
+        sheet.Cell(1, 1).Value = "Employee Code";
+        sheet.Cell(1, 2).Value = "Full Name";
+        sheet.Cell(1, 3).Value = "Email";
+        sheet.Cell(1, 4).Value = "Phone";
+        sheet.Cell(1, 5).Value = "Department";
+        sheet.Cell(1, 6).Value = "Position";
+        sheet.Cell(1, 7).Value = "Hire Date";
+        sheet.Cell(1, 8).Value = "Status";
+
+        sheet.Row(1).Style.Font.Bold = true;
+
+        // ===== DATA =====
+        int row = 2;
+        foreach (var emp in employees.Data)
         {
-            csvData += $"{employee.EmployeeCode},{employee.FirstName},{employee.LastName},{employee.Email},{employee.Department},{employee.Position},{employee.HireDate:yyyy-MM-dd},{((bool)employee.IsActive ? "Active" : "Inactive")}\n";
+            sheet.Cell(row, 1).Value = emp.EmployeeCode;
+            sheet.Cell(row, 2).Value = emp.FullName;
+            sheet.Cell(row, 3).Value = emp.Email;
+            sheet.Cell(row, 4).Value = emp.Phone;
+            sheet.Cell(row, 5).Value = emp.DepartmentName;
+            sheet.Cell(row, 6).Value = emp.PositionTitle;
+            sheet.Cell(row, 7).Value = emp.HireDate?.ToString("yyyy-MM-dd");
+            sheet.Cell(row, 8).Value = emp.Status ?? "Unknown";
+
+            row++;
         }
-        
-        return System.Text.Encoding.UTF8.GetBytes(csvData);
+
+        sheet.Columns().AdjustToContents();
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
