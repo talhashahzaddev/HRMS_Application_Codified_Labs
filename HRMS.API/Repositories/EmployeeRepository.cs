@@ -118,7 +118,9 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<Employee?> GetEmployeeByIdAsync(Guid userId)
     {
-        var sql = @"
+       try
+        {
+            var sql = @"
         SELECT 
             e.employeeid, e.organizationid, e.userid, e.employeecode AS EmployeeNumber,
             e.firstname, e.lastname, e.email, e.phone, e.address,e.profilepictureurl As ProfilePictureUrl,
@@ -133,13 +135,20 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         LEFT JOIN employee.positions AS p ON ed.positionid = p.positionid
         LEFT JOIN employee.departments AS d ON ed.departmentid = d.departmentid
        LEFT JOIN employee.employees AS mgr ON ed.reportingmanagerid = mgr.employeeid
-        WHERE e.employeeid = @empid;
+        WHERE e.employeeid = @userId;
     ";
 
-        return await QuerySingleOrDefaultAsync<Employee>(
-            sql,
-            new { empid = await getemployeeid(userId) }
-        );
+            return await QuerySingleOrDefaultAsync<Employee>(
+                sql,
+                new { userId }
+            //new { empid = await getemployeeid(userId) }
+            );
+        }
+        catch(Exception ex)
+        {
+            return null;
+
+        }
     }
 
 
