@@ -20,6 +20,7 @@ public interface ILeaveRepository
     Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null);
     Task<List<LeaveRequest>> GetLeaveRequestsByEmployeeId(Guid employeeId);
     Task<List<LeaveCalendarDto>> GetLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate);
+    Task<List<LeaveCalendarDto>> GetApprovedLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<PagedResult<EmployeeLeaveBalanceDto>> GetTeamRemainingLeavesAsync(
         Guid managerEmployeeId, 
         Guid organizationId, 
