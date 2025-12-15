@@ -60,6 +60,7 @@ public class EmployeeAppraisalDto
     public string? ReviewerName { get; set; }
     public string ReviewType { get; set; } = string.Empty;
     public decimal? OverallRating { get; set; }
+    public decimal? CurrentRating { get; set; }
     public Dictionary<string, object> KraRatings { get; set; } = new();
     public Dictionary<string, object> SkillRatings { get; set; } = new();
     public string? Feedback { get; set; }
