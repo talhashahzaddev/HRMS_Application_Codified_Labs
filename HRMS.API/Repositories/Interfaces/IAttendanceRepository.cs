@@ -5,12 +5,9 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IAttendanceRepository
 {
-    Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(
-    Guid employeeId,
-    DateTime startDate,
-    DateTime endDate,
-    int pageNumber = 1,
-    int pageSize = 10);
+    Task<ShiftSwapRequestDto?> getshifrequestDetailsAsync(Guid requestId);
+    Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId);
+    Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber = 1,int pageSize = 10);
     Task<List<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId);
     //Task<List<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber = 1,int pageSize = 10);
     Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(Guid organizationId, Guid? departmentId);
@@ -27,7 +24,7 @@ public interface IAttendanceRepository
     Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId);
     Task<bool> RejectShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto);
     Task<bool> AcceptswapRequestAsync(ApproveShiftSwapRequestDto dto);
-    Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
+    Task<ShiftSwapRequestCreatedDto> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
     Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);
     Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId);
     Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request);

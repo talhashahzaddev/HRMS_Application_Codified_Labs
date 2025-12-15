@@ -89,17 +89,6 @@ public class AttendanceSessionDto
  
 }
 
-
-//public class CreateShiftDto
-//{
-//    public string ShiftName { get; set; }             // Name of the shift e.g., "Morning", "Evening"
-//    public TimeSpan? StartTime { get; set; }           // Start time of the shift
-//    public TimeSpan? EndTime { get; set; }             // End time of the shift
-//    public int? BreakDuration { get; set; } = 0;     // Optional: Break duration in minutes
-//    public int[]? DaysofWeek { get; set; } = new int[] { 1, 2, 3, 4, 5 }; // Optional: Days of week
-//    public string? Timezone { get; set; } = "UTC";    // Optional: Timezone
-//}
-
 public class CreateShiftDto
 {
     public string ShiftName { get; set; }                 // Name of the shift e.g., "Morning", "Evening"
@@ -119,16 +108,6 @@ public class CreateShiftDto
     public string? Timezone { get; set; } = "UTC";        // Timezone
 }
 
-
-//public class UpdateShiftDto 
-//{
-//    public string ShiftName { get; set; }             // Name of the shift e.g., "Morning", "Evening"
-//    public TimeSpan? StartTime { get; set; }           // Start time of the shift
-//    public TimeSpan? EndTime { get; set; }             // End time of the shift
-//    public int? BreakDuration { get; set; } = 0;     // Optional: Break duration in minutes
-//    public int[]? DaysofWeek { get; set; } = new int[] { 1, 2, 3, 4, 5 }; // Optional: Days of week
-//    public string? Timezone { get; set; } = "UTC";    // Optional: Timezone
-//}
 
 public class UpdateShiftDto
 {
@@ -166,22 +145,6 @@ public class EmployeeShiftDto
     public string ShiftName { get; set; }
 }
 
-
-//public class ShiftDto
-//{
-//    public Guid ShiftId { get; set; }
-//    public Guid OrganizationId { get; set; }
-//    public string ShiftName { get; set; }
-//    public TimeSpan StartTime { get; set; }
-//    public TimeSpan EndTime { get; set; }
-//    public int BreakDuration { get; set; }
-//    public int[] DaysOfWeek { get; set; }
-//    public string Timezone { get; set; }
-//    public bool IsActive { get; set; }
-//    public DateTime CreatedAt { get; set; }
-//}
-
-
 public class ShiftDto
 {
     public Guid ShiftId { get; set; }
@@ -213,6 +176,14 @@ public class CreateShiftSwapRequestDto
     public string? Reason { get; set; }
 }
 
+//Getting create shift swap response
+public class ShiftSwapRequestCreatedDto
+{
+    public Guid RequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid ReportingManagerId { get; set; }
+}
+
 public class ApproveShiftSwapRequestDto
 {
     public Guid RequestId { get; set; }
@@ -236,6 +207,30 @@ public class PendingShiftSwapDto
     public string RequestedShiftName { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;  // approved, rejected, pending
+}
+
+//shiftswap request dto
+public class ShiftSwapRequestDto
+{
+    public Guid RequestId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+
+    public Guid? CurrentShiftId { get; set; }
+    public Guid RequestedShiftId { get; set; }
+
+    public string? Reason { get; set; }
+    public string Status { get; set; }
+
+    public DateTime SubmittedAt { get; set; }
+
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+
+    public string? RejectionReason { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    public Guid? ReportingManagerId { get; set; }
 }
 
 

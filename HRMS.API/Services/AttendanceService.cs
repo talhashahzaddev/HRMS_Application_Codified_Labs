@@ -415,12 +415,37 @@ public class AttendanceService : IAttendanceService
         return true;
     }
 
-    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request)
+    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request,Guid currentEmpid)
     {
         var result = await _attendanceRepository.AssignShiftToEmployeeAsync(organizationId, request);
 
-        return true;
+        //Create Notification 
+        var currentEmp = await _employeeRepository.GetEmployeeByIdAsync(currentEmpid);
+        //Get shift details
+        var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(request.ShiftId);
 
+        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
+        if (result!= null)
+
+        {
+            var notification = new NotificationCreateDto
+            {
+                Receiveruserid = request.EmployeeId,
+                Senderuserid = currentEmpid,
+                Ttitle = "Shit Assign",
+                //RequestId = leaveRequest.RequestId,
+                //Message = $" {currentEmp.FirstName} assign you shift of  {shiftDetails.ShiftName} ",
+                Message = $" You assign shift of {shiftDetails.ShiftName} ",
+                Notificationtype = "Message",
+                Createdby = currentEmpid,
+                moduletype = "Shift",
+                Redirecturl = "/attendance/shift",
+                organizationId = organizationId
+            };
+            await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+        }
+
+        return true;
 
     }
 
@@ -435,8 +460,6 @@ public class AttendanceService : IAttendanceService
 
     //Shiftswap 
 
-
-
    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
     {
   
@@ -447,42 +470,87 @@ public class AttendanceService : IAttendanceService
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
         //Getting manager employeeid
-        var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
-        if (result)
+        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
+        // Get Request shift Details
+
+        var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(requestDto.RequestedShiftId);
+
+
+        if (result!=null)
 
         {
             var notification = new NotificationCreateDto
             {
-                Receiveruserid= reciverid,
+                Receiveruserid = reportingmangerid,
                 Senderuserid = employee.EmployeeId,
                 Ttitle = "Swap Request",
-                Message = $"Employee {employee.FirstName } Department {employee.DepartmentName}  requested shift swap.",
+                Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
                 Notificationtype = "Request",
                 Createdby = requestDto.EmployeeId,
-                moduletype="attendance",
-                Redirecturl="/leave/team",
+                moduletype = "attendance",
+                Redirecturl = "/attendance/shift",
+                RequestId = result.RequestId,
                 organizationId = organizationId
             };
             await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
         }
- 
-        return result;
+
+        return true;
 
     }
 
-    public async Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto)
+    public async Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto, Guid organizationId)
     {
         // Optional: Add business validation
         // Example: check if the request is still pending
+        var shiftrequestDetails = await _attendanceRepository.getshifrequestDetailsAsync(dto.RequestId);
+
 
         if (dto.IsApproved == false)
         {
             var success = await _attendanceRepository.RejectShiftSwapRequestAsync(dto);
+
+            //Create Notification 
+            if (success != null)
+            {
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Senderuserid = dto.ApprovedBy,
+                    Ttitle = "Shift Swap Request",
+                    Message = $"Your shift swap request is Rejected {dto.RejectionReason} ",
+                    Notificationtype = "Message",
+                    Createdby = dto.ApprovedBy,
+                    moduletype = "attendance",
+                    Redirecturl = "/attendance/shift",
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+            }
         }
         if (dto.IsApproved == true)
         {
             var success = await _attendanceRepository.AcceptswapRequestAsync(dto);
+            //Create Notification 
+            if (success != null)
+            {
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Senderuserid = dto.ApprovedBy,
+                    Ttitle = "Shift Swap Request",
+                    Message = $"Your shift swap request is Accepted ",
+                    Notificationtype = "Message",
+                    Createdby = dto.ApprovedBy,
+                    moduletype = "attendance",
+                    Redirecturl = "/attendance/shift",
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
 
+            }
         }
         return true;
 
