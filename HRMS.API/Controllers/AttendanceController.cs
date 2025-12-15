@@ -563,8 +563,9 @@ public class AttendanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
+            var currentEmp = await GetCurrentEmployeeId();
 
-            var result = await _attendanceService.AssignShiftToEmployeeAsync(organizationId, request);
+            var result = await _attendanceService.AssignShiftToEmployeeAsync(organizationId, request,currentEmp);
 
             return Ok(new ServiceResponse<bool>
             {
@@ -648,7 +649,8 @@ public class AttendanceController : ControllerBase
         try
         {
             var status = dto.IsApproved ? "approved" : " rejected";
-            var success = await _attendanceService.ApproveShiftSwapRequestAsync(dto);
+            var organizationId= GetCurrentOrganizationId();
+            var success = await _attendanceService.ApproveShiftSwapRequestAsync(dto,organizationId);
 
             return Ok(new ServiceResponse<bool>
             {

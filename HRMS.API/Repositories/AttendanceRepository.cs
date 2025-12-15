@@ -653,6 +653,29 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         }
     }
 
+    // Get Shift Details (Name, StartTime, EndTime)
+    public async Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId)
+    {
+        var sql = @"
+        SELECT 
+            shiftid     AS ShiftId,
+            shiftname   AS ShiftName,
+            starttime   AS StartTime,
+            endtime     AS EndTime
+        FROM attendance.shifts
+        WHERE shiftid = @shiftId
+          AND isactive = true;
+    ";
+
+        var shift = await QuerySingleOrDefaultAsync<ShiftDto>(
+            sql,
+            new { shiftId }
+        );
+
+        return shift;
+    }
+
+
     public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request)
     {
         try
@@ -737,7 +760,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
          return result; // Returns null if manager not found
     }
 
-    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
+    public async Task<ShiftSwapRequestCreatedDto> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
     {
         try
         {
@@ -749,7 +772,11 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             INSERT INTO attendance.shiftswaprequests
             (employeeid, currentshiftid, requestedshiftid, reason, organizationid, reportingmanagerid)
             VALUES
-            (@EmployeeId, @CurrentShiftId, @RequestedShiftId, @Reason, @OrganizationId, @ReportingManagerId);
+            (@EmployeeId, @CurrentShiftId, @RequestedShiftId, @Reason, @OrganizationId, @ReportingManagerId)
+                RETURNING
+                requestid        AS RequestId,
+                employeeid       AS EmployeeId,
+                reportingmanagerid AS ReportingManagerId;
         ";
 
             var parameters = new
@@ -761,14 +788,12 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 organizationId = organizationId,
                 ReportingManagerId=reportingmanagerid
             };
-
-            var rows = await ExecuteAsync(sql, parameters);
-            return rows > 0;
+           return await QuerySingleAsync<ShiftSwapRequestCreatedDto>(sql,parameters);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating shift swap request for employee {EmployeeId}", requestDto.EmployeeId);
-            return false;
+            return null;
         }
     }
 
@@ -1179,6 +1204,35 @@ WHERE ed.employeeid = @EmployeeId
             _logger.LogError(ex, "Error updating shift {ShiftId} for organization {OrganizationId}", shiftId, organizationId);
             throw;
         }
+    }
+
+
+    // Get Shift Swap Request Details by RequestId
+    public async Task<ShiftSwapRequestDto?> getshifrequestDetailsAsync(Guid requestId)
+    {
+        var sql = @"
+        SELECT
+            requestid            AS RequestId,
+            organizationid       AS OrganizationId,
+            employeeid           AS EmployeeId,
+            currentshiftid       AS CurrentShiftId,
+            requestedshiftid     AS RequestedShiftId,
+            reason               AS Reason,
+            status               AS Status,
+            submittedat          AS SubmittedAt,
+            approvedby           AS ApprovedBy,
+            approvedat           AS ApprovedAt,
+            rejectionreason      AS RejectionReason,
+            updatedat            AS UpdatedAt,
+            reportingmanagerid   AS ReportingManagerId
+        FROM attendance.shiftswaprequests
+        WHERE requestid = @requestId;
+    ";
+
+        return await QuerySingleOrDefaultAsync<ShiftSwapRequestDto>(
+            sql,
+            new { requestId }
+        );
     }
 
 

@@ -19,11 +19,11 @@ public interface IAttendanceService
     Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId);
     Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId);
     Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId,Guid currentEmpid);
-    Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto);
+    Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto,Guid organizationId);
     Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
     Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);
     Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId);
-    Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request);
+    Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request,Guid currentEmpId);
     Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto rquest);
     Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request);
     Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request);
