@@ -1,4 +1,5 @@
 using Dapper;
+using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
@@ -102,7 +103,9 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
     FROM auth.users u
     INNER JOIN auth.roles r ON u.roleid = r.roleid
     INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
-    WHERE u.email = @email";
+    INNER JOIN employee.employees e ON u.userid = e.userid
+    WHERE u.email = @email
+    AND e.status = 'active'";
 
         try
         {
