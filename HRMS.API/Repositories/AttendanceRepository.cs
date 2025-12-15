@@ -1519,14 +1519,54 @@ WHERE ed.employeeid = @EmployeeId
 
    
 
-    public async Task<List<AttendanceDto>> GetAttendanceRecordsAsync(
+    public async Task<PagedResult<AttendanceDto>> GetAttendanceRecordsAsync(
     Guid organizationId,
     DateTime startDate,
     DateTime endDate,
     Guid? departmentId = null,
     string? status = null,
-    Guid? employeeId = null) // make employeeId optional
+    Guid? employeeId = null,
+    int pageNumber = 1,
+    int pageSize = 10)
     {
+        var offset = (pageNumber - 1) * pageSize;
+
+        var countSql = @"
+    -- Get count of records
+    WITH employees AS (
+        SELECT e.employeeid, e.firstname, e.lastname, ed.departmentid
+        FROM employee.employees e
+        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        WHERE e.organizationid = @organizationId
+          AND e.status = 'active'
+          AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
+          AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+    ),
+    date_range AS (
+        SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
+    ),
+    calendar AS (
+        SELECT emp.employeeid, emp.firstname, emp.lastname, emp.departmentid, dr.workdate
+        FROM employees emp
+        CROSS JOIN date_range dr
+    ),
+    attendance_data AS (
+        SELECT 
+            c.employeeid,
+            c.firstname,
+            c.lastname,
+            c.workdate,
+            COALESCE(a.status, 'absent') AS status
+        FROM calendar c
+        LEFT JOIN attendance.attendance a
+            ON a.employeeid = c.employeeid
+           AND a.workdate = c.workdate
+    )
+    SELECT COUNT(*)
+    FROM attendance_data
+    WHERE (@status IS NULL OR status = @status);
+    ";
+
         var sql = @"
     -- Get all active employees with optional department and employee filter
     WITH employees AS (
@@ -1583,21 +1623,43 @@ WHERE ed.employeeid = @EmployeeId
         islate AS IsLate
     FROM attendance_data
     WHERE (@status IS NULL OR status = @status)
-    ORDER BY workdate DESC, firstname, lastname;
+    ORDER BY workdate DESC, firstname, lastname
+    LIMIT @pageSize OFFSET @offset;
     ";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
         await connection.OpenAsync();
 
-        return (await connection.QueryAsync<AttendanceDto>(sql, new
+        var parameters = new
         {
             organizationId,
             startDate,
             endDate,
             departmentId,
             status,
-            employeeId // pass employeeId to SQL
-        })).ToList();
+            employeeId,
+            pageSize,
+            offset
+        };
+
+        var data = (await connection.QueryAsync<AttendanceDto>(sql, parameters)).ToList();
+        var totalCount = await connection.QuerySingleAsync<int>(countSql, new
+        {
+            organizationId,
+            startDate,
+            endDate,
+            departmentId,
+            status,
+            employeeId
+        });
+
+        return new PagedResult<AttendanceDto>
+        {
+            Data = data,
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
     }
 
 

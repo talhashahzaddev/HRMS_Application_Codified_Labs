@@ -462,6 +462,38 @@ WHERE employeeid = @employeeid
         return results.ToList();
     }
 
+    public async Task<List<LeaveCalendarDto>> GetApprovedLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    {
+        var sql = @"
+        SELECT lr.requestid, 
+               lr.employeeid, 
+               lr.leavetypeid, 
+               lt.typename AS LeaveTypeName,
+               lr.startdate, 
+               lr.enddate, 
+               lr.daysrequested, 
+               lr.reason, 
+               lr.attachmenturl, 
+               lr.status, 
+               lr.submittedat, 
+               lr.approvedby, 
+               lr.approvedat, 
+               lr.rejectionreason, 
+               lr.createdat, 
+               lr.updatedat
+        FROM attendance.leaverequests lr
+        INNER JOIN attendance.leavetypes lt ON lr.leavetypeid = lt.leavetypeid
+        WHERE lr.employeeid = @employeeId
+          AND lr.status = 'approved'
+          AND ((lr.startdate >= @startDate AND lr.startdate <= @endDate)
+               OR (lr.enddate >= @startDate AND lr.enddate <= @endDate)
+               OR (lr.startdate <= @startDate AND lr.enddate >= @endDate))
+        ORDER BY lr.startdate;";
+
+        var results = await QueryAsync<LeaveCalendarDto>(sql, new { employeeId, startDate, endDate });
+        return results.ToList();
+    }
+
     public async Task<PagedResult<EmployeeLeaveBalanceDto>> GetTeamRemainingLeavesAsync(
         Guid managerEmployeeId, 
         Guid organizationId, 
