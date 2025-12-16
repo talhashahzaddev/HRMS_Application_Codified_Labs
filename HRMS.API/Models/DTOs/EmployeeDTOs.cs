@@ -39,6 +39,7 @@ public class EmployeeSimpleDto
 
 
 
+
 //public class EmployeeListItemDto
 //{
 //    public Guid? EmployeeId { get; set; }
@@ -52,21 +53,28 @@ public class EmployeeSimpleDto
 //    public string? Status { get; set; } = string.Empty;
 //    public string? Department { get; set; } = string.Empty;
 //    public string? DepartmentName { get; set; }
-//    public string ProfilePictureUrl { get; set; }
+//    public string ProfilePictureUrl { get; set; } = string.Empty;
 //    public string? Position { get; set; } = string.Empty;
 //    public string? employmentType { get; set; } = string.Empty;
 //    public Guid? positionid { get; set; }
 //    public string? PositionTitle { get; set; }
 //    public bool? IsActive { get; set; }
 
-//    // New fields
+//    // Payroll & reporting
 //    public string? PayType { get; set; }
 //    public decimal? BasicSalary { get; set; }
 //    public Guid? ReportingManagerId { get; set; }
+//    public string? ReportingManagerName { get; set; } = string.Empty;
+
+//    // Personal details
 //    public string? Gender { get; set; }
 //    public string? Nationality { get; set; }
 //    public string? MaritalStatus { get; set; }
-//    public string? ReportingManagerName { get; set; } = string.Empty;
+//    public DateTime? DateOfBirth { get; set; }
+
+//    // JSON fields as Dictionary
+//    public Dictionary<string, string>? Address { get; set; }
+//    public Dictionary<string, string>? EmergencyContact { get; set; }
 //}
 
 
@@ -81,31 +89,33 @@ public class EmployeeListItemDto
     public string? Phone { get; set; }
     public DateTime? HireDate { get; set; }
     public string? Status { get; set; } = string.Empty;
-    public string? Department { get; set; } = string.Empty;
-    public string? DepartmentName { get; set; }
-    public string ProfilePictureUrl { get; set; } = string.Empty;
-    public string? Position { get; set; } = string.Empty;
-    public string? employmentType { get; set; } = string.Empty;
-    public Guid? positionid { get; set; }
-    public string? PositionTitle { get; set; }
-    public bool? IsActive { get; set; }
 
-    // Payroll & reporting
+    // Existing fields
+    public bool? IsActive { get; set; }
+    public string? employmentType { get; set; }
+
+    // ? New ID fields
+    public Guid? DepartmentId { get; set; }
+    public string? DepartmentName { get; set; }
+    public Guid? PositionId { get; set; }
+    public string? PositionTitle { get; set; }
+
+    public string ProfilePictureUrl { get; set; } = string.Empty;
     public string? PayType { get; set; }
     public decimal? BasicSalary { get; set; }
     public Guid? ReportingManagerId { get; set; }
     public string? ReportingManagerName { get; set; } = string.Empty;
 
-    // Personal details
     public string? Gender { get; set; }
     public string? Nationality { get; set; }
     public string? MaritalStatus { get; set; }
     public DateTime? DateOfBirth { get; set; }
 
-    // JSON fields as Dictionary
+    // JSON fields
     public Dictionary<string, string>? Address { get; set; }
     public Dictionary<string, string>? EmergencyContact { get; set; }
 }
+
 
 
 
@@ -141,6 +151,37 @@ public class UpdateEmployeeRequest
     public DateTime? DateOfBirth { get; set; }
     public string Status { get; set; } = string.Empty;
 }
+
+public class UpdateEmployeeRequestDTo
+{
+    public Guid EmployeeId { get; set; }   // ? REQUIRED
+
+    public string? EmployeeNumber { get; set; }
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? Email { get; set; }
+    public string? Phone { get; set; }
+
+    public Dictionary<string, object> Address { get; set; } = new();
+    public Dictionary<string, object> EmergencyContact { get; set; } = new();
+
+    public DateTime? DateOfBirth { get; set; }
+    public DateTime? HireDate { get; set; }
+
+    public Guid? DepartmentId { get; set; }
+    public Guid? PositionId { get; set; }
+    public decimal? BasicSalary { get; set; }
+    public Guid? ReportingManagerId { get; set; }
+
+    public string? WorkLocation { get; set; }
+    public string? Gender { get; set; }
+    public string? MaritalStatus { get; set; }
+    public string? Nationality { get; set; }
+
+    public Guid? roleId { get; set; }
+    public IFormFile? ProfilePicture { get; set; }
+}
+
 
 public class DepartmentDto
 {

@@ -6,14 +6,14 @@ namespace HRMS.API.Services.Interfaces;
 
 public interface IEmployeeService
 {
-
+    Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequestDTo request, IFormFile? profileFile);
     Task<bool> UpdateDepartmentStatusAsync(Guid organizationId, Guid departmentId, bool isActive);
     Task<bool> UpdatePositionStatusAsync(Guid organizationId,Guid positionId,bool isActive);
     Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId);
     Task<EmployeeDto?> GetEmployeeByIdAsync(Guid employeeId);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(EmployeeSearchViewModel searchModel, Guid organizationId);
     Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequest request);
-    Task<bool> DeleteEmployeeAsync(Guid employeeId);
+    Task<bool> DeleteEmployeeAsync(Guid employeeId,string status);
     Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null);
     Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId);
     Task<DepartmentDto> UpdateDepartmentAsync(Guid departmentId, CreateDepartmentRequest request);

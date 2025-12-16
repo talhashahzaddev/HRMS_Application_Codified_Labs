@@ -275,7 +275,7 @@ CREATE OR REPLACE FUNCTION employee.fn_get_employees(
 	p_status character varying DEFAULT NULL::character varying,
 	p_limit integer DEFAULT 50,
 	p_offset integer DEFAULT 0)
-    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentname character varying, profilepictureurl character varying, positiontitle character varying, employmenttype character varying, paytype character varying, basicsalary numeric, reportingmanagerid uuid, reportingmanagername character varying, gender character varying, nationality character varying, maritalstatus character varying, dateofbirth date, address jsonb, emergencycontact jsonb, totalcount bigint) 
+    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentid uuid, departmentname character varying, profilepictureurl character varying, positionid uuid, positiontitle character varying, employmenttype character varying, paytype character varying, basicsalary numeric, reportingmanagerid uuid, reportingmanagername character varying, gender character varying, nationality character varying, maritalstatus character varying, dateofbirth date, address jsonb, emergencycontact jsonb, totalcount bigint) 
     LANGUAGE 'plpgsql'
     COST 100
     VOLATILE PARALLEL UNSAFE
@@ -314,8 +314,10 @@ BEGIN
         e.phone,
         e.hiredate,
         e.status,
+        ed.departmentid,             -- added
         d.departmentname,
         e.profilepictureurl,
+        ed.positionid,               -- added
         pos.positiontitle,
         ed.employmenttype,
         ed.paytype,
