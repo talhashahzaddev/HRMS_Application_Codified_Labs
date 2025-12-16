@@ -494,6 +494,31 @@ public class LeaveController : ControllerBase
         }
     }
 
+    [HttpGet("check-overlap")]
+    public async Task<ActionResult<ServiceResponse<bool>>> CheckLeaveOverlap([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? excludeRequestId = null)
+    {
+        try
+        {
+            var employeeId = GetCurrentEmployeeId();
+            var hasOverlap = await _leaveService.HasOverlappingLeaveAsync(employeeId, startDate, endDate, excludeRequestId);
+            
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = hasOverlap
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking leave overlap");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while checking leave overlap"
+            });
+        }
+    }
+
 
     private Guid GetCurrentEmployeeId()
     {

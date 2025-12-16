@@ -393,25 +393,38 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     {
        try
         {
-            var employeeid = await GetEmpId(employeeId);
+            //var employeeid = await GetEmpId(employeeId);
+            
+            // Normalize dates to date-only (remove time component) for proper comparison
+            var normalizedStartDate = startDate.Date;
+            var normalizedEndDate = endDate.Date;
+            
+            // Debug logging
+            //Console.WriteLine($"Checking overlap for EmployeeId: {employeeId}, StartDate: {normalizedStartDate:yyyy-MM-dd}, EndDate: {normalizedEndDate:yyyy-MM-dd}, ExcludeRequestId: {excludeRequestId}");
             
             var sql = @"
 SELECT COUNT(*) > 0
 FROM attendance.leaverequests
 WHERE employeeid = @employeeid
-  AND status IN ('approved', 'pending','rejected')
+  AND status IN ('approved', 'pending')
   AND (@excludeRequestId IS NULL OR requestid != @excludeRequestId)
-  AND NOT (enddate < @startDate OR startdate > @endDate)";
+  AND NOT (enddate < @normalizedStartDate OR startdate > @normalizedEndDate)";
 
-
-            return await ExecuteScalarAsync<bool>(sql, new { employeeid, startDate, endDate, excludeRequestId });
+            var result = await ExecuteScalarAsync<bool>(sql, new {
+                employeeId, 
+                normalizedStartDate, 
+                normalizedEndDate, 
+                excludeRequestId 
+            });
+            
+            //Console.WriteLine($"Overlap check result: {result} for EmployeeId: {employeeId}");
+            return result;
         }
         catch(Exception ex)
         {
-            Console.WriteLine($"Error checking leave overlap: {ex.Message}");
+            //    Console.WriteLine($"Error checking leave overlap: {ex.Message}");
+            //    Console.WriteLine($"Stack trace: {ex.StackTrace}");
             throw new Exception("An error occurred while checking leave overlap.");
-
-            return false;
         }
     }
 

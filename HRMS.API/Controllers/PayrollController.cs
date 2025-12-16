@@ -738,12 +738,16 @@ public class PayrollController : ControllerBase
     }
 
     [HttpGet("statistics")]
-    public async Task<ActionResult<ServiceResponse<PayrollStatisticsDto>>> GetPayrollStatistics([FromQuery] DateTime? startDate, [FromQuery] DateTime? endDate)
+    public async Task<ActionResult<ServiceResponse<PayrollStatisticsDto>>> GetPayrollStatistics(
+        [FromQuery] DateTime? startDate, 
+        [FromQuery] DateTime? endDate,
+        [FromQuery] Guid? payrollPeriodId = null,
+        [FromQuery] string? department = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var statistics = await _payrollService.GetPayrollStatisticsAsync(organizationId, startDate, endDate);
+            var statistics = await _payrollService.GetPayrollStatisticsAsync(organizationId, startDate, endDate, payrollPeriodId, department);
             
             return Ok(new ServiceResponse<PayrollStatisticsDto>
             {
@@ -763,14 +767,14 @@ public class PayrollController : ControllerBase
     }
 
     [HttpGet("department-breakdown")]
-    public async Task<ActionResult<ServiceResponse<DepartmentPayrollBreakdownDto>>> GetDepartmentPayrollBreakdown([FromQuery] Guid? payrollPeriodId)
+    public async Task<ActionResult<ServiceResponse<List<DepartmentPayrollBreakdownDto>>>> GetDepartmentPayrollBreakdown([FromQuery] Guid? payrollPeriodId)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var breakdown = await _payrollService.GetDepartmentPayrollBreakdownAsync(organizationId, payrollPeriodId);
             
-            return Ok(new ServiceResponse<DepartmentPayrollBreakdownDto>
+            return Ok(new ServiceResponse<List<DepartmentPayrollBreakdownDto>>
             {
                 Success = true,
                 Data = breakdown
@@ -779,7 +783,7 @@ public class PayrollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving department payroll breakdown");
-            return StatusCode(500, new ServiceResponse<DepartmentPayrollBreakdownDto>
+            return StatusCode(500, new ServiceResponse<List<DepartmentPayrollBreakdownDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving department payroll breakdown"

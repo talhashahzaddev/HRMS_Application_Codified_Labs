@@ -408,4 +408,10 @@ public class LeaveService : ILeaveService
         };
     }
 
+    public async Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null)
+    {
+        var empId = await _leaveRepository.GetEmpId(employeeId);
+        return await _leaveRepository.HasOverlappingLeaveAsync(empId, startDate, endDate, excludeRequestId);
+    }
+
 }

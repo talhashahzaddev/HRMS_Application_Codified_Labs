@@ -329,7 +329,7 @@ public class PayrollService : IPayrollService
             EndDate = filter.EndDate ?? DateTime.Now,
             Entries = entries.Data,
             Summary = summary,
-            DepartmentBreakdown = new List<DepartmentPayrollBreakdownDto> { departmentBreakdown }
+            DepartmentBreakdown = departmentBreakdown
         };
     }
 
@@ -584,13 +584,13 @@ public class PayrollService : IPayrollService
         return true;
     }
 
-    public async Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
+    public async Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate, Guid? payrollPeriodId = null, string? department = null)
     {
         _logger.LogInformation("Getting payroll statistics for organization: {OrganizationId}", organizationId);
-        return await _payrollRepository.GetPayrollStatisticsAsync(organizationId, startDate, endDate);
+        return await _payrollRepository.GetPayrollStatisticsAsync(organizationId, startDate, endDate, payrollPeriodId, department);
     }
 
-    public async Task<DepartmentPayrollBreakdownDto> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId)
+    public async Task<List<DepartmentPayrollBreakdownDto>> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId)
     {
         _logger.LogInformation("Getting department payroll breakdown for organization: {OrganizationId}", organizationId);
         return await _payrollRepository.GetDepartmentPayrollBreakdownAsync(organizationId, payrollPeriodId);
