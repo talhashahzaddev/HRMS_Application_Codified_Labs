@@ -507,7 +507,9 @@ public class AttendanceService : IAttendanceService
         var result= await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
         //Step 2: Create notification
 
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(requestDto.EmployeeId);
+        var EMPID = await _attendanceRepository.GetEmpId(requestDto.EmployeeId);
+
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(EMPID);
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
         //Getting manager employeeid

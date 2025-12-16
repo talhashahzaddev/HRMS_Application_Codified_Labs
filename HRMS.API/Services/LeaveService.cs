@@ -45,7 +45,7 @@ public class LeaveService : ILeaveService
             empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
         //Create Notification
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
 
