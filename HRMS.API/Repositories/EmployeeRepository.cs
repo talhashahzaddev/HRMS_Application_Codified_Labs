@@ -116,7 +116,144 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     }
 
-    public async Task<Employee?> GetEmployeeByIdAsync(Guid userId)
+ 
+
+
+    //Adding function here
+
+
+    public async Task<Guid?> GetEmpUserIdAsync(Guid employeeId)
+    {
+        var query = "SELECT userid FROM employee.employees WHERE employeeid = @EmployeeId";
+        // QueryFirstOrDefaultAsync returns a single value or default (null)
+        var userId = await QuerySingleOrDefaultAsync<Guid?>(query, new { EmployeeId = employeeId });
+        return userId;
+    }
+
+
+
+
+    public async Task<bool> EditEmployeeDetailsAsync(Guid employeeId, UpdateEmployeeRequestDTo request)
+    {
+        var sql = @"UPDATE employee.employmentdetails SET 
+                        departmentid=@DepartmentId, 
+                        positionid=@PositionId,
+                        employmenttype=@EmploymentType, 
+                        paytype=@PayType, 
+                        basicsalary=@BasicSalary,
+                        currency=@Currency, 
+                        worklocation=@WorkLocation, 
+                        reportingmanagerid=@ReportingManagerId,
+                        effectivedate=@EffectiveDate, 
+                        enddate=@EndDate, 
+                        iscurrent=@IsCurrent
+                    WHERE employeeid=@EmployeeId";
+
+        var affected = await ExecuteAsync(sql, new
+        {
+            DepartmentId = request.DepartmentId,
+            PositionId = request.PositionId,
+            EmploymentType = "full_time", // Default value
+            PayType = "salary",           // Default value
+            BasicSalary = request.BasicSalary,
+            Currency = "USD",             // Default value
+            WorkLocation = request.WorkLocation,
+            ReportingManagerId = request.ReportingManagerId,
+            EffectiveDate = DateTime.UtcNow.Date,
+            EndDate = (DateTime?)null,
+            IsCurrent = true,
+            EmployeeId = employeeId
+        });
+
+        return affected > 0;
+    }
+
+
+    public async Task<bool> EditEmployeeTableAsync(Guid employeeId, UpdateEmployeeRequestDTo request, string? profileUrl)
+    {
+        var sql = @"UPDATE employee.employees SET 
+                        employeecode=@EmployeeNumber, 
+                        firstname=@FirstName, 
+                        lastname=@LastName, 
+                        email=@Email,
+                        phone=@Phone, 
+                        address=@Address::jsonb, 
+                        dateofbirth=@DateOfBirth, 
+                        gender=@Gender,
+                        nationality=@Nationality, 
+                        maritalstatus=@MaritalStatus, 
+                        emergencycontact=@EmergencyContact::jsonb,
+                        profilepictureurl=COALESCE(@ProfileUrl, profilepictureurl),
+                        hiredate=@HireDate, 
+                        updatedat=CURRENT_TIMESTAMP
+                    WHERE employeeid=@EmployeeId";
+
+        var affected = await ExecuteAsync(sql, new
+        {
+            EmployeeNumber = request.EmployeeNumber,
+            FirstName = request.FirstName,
+            LastName = request.LastName,
+            Email = request.Email,
+            Phone = request.Phone,
+            Address = System.Text.Json.JsonSerializer.Serialize(request.Address),
+            DateOfBirth = request.DateOfBirth,
+            Gender = request.Gender,
+            Nationality = request.Gender,
+            MaritalStatus = request.MaritalStatus,
+            EmergencyContact = System.Text.Json.JsonSerializer.Serialize(request.EmergencyContact),
+            HireDate = request.HireDate,
+            EmployeeId = employeeId,
+            ProfileUrl = profileUrl
+        });
+
+        return affected > 0;
+    }
+
+
+    public async Task<Guid?> GetRoleIdAsync(Guid? userId)
+    {
+        var sql = @"
+        SELECT roleid 
+        FROM auth.users 
+        WHERE userid = @UserId
+    ";
+
+        var roleId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { UserId = userId });
+        return roleId;
+    }
+
+
+
+    public async Task<bool> editEmployeeUserAsync(Guid? userId, UpdateEmployeeRequestDTo request)
+    {
+        var RoleId = await GetRoleIdAsync(userId);
+
+        var sql = @"UPDATE auth.users SET 
+                 firstname=@FirstName, 
+                 lastname=@LastName, 
+                 email=@Email, 
+                 emailverified=@EmailVerified, 
+                 roleid=@RoleId,
+                 updatedat=CURRENT_TIMESTAMP 
+             WHERE userid=@UserId";
+
+        var affected = await ExecuteAsync(sql, new
+        {
+            FirstName = request?.FirstName,
+            LastName = request?.LastName,
+            Email = request?.Email,
+            EmailVerified = false, // Default false
+            RoleId = RoleId,
+            UserId = userId
+        });
+
+        return affected > 0;
+    }
+
+
+
+
+    public async Task<Employee?> GetEmployeeByIdAsync(Guid? userId)
     {
        try
         {
@@ -213,6 +350,37 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                     offset = (page - 1) * pageSize
                 });
 
+            //var employees = results.Select(r => new EmployeeListItemDto
+            //{
+            //    EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
+            //    EmployeeCode = r.employeecode,
+            //    FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
+            //    FirstName = r.firstname,
+            //    LastName = r.lastname,
+            //    Email = r.email,
+            //    Phone = r.phone,
+            //    HireDate = r.hiredate,
+            //    employmentType = r.employmenttype ?? "full_time",
+            //    Status = r.status,
+            //    ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
+            //    DepartmentName = r.departmentname,
+            //    PositionTitle = r.positiontitle,
+            //    PayType = r.paytype,
+            //    BasicSalary = r.basicsalary,
+            //    ReportingManagerId = r.reportingmanagerid,
+            //    ReportingManagerName = r.reportingmanagername,
+            //    Gender = r.gender,
+            //    Nationality = r.nationality,
+            //    MaritalStatus = r.maritalstatus,
+            //    DateOfBirth = r.dateofbirth,
+            //    Address = r.address != null
+            //              ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.address.ToString())
+            //              : null,
+            //    EmergencyContact = r.emergencycontact != null
+            //              ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.emergencycontact.ToString())
+            //              : null
+            //}).ToList();
+
             var employees = results.Select(r => new EmployeeListItemDto
             {
                 EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
@@ -223,11 +391,19 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 Email = r.email,
                 Phone = r.phone,
                 HireDate = r.hiredate,
-                employmentType = r.employmenttype ?? "full_time",
                 Status = r.status,
-                ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
+
+                // Existing fields
+                IsActive = r.isactive, // agar backend me column ya mapping hai
+                employmentType = r.employmenttype ?? "full_time",
+
+                // ✅ New ID fields
+                DepartmentId = r.departmentid,
                 DepartmentName = r.departmentname,
+                PositionId = r.positionid,
                 PositionTitle = r.positiontitle,
+
+                ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
                 PayType = r.paytype,
                 BasicSalary = r.basicsalary,
                 ReportingManagerId = r.reportingmanagerid,
@@ -236,13 +412,16 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 Nationality = r.nationality,
                 MaritalStatus = r.maritalstatus,
                 DateOfBirth = r.dateofbirth,
+
+                // JSON fields
                 Address = r.address != null
-                          ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.address.ToString())
-                          : null,
+              ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.address.ToString())
+              : null,
                 EmergencyContact = r.emergencycontact != null
-                          ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.emergencycontact.ToString())
-                          : null
+              ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.emergencycontact.ToString())
+              : null
             }).ToList();
+
 
             var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
 
@@ -339,18 +518,29 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         return affected > 0;
     }
 
-    public async Task<bool> DeleteEmployeeAsync(Guid employeeId)
+    //public async Task<bool> DeleteEmployeeAsync(Guid employeeId,string status)
+    //{
+    //    var sql = @"
+    //        UPDATE employee.employees 
+    //        SET status = 'deleted', updatedat = CURRENT_TIMESTAMP 
+    //        WHERE employeeid = @employeeId";
+
+    //    var affected = await ExecuteAsync(sql, new { employeeId });
+    //    return affected > 0;
+    //}
+
+    public async Task<bool> DeleteEmployeeAsync(Guid employeeId, string status)
     {
         var sql = @"
-            UPDATE employee.employees 
-            SET status = 'deleted', updatedat = CURRENT_TIMESTAMP 
-            WHERE employeeid = @employeeId";
+        UPDATE employee.employees
+        SET status = @status, updatedat = CURRENT_TIMESTAMP
+        WHERE employeeid = @employeeId";
 
-        var affected = await ExecuteAsync(sql, new { employeeId });
+        var affected = await ExecuteAsync(sql, new { employeeId, status });
         return affected > 0;
     }
 
-   
+
     public async Task<List<Department>> GetDepartmentsAsync(
         Guid organizationId,
         string? searchQuery = null,

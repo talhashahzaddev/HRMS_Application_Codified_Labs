@@ -8,19 +8,24 @@ public interface IEmployeeRepository
 {
 
     //adding this now
+    Task<Guid?> getemployeeid(Guid userId);
+    Task<bool> EditEmployeeDetailsAsync(Guid employeeId, UpdateEmployeeRequestDTo request);
+    Task<bool> EditEmployeeTableAsync(Guid employeeId, UpdateEmployeeRequestDTo request, string? profileUrl);
+    Task<bool> editEmployeeUserAsync(Guid? userId, UpdateEmployeeRequestDTo request);
+    Task<Guid?> GetEmpUserIdAsync(Guid employeeId);
     Task<bool> UpdateDepartmentStatusAsync(Guid organizationId,Guid departmentId,bool isActive);
     Task<bool> UpdatePositionStatusAsync(Guid organizationId,Guid positionId,bool isActive);
     Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId);
 
     Task<Employee> CreateEmployeeAsync(Employee employee);
-    Task<Employee?> GetEmployeeByIdAsync(Guid employeeId);
+    Task<Employee?> GetEmployeeByIdAsync(Guid? employeeId);
     Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode);
     Task<Employee?> GetEmployeeByEmailAsync(Guid organizationId, string email);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
     Guid? organizationId = null, string? searchTerm = null, Guid? departmentId = null,Guid? positionId=null,string? employmentType=null,
     string? status = null, int page = 1, int pageSize = 50);
     Task<bool> UpdateEmployeeAsync(Employee employee);
-    Task<bool> DeleteEmployeeAsync(Guid employeeId);
+    Task<bool> DeleteEmployeeAsync(Guid employeeId,string status);
     Task<List<Department>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null,
     bool? status = null);
     Task<Department> CreateDepartmentAsync(Department department);

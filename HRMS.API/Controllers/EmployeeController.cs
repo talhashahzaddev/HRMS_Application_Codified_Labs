@@ -1,9 +1,12 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.ViewModels;
+using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Asn1.Ocsp;
+using System.Security.Claims;
+using System.Text.Json;
 
 namespace HRMS.API.Controllers;
 
@@ -149,11 +152,11 @@ public class EmployeeController : ControllerBase
 
     [HttpDelete("{id}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployee(Guid id)
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployee(Guid id, [FromQuery] string status)
     {
         try
         {
-            var result = await _employeeService.DeleteEmployeeAsync(id);
+            var result = await _employeeService.DeleteEmployeeAsync(id, status);
             
             return Ok(new ServiceResponse<bool>
             {
@@ -494,7 +497,7 @@ public class EmployeeController : ControllerBase
         try
         {
             var result = await _employeeService.DeletePositionAsync(id);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -528,6 +531,104 @@ public class EmployeeController : ControllerBase
             });
         }
     }
+
+
+    //[HttpDelete("positions/{id}")]
+    //[Authorize(Roles = "Super Admin,HR Manager")]
+    //public async Task<ActionResult<ServiceResponse<bool>>> DeletePosition(Guid id, [FromQuery] string status)
+    //{
+    //    try
+    //    {
+    //        var result = await _employeeService.DeletePositionAsync(id, status);
+
+    //        string message = status.ToLower() == "deleted" ? "Position deleted successfully" :
+    //                         status.ToLower() == "active" ? "Position recovered successfully" :
+    //                         "Status updated successfully";
+
+    //        return Ok(new ServiceResponse<bool>
+    //        {
+    //            Success = true,
+    //            Message = message,
+    //            Data = result
+    //        });
+    //    }
+    //    catch (KeyNotFoundException ex)
+    //    {
+    //        return NotFound(new ServiceResponse<bool>
+    //        {
+    //            Success = false,
+    //            Message = ex.Message
+    //        });
+    //    }
+    //    catch (InvalidOperationException ex)
+    //    {
+    //        return BadRequest(new ServiceResponse<bool>
+    //        {
+    //            Success = false,
+    //            Message = ex.Message
+    //        });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error updating position {PositionId}", id);
+    //        return StatusCode(500, new ServiceResponse<bool>
+    //        {
+    //            Success = false,
+    //            Message = "An error occurred while updating position"
+    //        });
+    //    }
+    //}
+
+
+
+
+
+    //Employee Update
+    [HttpPut("edit")]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateEmployee(
+     [FromForm] UpdateEmployeeRequestDTo request,
+     IFormFile? profileurl)
+    {
+        try
+        {
+            // Manual deserialization of JSON strings into Dictionary
+            if (Request.Form.ContainsKey("Address"))
+                request.Address = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["Address"]);
+
+            if (Request.Form.ContainsKey("EmergencyContact"))
+                request.EmergencyContact = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["EmergencyContact"]);
+
+            // Call service to update employee
+            await _employeeService.UpdateEmployeeAsync(request.EmployeeId, request, profileurl);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Employee updated successfully",
+                Data = true
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Employee update failed for EmployeeId: {EmployeeId}", request.EmployeeId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating employee"
+            });
+        }
+    }
+
+
 
     [HttpPatch("{id}/activate")]
     [Authorize(Roles = "Super Admin,HR Manager")]

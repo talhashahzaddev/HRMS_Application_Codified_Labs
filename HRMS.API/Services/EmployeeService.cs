@@ -1,12 +1,16 @@
-using AutoMapper;
+﻿using AutoMapper;
 using ClosedXML.Excel;
+using CloudinaryDotNet.Core;
 using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Spreadsheet;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
+using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using OfficeOpenXml;
+using System.Linq;
 
 namespace HRMS.API.Services;
 
@@ -17,17 +21,19 @@ public class EmployeeService : IEmployeeService
     private readonly ISettingsRepository _settingsRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<EmployeeService> _logger;
-
+    private readonly ICloudinaryService _cloudinaryService;
     public EmployeeService(
         IEmployeeRepository employeeRepository,
         IAuthService authService,
         ISettingsRepository settingsRepository,
         IMapper mapper,
+         ICloudinaryService cloudinaryService,
         ILogger<EmployeeService> logger)
     {
         _employeeRepository = employeeRepository;
         _authService = authService;
         _settingsRepository = settingsRepository;
+        _cloudinaryService = cloudinaryService;
         _mapper = mapper;
         _logger = logger;
     }
@@ -129,9 +135,9 @@ public class EmployeeService : IEmployeeService
 
     public async Task<EmployeeDto?> GetEmployeeByIdAsync(Guid userId)
     {
-        //var empid = await _employeeRepository.GetEmployeeIdAsync(userId);
-       
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(userId);
+        var empid = await _employeeRepository.getemployeeid(userId);
+
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(empid);
 
         return employee != null ? _mapper.Map<EmployeeDto>(employee) : null;
     }
@@ -159,10 +165,21 @@ public class EmployeeService : IEmployeeService
         return await _employeeRepository.UpdateEmployeeAsync(employee);
     }
 
-    public async Task<bool> DeleteEmployeeAsync(Guid employeeId)
+
+    public async Task<bool> DeleteEmployeeAsync(Guid employeeId, string? status)
     {
-        return await _employeeRepository.DeleteEmployeeAsync(employeeId);
+        if (status.ToLower() == "delete")
+        {
+            status = "delete";
+        }
+        else
+        {
+            status = "active";
+        }
+
+        return await _employeeRepository.DeleteEmployeeAsync(employeeId, status);
     }
+
 
     public async Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null)
     {
@@ -216,6 +233,41 @@ public class EmployeeService : IEmployeeService
 
         return result;
     }
+
+    //
+    public async Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequestDTo request, IFormFile? profileFile)
+    {
+        //Update user table first
+        // get employee userId to update employe in user 
+        var userId = await _employeeRepository.GetEmpUserIdAsync(employeeId);
+
+        var UpdateUserTable = await _employeeRepository.editEmployeeUserAsync(userId, request);
+
+        // 1️⃣ Get employee from database
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        if (employee == null)
+            throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
+
+        // 2️⃣ Upload profile picture if provided
+        string? profileUrl = employee.ProfilePictureUrl;
+        if (profileFile != null && profileFile.Length > 0)
+        {
+            var uploadedUrl = await _cloudinaryService.UploadProfilePictureAsync(profileFile);
+            if (!string.IsNullOrEmpty(uploadedUrl))
+                profileUrl = uploadedUrl;
+        }
+
+        // 3️⃣ Update Employee table
+        var updateEmployeeTable = await _employeeRepository.EditEmployeeTableAsync(employee.EmployeeId, request, profileUrl);
+
+        // 4️⃣ Update Employee Details table
+        var updateEmployeeDetails = await _employeeRepository.EditEmployeeDetailsAsync(employee.EmployeeId, request);
+
+        //return updateEmployeeTable && updateEmployeeDetails;
+
+        return true;
+    }
+
 
 
     public async Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId)
@@ -486,31 +538,79 @@ public class EmployeeService : IEmployeeService
 
         // ===== HEADERS =====
         sheet.Cell(1, 1).Value = "Employee Code";
-        sheet.Cell(1, 2).Value = "Full Name";
-        sheet.Cell(1, 3).Value = "Email";
-        sheet.Cell(1, 4).Value = "Phone";
-        sheet.Cell(1, 5).Value = "Department";
-        sheet.Cell(1, 6).Value = "Position";
-        sheet.Cell(1, 7).Value = "Hire Date";
-        sheet.Cell(1, 8).Value = "Status";
+        sheet.Cell(1, 2).Value = "First Name";
+        sheet.Cell(1, 3).Value = "Last Name";
+        sheet.Cell(1, 4).Value = "Full Name";
+        sheet.Cell(1, 5).Value = "Email";
+        sheet.Cell(1, 6).Value = "Phone";
+        sheet.Cell(1, 7).Value = "Department";
+        sheet.Cell(1, 8).Value = "Position";
+        sheet.Cell(1, 9).Value = "Employment Type";
+        sheet.Cell(1, 10).Value = "Pay Type";
+        sheet.Cell(1, 11).Value = "Basic Salary";
+        sheet.Cell(1, 12).Value = "Hire Date";
+        sheet.Cell(1, 13).Value = "Status";
+        sheet.Cell(1, 14).Value = "Reporting Manager";
+        sheet.Cell(1, 15).Value = "Gender";
+        sheet.Cell(1, 16).Value = "Nationality";
+        sheet.Cell(1, 17).Value = "Marital Status";
+        sheet.Cell(1, 18).Value = "Date of Birth";
+        sheet.Cell(1, 19).Value = "Street";
+        sheet.Cell(1, 20).Value = "City";
+        sheet.Cell(1, 21).Value = "State";
+        sheet.Cell(1, 22).Value = "Zip";
+        sheet.Cell(1, 23).Value = "Emergency Name";
+        sheet.Cell(1, 24).Value = "Emergency Email";
+        sheet.Cell(1, 25).Value = "Emergency Phone";
+        sheet.Cell(1, 26).Value = "Emergency Relation";
 
         sheet.Row(1).Style.Font.Bold = true;
 
+
         // ===== DATA =====
+
         int row = 2;
         foreach (var emp in employees.Data)
         {
             sheet.Cell(row, 1).Value = emp.EmployeeCode;
-            sheet.Cell(row, 2).Value = emp.FullName;
-            sheet.Cell(row, 3).Value = emp.Email;
-            sheet.Cell(row, 4).Value = emp.Phone;
-            sheet.Cell(row, 5).Value = emp.DepartmentName;
-            sheet.Cell(row, 6).Value = emp.PositionTitle;
-            sheet.Cell(row, 7).Value = emp.HireDate?.ToString("yyyy-MM-dd");
-            sheet.Cell(row, 8).Value = emp.Status ?? "Unknown";
+            sheet.Cell(row, 2).Value = emp.FirstName;
+            sheet.Cell(row, 3).Value = emp.LastName;
+            sheet.Cell(row, 4).Value = emp.FullName;
+            sheet.Cell(row, 5).Value = emp.Email;
+            sheet.Cell(row, 6).Value = emp.Phone;
+
+            sheet.Cell(row, 7).Value = emp.DepartmentName;
+            sheet.Cell(row, 8).Value = emp.PositionTitle;
+
+            sheet.Cell(row, 9).Value = emp.employmentType;   // (column skip fix)
+            sheet.Cell(row, 10).Value = emp.PayType;
+            sheet.Cell(row, 11).Value = emp.BasicSalary;
+
+            sheet.Cell(row, 12).Value = emp.HireDate?.ToString("yyyy-MM-dd");
+            sheet.Cell(row, 13).Value = emp.Status;
+
+            sheet.Cell(row, 14).Value = emp.ReportingManagerName;
+            sheet.Cell(row, 15).Value = emp.Gender;
+            sheet.Cell(row, 16).Value = emp.Nationality;
+            sheet.Cell(row, 17).Value = emp.MaritalStatus;
+            sheet.Cell(row, 18).Value = emp.DateOfBirth?.ToString("yyyy-MM-dd");
+
+            // ===== Address (Dictionary) =====
+            sheet.Cell(row, 19).Value = GetDictValue(emp.Address, "street");
+            sheet.Cell(row, 20).Value = GetDictValue(emp.Address, "city");
+            sheet.Cell(row, 21).Value = GetDictValue(emp.Address, "state");
+            sheet.Cell(row, 22).Value = GetDictValue(emp.Address, "zip");
+
+            // ===== Emergency Contact (Dictionary) =====
+            sheet.Cell(row, 23).Value = GetDictValue(emp.EmergencyContact, "name");
+            sheet.Cell(row, 24).Value = GetDictValue(emp.EmergencyContact, "email");
+            sheet.Cell(row, 25).Value = GetDictValue(emp.EmergencyContact, "phone");
+            sheet.Cell(row, 26).Value = GetDictValue(emp.EmergencyContact, "relationship");
 
             row++;
         }
+
+
 
         sheet.Columns().AdjustToContents();
 
@@ -518,6 +618,15 @@ public class EmployeeService : IEmployeeService
         workbook.SaveAs(stream);
         return stream.ToArray();
     }
+
+    //Helper function for converting the Dictionary elemtens
+    string GetDictValue(Dictionary<string, string>? dict, string key)
+    {
+        return dict != null && dict.TryGetValue(key, out var value)
+            ? value
+            : string.Empty;
+    }
+
 
     public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
     {
