@@ -46,8 +46,8 @@ public interface IPayrollService
     Task<bool> GeneratePayslipsAsync(Guid payrollPeriodId, List<Guid>? employeeIds);
     Task<byte[]> DownloadPayslipAsync(Guid payrollEntryId);
     Task<bool> EmailPayslipsAsync(Guid payrollPeriodId, List<Guid>? employeeIds);
-    Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate);
-    Task<DepartmentPayrollBreakdownDto> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId);
+    Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate, Guid? payrollPeriodId = null, string? department = null);
+    Task<List<DepartmentPayrollBreakdownDto>> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId);
     Task<PayrollTaxSummaryDto> CalculateTaxDeductionsAsync(Guid employeeId, decimal grossPay, Guid payrollPeriodId);
     Task<PayrollDeductionSummaryDto> GetDeductionSummaryAsync(Guid payrollPeriodId);
     Task<List<PayrollProcessingHistoryDto>> GetProcessingHistoryAsync(Guid organizationId, int limit = 10);
