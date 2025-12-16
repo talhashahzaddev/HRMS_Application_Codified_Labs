@@ -22,4 +22,5 @@ public interface ILeaveService
 
     Task<List<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<PagedResult<TeamRemainingLeavesDto>> GetTeamRemainingLeavesAsync(Guid managerEmployeeId, Guid organizationId, TeamRemainingLeavesSearchViewModel searchModel);
+    Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null);
 }

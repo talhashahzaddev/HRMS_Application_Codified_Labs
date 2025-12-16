@@ -45,7 +45,7 @@ public class LeaveService : ILeaveService
             empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
         //Create Notification
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
 
@@ -406,6 +406,12 @@ public class LeaveService : ILeaveService
             Page = rawData.Page,
             PageSize = rawData.PageSize
         };
+    }
+
+    public async Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null)
+    {
+        var empId = await _leaveRepository.GetEmpId(employeeId);
+        return await _leaveRepository.HasOverlappingLeaveAsync(empId, startDate, endDate, excludeRequestId);
     }
 
 }
