@@ -300,7 +300,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
             if (date == null)
             {
-                // No date provided ? get today’s attendance
+                // No date provided ? get todayï¿½s attendance
                 sql = @"
                 SELECT attendanceid
                 FROM attendance.attendance
@@ -573,28 +573,74 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
     //Chnages here
 
+    //public async Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request)
+    //{
+    //    try
+    //    {
+    //        var createdAt = DateTime.Now;
+    //        var sql = @"
+    //        INSERT INTO attendance.shifts
+    //            (organizationid, shiftname, starttime, endtime, breakduration, daysofweek, timezone,createdat)
+    //        VALUES
+    //            (@OrganizationId, @ShiftName, @StartTime, @EndTime, @BreakDuration, @DaysofWeek, @Timezone,@createdAt);
+    //    ";
+
+    //        var parameters = new
+    //        {
+    //            createdAt = createdAt,
+    //            OrganizationId = organizationId,
+    //            ShiftName = request.ShiftName,
+    //            StartTime = request.StartTime,
+    //            EndTime = request.EndTime,
+    //            BreakDuration = request.BreakDuration ?? 0,
+    //            DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
+    //            Timezone = request.Timezone ?? "UTC"
+    //        };
+
+    //        var rowsAffected = await ExecuteAsync(sql, parameters);
+    //        return rowsAffected > 0;
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error creating shift for organization {OrganizationId}", organizationId);
+    //        throw;
+    //    }
+    //}
+
+
     public async Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request)
     {
         try
         {
-            var createdAt = DateTime.Now;
+            var createdAt = DateTime.UtcNow;
+
             var sql = @"
-            INSERT INTO attendance.shifts
-                (organizationid, shiftname, starttime, endtime, breakduration, daysofweek, timezone,createdat)
-            VALUES
-                (@OrganizationId, @ShiftName, @StartTime, @EndTime, @BreakDuration, @DaysofWeek, @Timezone,@createdAt);
-        ";
+        INSERT INTO attendance.shifts
+        (organizationid, shiftname, starttime, endtime, breakduration, breakstarttime, breakendtime,
+         overtimestarttime, maxovertimeinminutes, daysofweek, timezone, createdat)
+        VALUES
+        (@OrganizationId, @ShiftName, @StartTime, @EndTime, @BreakDuration, @BreakStartTime, @BreakEndTime,
+         @OvertimeStartTime, @MaxOvertimeInMinutes, @DaysofWeek, @Timezone, @CreatedAt);
+    ";
 
             var parameters = new
             {
-                createdAt = createdAt,
                 OrganizationId = organizationId,
                 ShiftName = request.ShiftName,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
+
                 BreakDuration = request.BreakDuration ?? 0,
+                BreakStartTime = request.BreakStartTime,
+                BreakEndTime = request.BreakEndTime,
+
+                OvertimeStartTime = request.OvertimeStartTime,
+                MaxOvertimeInMinutes = request.MaxOvertimeInMinutes ?? 0,
+
                 DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
-                Timezone = request.Timezone ?? "UTC"
+                Timezone = request.Timezone ?? "UTC",
+
+                CreatedAt = createdAt
             };
 
             var rowsAffected = await ExecuteAsync(sql, parameters);
@@ -606,6 +652,29 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
+
+    // Get Shift Details (Name, StartTime, EndTime)
+    public async Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId)
+    {
+        var sql = @"
+        SELECT 
+            shiftid     AS ShiftId,
+            shiftname   AS ShiftName,
+            starttime   AS StartTime,
+            endtime     AS EndTime
+        FROM attendance.shifts
+        WHERE shiftid = @shiftId
+          AND isactive = true;
+    ";
+
+        var shift = await QuerySingleOrDefaultAsync<ShiftDto>(
+            sql,
+            new { shiftId }
+        );
+
+        return shift;
+    }
+
 
     public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request)
     {
@@ -691,7 +760,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
          return result; // Returns null if manager not found
     }
 
-    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
+    public async Task<ShiftSwapRequestCreatedDto> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
     {
         try
         {
@@ -703,7 +772,11 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             INSERT INTO attendance.shiftswaprequests
             (employeeid, currentshiftid, requestedshiftid, reason, organizationid, reportingmanagerid)
             VALUES
-            (@EmployeeId, @CurrentShiftId, @RequestedShiftId, @Reason, @OrganizationId, @ReportingManagerId);
+            (@EmployeeId, @CurrentShiftId, @RequestedShiftId, @Reason, @OrganizationId, @ReportingManagerId)
+                RETURNING
+                requestid        AS RequestId,
+                employeeid       AS EmployeeId,
+                reportingmanagerid AS ReportingManagerId;
         ";
 
             var parameters = new
@@ -715,14 +788,12 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 organizationId = organizationId,
                 ReportingManagerId=reportingmanagerid
             };
-
-            var rows = await ExecuteAsync(sql, parameters);
-            return rows > 0;
+           return await QuerySingleAsync<ShiftSwapRequestCreatedDto>(sql,parameters);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating shift swap request for employee {EmployeeId}", requestDto.EmployeeId);
-            return false;
+            return null;
         }
     }
 
@@ -975,25 +1046,62 @@ WHERE ed.employeeid = @EmployeeId
 
 
 
+    //public async Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
+    //{
+    //    try
+    //    {
+    //        var sql = @"
+    //        SELECT 
+    //            shiftid AS ShiftId,
+    //            organizationid AS OrganizationId,
+    //            shiftname AS ShiftName,
+    //            starttime AS StartTime,
+    //            endtime AS EndTime,
+    //            breakduration AS BreakDuration,
+    //            daysofweek AS DaysOfWeek,
+    //            timezone AS Timezone,
+    //            isactive AS IsActive,
+    //            createdat AS CreatedAt
+    //        FROM attendance.shifts
+    //        WHERE organizationid = @OrganizationId
+    //        ORDER BY createdat DESC;
+    //    ";
+
+    //        var parameters = new { OrganizationId = organizationId };
+    //        var result = await QueryAsync<ShiftDto>(sql, parameters);
+    //        return result.ToList();
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error fetching shifts for organization {OrganizationId}", organizationId);
+    //        throw;
+    //    }
+    //}
+
+
     public async Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
     {
         try
         {
             var sql = @"
-            SELECT 
-                shiftid AS ShiftId,
-                organizationid AS OrganizationId,
-                shiftname AS ShiftName,
-                starttime AS StartTime,
-                endtime AS EndTime,
-                breakduration AS BreakDuration,
-                daysofweek AS DaysOfWeek,
-                timezone AS Timezone,
-                isactive AS IsActive,
-                createdat AS CreatedAt
-            FROM attendance.shifts
-            WHERE organizationid = @OrganizationId
-            ORDER BY createdat DESC;
+        SELECT 
+            shiftid AS ShiftId,
+            organizationid AS OrganizationId,
+            shiftname AS ShiftName,
+            starttime AS StartTime,
+            endtime AS EndTime,
+            breakstarttime AS BreakStartTime,
+            breakendtime AS BreakEndTime,
+            overtimestarttime AS OvertimeStartTime,
+            maxovertimeinminutes AS MaxOvertimeInMinutes,
+            breakduration AS BreakDuration,
+            daysofweek AS DaysOfWeek,
+            timezone AS Timezone,
+            isactive AS IsActive,
+            createdat AS CreatedAt
+        FROM attendance.shifts
+        WHERE organizationid = @OrganizationId
+        ORDER BY createdat DESC;
         ";
 
             var parameters = new { OrganizationId = organizationId };
@@ -1008,23 +1116,68 @@ WHERE ed.employeeid = @EmployeeId
     }
 
 
+
+    //public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)
+    //{
+    //    try
+    //    {
+
+    //        var sql = @"
+    //        UPDATE attendance.shifts
+    //        SET
+    //            shiftname = @ShiftName,
+    //            starttime = @StartTime,
+    //            endtime = @EndTime,
+    //            breakduration = @BreakDuration,
+    //            daysofweek = @DaysofWeek,
+    //            timezone = @Timezone,
+
+    //        WHERE
+    //            organizationid = @OrganizationId AND shiftid = @ShiftId;
+    //    ";
+
+    //        var parameters = new
+    //        {
+    //            OrganizationId = organizationId,
+    //            ShiftId = shiftId,
+    //            ShiftName = request.ShiftName,
+    //            StartTime = request.StartTime,
+    //            EndTime = request.EndTime,
+    //            BreakDuration = request.BreakDuration ?? 0,
+    //            DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
+    //            Timezone = request.Timezone ?? "UTC",
+
+    //        };
+
+    //        var rowsAffected = await ExecuteAsync(sql, parameters);
+    //        return rowsAffected > 0;
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error updating shift {ShiftId} for organization {OrganizationId}", shiftId, organizationId);
+    //        throw;
+    //    }
+    //}
+
     public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)
     {
         try
         {
-          
             var sql = @"
-            UPDATE attendance.shifts
-            SET
-                shiftname = @ShiftName,
-                starttime = @StartTime,
-                endtime = @EndTime,
-                breakduration = @BreakDuration,
-                daysofweek = @DaysofWeek,
-                timezone = @Timezone,
-               
-            WHERE
-                organizationid = @OrganizationId AND shiftid = @ShiftId;
+        UPDATE attendance.shifts
+        SET
+            shiftname = @ShiftName,
+            starttime = @StartTime,
+            endtime = @EndTime,
+            breakstarttime = @BreakStartTime,
+            breakendtime = @BreakEndTime,
+            overtimestarttime = @OvertimeStartTime,
+            maxovertimeinminutes = @MaxOvertimeInMinutes,
+            breakduration = @BreakDuration,
+            daysofweek = @DaysofWeek,
+            timezone = @Timezone
+        WHERE
+            organizationid = @OrganizationId AND shiftid = @ShiftId;
         ";
 
             var parameters = new
@@ -1034,10 +1187,13 @@ WHERE ed.employeeid = @EmployeeId
                 ShiftName = request.ShiftName,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
+                BreakStartTime = request.BreakStartTime,
+                BreakEndTime = request.BreakEndTime,
+                OvertimeStartTime = request.OvertimeStartTime,
+                MaxOvertimeInMinutes = request.MaxOvertimeInMinutes,
                 BreakDuration = request.BreakDuration ?? 0,
                 DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
-                Timezone = request.Timezone ?? "UTC",
-               
+                Timezone = request.Timezone ?? "UTC"
             };
 
             var rowsAffected = await ExecuteAsync(sql, parameters);
@@ -1049,6 +1205,37 @@ WHERE ed.employeeid = @EmployeeId
             throw;
         }
     }
+
+
+    // Get Shift Swap Request Details by RequestId
+    public async Task<ShiftSwapRequestDto?> getshifrequestDetailsAsync(Guid requestId)
+    {
+        var sql = @"
+        SELECT
+            requestid            AS RequestId,
+            organizationid       AS OrganizationId,
+            employeeid           AS EmployeeId,
+            currentshiftid       AS CurrentShiftId,
+            requestedshiftid     AS RequestedShiftId,
+            reason               AS Reason,
+            status               AS Status,
+            submittedat          AS SubmittedAt,
+            approvedby           AS ApprovedBy,
+            approvedat           AS ApprovedAt,
+            rejectionreason      AS RejectionReason,
+            updatedat            AS UpdatedAt,
+            reportingmanagerid   AS ReportingManagerId
+        FROM attendance.shiftswaprequests
+        WHERE requestid = @requestId;
+    ";
+
+        return await QuerySingleOrDefaultAsync<ShiftSwapRequestDto>(
+            sql,
+            new { requestId }
+        );
+    }
+
+
 
     public async Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId)
     {
@@ -1154,7 +1341,7 @@ WHERE ed.employeeid = @EmployeeId
             WHERE e.organizationid = @organizationId
               AND e.status = 'active'
         ),
-        -- Cross join employees × dates to create full calendar
+        -- Cross join employees ï¿½ dates to create full calendar
         calendar AS (
             SELECT dr.workdate, e.employeeid
             FROM date_range dr
@@ -1332,14 +1519,54 @@ WHERE ed.employeeid = @EmployeeId
 
    
 
-    public async Task<List<AttendanceDto>> GetAttendanceRecordsAsync(
+    public async Task<PagedResult<AttendanceDto>> GetAttendanceRecordsAsync(
     Guid organizationId,
     DateTime startDate,
     DateTime endDate,
     Guid? departmentId = null,
     string? status = null,
-    Guid? employeeId = null) // make employeeId optional
+    Guid? employeeId = null,
+    int pageNumber = 1,
+    int pageSize = 10)
     {
+        var offset = (pageNumber - 1) * pageSize;
+
+        var countSql = @"
+    -- Get count of records
+    WITH employees AS (
+        SELECT e.employeeid, e.firstname, e.lastname, ed.departmentid
+        FROM employee.employees e
+        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        WHERE e.organizationid = @organizationId
+          AND e.status = 'active'
+          AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
+          AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+    ),
+    date_range AS (
+        SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
+    ),
+    calendar AS (
+        SELECT emp.employeeid, emp.firstname, emp.lastname, emp.departmentid, dr.workdate
+        FROM employees emp
+        CROSS JOIN date_range dr
+    ),
+    attendance_data AS (
+        SELECT 
+            c.employeeid,
+            c.firstname,
+            c.lastname,
+            c.workdate,
+            COALESCE(a.status, 'absent') AS status
+        FROM calendar c
+        LEFT JOIN attendance.attendance a
+            ON a.employeeid = c.employeeid
+           AND a.workdate = c.workdate
+    )
+    SELECT COUNT(*)
+    FROM attendance_data
+    WHERE (@status IS NULL OR status = @status);
+    ";
+
         var sql = @"
     -- Get all active employees with optional department and employee filter
     WITH employees AS (
@@ -1355,7 +1582,7 @@ WHERE ed.employeeid = @EmployeeId
     date_range AS (
         SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
     ),
-    -- Cross join to get all employee × date combinations
+    -- Cross join to get all employee ï¿½ date combinations
     calendar AS (
         SELECT emp.employeeid, emp.firstname, emp.lastname, emp.departmentid, dr.workdate
         FROM employees emp
@@ -1396,21 +1623,43 @@ WHERE ed.employeeid = @EmployeeId
         islate AS IsLate
     FROM attendance_data
     WHERE (@status IS NULL OR status = @status)
-    ORDER BY workdate DESC, firstname, lastname;
+    ORDER BY workdate DESC, firstname, lastname
+    LIMIT @pageSize OFFSET @offset;
     ";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
         await connection.OpenAsync();
 
-        return (await connection.QueryAsync<AttendanceDto>(sql, new
+        var parameters = new
         {
             organizationId,
             startDate,
             endDate,
             departmentId,
             status,
-            employeeId // pass employeeId to SQL
-        })).ToList();
+            employeeId,
+            pageSize,
+            offset
+        };
+
+        var data = (await connection.QueryAsync<AttendanceDto>(sql, parameters)).ToList();
+        var totalCount = await connection.QuerySingleAsync<int>(countSql, new
+        {
+            organizationId,
+            startDate,
+            endDate,
+            departmentId,
+            status,
+            employeeId
+        });
+
+        return new PagedResult<AttendanceDto>
+        {
+            Data = data,
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
     }
 
 

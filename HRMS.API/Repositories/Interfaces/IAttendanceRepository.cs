@@ -5,12 +5,9 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IAttendanceRepository
 {
-    Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(
-    Guid employeeId,
-    DateTime startDate,
-    DateTime endDate,
-    int pageNumber = 1,
-    int pageSize = 10);
+    Task<ShiftSwapRequestDto?> getshifrequestDetailsAsync(Guid requestId);
+    Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId);
+    Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber = 1,int pageSize = 10);
     Task<List<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId);
     //Task<List<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber = 1,int pageSize = 10);
     Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(Guid organizationId, Guid? departmentId);
@@ -27,7 +24,7 @@ public interface IAttendanceRepository
     Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId);
     Task<bool> RejectShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto);
     Task<bool> AcceptswapRequestAsync(ApproveShiftSwapRequestDto dto);
-    Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
+    Task<ShiftSwapRequestCreatedDto> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
     Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);
     Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId);
     Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request);
@@ -48,7 +45,7 @@ public interface IAttendanceRepository
     Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate);
     Task<List<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate,Guid? departmentId);
     Task<List<DailyAttendanceStatsDto>> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate);
-    Task<List<AttendanceDto>> GetAttendanceRecordsAsync(Guid organizationId, DateTime startDate, DateTime endDate,Guid? departmentId,string? status,Guid? employeeId);
+    Task<PagedResult<AttendanceDto>> GetAttendanceRecordsAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10);
     Task<Guid> GetEmpId(Guid? employeeId);
     Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime date);
     Task<Guid> GetEmployeeFromTable(Guid Userid);

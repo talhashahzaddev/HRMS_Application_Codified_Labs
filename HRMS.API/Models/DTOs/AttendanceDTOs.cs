@@ -89,26 +89,42 @@ public class AttendanceSessionDto
  
 }
 
-
 public class CreateShiftDto
 {
-    public string ShiftName { get; set; }             // Name of the shift e.g., "Morning", "Evening"
-    public TimeSpan? StartTime { get; set; }           // Start time of the shift
-    public TimeSpan? EndTime { get; set; }             // End time of the shift
-    public int? BreakDuration { get; set; } = 0;     // Optional: Break duration in minutes
-    public int[]? DaysofWeek { get; set; } = new int[] { 1, 2, 3, 4, 5 }; // Optional: Days of week
-    public string? Timezone { get; set; } = "UTC";    // Optional: Timezone
+    public string ShiftName { get; set; }                 // Name of the shift e.g., "Morning", "Evening"
+    public TimeSpan? StartTime { get; set; }              // Start time of the shift
+    public TimeSpan? EndTime { get; set; }                // End time of the shift
+
+    public int? BreakDuration { get; set; } = 0;          // Break duration in minutes
+    public TimeSpan? BreakStartTime { get; set; }         // Added: Break start time
+    public TimeSpan? BreakEndTime { get; set; }           // Added: Break end time
+
+    public TimeSpan? OvertimeStartTime { get; set; }      // Added: From when overtime begins
+    public int? MaxOvertimeInMinutes { get; set; } = 0;   // Added: Maximum overtime allowed
+
+    public int[]? DaysofWeek { get; set; }
+        = new int[] { 1, 2, 3, 4, 5 };                    // Days of week
+
+    public string? Timezone { get; set; } = "UTC";        // Timezone
 }
 
-public class UpdateShiftDto 
+
+public class UpdateShiftDto
 {
-    public string ShiftName { get; set; }             // Name of the shift e.g., "Morning", "Evening"
-    public TimeSpan? StartTime { get; set; }           // Start time of the shift
-    public TimeSpan? EndTime { get; set; }             // End time of the shift
-    public int? BreakDuration { get; set; } = 0;     // Optional: Break duration in minutes
+    public string ShiftName { get; set; }                   // Name of the shift e.g., "Morning", "Evening"
+    public TimeSpan? StartTime { get; set; }               // Start time of the shift
+    public TimeSpan? EndTime { get; set; }                 // End time of the shift
+
+    public TimeSpan? BreakStartTime { get; set; }          // Optional: Break start time
+    public TimeSpan? BreakEndTime { get; set; }            // Optional: Break end time
+    public TimeSpan? OvertimeStartTime { get; set; }       // Optional: Overtime start time
+    public int? MaxOvertimeInMinutes { get; set; }         // Optional: Maximum overtime in minutes
+
+    public int? BreakDuration { get; set; } = 0;          // Optional: Break duration in minutes
     public int[]? DaysofWeek { get; set; } = new int[] { 1, 2, 3, 4, 5 }; // Optional: Days of week
-    public string? Timezone { get; set; } = "UTC";    // Optional: Timezone
+    public string? Timezone { get; set; } = "UTC";        // Optional: Timezone
 }
+
 
 
 public class AssignShiftDto
@@ -129,7 +145,6 @@ public class EmployeeShiftDto
     public string ShiftName { get; set; }
 }
 
-
 public class ShiftDto
 {
     public Guid ShiftId { get; set; }
@@ -137,12 +152,19 @@ public class ShiftDto
     public string ShiftName { get; set; }
     public TimeSpan StartTime { get; set; }
     public TimeSpan EndTime { get; set; }
+
+    public TimeSpan? BreakStartTime { get; set; }      // optional
+    public TimeSpan? BreakEndTime { get; set; }        // optional
+    public TimeSpan? OvertimeStartTime { get; set; }   // optional
+    public int? MaxOvertimeInMinutes { get; set; }     // optional
+
     public int BreakDuration { get; set; }
     public int[] DaysOfWeek { get; set; }
     public string Timezone { get; set; }
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
 
 //Attendace ShiftSwap
 
@@ -152,6 +174,14 @@ public class CreateShiftSwapRequestDto
     public Guid? CurrentShiftId { get; set; }
     public Guid RequestedShiftId { get; set; }
     public string? Reason { get; set; }
+}
+
+//Getting create shift swap response
+public class ShiftSwapRequestCreatedDto
+{
+    public Guid RequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid ReportingManagerId { get; set; }
 }
 
 public class ApproveShiftSwapRequestDto
@@ -177,6 +207,30 @@ public class PendingShiftSwapDto
     public string RequestedShiftName { get; set; } = string.Empty;
     public string Reason { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;  // approved, rejected, pending
+}
+
+//shiftswap request dto
+public class ShiftSwapRequestDto
+{
+    public Guid RequestId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+
+    public Guid? CurrentShiftId { get; set; }
+    public Guid RequestedShiftId { get; set; }
+
+    public string? Reason { get; set; }
+    public string Status { get; set; }
+
+    public DateTime SubmittedAt { get; set; }
+
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+
+    public string? RejectionReason { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
+    public Guid? ReportingManagerId { get; set; }
 }
 
 
@@ -231,7 +285,7 @@ public class AttendanceReportDto
     public int TotalLateDays { get; set; } // Add this
     public decimal TotalHours { get; set; } // Add this
     public decimal OvertimeHours { get; set; } // Add this
-    public List<AttendanceDto> Records { get; set; } = new();
+    public PagedResult<AttendanceDto> Records { get; set; } = new();
     public AttendanceSummaryDto Summary { get; set; } = new();
     public List<DailyAttendanceStatsDto> DailyStats { get; set; } = new();
     public List<DepartmentAttendanceStatsDto> DepartmentStats { get; set; } = new();

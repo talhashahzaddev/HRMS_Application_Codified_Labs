@@ -563,8 +563,9 @@ public class AttendanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
+            var currentEmp = await GetCurrentEmployeeId();
 
-            var result = await _attendanceService.AssignShiftToEmployeeAsync(organizationId, request);
+            var result = await _attendanceService.AssignShiftToEmployeeAsync(organizationId, request,currentEmp);
 
             return Ok(new ServiceResponse<bool>
             {
@@ -648,7 +649,8 @@ public class AttendanceController : ControllerBase
         try
         {
             var status = dto.IsApproved ? "approved" : " rejected";
-            var success = await _attendanceService.ApproveShiftSwapRequestAsync(dto);
+            var organizationId= GetCurrentOrganizationId();
+            var success = await _attendanceService.ApproveShiftSwapRequestAsync(dto,organizationId);
 
             return Ok(new ServiceResponse<bool>
             {
@@ -767,12 +769,6 @@ public class AttendanceController : ControllerBase
             });
         }
     }
-
-
-
-
-
-
 
 
     [HttpGet("shifts")]
@@ -916,13 +912,13 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("reports")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status)
+    public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var currentEmployeeId = await GetCurrentEmployeeId();
-            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate, currentEmployeeId, departmentId, status, employeeId);
+            var report = await _attendanceService.GetAttendanceReportAsync(organizationId, startDate, endDate, currentEmployeeId, departmentId, status, employeeId, pageNumber, pageSize);
 
             return Ok(new ServiceResponse<AttendanceReportDto>
             {

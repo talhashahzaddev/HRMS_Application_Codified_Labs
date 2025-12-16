@@ -19,11 +19,11 @@ public interface IAttendanceService
     Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId);
     Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId);
     Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId,Guid currentEmpid);
-    Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto);
+    Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto,Guid organizationId);
     Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
     Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);
     Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId);
-    Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request);
+    Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request,Guid currentEmpId);
     Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto rquest);
     Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request);
     Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request);
@@ -42,7 +42,7 @@ public interface IAttendanceService
     Task<List<AttendanceDto>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<List<AttendanceCalendarDto>> GetAttendanceCalendarAsync(Guid employeeId, int year, int month);
     Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid employeeId,Guid organizationId, DateTime date);
-    Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId, Guid? departmentId, string? status, Guid? employeeId);
+    Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10);
     Task<List<EmployeeSimpleDto>> GetdepartmentEmployeesAsync(Guid currentEmployee, Guid? departmentId,Guid organizationId);
     Task<byte[]> ExportAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, string format, Guid? employeeId, Guid currentEmployeeId, Guid? departmentId, string? status);
     Task<bool> BulkApproveAttendanceAsync(List<Guid> attendanceIds);

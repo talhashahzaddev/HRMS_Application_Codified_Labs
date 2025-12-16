@@ -22,23 +22,27 @@ public class PayrollController : ControllerBase
     }
 
     [HttpGet("periods")]
-    public async Task<ActionResult<ServiceResponse<List<PayrollPeriodDto>>>> GetPayrollPeriods()
+    public async Task<ActionResult<ServiceResponse<PagedResult<PayrollPeriodDto>>>> GetPayrollPeriods(
+        [FromQuery] int page = 1, 
+        [FromQuery] int limit = 20, 
+        [FromQuery] string? search = null,
+        [FromQuery] string? status = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var periods = await _payrollService.GetPayrollPeriodsAsync(organizationId);
+            var result = await _payrollService.GetPayrollPeriodsPagedAsync(organizationId, page, limit, search, status);
             
-            return Ok(new ServiceResponse<List<PayrollPeriodDto>>
+            return Ok(new ServiceResponse<PagedResult<PayrollPeriodDto>>
             {
                 Success = true,
-                Data = periods
+                Data = result
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving payroll periods");
-            return StatusCode(500, new ServiceResponse<List<PayrollPeriodDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<PayrollPeriodDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving payroll periods"
@@ -108,8 +112,10 @@ public class PayrollController : ControllerBase
     {
         try
         {
+            var organizationId = GetCurrentOrganizationId();
             var entriesCreated = await _payrollService.CalculatePayrollAsync(
                 id, 
+                organizationId,
                 request?.RuleId, 
                 request?.DepartmentIds, 
                 request?.IncludeTax ?? false
@@ -343,6 +349,14 @@ public class PayrollController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message

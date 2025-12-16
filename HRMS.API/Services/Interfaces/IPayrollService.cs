@@ -7,7 +7,7 @@ public interface IPayrollService
     Task<PayrollPeriodDto> CreatePayrollPeriodAsync(CreatePayrollPeriodRequest request, Guid organizationId);
     Task<List<PayrollPeriodDto>> GetPayrollPeriodsAsync(Guid organizationId);
     Task<PayrollPeriodDto?> GetPayrollPeriodByIdAsync(Guid periodId);
-    Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId, List<Guid>? departmentIds = null, bool includeTax = false);
+    Task<int> CalculatePayrollAsync(Guid periodId, Guid organizationId, Guid? ruleId, List<Guid>? departmentIds = null, bool includeTax = false);
     Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50);
     Task<PayrollSummaryDto> GetPayrollSummaryAsync(Guid periodId);
     Task<bool> ProcessPayrollPaymentAsync(Guid entryId, string paymentMethod, string paymentReference);
@@ -29,7 +29,7 @@ public interface IPayrollService
     // Additional methods based on frontend consumption
     Task<PayrollSummaryDto> GetPayrollDashboardSummaryAsync(Guid organizationId);
     Task<PayrollSummaryDto> GetPayrollReportSummaryAsync(Guid organizationId, PayrollReportFilterRequest filter);
-    Task<PagedResult<PayrollPeriodDto>> GetPayrollPeriodsPagedAsync(Guid organizationId, int page, int limit, string? search);
+    Task<PagedResult<PayrollPeriodDto>> GetPayrollPeriodsPagedAsync(Guid organizationId, int page, int limit, string? search, string? status = null);
     Task<PayrollPeriodDto?> GetCurrentPayrollPeriodAsync(Guid organizationId);
     Task<PayrollPeriodDto> UpdatePayrollPeriodAsync(Guid periodId, UpdatePayrollPeriodRequest request);
     Task<bool> DeletePayrollPeriodAsync(Guid periodId);

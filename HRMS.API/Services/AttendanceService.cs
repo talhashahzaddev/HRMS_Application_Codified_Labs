@@ -22,6 +22,7 @@ public class AttendanceService : IAttendanceService
     private readonly IAttendanceRepository _attendanceRepository;
     private readonly INotificationRepository _notificationRepository;
     private readonly IEmployeeRepository _employeeRepository;
+    private readonly ILeaveRepository _leaveRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<AttendanceService> _logger;
 
@@ -30,11 +31,13 @@ public class AttendanceService : IAttendanceService
         IMapper mapper,
         INotificationRepository notificationRepository,
         IEmployeeRepository employeeRepository,
+        ILeaveRepository leaveRepository,
         ILogger<AttendanceService> logger)
     {
         _attendanceRepository = attendanceRepository;
         _notificationRepository = notificationRepository;
         _employeeRepository = employeeRepository;
+        _leaveRepository = leaveRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -347,23 +350,61 @@ public class AttendanceService : IAttendanceService
         var endDate = startDate.AddMonths(1).AddDays(-1);
         var today = DateTime.Today;
         var attendance = await GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
+        
+        // Get approved leave requests for the date range
+        // Expand the date range slightly to catch leaves that overlap with the month
+        var expandedStartDate = startDate.AddDays(-1);
+        var expandedEndDate = endDate.AddDays(1);
+        var approvedLeaves = await _leaveRepository.GetApprovedLeaveRequestsAsync(employeeId, expandedStartDate, expandedEndDate);
+        
+        var leaveDates = new HashSet<DateTime>();
+        foreach (var leave in approvedLeaves)
+        {
+            for (var date = leave.StartDate.Date; date <= leave.EndDate.Date; date = date.AddDays(1))
+            {
+                // Only add dates that are within the actual month range
+                if (date >= startDate && date <= endDate)
+                {
+                    leaveDates.Add(date.Date); // Ensure we're using Date only (normalized)
+                }
+            }
+        }
+        
+        _logger.LogInformation("Found {Count} approved leave dates for employee {EmployeeId} in {Year}-{Month}. Leaves: {Leaves}", 
+            leaveDates.Count, employeeId, year, month, string.Join(", ", leaveDates));
 
         var calendar = new List<AttendanceCalendarDto>();
 
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
         {
-            var dayAttendance = attendance.FirstOrDefault(a => a.WorkDate.Date == date.Date);
+            var normalizedDate = date.Date; // Normalize to date only (remove time component)
+            var dayAttendance = attendance.FirstOrDefault(a => a.WorkDate.Date == normalizedDate);
             bool isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
 
             string status;
-            if (date > today)
-                status = "No Record"; // ✅ Future days
+            
+            // ✅ Check for leave FIRST - even for future dates and weekends
+            if (leaveDates.Contains(normalizedDate))
+            {
+                status = "Leave";
+                _logger.LogDebug("Date {Date} marked as Leave for employee {EmployeeId}", normalizedDate, employeeId);
+            }
+            else if (normalizedDate > today)
+            {
+                status = "No Record"; // ✅ Future days (only if not on leave)
+            }
             else if (dayAttendance != null)
+            {
                 status = dayAttendance.Status;
+            }
             else if (isWeekend)
+            {
                 status = "Weekend";
+            }
             else
+            {
                 status = "Absent";
+            }
 
             calendar.Add(new AttendanceCalendarDto
             {
@@ -373,7 +414,7 @@ public class AttendanceService : IAttendanceService
                 CheckOutTime = dayAttendance?.CheckOutTime,
                 TotalHours = dayAttendance?.TotalHours ?? 0,
                 IsWorkingDay = !isWeekend,
-                IsHoliday = isWeekend
+                IsHoliday = false // ✅ Don't mark weekends as holidays - use Status instead
             });
         }
 
@@ -415,12 +456,37 @@ public class AttendanceService : IAttendanceService
         return true;
     }
 
-    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request)
+    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request,Guid currentEmpid)
     {
         var result = await _attendanceRepository.AssignShiftToEmployeeAsync(organizationId, request);
 
-        return true;
+        //Create Notification 
+        var currentEmp = await _employeeRepository.GetEmployeeByIdAsync(currentEmpid);
+        //Get shift details
+        var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(request.ShiftId);
 
+        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
+        if (result!= null)
+
+        {
+            var notification = new NotificationCreateDto
+            {
+                Receiveruserid = request.EmployeeId,
+                Senderuserid = currentEmpid,
+                Ttitle = "Shit Assign",
+                //RequestId = leaveRequest.RequestId,
+                //Message = $" {currentEmp.FirstName} assign you shift of  {shiftDetails.ShiftName} ",
+                Message = $" You assign shift of {shiftDetails.ShiftName} ",
+                Notificationtype = "Message",
+                Createdby = currentEmpid,
+                moduletype = "Shift",
+                Redirecturl = "/attendance/shift",
+                organizationId = organizationId
+            };
+            await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+        }
+
+        return true;
 
     }
 
@@ -435,8 +501,6 @@ public class AttendanceService : IAttendanceService
 
     //Shiftswap 
 
-
-
    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
     {
   
@@ -447,42 +511,87 @@ public class AttendanceService : IAttendanceService
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
         //Getting manager employeeid
-        var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
-        if (result)
+        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
+        // Get Request shift Details
+
+        var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(requestDto.RequestedShiftId);
+
+
+        if (result!=null)
 
         {
             var notification = new NotificationCreateDto
             {
-                Receiveruserid= reciverid,
+                Receiveruserid = reportingmangerid,
                 Senderuserid = employee.EmployeeId,
                 Ttitle = "Swap Request",
-                Message = $"Employee {employee.FirstName } Department {employee.DepartmentName}  requested shift swap.",
+                Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
                 Notificationtype = "Request",
                 Createdby = requestDto.EmployeeId,
-                moduletype="attendance",
-                Redirecturl="/leave/team",
+                moduletype = "attendance",
+                Redirecturl = "/attendance/shift",
+                RequestId = result.RequestId,
                 organizationId = organizationId
             };
             await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
         }
- 
-        return result;
+
+        return true;
 
     }
 
-    public async Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto)
+    public async Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto, Guid organizationId)
     {
         // Optional: Add business validation
         // Example: check if the request is still pending
+        var shiftrequestDetails = await _attendanceRepository.getshifrequestDetailsAsync(dto.RequestId);
+
 
         if (dto.IsApproved == false)
         {
             var success = await _attendanceRepository.RejectShiftSwapRequestAsync(dto);
+
+            //Create Notification 
+            if (success != null)
+            {
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Senderuserid = dto.ApprovedBy,
+                    Ttitle = "Shift Swap Request",
+                    Message = $"Your shift swap request is Rejected {dto.RejectionReason} ",
+                    Notificationtype = "Message",
+                    Createdby = dto.ApprovedBy,
+                    moduletype = "attendance",
+                    Redirecturl = "/attendance/shift",
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+            }
         }
         if (dto.IsApproved == true)
         {
             var success = await _attendanceRepository.AcceptswapRequestAsync(dto);
+            //Create Notification 
+            if (success != null)
+            {
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Senderuserid = dto.ApprovedBy,
+                    Ttitle = "Shift Swap Request",
+                    Message = $"Your shift swap request is Accepted ",
+                    Notificationtype = "Message",
+                    Createdby = dto.ApprovedBy,
+                    moduletype = "attendance",
+                    Redirecturl = "/attendance/shift",
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
 
+            }
         }
         return true;
 
@@ -547,7 +656,7 @@ public class AttendanceService : IAttendanceService
 
 
 
-    public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId, Guid? departmentId, string? status, Guid? employeeId)
+    public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10)
     {
         try
         {
@@ -560,13 +669,13 @@ public class AttendanceService : IAttendanceService
             {
                 // Super Admin or HR Manager: Get all employees' attendance report
                 _logger.LogInformation("User is Super Admin or HR Manager - returning all employees attendance report");
-                completeReport = await GetFullAttendanceReportAsync(organizationId, startDate, endDate, departmentId, status, employeeId);
+                completeReport = await GetFullAttendanceReportAsync(organizationId, startDate, endDate, departmentId, status, employeeId, pageNumber, pageSize);
             }
             else
             {
                 // Manager: Get only their team's attendance report
                 _logger.LogInformation("User is Manager - returning team employees attendance report for manager: {EmployeeId}", currentEmployeeId);
-                completeReport = await GetManagerAttendanceReportAsync(currentEmployeeId, organizationId, startDate, endDate, departmentId, status, employeeId);
+                completeReport = await GetManagerAttendanceReportAsync(currentEmployeeId, organizationId, startDate, endDate, departmentId, status, employeeId, pageNumber, pageSize);
             }
 
             return completeReport;
@@ -610,12 +719,12 @@ public class AttendanceService : IAttendanceService
 
 
 
-    private async Task<AttendanceReportDto> GetFullAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status,Guid? employeeId)
+    private async Task<AttendanceReportDto> GetFullAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10)
     {
         var mainReport = await _attendanceRepository.GetAttendanceReportAsync(organizationId, startDate, endDate);
         var departmentStats = await _attendanceRepository.GetDepartmentAttendanceStatsAsync(organizationId, startDate, endDate,departmentId);
         var dailyStats = await _attendanceRepository.GetDailyAttendanceStatsAsync(organizationId, startDate, endDate);
-        var attendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate,departmentId,status,employeeId);
+        var attendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate,departmentId,status,employeeId, pageNumber, pageSize);
 
         var totalWorkDays = Enumerable.Range(0, (endDate - startDate).Days + 1)
             .Select(offset => startDate.AddDays(offset))
@@ -652,7 +761,7 @@ public class AttendanceService : IAttendanceService
         };
     }
 
-    private async Task<AttendanceReportDto> GetManagerAttendanceReportAsync(Guid managerEmployeeId, Guid organizationId, DateTime startDate, DateTime endDate,Guid? departmentId,string? status,Guid? employeeId)
+    private async Task<AttendanceReportDto> GetManagerAttendanceReportAsync(Guid managerEmployeeId, Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10)
     {
         // Get team employee IDs
         var teamEmployeeIds = await _attendanceRepository.GetTeamEmployeeIdsAsync(managerEmployeeId, organizationId);
@@ -673,7 +782,13 @@ public class AttendanceService : IAttendanceService
                 TotalPresentDays = 0,
                 TotalAbsentDays = 0,
                 AverageAttendanceRate = 0,
-                Records = new List<AttendanceDto>(),
+                Records = new PagedResult<AttendanceDto>
+                {
+                    Data = new List<AttendanceDto>(),
+                    TotalCount = 0,
+                    Page = pageNumber,
+                    PageSize = pageSize
+                },
                 DailyStats = new List<DailyAttendanceStatsDto>(),
                 DepartmentStats = new List<DepartmentAttendanceStatsDto>(),
                 Summary = new AttendanceSummaryDto
@@ -689,10 +804,18 @@ public class AttendanceService : IAttendanceService
             };
         }
 
-        // Get all attendance records and filter by team
-        var allAttendanceRecords = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate,departmentId,status,employeeId);
-        var teamAttendanceRecords = allAttendanceRecords
+        // Get paginated attendance records (note: we get all pages to calculate stats correctly)
+        // For accurate stats, we need all records, but for display we paginate
+        // Get a large page size to get all team records for stats calculation
+        var allAttendanceRecordsResult = await _attendanceRepository.GetAttendanceRecordsAsync(organizationId, startDate, endDate, departmentId, status, employeeId, 1, 10000);
+        var teamAttendanceRecords = allAttendanceRecordsResult.Data
             .Where(r => teamEmployeeIds.Contains(r.EmployeeId))
+            .ToList();
+
+        // Get paginated records for display
+        var paginatedTeamRecords = teamAttendanceRecords
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
             .ToList();
 
         // Get all daily stats and filter by team
@@ -757,7 +880,13 @@ public class AttendanceService : IAttendanceService
             AverageAttendanceRate = (totalEmployees > 0 && totalWorkDays > 0)
                 ? Math.Round((totalPresentDays * 100.0m) / totalPossibleDays, 2)
                 : 0,
-            Records = teamAttendanceRecords,
+            Records = new PagedResult<AttendanceDto>
+            {
+                Data = paginatedTeamRecords,
+                TotalCount = teamAttendanceRecords.Count,
+                Page = pageNumber,
+                PageSize = pageSize
+            },
             DailyStats = teamDailyStats,
             DepartmentStats = teamDepartmentStats,
             Summary = new AttendanceSummaryDto
@@ -781,16 +910,17 @@ public class AttendanceService : IAttendanceService
             _logger.LogInformation("Exporting attendance report for organization: {OrganizationId} in format: {Format}",
                 organizationId, format);
 
+            // For export, get all records by using a large page size
             var attendanceRecords = await GetAttendanceReportAsync(
-                organizationId, startDate, endDate, currentEmployeeId,departmentId,status,employeeId);
+                organizationId, startDate, endDate, currentEmployeeId, departmentId, status, employeeId, 1, 10000);
 
             if (format.ToLower() == "csv")
             {
-                return GenerateCsvExport(attendanceRecords.Records, startDate, endDate);
+                return GenerateCsvExport(attendanceRecords.Records.Data, startDate, endDate);
             }
             else
             {
-                return GenerateExcelExport(attendanceRecords.Records, startDate, endDate);
+                return GenerateExcelExport(attendanceRecords.Records.Data, startDate, endDate);
             }
         }
         catch (Exception ex)

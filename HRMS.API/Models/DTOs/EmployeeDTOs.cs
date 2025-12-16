@@ -39,6 +39,36 @@ public class EmployeeSimpleDto
 
 
 
+//public class EmployeeListItemDto
+//{
+//    public Guid? EmployeeId { get; set; }
+//    public string? EmployeeCode { get; set; } = string.Empty;
+//    public string? FirstName { get; set; } = string.Empty;
+//    public string? LastName { get; set; } = string.Empty;
+//    public string? FullName { get; set; } = string.Empty;
+//    public string? Email { get; set; } = string.Empty;
+//    public string? Phone { get; set; }
+//    public DateTime? HireDate { get; set; }
+//    public string? Status { get; set; } = string.Empty;
+//    public string? Department { get; set; } = string.Empty;
+//    public string? DepartmentName { get; set; }
+//    public string ProfilePictureUrl { get; set; }
+//    public string? Position { get; set; } = string.Empty;
+//    public string? employmentType { get; set; } = string.Empty;
+//    public Guid? positionid { get; set; }
+//    public string? PositionTitle { get; set; }
+//    public bool? IsActive { get; set; }
+
+//    // New fields
+//    public string? PayType { get; set; }
+//    public decimal? BasicSalary { get; set; }
+//    public Guid? ReportingManagerId { get; set; }
+//    public string? Gender { get; set; }
+//    public string? Nationality { get; set; }
+//    public string? MaritalStatus { get; set; }
+//    public string? ReportingManagerName { get; set; } = string.Empty;
+//}
+
 
 public class EmployeeListItemDto
 {
@@ -53,13 +83,32 @@ public class EmployeeListItemDto
     public string? Status { get; set; } = string.Empty;
     public string? Department { get; set; } = string.Empty;
     public string? DepartmentName { get; set; }
-    public string ProfilePictureUrl { get; set; }
+    public string ProfilePictureUrl { get; set; } = string.Empty;
     public string? Position { get; set; } = string.Empty;
     public string? employmentType { get; set; } = string.Empty;
     public Guid? positionid { get; set; }
     public string? PositionTitle { get; set; }
     public bool? IsActive { get; set; }
+
+    // Payroll & reporting
+    public string? PayType { get; set; }
+    public decimal? BasicSalary { get; set; }
+    public Guid? ReportingManagerId { get; set; }
+    public string? ReportingManagerName { get; set; } = string.Empty;
+
+    // Personal details
+    public string? Gender { get; set; }
+    public string? Nationality { get; set; }
+    public string? MaritalStatus { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+
+    // JSON fields as Dictionary
+    public Dictionary<string, string>? Address { get; set; }
+    public Dictionary<string, string>? EmergencyContact { get; set; }
 }
+
+
+
 
 public class CreateEmployeeRequest
 {

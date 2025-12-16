@@ -196,79 +196,46 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
         ea.cycleid,
 
         /* ===========================================
-           FINAL OVERALL RATING (WEIGHTED)
+           CURRENT RATING (KRA-based for current cycle)
+           Based on KRA and weights only (100% KRA)
         =========================================== */
         CASE
-            /* No KRA & No Skill */
-            WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
-            THEN COALESCE(ea.overallrating, 0)
-
-            /* Only KRA Exists → 100% KRA */
-            WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
-            THEN (
+            /* KRA EXISTS → Calculate based on KRA weights (100%) */
+            WHEN (ea.kraratings IS NOT NULL AND ea.kraratings != '{}'::jsonb)
+            THEN COALESCE((
                 SELECT 
                     SUM(
-                        (
-                            k.weightpercentage::numeric
-                            / NULLIF(
-                                (SELECT SUM(weightpercentage)
-                                 FROM performance.kras
-                                 WHERE kraid IN (
-                                     SELECT kraid::uuid
-                                     FROM jsonb_each_text(ea.kraratings)
-                                 )
-                                ), 0
-                            )
-                        ) * kr.rating::numeric
+                        (k.weightpercentage::numeric / 100.0) * kr.rating::numeric
                     )
                 FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
                 JOIN performance.kras k ON k.kraid = kr.kraid::uuid
-            )
+            ), LEAST(GREATEST(COALESCE(ea.overallrating, 0), 0), 5))
+            /* NO KRA → RETURN DIRECT OVERALL RATING */
+            ELSE LEAST(GREATEST(COALESCE(ea.overallrating, 0), 0), 5)
+        END AS currentrating,
 
-            /* Only Skill Exists → 100% Skill */
-            WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
-            THEN (
-                SELECT AVG(s.rating::numeric)
-                FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
-            )
-
-            /* Both Exist → Weighted */
-            ELSE (
-                WITH 
-                kra_total AS (
-                    SELECT COALESCE(SUM(weightpercentage), 0) AS wt
-                    FROM performance.kras
-                    WHERE kraid IN (
-                        SELECT kraid::uuid
-                        FROM jsonb_each_text(ea.kraratings)
-                    )
-                ),
-                kra_score AS (
-                    SELECT SUM(
-                        (
-                            k.weightpercentage::numeric 
-                            / NULLIF((SELECT wt FROM kra_total), 0)
-                        ) * kr.rating::numeric
-                    ) AS score
-                    FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
-                    JOIN performance.kras k ON k.kraid = kr.kraid::uuid
-                ),
-                skill_score AS (
-                    SELECT AVG(s.rating::numeric) AS score
-                    FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
-                )
-                SELECT 
-                    /* KRA weighted part */
-                    (SELECT score FROM kra_score) *
-                    ((SELECT wt FROM kra_total) / 100.0)
-
-                    +
-
-                    /* Skill weighted part */
-                    (SELECT score FROM skill_score) *
-                    ((100 - (SELECT wt FROM kra_total)) / 100.0)
-            )
-        END AS overallrating,
+        /* ===========================================
+           OVERALL RATING (Average across all cycles)
+           Average of all CurrentRatings for this employee
+        =========================================== */
+        (
+            SELECT COALESCE(AVG(
+                CASE
+                    WHEN (ea_all.kraratings IS NOT NULL AND ea_all.kraratings != '{}'::jsonb)
+                    THEN COALESCE((
+                        SELECT 
+                            SUM(
+                                (k.weightpercentage::numeric / 100.0) * kr.rating::numeric
+                            )
+                        FROM jsonb_each_text(ea_all.kraratings) kr(kraid, rating)
+                        JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                    ), LEAST(GREATEST(COALESCE(ea_all.overallrating, 0), 0), 5))
+                    ELSE LEAST(GREATEST(COALESCE(ea_all.overallrating, 0), 0), 5)
+                END
+            ), 0)
+            FROM performance.employeeappraisals ea_all
+            WHERE ea_all.employeeid = ea.employeeid
+        ) AS overallrating,
 
         ea.kraratings,
         ea.skillratings,
@@ -1337,84 +1304,26 @@ WHERE es.employeeskillid = @employeeSkillId";
                 ea.reviewtype as ReviewType,
                 /* ===========================================
                      FINAL OVERALL RATING (0–5 NORMALIZED)
+                     Based on KRA and weights only (100% KRA)
                    =========================================== */
                 CASE
                     /* --------------------------------------
-                       1) NO KRA & NO SKILL → RETURN DIRECT
+                       KRA EXISTS → Calculate based on KRA weights (100%)
+                       Formula: SUM(rating * (weightpercentage / 100))
                        -------------------------------------- */
-                    WHEN (ea.kraratings = '{{}}'::jsonb AND ea.skillratings = '{{}}'::jsonb)
-                    THEN LEAST(GREATEST(ea.overallrating, 0), 5)
-                    /* --------------------------------------
-                       2) ONLY KRA EXISTS → KRA = 100%
-                       -------------------------------------- */
-                    WHEN (ea.kraratings != '{{}}'::jsonb AND ea.skillratings = '{{}}'::jsonb)
+                    WHEN (ea.kraratings != '{{}}'::jsonb)
                     THEN (
                         SELECT 
                             SUM(
-                                (
-                                    k.weightpercentage::numeric
-                                    / NULLIF(
-                                        (SELECT SUM(weightpercentage)
-                                         FROM performance.kras
-                                         WHERE kraid IN (
-                                             SELECT kraid::uuid
-                                             FROM jsonb_each_text(ea.kraratings)
-                                         )
-                                        ), 0
-                                    )
-                                ) * kr.rating::numeric
+                                (k.weightpercentage::numeric / 100.0) * kr.rating::numeric
                             )
                         FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
                         JOIN performance.kras k ON k.kraid = kr.kraid::uuid
                     )
                     /* --------------------------------------
-                       3) ONLY SKILL EXISTS → SKILL = 100%
+                       NO KRA → RETURN DIRECT OVERALL RATING
                        -------------------------------------- */
-                    WHEN (ea.kraratings = '{{}}'::jsonb AND ea.skillratings != '{{}}'::jsonb)
-                    THEN (
-                        SELECT AVG(s.rating::numeric)
-                        FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
-                    )
-                    /* --------------------------------------
-                       4) BOTH EXIST → Normalize to 0–5
-                       -------------------------------------- */
-                    ELSE (
-                        WITH 
-                        kra_total AS (
-                            SELECT COALESCE(SUM(weightpercentage), 0) AS wt
-                            FROM performance.kras
-                            WHERE kraid IN (
-                                SELECT kraid::uuid
-                                FROM jsonb_each_text(ea.kraratings)
-                            )
-                        ),
-                        kra_score AS (
-                            SELECT SUM(
-                                (
-                                    k.weightpercentage::numeric 
-                                    / NULLIF((SELECT wt FROM kra_total), 0)
-                                ) * kr.rating::numeric
-                            ) AS score
-                            FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
-                            JOIN performance.kras k ON k.kraid = kr.kraid::uuid
-                        ),
-                        skill_score AS (
-                            SELECT AVG(s.rating::numeric) AS score
-                            FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
-                        )
-                        SELECT 
-                            (
-                                /* KRA portion weighted */
-                                (SELECT score FROM kra_score) * 
-                                ((SELECT wt FROM kra_total) / 100.0)
-                            )
-                            +
-                            (
-                                /* SKILL portion weighted */
-                                (SELECT score FROM skill_score) * 
-                                ((100 - (SELECT wt FROM kra_total)) / 100.0)
-                            )
-                    )
+                    ELSE LEAST(GREATEST(ea.overallrating, 0), 5)
                 END as OverallRating,
                 ea.kraratings as KraRatings,
                 ea.skillratings as SkillRatings,
@@ -1766,93 +1675,27 @@ WHERE es.employeeskillid = @employeeSkillId";
 
     /* ===========================================
          FINAL OVERALL RATING (0–5 NORMALIZED)
+         Based on KRA and weights only (100% KRA)
        =========================================== */
-           CASE
-
-    /* --------------------------------------
-       1) NO KRA & NO SKILL → RETURN DIRECT
-       -------------------------------------- */
-    WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
-    THEN LEAST(GREATEST(ea.overallrating, 0), 5)
-
-
-    /* --------------------------------------
-       2) ONLY KRA EXISTS → KRA = 100%
-       -------------------------------------- */
-    WHEN (ea.kraratings != '{}'::jsonb AND ea.skillratings = '{}'::jsonb)
-    THEN (
-        SELECT 
-            SUM(
-                (
-                    k.weightpercentage::numeric
-                    / NULLIF(
-                        (SELECT SUM(weightpercentage)
-                         FROM performance.kras
-                         WHERE kraid IN (
-                             SELECT kraid::uuid
-                             FROM jsonb_each_text(ea.kraratings)
-                         )
-                        ), 0
-                    )
-                ) * kr.rating::numeric
-            )
-        FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
-        JOIN performance.kras k ON k.kraid = kr.kraid::uuid
-    )
-
-
-    /* --------------------------------------
-       3) ONLY SKILL EXISTS → SKILL = 100%
-       -------------------------------------- */
-    WHEN (ea.kraratings = '{}'::jsonb AND ea.skillratings != '{}'::jsonb)
-    THEN (
-        SELECT AVG(s.rating::numeric)
-        FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
-    )
-
-
-    /* --------------------------------------
-       4) BOTH EXIST → Normalize to 0–5
-       -------------------------------------- */
-    ELSE (
-        WITH 
-        kra_total AS (
-            SELECT COALESCE(SUM(weightpercentage), 0) AS wt
-            FROM performance.kras
-            WHERE kraid IN (
-                SELECT kraid::uuid
-                FROM jsonb_each_text(ea.kraratings)
-            )
-        ),
-        kra_score AS (
-            SELECT SUM(
-                (
-                    k.weightpercentage::numeric 
-                    / NULLIF((SELECT wt FROM kra_total), 0)
-                ) * kr.rating::numeric
-            ) AS score
+    CASE
+        /* --------------------------------------
+           KRA EXISTS → Calculate based on KRA weights (100%)
+           Formula: SUM(rating * (weightpercentage / 100))
+           -------------------------------------- */
+        WHEN (ea.kraratings != '{}'::jsonb)
+        THEN (
+            SELECT 
+                SUM(
+                    (k.weightpercentage::numeric / 100.0) * kr.rating::numeric
+                )
             FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
             JOIN performance.kras k ON k.kraid = kr.kraid::uuid
-        ),
-        skill_score AS (
-            SELECT AVG(s.rating::numeric) AS score
-            FROM jsonb_each_text(ea.skillratings) s(skill_id, rating)
         )
-        SELECT 
-            (
-                /* KRA portion weighted */
-                (SELECT score FROM kra_score) * 
-                ((SELECT wt FROM kra_total) / 100.0)
-            )
-            +
-            (
-                /* SKILL portion weighted */
-                (SELECT score FROM skill_score) * 
-                ((100 - (SELECT wt FROM kra_total)) / 100.0)
-            )
-    )
-
-END AS overallrating,
+        /* --------------------------------------
+           NO KRA → RETURN DIRECT OVERALL RATING
+           -------------------------------------- */
+        ELSE LEAST(GREATEST(ea.overallrating, 0), 5)
+    END AS overallrating,
     /* Existing Fields */
     ea.kraratings, 
     ea.skillratings, 

@@ -43,7 +43,7 @@ public class PayrollService : IPayrollService
         return period != null ? _mapper.Map<PayrollPeriodDto>(period) : null;
     }
 
-    public async Task<int> CalculatePayrollAsync(Guid periodId, Guid? ruleId, List<Guid>? departmentIds = null, bool includeTax = false)
+    public async Task<int> CalculatePayrollAsync(Guid periodId, Guid organizationId, Guid? ruleId, List<Guid>? departmentIds = null, bool includeTax = false)
     {
         _logger.LogInformation("Starting payroll calculation for period: {PeriodId}", periodId);
 
@@ -62,7 +62,7 @@ public class PayrollService : IPayrollService
             }
 
             // Call the database function to calculate payroll
-            var entriesCreated = await _payrollRepository.CalculatePayrollAsync(periodId, ruleId, departmentIds, includeTax);
+            var entriesCreated = await _payrollRepository.CalculatePayrollAsync(periodId, organizationId, ruleId, departmentIds, includeTax);
 
             // Update period status to calculated
             await _payrollRepository.UpdatePayrollPeriodStatusAsync(periodId, "calculated");
@@ -185,16 +185,21 @@ public class PayrollService : IPayrollService
         return await _payrollRepository.GetPayrollReportSummaryAsync(organizationId, filter);
     }
 
-    public async Task<PagedResult<PayrollPeriodDto>> GetPayrollPeriodsPagedAsync(Guid organizationId, int page, int limit, string? search)
+    public async Task<PagedResult<PayrollPeriodDto>> GetPayrollPeriodsPagedAsync(Guid organizationId, int page, int limit, string? search, string? status = null)
     {
-        _logger.LogInformation("Getting paged payroll periods for organization: {OrganizationId}, page: {Page}, limit: {Limit}",
-            organizationId, page, limit);
+        _logger.LogInformation("Getting paged payroll periods for organization: {OrganizationId}, page: {Page}, limit: {Limit}, search: {Search}, status: {Status}",
+            organizationId, page, limit, search, status);
 
         var periods = await GetPayrollPeriodsAsync(organizationId);
 
         if (!string.IsNullOrEmpty(search))
         {
             periods = periods.Where(p => p.PeriodName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
+        if (!string.IsNullOrEmpty(status))
+        {
+            periods = periods.Where(p => p.Status.Equals(status, StringComparison.OrdinalIgnoreCase)).ToList();
         }
 
         var totalItems = periods.Count;
@@ -234,6 +239,12 @@ public class PayrollService : IPayrollService
         var period = await _payrollRepository.GetPayrollPeriodByIdAsync(periodId);
         if (period == null)
             throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
+
+        // Only allow deletion of draft periods that haven't been calculated
+        if (period.Status?.ToLower() != "draft")
+        {
+            throw new InvalidOperationException($"Cannot delete payroll period. Only draft periods can be deleted. Current status: {period.Status}");
+        }
 
         return await _payrollRepository.DeletePayrollPeriodAsync(periodId);
     }
