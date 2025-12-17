@@ -334,7 +334,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 INNER JOIN employee.employmentDetails ed ON e.employeeId = ed.employeeId AND ed.isCurrent = true
                 INNER JOIN employee.departments d ON ed.departmentId = d.departmentId
                 WHERE e.organizationId = @organizationId
-                    AND ea.status = 'completed'
+                    AND ea.status = 'Submitted'
                 GROUP BY e.employeeId, e.firstName, e.lastName, d.departmentName
                 ORDER BY AverageRating DESC
                 LIMIT 10",
@@ -344,7 +344,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 @"SELECT COUNT(*) 
                 FROM performance.employeeAppraisals ea
                 INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId AND ea.status = 'completed'",
+                WHERE e.organizationId = @organizationId AND ea.status = 'Submitted'",
                 new { organizationId });
 
             var pendingReviews = await connection.ExecuteScalarAsync<int>(
@@ -358,7 +358,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 @"SELECT AVG(overallRating) 
                 FROM performance.employeeAppraisals ea
                 INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId AND ea.status = 'completed'",
+                WHERE e.organizationId = @organizationId AND ea.status = 'Submitted'",
                 new { organizationId }) ?? 0m;
 
             var topPerformers = performanceData.Select(p => new TopPerformerDto
