@@ -1193,135 +1193,148 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         }
     }
 
-    public async Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate, Guid? payrollPeriodId = null, string? department = null)
+    public async Task<PayrollStatisticsDto> GetPayrollStatisticsAsync(
+    Guid organizationId,
+    DateTime? startDate,
+    DateTime? endDate,
+    Guid? payrollPeriodId = null,
+    string? department = null)
     {
         try
         {
+            var dateFilter = "";
+            var periodFilter = "";
+            var departmentFilter = "";
+            var departmentJoin = "";
 
-        var dateFilter = "";
-        var periodFilter = "";
-        var departmentFilter = "";
-        var departmentJoin = "";
-        var parameters = new Dictionary<string, object> { { "organizationId", organizationId } };
-
-        if (startDate.HasValue)
+            var parameters = new Dictionary<string, object>
         {
-            dateFilter += " AND pp.startdate >= @startDate";
-            parameters.Add("startDate", startDate.Value);
-        }
+            { "organizationId", organizationId }
+        };
 
-        if (endDate.HasValue)
-        {
-            dateFilter += " AND pp.enddate <= @endDate";
-            parameters.Add("endDate", endDate.Value);
-        }
+            if (startDate.HasValue)
+            {
+                dateFilter += " AND pp.startdate >= @startDate";
+                parameters.Add("startDate", startDate.Value);
+            }
 
-        if (payrollPeriodId.HasValue)
-        {
-            periodFilter += " AND pp.periodid = @payrollPeriodId";
-            parameters.Add("payrollPeriodId", payrollPeriodId.Value);
-        }
+            if (endDate.HasValue)
+            {
+                dateFilter += " AND pp.enddate <= @endDate";
+                parameters.Add("endDate", endDate.Value);
+            }
 
-        // Add department join and filter if department is specified
-        if (!string.IsNullOrWhiteSpace(department))
-        {
-            departmentJoin = @"
-            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-            INNER JOIN employee.departments d ON ed.departmentid = d.departmentid";
-            departmentFilter = " AND d.departmentname = @department";
-            parameters.Add("department", department);
-        }
+            if (payrollPeriodId.HasValue)
+            {
+                periodFilter += " AND pp.periodid = @payrollPeriodId";
+                parameters.Add("payrollPeriodId", payrollPeriodId.Value);
+            }
 
-        var sql = $@"
+            if (!string.IsNullOrWhiteSpace(department))
+            {
+                departmentJoin = @"
+                INNER JOIN employee.employmentdetails ed 
+                    ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+                INNER JOIN employee.departments d 
+                    ON ed.departmentid = d.departmentid";
+
+                departmentFilter = " AND d.departmentname = @department";
+                parameters.Add("department", department);
+            }
+
+            var sql = $@"
             SELECT 
-    COALESCE(SUM(pe.netsalary), 0) AS total_payroll,
-    COALESCE(AVG(pe.netsalary), 0) AS average_payroll,
-    COUNT(DISTINCT pe.employeeid) AS total_employees,
+                COALESCE(SUM(pe.netsalary), 0) AS total_payroll,
+                COALESCE(AVG(pe.netsalary), 0) AS average_payroll,
+                COUNT(DISTINCT pe.employeeid) AS total_employees,
 
-    /* ===============================
-       TOTAL DEDUCTIONS (FIXED + JSONB)
-       =============================== */
-    COALESCE(
-        SUM(
-            pe.taxamount +
-            pe.otherdeductions +
-            COALESCE(
-                (
-                    SELECT SUM(value::numeric)
-                    FROM jsonb_each_text(pe.deductions)
-                ),
-                0
-            )
-        ),
-        0
-    ) AS total_deductions,
+                /* ===============================
+                   TOTAL DEDUCTIONS (FIXED + JSONB)
+                   =============================== */
+                COALESCE(
+                    SUM(
+                        pe.taxamount +
+                        pe.otherdeductions +
+                        COALESCE(
+                            (
+                                SELECT SUM(value::numeric(18,2))
+                                FROM jsonb_each_text(pe.deductions)
+                            ),
+                            0
+                        )
+                    ),
+                    0
+                ) AS total_deductions,
 
-    /* ===============================
-       TOTAL ALLOWANCES (FIXED + JSONB)
-       =============================== */
-    COALESCE(
-        SUM(
-            pe.overtimeamount +
-            pe.bonusamount +
-            COALESCE(
-                (
-                    SELECT SUM(value::numeric)
-                    FROM jsonb_each_text(pe.allowances)
-                ),
-                0
-            )
-        ),
-        0
-    ) AS total_allowances
+                /* ===============================
+                   TOTAL ALLOWANCES (FIXED + JSONB)
+                   =============================== */
+                COALESCE(
+                    SUM(
+                        pe.overtimeamount +
+                        pe.bonusamount +
+                        COALESCE(
+                            (
+                                SELECT SUM(value::numeric(18,2))
+                                FROM jsonb_each_text(pe.allowances)
+                            ),
+                            0
+                        )
+                    ),
+                    0
+                ) AS total_allowances
 
-FROM payroll.payrollentries pe
-INNER JOIN payroll.payrollperiods pp 
-    ON pe.periodid = pp.periodid
-INNER JOIN employee.employees e 
-    ON pe.employeeid = e.employeeid
-{departmentJoin}
-WHERE e.organizationid = @organizationId
-{dateFilter}{periodFilter}{departmentFilter}";
-
-        var result = await QuerySingleAsync<dynamic>(sql, parameters);
-
-        // Get monthly trends
-        var trendsSql = $@"
-            SELECT 
-                TO_CHAR(pp.startdate, 'YYYY-MM') as month,
-                COALESCE(SUM(pe.netsalary), 0) as amount,
-                COUNT(DISTINCT pe.employeeid) as employee_count
             FROM payroll.payrollentries pe
-            INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
-            INNER JOIN employee.employees e ON pe.employeeid = e.employeeid
+            INNER JOIN payroll.payrollperiods pp 
+                ON pe.periodid = pp.periodid
+            INNER JOIN employee.employees e 
+                ON pe.employeeid = e.employeeid
             {departmentJoin}
-            WHERE e.organizationid = @organizationId{dateFilter}{periodFilter}{departmentFilter}
+            WHERE e.organizationid = @organizationId
+            {dateFilter}{periodFilter}{departmentFilter}";
+
+            var result = await QuerySingleAsync<dynamic>(sql, parameters);
+
+            var trendsSql = $@"
+            SELECT 
+                TO_CHAR(pp.startdate, 'YYYY-MM') AS month,
+                COALESCE(SUM(pe.netsalary), 0) AS amount,
+                COUNT(DISTINCT pe.employeeid) AS employee_count
+            FROM payroll.payrollentries pe
+            INNER JOIN payroll.payrollperiods pp 
+                ON pe.periodid = pp.periodid
+            INNER JOIN employee.employees e 
+                ON pe.employeeid = e.employeeid
+            {departmentJoin}
+            WHERE e.organizationid = @organizationId
+            {dateFilter}{periodFilter}{departmentFilter}
             GROUP BY TO_CHAR(pp.startdate, 'YYYY-MM')
             ORDER BY month DESC
             LIMIT 12";
 
-        var trends = await QueryAsync<dynamic>(trendsSql, parameters);
+            var trends = await QueryAsync<dynamic>(trendsSql, parameters);
 
-        return new PayrollStatisticsDto
-        {
-            TotalPayroll = result.total_payroll,
-            AveragePayroll = result.average_payroll,
-            TotalDeductions = result.total_deductions,
-            TotalAllowances = result.total_allowances,
-            TotalEmployees = (int)result.total_employees,
-            MonthlyTrends = trends.Select(t => new MonthlyPayrollDto
+            return new PayrollStatisticsDto
             {
-                Month = t.month,
-                Amount = (decimal)t.amount,
-                EmployeeCount = (int)t.employee_count
-            }).ToList()
-        };
+                TotalPayroll = (decimal)result.total_payroll,
+                AveragePayroll = (decimal)result.average_payroll,
+                TotalDeductions = (decimal)result.total_deductions,
+                TotalAllowances = (decimal)result.total_allowances,
+                TotalEmployees = (int)result.total_employees,
+                MonthlyTrends = trends.Select(t => new MonthlyPayrollDto
+                {
+                    Month = t.month,
+                    Amount = (decimal)t.amount,
+                    EmployeeCount = (int)t.employee_count
+                }).ToList()
+            };
         }
         catch (Exception ex)
         {
             throw;
         }
     }
+
 
     public async Task<List<DepartmentPayrollBreakdownDto>> GetDepartmentPayrollBreakdownAsync(Guid organizationId, Guid? payrollPeriodId)
     {
