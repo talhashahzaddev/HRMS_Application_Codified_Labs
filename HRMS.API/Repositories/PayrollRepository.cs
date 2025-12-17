@@ -1319,7 +1319,7 @@ WHERE e.organizationid = @organizationId
         }
         catch (Exception ex)
         {
-            throw;
+            throw new Exception(ex.Message);
         }
     }
 
