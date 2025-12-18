@@ -43,13 +43,16 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetAppraisalCyclesAsync(organizationId);
     }
 
-    public async Task<EmployeeAppraisalDto> CreateEmployeeAppraisalAsync(CreateAppraisalRequest request, Guid reviewerId, Guid organizationId)
+    public async Task<EmployeeAppraisalDto> CreateEmployeeAppraisalAsync(
+     CreateAppraisalRequest request,
+     Guid reviewerId,
+     Guid organizationId)
     {
         try
         {
             var appraisal = new EmployeeAppraisal
             {
-                AppraisalId = Guid.NewGuid(),      // generate new Id
+                AppraisalId = Guid.NewGuid(),
                 CycleId = request.CycleId,
                 EmployeeId = request.EmployeeId,
                 ReviewerId = reviewerId,
@@ -61,21 +64,20 @@ public class PerformanceService : IPerformanceService
                 ImprovementAreas = request.ImprovementAreas,
                 DevelopmentPlan = request.DevelopmentPlan,
                 Status = "Submitted",
-                SubmittedAt = null,
-                ReviewedAt = null,
-                GoalsAchieved = new Dictionary<string, object>() // keep empty for now
+                GoalsAchieved = new Dictionary<string, object>()
             };
-            appraisal.ReviewerId = reviewerId;
 
-            var createdAppraisal = await _performanceRepository.CreateEmployeeAppraisalAsync(appraisal);
-            var dto = new EmployeeAppraisalDto
+            var createdAppraisal =
+                await _performanceRepository.CreateEmployeeAppraisalAsync(appraisal);
+
+            if (createdAppraisal == null)
+                throw new Exception("Failed to create appraisal");
+
+            return new EmployeeAppraisalDto
             {
                 AppraisalId = createdAppraisal.AppraisalId,
                 CycleId = createdAppraisal.CycleId,
                 EmployeeId = createdAppraisal.EmployeeId,
-                EmployeeName = createdAppraisal.Employee?.FullName ?? string.Empty,  // <-- assuming Employee has FullName
-                CycleName = createdAppraisal.AppraisalCycle?.CycleName ?? string.Empty,   // <-- assuming Cycle has Name
-                ReviewerName = createdAppraisal.Reviewer?.FullName,                  // nullable
                 ReviewType = createdAppraisal.ReviewType,
                 OverallRating = createdAppraisal.OverallRating,
                 KraRatings = createdAppraisal.KraRatings,
@@ -86,50 +88,19 @@ public class PerformanceService : IPerformanceService
                 SubmittedAt = createdAppraisal.SubmittedAt,
                 ReviewedAt = createdAppraisal.ReviewedAt
             };
-
-            // Create notification for the employee
-            try
-            {
-                // Get sender (reviewer) employee details
-                var reviewerEmployee = await _employeeRepository.GetEmployeedetailsAsync(reviewerId);
-                
-                // Get receiver (employee) details
-                var employeeDetails = await _employeeRepository.GetEmployeedetailsAsync(request.EmployeeId);
-
-                if (reviewerEmployee != null && employeeDetails != null)
-                {
-                    var senderName = $"{reviewerEmployee.FirstName} {reviewerEmployee.LastName}".Trim();
-                    
-                    var notification = new NotificationCreateDto
-                    {
-                        Receiveruserid = request.EmployeeId, // Employee for whom appraisal is created
-                        Senderuserid = reviewerId, // Manager/HR who created the appraisal
-                        Ttitle = "Appraisal Created",
-                        Notificationtype = "Performance",
-                        Message = $"{senderName} has created an appraisal for you",
-                        Redirecturl = "/performance/appraisals",
-                        moduletype = "Performance",
-                        RequestId = createdAppraisal.AppraisalId,
-                        Createdby = reviewerId,
-                        organizationId = organizationId
-                    };
-
-                    await _notificationService.CreateNotificationAsync(organizationId, notification);
-                }
-            }
-            catch (Exception ex)
-            {
-                // Log the error but don't fail the appraisal creation
-                _logger.LogError(ex, "Error creating notification for appraisal {AppraisalId}", createdAppraisal.AppraisalId);
-            }
-
-            return dto;
+        }
+        catch (InvalidOperationException)
+        {
+            // 👈 BUSINESS WARNING → pass upward
+            throw;
         }
         catch (Exception ex)
         {
-            return null;
+            _logger.LogError(ex, "Error creating employee appraisal");
+            throw;
         }
     }
+
 
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId)
     {
