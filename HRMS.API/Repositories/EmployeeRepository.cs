@@ -265,6 +265,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             e.emergencycontact as EmergencyContact, e.hiredate, e.terminationdate, e.status,
             e.profilepictureurl, e.createdat, e.updatedat,
             ed.worklocation, ed.basicsalary As BasicSalary, ed.departmentid, ed.positionid,
+  ed.reportingmanagerid AS reporting_manager_id,
             CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
             p.positiontitle, d.departmentname
         FROM employee.employees AS e
