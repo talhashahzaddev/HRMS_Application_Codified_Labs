@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using HRMS.API.Models.DTOs;
@@ -264,13 +264,17 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("appraisals")]
-    public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> CreateEmployeeAppraisal([FromBody] CreateAppraisalRequest request)
+    public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> CreateEmployeeAppraisal(
+    [FromBody] CreateAppraisalRequest request)
     {
         try
         {
             var reviewerId = await GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
-            var appraisal = await _performanceService.CreateEmployeeAppraisalAsync(request, reviewerId, organizationId);
+
+            var appraisal =
+                await _performanceService.CreateEmployeeAppraisalAsync(
+                    request, reviewerId, organizationId);
 
             return Ok(new ServiceResponse<EmployeeAppraisalDto>
             {
@@ -279,13 +283,25 @@ public class PerformanceController : ControllerBase
                 Data = appraisal
             });
         }
+        catch (InvalidOperationException ex)
+        {
+            // ⚠️ BUSINESS WARNING (KRA already submitted)
+            return StatusCode(400, new ServiceResponse<EmployeeAppraisalDto>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = null
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating employee appraisal");
+
             return StatusCode(500, new ServiceResponse<EmployeeAppraisalDto>
             {
                 Success = false,
-                Message = "An error occurred while creating employee appraisal"
+                Message = "An error occurred while creating employee appraisal",
+                Data = null
             });
         }
     }

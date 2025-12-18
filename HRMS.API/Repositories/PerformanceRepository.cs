@@ -6,6 +6,7 @@ using HRMS.API.Repositories.Interfaces;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Npgsql;
 using System.Diagnostics.Metrics;
+using System.Text.Json;
 
 namespace HRMS.API.Repositories;
 
@@ -76,15 +77,56 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
     {
         try
         {
-            // Step 1: Check if record already exists 
+            // ---------------------------------------------------------------
+            // STEP 0: Extract incoming KRA IDs
+            // ---------------------------------------------------------------
+            var incomingKraIds = appraisal.KraRatings?.Keys?.ToArray();
+
+            if (incomingKraIds == null || incomingKraIds.Length == 0)
+                throw new Exception("No KRA provided for appraisal.");
+
+            // ---------------------------------------------------------------
+            // STEP 1: Check if ANY KRA already submitted
+            // ---------------------------------------------------------------
+            var kraCheckSql = @"
+            SELECT DISTINCT key AS kraid
+            FROM performance.employeeappraisals ea,
+                 jsonb_object_keys(ea.kraratings) AS key
+            WHERE ea.cycleid = @cycleId
+              AND ea.employeeid = @employeeId
+              AND ea.reviewtype = @reviewType
+              AND ea.status = 'Submitted'
+              AND key = ANY(@kraIds);
+        ";
+
+            var submittedKras = (await QueryAsync<string>(kraCheckSql, new
+            {
+                cycleId = appraisal.CycleId,
+                employeeId = appraisal.EmployeeId,
+                reviewType = appraisal.ReviewType,
+                kraIds = incomingKraIds
+            })).ToList();
+
+            // ❌ BLOCK if any KRA already submitted
+            if (submittedKras.Any())
+            {
+                throw new InvalidOperationException(
+                    $"Appraisal already submitted for KRA(s): {string.Join(", ", submittedKras)}"
+                );
+            }
+
+            // ---------------------------------------------------------------
+            // STEP 2: Existing appraisal check (Draft / Under Review only)
+            // ---------------------------------------------------------------
             var checkSql = @"
-        SELECT appraisalid
-        FROM performance.employeeappraisals
-        WHERE cycleid = @cycleId 
-          AND employeeid = @employeeId
-          AND reviewerid = @reviewerId
-          AND reviewtype = @reviewType
-    ";
+            SELECT appraisalid
+            FROM performance.employeeappraisals
+            WHERE cycleid = @cycleId
+              AND employeeid = @employeeId
+              AND reviewerid = @reviewerId
+              AND reviewtype = @reviewType
+              AND status <> 'Submitted';
+        ";
 
             var existingId = await ExecuteScalarAsync<Guid?>(checkSql, new
             {
@@ -95,94 +137,81 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
             });
 
             // ---------------------------------------------------------------
-            // CASE 1: RECORD EXISTS → UPDATE
+            // CASE 1: UPDATE (only non-submitted)
             // ---------------------------------------------------------------
             if (existingId != null)
             {
                 var updateSql = @"
-    UPDATE performance.employeeappraisals
-    SET
-        kraratings = COALESCE(kraratings, '{}'::jsonb) 
-                     || COALESCE(@kraRatings::jsonb, '{}'::jsonb),
+                UPDATE performance.employeeappraisals
+                SET
+                    kraratings = COALESCE(kraratings, '{}'::jsonb)
+                                 || @kraRatings::jsonb,
+                    feedback = @feedback,
+                    improvementareas = @improvementAreas,
+                    developmentplan = @developmentPlan,
+                    updatedat = NOW()
+                WHERE appraisalid = @id
+                RETURNING appraisalid;
+            ";
 
-        feedback = CASE 
-                      WHEN @feedback IS NOT NULL AND @feedback <> '' 
-                      THEN COALESCE(feedback, '') || E'\n' || @feedback
-                      ELSE feedback
-                   END,
-
-        improvementareas = CASE 
-                              WHEN @improvementAreas IS NOT NULL AND @improvementAreas <> '' 
-                              THEN COALESCE(improvementareas, '') || E'\n' || @improvementAreas
-                              ELSE improvementareas
-                           END,
-
-        developmentplan = CASE 
-                              WHEN @developmentPlan IS NOT NULL AND @developmentPlan <> '' 
-                              THEN COALESCE(developmentplan, '') || E'\n' || @developmentPlan
-                              ELSE developmentplan
-                          END,
-
-        updatedat = NOW()
-    WHERE appraisalid = @id
-    RETURNING appraisalid;
-";
-
-                var updatedId = await ExecuteScalarAsync<Guid>(updateSql, new
+                appraisal.AppraisalId = await ExecuteScalarAsync<Guid>(updateSql, new
                 {
                     id = existingId,
-                    kraRatings = System.Text.Json.JsonSerializer.Serialize(appraisal.KraRatings),
+                    kraRatings = JsonSerializer.Serialize(appraisal.KraRatings),
                     feedback = appraisal.Feedback,
                     improvementAreas = appraisal.ImprovementAreas,
                     developmentPlan = appraisal.DevelopmentPlan
                 });
 
-
-                appraisal.AppraisalId = updatedId;
                 return appraisal;
             }
 
             // ---------------------------------------------------------------
-            // CASE 2: RECORD DOES NOT EXIST → INSERT
+            // CASE 2: INSERT
             // ---------------------------------------------------------------
             var insertSql = @"
-        INSERT INTO performance.employeeappraisals (
-            cycleid, employeeid, reviewerid, reviewtype, overallrating,
-            kraratings, skillratings, goalsachieved, feedback, 
-            improvementareas, developmentplan, status
-        )
-        VALUES (
-            @cycleId, @employeeId, @reviewerId, @reviewType, @overallRating,
-            @kraRatings::jsonb, @skillRatings::jsonb, @goalsAchieved::jsonb,
-            @feedback, @improvementAreas, @developmentPlan, @status
-        )
-        RETURNING appraisalid;
-    ";
+            INSERT INTO performance.employeeappraisals (
+                cycleid, employeeid, reviewerid, reviewtype,
+                overallrating, kraratings, skillratings,
+                goalsachieved, feedback, improvementareas,
+                developmentplan, status
+            )
+            VALUES (
+                @cycleId, @employeeId, @reviewerId, @reviewType,
+                @overallRating, @kraRatings::jsonb,
+                @skillRatings::jsonb, @goalsAchieved::jsonb,
+                @feedback, @improvementAreas, @developmentPlan, @status
+            )
+            RETURNING appraisalid;
+        ";
 
-            var newId = await ExecuteScalarAsync<Guid>(insertSql, new
+            appraisal.AppraisalId = await ExecuteScalarAsync<Guid>(insertSql, new
             {
                 cycleId = appraisal.CycleId,
                 employeeId = appraisal.EmployeeId,
                 reviewerId = appraisal.ReviewerId,
                 reviewType = appraisal.ReviewType,
                 overallRating = appraisal.OverallRating,
-                kraRatings = System.Text.Json.JsonSerializer.Serialize(appraisal.KraRatings),
-                skillRatings = System.Text.Json.JsonSerializer.Serialize(appraisal.SkillRatings),
-                goalsAchieved = System.Text.Json.JsonSerializer.Serialize(appraisal.GoalsAchieved),
+                kraRatings = JsonSerializer.Serialize(appraisal.KraRatings),
+                skillRatings = JsonSerializer.Serialize(appraisal.SkillRatings),
+                goalsAchieved = JsonSerializer.Serialize(appraisal.GoalsAchieved),
                 feedback = appraisal.Feedback,
                 improvementAreas = appraisal.ImprovementAreas,
                 developmentPlan = appraisal.DevelopmentPlan,
                 status = appraisal.Status
             });
 
-            appraisal.AppraisalId = newId;
             return appraisal;
+        }
+        catch (InvalidOperationException ex)
+        {
+            // 👇 This will be sent as WARNING to frontend
+            throw;
         }
         catch (Exception)
         {
             return null;
         }
-
     }
 
     public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId)
