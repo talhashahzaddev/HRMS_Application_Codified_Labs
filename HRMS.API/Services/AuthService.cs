@@ -436,8 +436,16 @@ public class AuthService : IAuthService
         if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
         {
             _logger.LogWarning("Invalid current password for user {UserId}", userId);
-            throw new UnauthorizedAccessException("Current password is incorrect");
+            throw new InvalidOperationException("Current password is incorrect");
         }
+
+        // Check if new password is same as old password
+        if (BCrypt.Net.BCrypt.Verify(request.NewPassword, user.PasswordHash))
+        {
+            _logger.LogWarning("New password must be different from old password for user {UserId}", userId);
+            throw new InvalidOperationException("New password must be different from the old password.");
+        }
+
 
         // Hash new password
         var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
