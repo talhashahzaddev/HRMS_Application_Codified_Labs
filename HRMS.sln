@@ -8,6 +8,10 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Database", "Database", "{62
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HRMS.Script", "HRMS.Script\HRMS.Script.csproj", "{8B3D8BF8-A65B-4322-A724-F467C404AD69}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "HRMS.AI", "HRMS.AI", "{02EA681E-C7D8-13C7-8484-4AC65E1B71E8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HRMS.AI", "HRMS.AI\HRMS.AI\HRMS.AI.csproj", "{90B08493-16B2-43AA-9EE8-C5BF561E068F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -22,11 +26,19 @@ Global
 		{8B3D8BF8-A65B-4322-A724-F467C404AD69}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8B3D8BF8-A65B-4322-A724-F467C404AD69}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8B3D8BF8-A65B-4322-A724-F467C404AD69}.Release|Any CPU.Build.0 = Release|Any CPU
+		{90B08493-16B2-43AA-9EE8-C5BF561E068F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{90B08493-16B2-43AA-9EE8-C5BF561E068F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{90B08493-16B2-43AA-9EE8-C5BF561E068F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{90B08493-16B2-43AA-9EE8-C5BF561E068F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{8B3D8BF8-A65B-4322-A724-F467C404AD69} = {624F451E-3BBD-4EA6-8D0A-71107FC09BC7}
+		{90B08493-16B2-43AA-9EE8-C5BF561E068F} = {02EA681E-C7D8-13C7-8484-4AC65E1B71E8}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {028938DC-FDB5-433E-8C86-ECEE4ECDCA5E}
 	EndGlobalSection
 EndGlobal

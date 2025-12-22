@@ -10,6 +10,8 @@ using HRMS.API.Services.Interfaces;
 using HRMS.API.Services;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Repositories;
+using HRMS.AI.Services.Interface;
+using HRMS.AI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -132,6 +134,25 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Register IHttpClientFactory for services that need HttpClient
+builder.Services.AddHttpClient();
+
+// Configure typed HttpClients for AI services
+builder.Services.AddHttpClient<GuidanceAIService>(client => {
+    // Optionally configure base address or default headers from configuration
+    var groqUrl = builder.Configuration["GroqAI:Url"];
+    if (!string.IsNullOrEmpty(groqUrl)) client.BaseAddress = new Uri(groqUrl);
+});
+
+builder.Services.AddHttpClient<IntentRecognitionService>(client => {
+    var groqUrl = builder.Configuration["GroqAI:Url"];
+    if (!string.IsNullOrEmpty(groqUrl)) client.BaseAddress = new Uri(groqUrl);
+});
+
+// Register services using their interfaces
+//builder.Services.AddScoped<IGuidanceAIService, GuidanceAIService>();
+//builder.Services.AddScoped<IIntentRecognitionService, IntentRecognitionService>();
+
 // Add AutoMapper
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
@@ -157,6 +178,9 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IIntentRecognitionService, IntentRecognitionService>();
+builder.Services.AddScoped<IGuidanceAIService, GuidanceAIService>();
 
 // Add Repositories
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
