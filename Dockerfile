@@ -15,7 +15,7 @@ COPY HRMS.API/ HRMS.API/
 COPY HRMS.AI/ HRMS.AI/
 
 # Publish API
-RUN dotnet publish "HRMS.API/HRMS.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "HRMS.API/HRMS.API.csproj" -c Release -o /app/publish /p:UseAppHost=false /p:SourceLinkCreate=false
 
 # ---------- Runtime stage ----------
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
