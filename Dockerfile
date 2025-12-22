@@ -2,7 +2,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy solution and project files
+# Copy solution and project files only
 COPY HRMS.sln .
 COPY HRMS.API/HRMS.API.csproj HRMS.API/
 COPY HRMS.AI/HRMS.AI/HRMS.AI.csproj HRMS.AI/HRMS.AI/
@@ -10,7 +10,7 @@ COPY HRMS.AI/HRMS.AI/HRMS.AI.csproj HRMS.AI/HRMS.AI/
 # Restore dependencies
 RUN dotnet restore "HRMS.API/HRMS.API.csproj"
 
-# Copy only the source code (avoid .git, bin, obj)
+# Copy only the source folders needed
 COPY HRMS.API/ HRMS.API/
 COPY HRMS.AI/ HRMS.AI/
 
