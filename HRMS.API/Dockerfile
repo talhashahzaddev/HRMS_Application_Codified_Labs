@@ -2,20 +2,20 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy solution file
+# Copy solution
 COPY ["HRMS.sln", "."]
 
-# Copy project files
+# Copy project files (IMPORTANT: nested HRMS.AI path)
 COPY ["HRMS.API/HRMS.API.csproj", "HRMS.API/"]
-COPY ["HRMS.AI/HRMS.AI.csproj", "HRMS.AI/"]
+COPY ["HRMS.AI/HRMS.AI/HRMS.AI.csproj", "HRMS.AI/HRMS.AI/"]
 
 # Restore dependencies
 RUN dotnet restore "HRMS.API/HRMS.API.csproj"
 
-# Copy everything else
+# Copy full source
 COPY . .
 
-# Publish
+# Publish API
 RUN dotnet publish "HRMS.API/HRMS.API.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # ---------- Runtime stage ----------
