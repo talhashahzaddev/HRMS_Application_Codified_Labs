@@ -43,5 +43,4 @@
   <ItemGroup>
     <ProjectReference Include="..\HRMS.AI\HRMS.AI\HRMS.AI.csproj" />
   </ItemGroup>
-
 </Project>
