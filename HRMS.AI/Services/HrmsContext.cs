@@ -57,6 +57,12 @@ namespace HRMS.AI.Services
             ["OrganizationSettings"] =
                 "Organization Settings Rules: Only the Super Admin can manage organization-level settings including system currency." +
                 "\nOrganization Settings Steps: To update currency, the Super Admin navigates to Settings, selects the preferred currency, and saves changes. The selected currency is applied across the entire system.",
+            ["HRPolicies"] =
+                "HR Policies Rules: All employees must follow organization-defined HR policies." +
+                "\nAttendance must be marked daily; late check-ins and absences are tracked based on defined working hours." +
+                "\nLeave requests require prior submission and manager approval; only approved leaves are considered for payroll." +
+                "\nPerformance is evaluated in defined cycles based on ratings and appraisals." +
+                "\nPayroll is processed according to approved attendance, leave, and applicable salary rules.",
         };
 
         private const string _generalContext = "Use only the provided module context when answering. Do not assume any behavior or permission that is not defined in the context.";
