@@ -1,0 +1,43 @@
+# Build artifacts
+bin/
+obj/
+out/
+
+# IDE and tooling
+.vs/
+.vscode/
+*.user
+*.suo
+*.jfm
+*.dbmdl
+*.mdf
+*.ldf
+
+# Node / Angular
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Docker and compose logs
+docker-compose.override.yml
+docker-compose.debug.yml
+
+# Secrets and configs
+*.env
+secrets.dev.yaml
+values.dev.yaml
+
+# Git metadata (keep Dockerfile and .dockerignore tracked!)
+.git/
+.gitignore
+
+# Miscellaneous
+*.log
+*.tmp
+*.cache
+*.swp
+
+# Documentation and licenses (not needed in image)
+README.md
+LICENSE
+*.md

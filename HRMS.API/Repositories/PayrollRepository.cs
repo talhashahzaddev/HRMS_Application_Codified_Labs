@@ -1331,7 +1331,7 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         }
         catch (Exception ex)
         {
-            throw;
+            throw new Exception(ex.Message);
         }
     }
 

@@ -761,7 +761,7 @@ public class PayrollController : ControllerBase
             return StatusCode(500, new ServiceResponse<PayrollStatisticsDto>
             {
                 Success = false,
-                Message = "An error occurred while retrieving payroll statistics"
+                Message = ex.Message,
             });
         }
     }
