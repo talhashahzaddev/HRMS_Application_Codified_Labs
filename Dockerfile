@@ -9,8 +9,11 @@ COPY ["HRMS.AI/HRMS.AI.csproj", "HRMS.AI/"]
 # Restore dependencies
 RUN dotnet restore "HRMS.API/HRMS.API.csproj"
 
-# Copy everything else
+# Copy everything else (make sure build context is solution root!)
 COPY . .
+
+# Debug: list files
+RUN ls -R /src
 
 # Build and publish
 WORKDIR "/src/HRMS.API"
@@ -19,11 +22,10 @@ RUN dotnet publish "HRMS.API.csproj" -c Release -o /app/publish /p:UseAppHost=fa
 # ---------- Runtime stage ----------
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
-
 COPY --from=build /app/publish .
 
-# Use Railway's dynamic port
 ENV PORT=8080
 ENV ASPNETCORE_URLS=http://+:$PORT
 EXPOSE 8080
+
 ENTRYPOINT ["dotnet", "HRMS.API.dll"]
