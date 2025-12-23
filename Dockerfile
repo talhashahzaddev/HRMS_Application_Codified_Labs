@@ -2,7 +2,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy both project files
+# Copy project files
 COPY ["HRMS.API/HRMS.API.csproj", "HRMS.API/"]
 COPY ["HRMS.AI/HRMS.AI.csproj", "HRMS.AI/"]
 
@@ -22,7 +22,8 @@ WORKDIR /app
 
 COPY --from=build /app/publish .
 
-ENV ASPNETCORE_URLS=http://+:5000
-EXPOSE 5000
-
+# Use Railway's dynamic port
+ENV PORT=8080
+ENV ASPNETCORE_URLS=http://+:$PORT
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "HRMS.API.dll"]
