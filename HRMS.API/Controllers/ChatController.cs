@@ -41,7 +41,7 @@ namespace HRMS.API.Controllers
                 // If intent is neither Guidance nor Greeting, delegate to ChatBoardStatsService for further handling
                 if (response.Intent != ChatIntent.Guidance && response.Intent != ChatIntent.Greeting)
                 {
-                    response = await _chatBoardStatsService.HandleNonGuidanceIntentAsync(response.Intent, response.Module, empid, organizationId);
+                    response = await _chatBoardStatsService.HandleNonGuidanceIntentAsync(response.Intent, response.Module, empid, currentUserId, organizationId);
                 }
 
                 return Ok(response);

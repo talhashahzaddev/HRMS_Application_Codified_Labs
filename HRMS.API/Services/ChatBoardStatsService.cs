@@ -1,9 +1,13 @@
-﻿using HRMS.API.Services.Interfaces;
+﻿using DocumentFormat.OpenXml.Bibliography;
 using HRMS.AI.Models;
 using HRMS.AI.Models.Enums;
 using HRMS.API.Repositories.Interfaces;
+using HRMS.API.Services.Interfaces;
 using Microsoft.Extensions.Logging;
+using NPOI.HSSF.Record.Aggregates;
 using System;
+using System.Linq;
+using System.Reflection.Metadata.Ecma335;
 using System.Threading.Tasks;
 
 namespace HRMS.API.Services
@@ -11,15 +15,21 @@ namespace HRMS.API.Services
     public class ChatBoardStatsService: IChatBoardStatsService
     {
         private readonly ILeaveRepository _leaveRepository;
+        private readonly IAttendanceRepository _attendanceRepository;
+        private readonly IPerformanceRepository _performanceRepository;
+        private readonly IEmployeeRepository _employeeRepository;
         private readonly ILogger<ChatBoardStatsService> _logger;
 
-        public ChatBoardStatsService(ILeaveRepository leaveRepository, ILogger<ChatBoardStatsService> logger)
+        public ChatBoardStatsService(ILeaveRepository leaveRepository, IAttendanceRepository attendanceRepository,IPerformanceRepository performanceRepository,IEmployeeRepository employeeRepository, ILogger<ChatBoardStatsService> logger)
         {
             _leaveRepository = leaveRepository;
+            _attendanceRepository = attendanceRepository;
+            _performanceRepository = performanceRepository;
+            _employeeRepository = employeeRepository;
             _logger = logger;
         }
 
-        public async Task<ChatResponseDto> HandleNonGuidanceIntentAsync(ChatIntent intent, string module, Guid employeeId, Guid organizationId)
+        public async Task<ChatResponseDto> HandleNonGuidanceIntentAsync(ChatIntent intent, string module, Guid employeeId,Guid currentUserId, Guid organizationId)
         {
             switch (intent)
             {
@@ -28,13 +38,15 @@ namespace HRMS.API.Services
                 case ChatIntent.GetAttendance:
                     return await HandleGetAttendance(employeeId, organizationId);
                 case ChatIntent.CheckMyShift:
-                    return await HandleCheckMyShift(employeeId, organizationId);
+                    return await HandleCheckMyShift(currentUserId, organizationId);
                 case ChatIntent.GetLeaveBalance:
                     return await HandleGetLeaveBalance(employeeId, organizationId);
                 case ChatIntent.ApplyForLeave:
                     return await HandleApplyForLeave(employeeId, organizationId);
                 case ChatIntent.GetPayslip:
                     return await HandleGetPayslip(employeeId, organizationId);
+                case ChatIntent.GetManager:
+                    return await HandleGetManager(employeeId, organizationId);
                 case ChatIntent.Unknown:
                     _logger.LogWarning("Received Unknown intent for employee {EmployeeId}", employeeId);
                     return new ChatResponseDto
@@ -53,24 +65,283 @@ namespace HRMS.API.Services
                     };
             }
         }
-
-        private Task<ChatResponseDto> HandleGetPerformanceSummary(Guid employeeId, Guid organizationId)
+        private async Task<ChatResponseDto> HandleGetManager(Guid? employeeId, Guid organizationId)
         {
-            // Placeholder: fetch performance summary from repository/service
-            _logger.LogInformation("Fetching performance summary for employee {EmployeeId}", employeeId);
-            return Task.FromResult(new ChatResponseDto { Intent = ChatIntent.GetPerformanceSummary, ResponseText = "GetPerformanceSummary", Module = "Performance" });
+            _logger.LogInformation("Fetching reporting manager for employee {EmployeeId}", employeeId);
+
+            try
+            {
+                if (employeeId == null)
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetManager,
+                        ResponseText = "Employee information is not available.",
+                        Module = "EmployeeManagement"
+                    };
+                }
+
+                var employees = await _employeeRepository.GetEmployeesAsync(organizationId);
+                var currentEmployee = employees?.Data?
+                    .FirstOrDefault(x => x.EmployeeId == employeeId);
+
+                if (currentEmployee == null)
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetManager,
+                        ResponseText = "Employee record not found.",
+                        Module = "EmployeeManagement"
+                    };
+                }
+
+                if (string.IsNullOrWhiteSpace(currentEmployee.ReportingManagerName))
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetManager,
+                        ResponseText = "You are not assigned a reporting manager yet.",
+                        Module = "EmployeeManagement"
+                    };
+                }
+
+                string message = $"Your reporting manager is {currentEmployee.ReportingManagerName}.";
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetManager,
+                    ResponseText = message,
+                    Module = "EmployeeManagement"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch reporting manager for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetManager,
+                    ResponseText = "Error fetching reporting manager information.",
+                    Module = "EmployeeManagement"
+                };
+            }
         }
 
-        private Task<ChatResponseDto> HandleGetAttendance(Guid employeeId, Guid organizationId)
+        private async Task<ChatResponseDto> HandleGetPerformanceSummary(Guid employeeId, Guid organizationId)
+        {
+            _logger.LogInformation("Fetching performance summary for employee {EmployeeId}", employeeId);
+
+            try
+            {
+                var cycle = await _performanceRepository.GetActiveAppraisalCycleAsync(organizationId);
+                if (cycle == null)
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetPerformanceSummary,
+                        ResponseText = "There is no active performance cycle at the moment.",
+                        Module = "PerformanceManagement"
+                    };
+                }
+
+                var performanceSummary =
+                    await _performanceRepository.GetEmployeeAppraisalsAsync(cycle.CycleId, employeeId);
+
+                if (performanceSummary == null || !performanceSummary.Any())
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetPerformanceSummary,
+                        ResponseText = $"No performance record found for the {cycle.CycleName} cycle.",
+                        Module = "PerformanceManagement"
+                    };
+                }
+
+                var appraisal = performanceSummary.First();
+
+                // Overall rating
+                string overallRating = appraisal.OverallRating.HasValue && appraisal.OverallRating.Value > 0
+          ? appraisal.OverallRating.Value.ToString("0.0")
+          : "N/A";
+
+                // KRA rating (average or single value)
+                string kraRating = "N/A";
+                if (appraisal.KraRatings != null && appraisal.KraRatings.Count > 0)
+                {
+                    var kraValues = appraisal.KraRatings
+                        .Select(k => Convert.ToDecimal(k.Value.ToString()))
+                        .ToList();
+
+                    kraRating = kraValues.Average().ToString("0.0");
+                }
+
+                string reviewer = !string.IsNullOrWhiteSpace(appraisal.ReviewerName)
+                    ? appraisal.ReviewerName
+                    : "your manager";
+
+                string reviewType = appraisal.ReviewType?.ToLower() == "manager"
+                    ? "manager"
+                    : "reviewer";
+
+                string message =
+                    $"Your performance summary for the {appraisal.CycleName} cycle is now available. " +
+                    $"You received an overall rating of {overallRating} and a KRA rating of {kraRating}. " +
+                    $"This evaluation was submitted by your {reviewType}, {reviewer}.";
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetPerformanceSummary,
+                    ResponseText = message,
+                    Module = "PerformanceManagement"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch performance summary for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetPerformanceSummary,
+                    ResponseText = "Error fetching performance summary.",
+                    Module = "PerformanceManagement"
+                };
+            }
+        }
+
+        private async Task<ChatResponseDto> HandleGetAttendance(Guid employeeId, Guid organizationId)
         {
             _logger.LogInformation("Fetching attendance for employee {EmployeeId}", employeeId);
-            return Task.FromResult(new ChatResponseDto { Intent = ChatIntent.GetAttendance, ResponseText = "GetAttendance", Module = "Attendance" });
+            try
+            {
+                DateTime startDate = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                DateTime endDate = startDate.AddMonths(1).AddDays(-1);
+                var attendanceList = await _attendanceRepository.GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
+
+                // Calculate total working days in the current month (exclude Saturday and Sunday)
+                int totalWorkingDays = 0;
+                for (var date = startDate.Date; date <= endDate.Date; date = date.AddDays(1))
+                {
+                    if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+                        totalWorkingDays++;
+                }
+
+                // If no attendance records found
+                if (attendanceList == null || attendanceList.Count == 0)
+                {
+                    var noPresentMsg = $"For {startDate:MMMM yyyy}, there are {totalWorkingDays} scheduled working days. You have no recorded present days for this month; all {totalWorkingDays} day(s) are marked absent. Attendance rate: 0%.";
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetAttendance,
+                        ResponseText = noPresentMsg,
+                        Module = "Attendance"
+                    };
+                }
+
+                // Count distinct present dates (some employees may have multiple sessions per day)
+                var presentDays = attendanceList
+                    .Where(a => a.CheckInTime.HasValue)
+                    .Select(a => a.CheckInTime.Value.Date)
+                    .Distinct()
+                    .Count();
+
+                // Ensure presentDays does not exceed totalWorkingDays
+                if (presentDays > totalWorkingDays)
+                    presentDays = totalWorkingDays;
+
+                int absentDays = totalWorkingDays - presentDays;
+                if (absentDays < 0) absentDays = 0;
+
+                double attendanceRate = totalWorkingDays > 0 ? (double)presentDays * 100.0 / totalWorkingDays : 0.0;
+
+                var message = $"For {startDate:MMMM yyyy} there are {totalWorkingDays} scheduled working days. You were present on {presentDays} day(s) and absent on {absentDays} day(s). Attendance rate: {attendanceRate:0.##}%.";
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetAttendance,
+                    ResponseText = message,
+                    Module = "Attendance"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch attendance for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto { Intent = ChatIntent.GetAttendance, ResponseText = "Error fetching attendance information.", Module = "Attendance" };
+            }
         }
 
-        private Task<ChatResponseDto> HandleCheckMyShift(Guid employeeId, Guid organizationId)
+        private async Task<ChatResponseDto> HandleCheckMyShift(Guid currentUserId, Guid organizationId)
         {
-            _logger.LogInformation("Fetching shift info for employee {EmployeeId}", employeeId);
-            return Task.FromResult(new ChatResponseDto { Intent = ChatIntent.CheckMyShift, ResponseText = "CheckMyShift", Module = "ShiftManagement" });
+            _logger.LogInformation("Fetching shift for employee {EmployeeId}", currentUserId);
+
+            try
+            {
+                var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(currentUserId);
+                if (shift == null)
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.CheckMyShift,
+                        ResponseText = "No shift assigned.",
+                        Module = "ShiftManagement"
+                    };
+                }
+
+                // Format start and end times
+                string start = shift.StartTime.ToString(@"hh\:mm");
+                string end = shift.EndTime.ToString(@"hh\:mm");
+
+                // Map day numbers to names. Assume 1 = Monday, 7 = Sunday.
+                string[] dayNames = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday" };
+                string daysText = "";
+                if (shift.DaysOfWeek != null && shift.DaysOfWeek.Length > 0)
+                {
+                    var names = shift.DaysOfWeek
+                        .Where(i => i >= 1 && i <= 7)
+                        .Select(i => dayNames[i - 1])
+                        .ToArray();
+
+                    daysText = names.Length > 0 ? string.Join(", ", names) : string.Empty;
+                }
+
+                // Build a professional message for the assigned shift
+                string message;
+
+                // Prepare compact representation for days: use range if consecutive (e.g., Monday to Friday)
+                string daysRepresentation = daysText;
+                if (!string.IsNullOrWhiteSpace(daysText) && shift.DaysOfWeek != null && shift.DaysOfWeek.Length > 0)
+                {
+                    var idx = shift.DaysOfWeek.Where(i => i >= 1 && i <= 7).OrderBy(i => i).ToArray();
+                    if (idx.Length > 1)
+                    {
+                        var first = idx.First();
+                        var last = idx.Last();
+                        if (last - first == idx.Length - 1)
+                        {
+                            // consecutive range
+                            daysRepresentation = $"{dayNames[first - 1]} to {dayNames[last - 1]}";
+                        }
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(daysRepresentation))
+                {
+                    message = $"You are not assigned to any scheduled working days for this shift (Shift: {shift.ShiftName}).";
+                }
+                else
+                {
+                    message = $"You are assigned to the '{shift.ShiftName}' shift. Working hours are {start} – {end}. Scheduled working days: {daysRepresentation}.";
+                }
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.CheckMyShift,
+                    ResponseText = message,
+                    Module = "ShiftManagement"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch shift for employee {EmployeeId}", currentUserId);
+                return new ChatResponseDto { Intent = ChatIntent.CheckMyShift, ResponseText = "Error fetching shift information.", Module = "ShiftManagement" };
+            }
         }
 
         private async Task<ChatResponseDto> HandleGetLeaveBalance(Guid employeeId, Guid organizationId)
@@ -78,27 +349,76 @@ namespace HRMS.API.Services
             _logger.LogInformation("Fetching leave balance for employee {EmployeeId}", employeeId);
             try
             {
-                var empId = await _leaveRepository.GetEmpId(employeeId);
-                // Placeholder - real implementation should fetch leave balance by empId/orgId
-                return new ChatResponseDto { Intent = ChatIntent.GetLeaveBalance, ResponseText = "GetLeaveBalance", Module = "Leave" };
+                var balanceYear =  DateTime.Now.Year;
+                var LeaveBallance = await _leaveRepository.GetLeaveBalanceAsync(employeeId, balanceYear);
+
+                // If there are any leave balance entries, build a message that includes all of them
+                if (LeaveBallance != null && LeaveBallance.Count > 0)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine("Here are your leave balances:");
+
+                    foreach (var item in LeaveBallance)
+                    {
+                        // Format decimals with up to 2 decimal places and remove trailing zeros
+                        string fmtTotal = item.TotalDays % 1 == 0 ? ((int)item.TotalDays).ToString() : item.TotalDays.ToString("0.##");
+                        string fmtUsed = item.UsedDays % 1 == 0 ? ((int)item.UsedDays).ToString() : item.UsedDays.ToString("0.##");
+                        string fmtRemaining = item.RemainingDays % 1 == 0 ? ((int)item.RemainingDays).ToString() : item.RemainingDays.ToString("0.##");
+
+                        sb.Append($"- {item.LeaveTypeName}: Total {fmtTotal} day");
+                        if (decimal.Parse(fmtTotal) != 1) sb.Append("s");
+                        sb.Append($", Used {fmtUsed} day");
+                        if (decimal.Parse(fmtUsed) != 1) sb.Append("s");
+                        sb.Append($", Remaining {fmtRemaining} day");
+                        if (decimal.Parse(fmtRemaining) != 1) sb.Append("s");
+
+                        sb.AppendLine();
+                    }
+
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetLeaveBalance,
+                        ResponseText = sb.ToString().TrimEnd(),
+                        Module = "Leave"
+                    };
+                }
+
+                return new ChatResponseDto { Intent = ChatIntent.GetLeaveBalance, ResponseText = "No leave balance information found.", Module = "Leave" };
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to fetch leave balance for employee {EmployeeId}", employeeId);
-                return new ChatResponseDto { Intent = ChatIntent.GetLeaveBalance, ResponseText = "Error fetching leave balance." };
+                return new ChatResponseDto { Intent = ChatIntent.GetLeaveBalance, ResponseText = "Error fetching leave balance.", Module = "Leave" };
             }
         }
 
         private Task<ChatResponseDto> HandleApplyForLeave(Guid employeeId, Guid organizationId)
         {
-            _logger.LogInformation("Processing apply for leave request for employee {EmployeeId}", employeeId);
-            return Task.FromResult(new ChatResponseDto { Intent = ChatIntent.ApplyForLeave, ResponseText = "ApplyForLeave", Module = "Leave" });
+            _logger.LogInformation(
+                "Processing apply for leave request for employee {EmployeeId}",
+                employeeId
+            );
+
+            var message = "Apply for leave process is in progress. You can apply for leave from your Leave module using the 'Apply for Leave' option.";
+
+            return Task.FromResult(new ChatResponseDto
+            {
+                Intent = ChatIntent.GetAttendance,
+                ResponseText = message,
+                Module = "Attendance"
+            });
         }
 
         private Task<ChatResponseDto> HandleGetPayslip(Guid employeeId, Guid organizationId)
         {
-            _logger.LogInformation("Fetching payslip for employee {EmployeeId}", employeeId);
-            return Task.FromResult(new ChatResponseDto { Intent = ChatIntent.GetPayslip, ResponseText = "GetPayslip", Module = "Payroll" });
+            var message = "Employee Payslip process is in progress.Currently only super admin has access payroll related things";
+
+            return Task.FromResult(new ChatResponseDto
+            {
+                Intent = ChatIntent.GetAttendance,
+                ResponseText = message,
+                Module = "Attendance"
+            });
         }
     }
 }

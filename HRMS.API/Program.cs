@@ -182,6 +182,7 @@ builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IChatBoardStatsService, ChatBoardStatsService>();
 builder.Services.AddScoped<IIntentRecognitionService, IntentRecognitionService>();
 builder.Services.AddScoped<IGuidanceAIService, GuidanceAIService>();
+builder.Services.AddScoped<IChatBoardStatsService, ChatBoardStatsService>();
 
 // Add Repositories
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();

@@ -76,21 +76,24 @@ namespace HRMS.AI.Services
                           User wants to view or download payslip details including monthly salary,
                           deductions, allowances, payroll summary, or salary slip.
 
+                        - GetManager:
+                          User wants to know who their manager is, manager's contact details,
+                          or reporting hierarchy information or wnat to know our assigned manager.
+
                         - Unknown:
                           Any request that does not clearly
                           match HRMS guidance or user-specific HRMS data.
 
 
-                   If the label is Guidance, also determine the affected module. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings, Other.
+                   If the label is Guidance, also determine the affected module. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings,HRPolices, Other.
 
                    Return EXACT output in this format (no extra text):
-                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|Unknown>; Module: <module or empty>
+                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|GetManager|Unknown>; Module: <module or empty>
 
                    User message:
                    ""{message}"".
 
                   Result:";
-
 
             try
             {
@@ -154,6 +157,7 @@ namespace HRMS.AI.Services
                     "GetLeaveBalance" => ChatIntent.GetLeaveBalance,
                     "ApplyForLeave" => ChatIntent.ApplyForLeave,
                     "GetPayslip" => ChatIntent.GetPayslip,
+                    "GetManager" => ChatIntent.GetManager,
                     _ => ChatIntent.Unknown
                 };
 
