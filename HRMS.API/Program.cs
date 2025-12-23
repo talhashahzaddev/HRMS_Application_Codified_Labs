@@ -179,6 +179,7 @@ builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 builder.Services.AddScoped<IChatService, ChatService>();
+builder.Services.AddScoped<IChatBoardStatsService, ChatBoardStatsService>();
 builder.Services.AddScoped<IIntentRecognitionService, IntentRecognitionService>();
 builder.Services.AddScoped<IGuidanceAIService, GuidanceAIService>();
 
