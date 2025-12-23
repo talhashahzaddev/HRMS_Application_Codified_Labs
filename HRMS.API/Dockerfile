@@ -4,7 +4,7 @@ WORKDIR /src
 
 # Copy both project files
 COPY ["HRMS.API/HRMS.API.csproj", "HRMS.API/"]
-COPY ["HRMS.AI/HRMS.AI.csproj", "HRMS.AI/"]
+COPY ["../HRMS.AI/HRMS.AI.csproj", "../HRMS.AI/"]
 
 # Restore dependencies
 RUN dotnet restore "HRMS.API/HRMS.API.csproj"
