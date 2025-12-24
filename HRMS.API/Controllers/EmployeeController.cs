@@ -533,56 +533,6 @@ public class EmployeeController : ControllerBase
     }
 
 
-    //[HttpDelete("positions/{id}")]
-    //[Authorize(Roles = "Super Admin,HR Manager")]
-    //public async Task<ActionResult<ServiceResponse<bool>>> DeletePosition(Guid id, [FromQuery] string status)
-    //{
-    //    try
-    //    {
-    //        var result = await _employeeService.DeletePositionAsync(id, status);
-
-    //        string message = status.ToLower() == "deleted" ? "Position deleted successfully" :
-    //                         status.ToLower() == "active" ? "Position recovered successfully" :
-    //                         "Status updated successfully";
-
-    //        return Ok(new ServiceResponse<bool>
-    //        {
-    //            Success = true,
-    //            Message = message,
-    //            Data = result
-    //        });
-    //    }
-    //    catch (KeyNotFoundException ex)
-    //    {
-    //        return NotFound(new ServiceResponse<bool>
-    //        {
-    //            Success = false,
-    //            Message = ex.Message
-    //        });
-    //    }
-    //    catch (InvalidOperationException ex)
-    //    {
-    //        return BadRequest(new ServiceResponse<bool>
-    //        {
-    //            Success = false,
-    //            Message = ex.Message
-    //        });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error updating position {PositionId}", id);
-    //        return StatusCode(500, new ServiceResponse<bool>
-    //        {
-    //            Success = false,
-    //            Message = "An error occurred while updating position"
-    //        });
-    //    }
-    //}
-
-
-
-
-
     //Employee Update
     [HttpPut("edit")]
     [Consumes("multipart/form-data")]
