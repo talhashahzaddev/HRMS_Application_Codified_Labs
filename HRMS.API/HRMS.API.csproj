@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
-
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -8,11 +7,12 @@
     <UserSecretsId>374b1578-a4ab-4c1d-be6b-685675c1944f</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
-
   <ItemGroup>
     <PackageReference Include="CloudinaryDotNet" Version="1.27.8" />
     <PackageReference Include="EPPlus" Version="8.2.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+    <PackageReference Include="Microsoft.ML" Version="3.0.1" />
+    <PackageReference Include="Microsoft.ML.FastTree" Version="3.0.1" />
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.22.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="NPOI" Version="2.7.0" />
@@ -35,9 +35,12 @@
     <PackageReference Include="ClosedXML" Version="0.102.2" />
     <PackageReference Include="iTextSharp" Version="5.5.13.3" />
   </ItemGroup>
-
   <ItemGroup>
     <Folder Include="wwwroot\profile_pictures\" />
   </ItemGroup>
-
+  <ItemGroup Label="HrmsIntentModel">
+    <None Include="HrmsIntentModel.mlnet">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 </Project>
