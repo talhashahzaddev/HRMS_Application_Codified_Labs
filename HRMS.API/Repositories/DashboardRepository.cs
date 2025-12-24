@@ -328,7 +328,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                     e.employeeId,
                     CONCAT(e.firstName, ' ', e.lastName) as EmployeeName,
                     d.departmentName as Department,
-                    AVG(ea.overallRating) as AverageRating
+                    COALESCE(AVG(ea.overallRating), 0) as AverageRating
                 FROM performance.employeeAppraisals ea
                 INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
                 INNER JOIN employee.employmentDetails ed ON e.employeeId = ed.employeeId AND ed.isCurrent = true

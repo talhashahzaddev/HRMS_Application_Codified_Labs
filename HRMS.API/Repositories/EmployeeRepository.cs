@@ -214,8 +214,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     {
         var sql = @"
         SELECT roleid 
-        FROM auth.users 
-        WHERE userid = @UserId
+        FROM employee.positions 
+        WHERE positionid = @UserId
     ";
 
         var roleId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { UserId = userId });
@@ -226,7 +226,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<bool> editEmployeeUserAsync(Guid? userId, UpdateEmployeeRequestDTo request)
     {
-        var RoleId = await GetRoleIdAsync(userId);
+        var RoleId = await GetRoleIdAsync(request.PositionId);
 
         var sql = @"UPDATE auth.users SET 
                  firstname=@FirstName, 
