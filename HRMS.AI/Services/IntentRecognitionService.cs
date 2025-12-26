@@ -39,7 +39,7 @@ namespace HRMS.AI.Services
         public async Task<IntentDetectionResult> DetectIntentAsync(string message)
         {
             var prompt =
-                 $@"You are classifying HRMS user messages.
+                $@"You are classifying HRMS user messages.
                    Labels:
                         - Greeting:
                           Greetings, casual conversations
@@ -49,7 +49,7 @@ namespace HRMS.AI.Services
 
                         - Guidance:
                           Questions related to HRMS rules, permissions, processes, or steps.
-                          Example topics include how to apply for leave, attendance rules, payroll process,
+                          Example topics include how to apply for leave, attendance rules,Employee Mangement,where to find,how to check,where to check , Perfomance Mnagment, payroll process,
                           HR policies, or where to check specific information.
 
                         - GetPerformanceSummary:
@@ -62,33 +62,33 @@ namespace HRMS.AI.Services
 
                         - CheckMyShift:
                           User wants to know their assigned shift details such as shift timing,
-                          working hours, day/night shift, or shift schedule.
+                          working hours, day/night shift, or shift schedule, or what are my shift timing .
 
                         - GetLeaveBalance:
                           User wants to check leave-related information including total leave balance,
-                          remaining leaves, used leaves, leave types, or leave balance summary.
+                          remaining leaves, used leaves, leave types, or leave balance summary, how many leavs i do get and other related question.
 
                         - ApplyForLeave:
                           User wants to apply for leave, submit a leave request, select leave type,
-                          choose leave dates, or check leave eligibility.
+                          choose leave dates, or check leave eligibility or  how many leavs do.
 
                         - GetPayslip:
                           User wants to view or download payslip details including monthly salary,
                           deductions, allowances, payroll summary, or salary slip.
 
-                        - GetManager:
-                          User wants to know who their manager is, manager's contact details,
-                          or reporting hierarchy information or wnat to know our assigned manager.
+                        - EmployeeInfo:
+                          User wants to know about there personal info related to him only like who is my manager, what is my name ,
+                          and user can also ask like my salry detaisl, my joining date, my date of birth and other question those are linked with employee personal info, and also related how many days i worked in this company.
 
                         - Unknown:
                           Any request that does not clearly
                           match HRMS guidance or user-specific HRMS data.
 
 
-                   If the label is Guidance, also determine the affected module. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings,HRPolices, Other.
+                   If the label is Guidance, Greeting, also determine the affected module,and if related department of positions then also return EmployeeManagement if label is Greeting then module is also Greeting. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings,HRPolices, Other.
 
                    Return EXACT output in this format (no extra text):
-                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|GetManager|Unknown>; Module: <module or empty>
+                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|Unknown>; Module: <module or empty>
 
                    User message:
                    ""{message}"".
@@ -101,7 +101,7 @@ namespace HRMS.AI.Services
                 {
                     model = _model,
                     messages = new[] {
-                        new { role = "system", content = "You are a concise intent classification assistant." },
+                        new { role = "system", content = "You are a concise intent classification assistant. check the behaviour of user question then decide the intent " },
                         new { role = "user", content = prompt }
                     },
                     max_tokens = 20,
@@ -157,7 +157,7 @@ namespace HRMS.AI.Services
                     "GetLeaveBalance" => ChatIntent.GetLeaveBalance,
                     "ApplyForLeave" => ChatIntent.ApplyForLeave,
                     "GetPayslip" => ChatIntent.GetPayslip,
-                    "GetManager" => ChatIntent.GetManager,
+                    "EmployeeInfo" => ChatIntent.EmployeeInfo,
                     _ => ChatIntent.Unknown
                 };
 

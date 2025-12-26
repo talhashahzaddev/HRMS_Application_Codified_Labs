@@ -18,13 +18,15 @@ namespace HRMS.API.Controllers
         private readonly IChatService _chatService;
         private readonly ILeaveRepository _leaveRepository;
         private readonly IChatBoardStatsService _chatBoardStatsService;
+        private readonly IGuidanceAIService _guidance_service;
         private readonly ILogger<ChatController> _logger;
 
-        public ChatController(IChatService chatService,ILeaveRepository leaveRepository, IChatBoardStatsService chatBoardStatsService, ILogger<ChatController> logger)
+        public ChatController(IChatService chatService,ILeaveRepository leaveRepository, IChatBoardStatsService chatBoardStatsService,IGuidanceAIService guidanceAIService, ILogger<ChatController> logger)
         {
             _chatService = chatService;
             _leaveRepository = leaveRepository;
             _chatBoardStatsService = chatBoardStatsService;
+            _guidance_service = guidanceAIService;
             _logger = logger;
         }
 
@@ -42,6 +44,11 @@ namespace HRMS.API.Controllers
                 if (response.Intent != ChatIntent.Guidance && response.Intent != ChatIntent.Greeting)
                 {
                     response = await _chatBoardStatsService.HandleNonGuidanceIntentAsync(response.Intent, response.Module, empid, currentUserId, organizationId);
+                }
+
+                if (response.Intent == ChatIntent.EmployeeInfo)
+                {
+                    response = await _guidance_service.GenrateEmployeeInfoGuidance(request.Message, response.ResponseText);
                 }
 
                 return Ok(response);
