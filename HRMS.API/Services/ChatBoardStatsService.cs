@@ -8,11 +8,12 @@ using NPOI.HSSF.Record.Aggregates;
 using System;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace HRMS.API.Services
 {
-    public class ChatBoardStatsService: IChatBoardStatsService
+    public class ChatBoardStatsService : IChatBoardStatsService
     {
         private readonly ILeaveRepository _leaveRepository;
         private readonly IAttendanceRepository _attendanceRepository;
@@ -20,7 +21,7 @@ namespace HRMS.API.Services
         private readonly IEmployeeRepository _employeeRepository;
         private readonly ILogger<ChatBoardStatsService> _logger;
 
-        public ChatBoardStatsService(ILeaveRepository leaveRepository, IAttendanceRepository attendanceRepository,IPerformanceRepository performanceRepository,IEmployeeRepository employeeRepository, ILogger<ChatBoardStatsService> logger)
+        public ChatBoardStatsService(ILeaveRepository leaveRepository, IAttendanceRepository attendanceRepository, IPerformanceRepository performanceRepository, IEmployeeRepository employeeRepository, ILogger<ChatBoardStatsService> logger)
         {
             _leaveRepository = leaveRepository;
             _attendanceRepository = attendanceRepository;
@@ -29,7 +30,7 @@ namespace HRMS.API.Services
             _logger = logger;
         }
 
-        public async Task<ChatResponseDto> HandleNonGuidanceIntentAsync(ChatIntent intent, string module, Guid employeeId,Guid currentUserId, Guid organizationId)
+        public async Task<ChatResponseDto> HandleNonGuidanceIntentAsync(ChatIntent intent, string module, Guid employeeId, Guid currentUserId, Guid organizationId)
         {
             switch (intent)
             {
@@ -45,8 +46,8 @@ namespace HRMS.API.Services
                     return await HandleApplyForLeave(employeeId, organizationId);
                 case ChatIntent.GetPayslip:
                     return await HandleGetPayslip(employeeId, organizationId);
-                case ChatIntent.GetManager:
-                    return await HandleGetManager(employeeId, organizationId);
+                case ChatIntent.EmployeeInfo:
+                    return await HandleGetEmployeeInfo(employeeId, organizationId);
                 case ChatIntent.Unknown:
                     _logger.LogWarning("Received Unknown intent for employee {EmployeeId}", employeeId);
                     return new ChatResponseDto
@@ -65,7 +66,7 @@ namespace HRMS.API.Services
                     };
             }
         }
-        private async Task<ChatResponseDto> HandleGetManager(Guid? employeeId, Guid organizationId)
+        private async Task<ChatResponseDto> HandleGetEmployeeInfo(Guid? employeeId, Guid organizationId)
         {
             _logger.LogInformation("Fetching reporting manager for employee {EmployeeId}", employeeId);
 
@@ -75,7 +76,7 @@ namespace HRMS.API.Services
                 {
                     return new ChatResponseDto
                     {
-                        Intent = ChatIntent.GetManager,
+                        Intent = ChatIntent.EmployeeInfo,
                         ResponseText = "Employee information is not available.",
                         Module = "EmployeeManagement"
                     };
@@ -89,28 +90,23 @@ namespace HRMS.API.Services
                 {
                     return new ChatResponseDto
                     {
-                        Intent = ChatIntent.GetManager,
+                        Intent = ChatIntent.EmployeeInfo,
                         ResponseText = "Employee record not found.",
                         Module = "EmployeeManagement"
                     };
                 }
-
-                if (string.IsNullOrWhiteSpace(currentEmployee.ReportingManagerName))
-                {
-                    return new ChatResponseDto
+                string currentEmployeeJson = JsonSerializer.Serialize(
+                    currentEmployee,
+                    new JsonSerializerOptions
                     {
-                        Intent = ChatIntent.GetManager,
-                        ResponseText = "You are not assigned a reporting manager yet.",
-                        Module = "EmployeeManagement"
-                    };
-                }
-
-                string message = $"Your reporting manager is {currentEmployee.ReportingManagerName}.";
-
+                        WriteIndented = true,
+                        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+                    }
+                );
                 return new ChatResponseDto
                 {
-                    Intent = ChatIntent.GetManager,
-                    ResponseText = message,
+                    Intent = ChatIntent.EmployeeInfo,
+                    ResponseText = currentEmployeeJson,
                     Module = "EmployeeManagement"
                 };
             }
@@ -119,7 +115,7 @@ namespace HRMS.API.Services
                 _logger.LogError(ex, "Failed to fetch reporting manager for employee {EmployeeId}", employeeId);
                 return new ChatResponseDto
                 {
-                    Intent = ChatIntent.GetManager,
+                    Intent = ChatIntent.EmployeeInfo,
                     ResponseText = "Error fetching reporting manager information.",
                     Module = "EmployeeManagement"
                 };
