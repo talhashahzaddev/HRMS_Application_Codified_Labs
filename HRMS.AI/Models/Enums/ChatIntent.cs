@@ -17,6 +17,7 @@ namespace HRMS.AI.Models.Enums
         ApplyForLeave,
         GetPayslip,
         EmployeeInfo,
+        LeaveApplicationDetails,
         Unknown
     }
 

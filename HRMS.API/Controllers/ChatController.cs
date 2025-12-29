@@ -19,14 +19,16 @@ namespace HRMS.API.Controllers
         private readonly ILeaveRepository _leaveRepository;
         private readonly IChatBoardStatsService _chatBoardStatsService;
         private readonly IGuidanceAIService _guidance_service;
+        private readonly ILeaveService _leaveService;
         private readonly ILogger<ChatController> _logger;
 
-        public ChatController(IChatService chatService,ILeaveRepository leaveRepository, IChatBoardStatsService chatBoardStatsService,IGuidanceAIService guidanceAIService, ILogger<ChatController> logger)
+        public ChatController(IChatService chatService,ILeaveRepository leaveRepository, IChatBoardStatsService chatBoardStatsService,IGuidanceAIService guidanceAIService,ILeaveService leaveService, ILogger<ChatController> logger)
         {
             _chatService = chatService;
             _leaveRepository = leaveRepository;
             _chatBoardStatsService = chatBoardStatsService;
             _guidance_service = guidanceAIService;
+            _leaveService = leaveService;
             _logger = logger;
         }
 
@@ -42,7 +44,7 @@ namespace HRMS.API.Controllers
                 var response = await _chatService.HandleChatAsync(request,roleName);
 
                 // If intent is neither Guidance nor Greeting, delegate to ChatBoardStatsService for further handling
-                if (response.Intent != ChatIntent.Guidance && response.Intent != ChatIntent.Greeting)
+                if (response.Intent != ChatIntent.Guidance && response.Intent != ChatIntent.Greeting && response.Intent != ChatIntent.LeaveApplicationDetails)
                 {
                     response = await _chatBoardStatsService.HandleNonGuidanceIntentAsync(response.Intent, response.Module, empid, currentUserId, organizationId);
                 }
@@ -50,6 +52,20 @@ namespace HRMS.API.Controllers
                 if (response.Intent == ChatIntent.EmployeeInfo)
                 {
                     response = await _guidance_service.GenrateEmployeeInfoGuidance(request.Message, response.ResponseText);
+                }
+                if(response.Intent == ChatIntent.LeaveApplicationDetails)
+                {
+                    var leavetypes = await _leaveRepository.GetLeaveTypesAsync(organizationId);
+                    string leaveTypeNames = string.Join(
+                        ", ",
+                        leavetypes.Select(x => x.TypeName)
+                    );
+                    var leavetypedetails =  await _guidance_service.GenrateLeaveApplicationDetails(request.Message, leaveTypeNames);
+                    if(leavetypedetails != null)
+                    {
+                        var leaveResponse = await _leaveService.CreateLeaveRequestByChatBotAsync(leavetypedetails, currentUserId, organizationId);
+                        response.ResponseText = leaveResponse.statustext;
+                    }
                 }
 
                 return Ok(response);

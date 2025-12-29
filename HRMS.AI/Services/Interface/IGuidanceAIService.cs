@@ -11,5 +11,6 @@ namespace HRMS.AI.Services.Interface
     {
         Task<string> GenerateGuidanceAsync(string message, string module,string? roleName);
         Task<ChatResponseDto> GenrateEmployeeInfoGuidance(string message, string employeeinfo);
+        Task<LeaveApplicationDetails> GenrateLeaveApplicationDetails(string message, string leaveTypeNames);
     }
 }
