@@ -26,13 +26,13 @@ namespace HRMS.AI.Services
             _logger = logger;
         }
 
-        public async Task<ChatResponseDto> HandleChatAsync(ChatRequestDto request)
+        public async Task<ChatResponseDto> HandleChatAsync(ChatRequestDto request, string? roleName)
         {
             var intentResult = await _intentService.DetectIntentAsync(request.Message);
 
              if (intentResult.Intent == ChatIntent.Guidance || intentResult.Intent == ChatIntent.Greeting)
              {
-                var guidance = await _guidance_service.GenerateGuidanceAsync(request.Message, intentResult.Module);
+                var guidance = await _guidance_service.GenerateGuidanceAsync(request.Message, intentResult.Module,roleName);
                 return new ChatResponseDto { Intent = ChatIntent.Guidance, ResponseText = guidance, Module = intentResult.Module };
              }
 

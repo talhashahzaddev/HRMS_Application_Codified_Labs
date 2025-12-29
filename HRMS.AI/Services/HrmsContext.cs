@@ -65,7 +65,7 @@ namespace HRMS.AI.Services
         "\n- Salary Slips: /payroll/slips",
 
             ["Performance"] =
-        "Performance Management Rules: Performance cycles can be created for six months or one year." +
+        "Performance Management Rules: Performance cycles can be created for six months or one year.Only Super Admin or HR Manager can create the Appraisal Cycles." +
         "\nPerformance Management Guidance: Managers create appraisal cycles. Employees submit self-assessments which are reviewed by managers to create appraisals." +
         "\nPerformance Management Steps: To submit a self-assessment, an employee navigates to Appraisals, selects the active cycle, rates their performance, and submits the assessment. Employees can view appraisal results from the Performance Dashboard." +
         "\nAttach URL with guidance." +
@@ -118,7 +118,7 @@ namespace HRMS.AI.Services
         "\nPayroll is processed according to approved attendance, leave, and applicable salary rules."
         };
 
-        private const string _generalContext = "Use only the provided module context when answering. Do not assume any behavior or permission that is not defined in the context.";
+        private const string _generalContext = "Use only the provided module context when answering. Do not assume any behavior or permission that is not defined in the context.On the base of role answer to the user if the module is not accessible to that role just reply you have the permission to access these information.";
 
         public static string GetContext(string module)
         {

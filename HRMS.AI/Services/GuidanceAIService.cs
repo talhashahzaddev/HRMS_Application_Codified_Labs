@@ -38,7 +38,7 @@ namespace HRMS.AI.Services
                 _logger.LogWarning("OpenAI API key is not configured. Guidance AI will not work in production.");
         }
 
-        public async Task<string> GenerateGuidanceAsync(string message, string module)
+        public async Task<string> GenerateGuidanceAsync(string message, string module,string? roleName)
         {
             // get module-specific HRMS context
             var context = HrmsContext.GetContext(module);
@@ -46,7 +46,8 @@ namespace HRMS.AI.Services
             var prompt =
                         $@"HRMS CONTEXT:
                         {context}
-
+                        Role :
+                        {roleName}
                         USER QUESTION:
                         {message}
 
