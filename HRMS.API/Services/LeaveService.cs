@@ -86,7 +86,22 @@ public class LeaveService : ILeaveService
                 Reason = request.reason,
                 AttachmentUrl = null
             };
+            var startDate = request.startDate.Date;
+            var endDate = request.endDate.Date;
+            var today = DateTime.Today;
             var response = await CreateLeaveRequestAsync(requestDto, employeeId);
+            var daysrequested = CalculateWorkingDays(request.startDate, request.endDate);
+
+            if (daysrequested > 0)
+            {
+                response.DaysRequested = daysrequested;
+            }
+
+            if (startDate <= today)
+            {
+                throw new InvalidOperationException("Leave start date must be a future date.");
+            }
+
             if (response != null)
             {
                 return new LeaveApplicationDetails
@@ -115,7 +130,7 @@ public class LeaveService : ILeaveService
                 };
             }
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             return new LeaveApplicationDetails
             {
@@ -125,14 +140,14 @@ public class LeaveService : ILeaveService
                 endDate = request.endDate,
                 reason = request.reason,
                 status = "Failed",
-                statustext = "❌ Unable to submit leave request. Please try again or check details."
+                statustext = ex.Message
             };
         }
     }
     public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
     {
         var empId = await _leaveRepository.GetEmpId(employeeId);
-        var LeaveRequest = await _leaveRepository.GetLeaveRequestsByEmployeeId(empId);       
+        var LeaveRequest = await _leaveRepository.GetLeaveRequestsByEmployeeId(empId);
         return LeaveRequest;
     }
 
@@ -141,7 +156,7 @@ public class LeaveService : ILeaveService
         var empId = await _leaveRepository.GetEmpId(approvedBy);
         // First, update the leave request status using the requestId parameter directly
         var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(requestId, request.Status, empId, request.RejectionReason);
-        
+
         if (!result)
         {
             _logger.LogWarning("Failed to update leave request status for RequestId: {RequestId}", requestId);
@@ -216,7 +231,7 @@ public class LeaveService : ILeaveService
     public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid userId, LeaveRequestSearchViewModel searchModel, Guid organizationId)
     {
         Guid ? empid= await _leaveRepository.GetEmpId(userId);
-         searchModel.EmployeeId = empid;
+        searchModel.EmployeeId = empid;
         return await _leaveRepository.GetLeaveRequestsAsync(
             searchModel.EmployeeId,
             organizationId,
@@ -264,7 +279,7 @@ public class LeaveService : ILeaveService
             return Guid.Empty;
         }
 
-        
+
     }
 
 
@@ -319,11 +334,11 @@ public class LeaveService : ILeaveService
 
         // Update the request
         var updated = await _leaveRepository.UpdateLeaveRequestAsync(
-            requestId, 
-            request.LeaveTypeId, 
-            request.StartDate, 
-            request.EndDate, 
-            daysRequested, 
+            requestId,
+            request.LeaveTypeId,
+            request.StartDate,
+            request.EndDate,
+            daysRequested,
             request.Reason
         );
 
@@ -394,13 +409,13 @@ public class LeaveService : ILeaveService
     }
 
     public async Task<PagedResult<TeamRemainingLeavesDto>> GetTeamRemainingLeavesAsync(
-        Guid managerUserId, 
-        Guid organizationId, 
+        Guid managerUserId,
+        Guid organizationId,
         TeamRemainingLeavesSearchViewModel searchModel)
     {
         // Get user role name
         var roleName = await _leaveRepository.GetUserRoleNameAsync(managerUserId);
-        
+
         var year = searchModel.Year ?? DateTime.Now.Year;
         PagedResult<EmployeeLeaveBalanceDto> rawData;
 
@@ -409,7 +424,7 @@ public class LeaveService : ILeaveService
         {
             // HR Manager: Get all employees in the organization
             rawData = await _leaveRepository.GetTeamRemainingLeavesByOrganizationAsync(
-                organizationId, 
+                organizationId,
                 year,
                 searchModel.EmployeeName,
                 searchModel.LeaveTypeId,
@@ -428,8 +443,8 @@ public class LeaveService : ILeaveService
             }
 
             rawData = await _leaveRepository.GetTeamRemainingLeavesAsync(
-                managerEmployeeId, 
-                organizationId, 
+                managerEmployeeId,
+                organizationId,
                 year,
                 searchModel.EmployeeName,
                 searchModel.LeaveTypeId,
@@ -438,7 +453,7 @@ public class LeaveService : ILeaveService
                 searchModel.SortBy,
                 searchModel.SortOrder);
         }
-        
+
         // Group by employee and transform to TeamRemainingLeavesDto
         var groupedData = rawData.Data
             .GroupBy(x => new { x.EmployeeId, x.EmployeeName })
@@ -470,6 +485,21 @@ public class LeaveService : ILeaveService
     {
         var empId = await _leaveRepository.GetEmpId(employeeId);
         return await _leaveRepository.HasOverlappingLeaveAsync(empId, startDate, endDate, excludeRequestId);
+    }
+    private static int CalculateWorkingDays(DateTime startDate, DateTime endDate)
+    {
+        int workingDays = 0;
+
+        for (var date = startDate; date <= endDate; date = date.AddDays(1))
+        {
+            if (date.DayOfWeek != DayOfWeek.Saturday &&
+                date.DayOfWeek != DayOfWeek.Sunday)
+            {
+                workingDays++;
+            }
+        }
+
+        return workingDays;
     }
 
 }
