@@ -1,4 +1,5 @@
-using AutoMapper;
+﻿using AutoMapper;
+using HRMS.AI.Models;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -70,6 +71,63 @@ public class LeaveService : ILeaveService
         }
 
         return _mapper.Map<LeaveRequestDto>(leaveRequest);
+    }
+    public async Task<LeaveApplicationDetails> CreateLeaveRequestByChatBotAsync(LeaveApplicationDetails request, Guid employeeId, Guid organizationId)
+    {
+        try
+        {
+            var leavetypeId = await _leaveRepository.GetLeaveTypeIdByNameAsync(request.leaveType, organizationId);
+            var typeId = leavetypeId.FirstOrDefault().LeaveTypeId;
+            var requestDto = new CreateLeaveRequest
+            {
+                LeaveTypeId = typeId,
+                StartDate = request.startDate,
+                EndDate = request.endDate,
+                Reason = request.reason,
+                AttachmentUrl = null
+            };
+            var response = await CreateLeaveRequestAsync(requestDto, employeeId);
+            if (response != null)
+            {
+                return new LeaveApplicationDetails
+                {
+                    leavetypeid = response.LeaveTypeId,
+                    leaveType = response.LeaveTypeName,
+                    startDate = response.StartDate,
+                    endDate = response.EndDate,
+                    reason = response.Reason,
+                    status = response.Status,
+                    statustext = $"✅ Your leave request from {response.StartDate:dd MMM yyyy} to {response.EndDate:dd MMM yyyy} " +
+                          $"for {response.DaysRequested} day(s) has been submitted with {response.Status} status \nfor more details check your calander https://frontend-hrms-phi.vercel.app/leave/calendar"
+                };
+            }
+            else
+            {
+                return new LeaveApplicationDetails
+                {
+                    leavetypeid = Guid.Empty,
+                    leaveType = request.leaveType, // use original request
+                    startDate = request.startDate,
+                    endDate = request.endDate,
+                    reason = request.reason,
+                    status = "Failed",
+                    statustext = "❌ Unable to submit leave request. Please try again or check details."
+                };
+            }
+        }
+        catch(Exception ex)
+        {
+            return new LeaveApplicationDetails
+            {
+                leavetypeid = Guid.Empty,
+                leaveType = request.leaveType, // use original request
+                startDate = request.startDate,
+                endDate = request.endDate,
+                reason = request.reason,
+                status = "Failed",
+                statustext = "❌ Unable to submit leave request. Please try again or check details."
+            };
+        }
     }
     public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
     {

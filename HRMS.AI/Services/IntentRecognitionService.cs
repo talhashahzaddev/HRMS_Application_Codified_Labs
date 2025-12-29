@@ -72,6 +72,10 @@ namespace HRMS.AI.Services
                           User wants to apply for leave, submit a leave request, select leave type,
                           choose leave dates, or check leave eligibility or  how many leavs do.
 
+                        - LeaveApplicationDetails:
+                          User provides leave application details such as leave type,
+                          start date, end date, and reason for applying for leave.
+
                         - GetPayslip:
                           User wants to view or download payslip details including monthly salary,
                           deductions, allowances, payroll summary, or salary slip.
@@ -88,7 +92,7 @@ namespace HRMS.AI.Services
                    If the label is Guidance, Greeting, also determine the affected module,and if related department of positions then also return EmployeeManagement if label is Greeting then module is also Greeting. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings,HRPolices, Other.
 
                    Return EXACT output in this format (no extra text):
-                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|Unknown>; Module: <module or empty>
+                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|Unknown>; Module: <module or empty>
 
                    User message:
                    ""{message}"".
@@ -158,6 +162,7 @@ namespace HRMS.AI.Services
                     "ApplyForLeave" => ChatIntent.ApplyForLeave,
                     "GetPayslip" => ChatIntent.GetPayslip,
                     "EmployeeInfo" => ChatIntent.EmployeeInfo,
+                    "LeaveApplicationDetails" => ChatIntent.LeaveApplicationDetails,
                     _ => ChatIntent.Unknown
                 };
 

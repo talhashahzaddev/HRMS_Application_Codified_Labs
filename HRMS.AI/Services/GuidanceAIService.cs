@@ -217,6 +217,123 @@ namespace HRMS.AI.Services
             }
 
         }
+
+        public async Task<LeaveApplicationDetails> GenrateLeaveApplicationDetails(string message, string leaveTypeNames)
+        {
+            var prompt = $@"
+                            ROLE:
+                            You are an AI assistant responsible ONLY for extracting leave application details
+                            for an enterprise HRMS system.
+
+                            USER MESSAGE:
+                            {message}
+
+                            INSTRUCTIONS:
+                            - Extract leave application details strictly from the user's message.
+                            - Do NOT assume or invent any information.
+                            - Return ONLY a valid JSON object.
+                            - Do NOT include explanations, text, or formatting outside JSON.
+                            - If any required field is missing or unclear, set its value to null.
+                            - Dates must be in ISO format: yyyy-MM-dd.
+                            - Allowed leaveType : {leaveTypeNames}.
+                            - if user provide any leave type with spelling mistake then correct it with available leave type.
+                            - return the leave type exactly as it appears in the allowed leaveType list dont change spell give me exact spell provided in Allowed leaveType.
+
+                            JSON FORMAT (STRICT):
+                            {{
+                              ""leaveType"": string | null,
+                              ""startDate"": string | null,
+                              ""endDate"": string | null,
+                              ""reason"": string | null
+                            }}
+
+                            FINAL OUTPUT:
+                            ";
+            try
+            {
+                var requestBody = new
+                {
+                    model = _model,
+                    messages = new[] {
+                       new
+                            {
+                                role = "system",
+                                content = "You are a helpful HRMS AI assistant. Follow the user's instructions strictly."
+
+                            },
+                        new { role = "user", content = prompt }
+                    },
+                    max_tokens = 300,
+                    temperature = 0.2
+                };
+
+                var requestJson = JsonSerializer.Serialize(requestBody);
+                var req = new HttpRequestMessage(HttpMethod.Post, _Url);
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _ApiKey);
+                req.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
+
+                var resp = await _httpClient.SendAsync(req);
+                resp.EnsureSuccessStatusCode();
+
+                var content = await resp.Content.ReadAsStringAsync();
+                using var doc = JsonDocument.Parse(content);
+                // chat/completions returns choices[].message.content
+                var choices = doc.RootElement.GetProperty("choices");
+                if (choices.GetArrayLength() > 0)
+                {
+                    var messageElement = choices[0].GetProperty("message");
+                    var reply = messageElement.GetProperty("content").GetString();
+                    var cleanJson = ExtractJsonObject(reply);
+                    if (string.IsNullOrWhiteSpace(reply))
+                        return null;
+
+                    var response =  JsonSerializer.Deserialize<LeaveApplicationDetails>(
+                        cleanJson,
+                        new JsonSerializerOptions
+                        {
+                            PropertyNameCaseInsensitive = true
+                        });
+
+                    return new LeaveApplicationDetails
+                    {
+                        leaveType = response?.leaveType,
+                        startDate = response?.startDate ?? DateTime.MinValue,
+                        endDate = response?.endDate ?? DateTime.MinValue,
+                        reason = response?.reason
+                    };
+                }
+                return new LeaveApplicationDetails
+                {
+                    leaveType = null,
+                    startDate = DateTime.MinValue,
+                    endDate = DateTime.MinValue,
+                    reason = "Unable to extract leave details. Please provide complete information."
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "GenerateLeaveApplicationDetails failed");
+                return new LeaveApplicationDetails
+                {
+                    leaveType = null,
+                    startDate = DateTime.MinValue,
+                    endDate = DateTime.MinValue,
+                    reason = "An error occurred while processing your leave request."
+                };
+            }
+
+        }
+
+        private static string ExtractJsonObject(string input)
+        {
+            int start = input.IndexOf('{');
+            int end = input.LastIndexOf('}');
+
+            if (start == -1 || end == -1 || end <= start)
+                throw new JsonException("No valid JSON object found.");
+
+            return input.Substring(start, end - start + 1);
+        }
     }
 
 }

@@ -11,6 +11,7 @@ public interface ILeaveRepository
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid? employeeId , Guid organizationId , string? status = null, int page = 1, int pageSize = 50);
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsByOrganizationAsync(Guid organizationId, string? status = null, int page = 1, int pageSize = 50);
     Task<List<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId);
+    Task<List<LeaveTypeDto>> GetLeaveTypeIdByNameAsync(string LeaveType, Guid organizationId);
     Task<bool> CreateLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto);
     Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year);
     Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year);
