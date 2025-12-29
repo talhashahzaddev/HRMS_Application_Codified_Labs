@@ -38,7 +38,8 @@ namespace HRMS.API.Controllers
                 var currentUserId = GetCurrentEmployeeId();
                 var organizationId = GetCurrentOrganizationId();
                 Guid empid = await _leaveRepository.GetEmpId(currentUserId);
-                var response = await _chatService.HandleChatAsync(request);
+                string? roleName = await _leaveRepository.GetUserRoleNameAsync(currentUserId);
+                var response = await _chatService.HandleChatAsync(request,roleName);
 
                 // If intent is neither Guidance nor Greeting, delegate to ChatBoardStatsService for further handling
                 if (response.Intent != ChatIntent.Guidance && response.Intent != ChatIntent.Greeting)
