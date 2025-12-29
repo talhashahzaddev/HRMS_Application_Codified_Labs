@@ -227,6 +227,17 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
         return results.ToList();
     }
+    public async Task<List<LeaveTypeDto>> GetLeaveTypeIdByNameAsync(string LeaveType , Guid organizationId)
+    {
+        var sql = @"
+            SELECT leavetypeid
+            FROM attendance.leavetypes 
+            WHERE organizationid = @organizationId AND typename = @LeaveType AND isactive = true
+            ORDER BY typename";
+
+        var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId,LeaveType });
+        return results.ToList();
+    }
     public async Task<bool> CreateLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto)
     {
         var sqlInsert = @"

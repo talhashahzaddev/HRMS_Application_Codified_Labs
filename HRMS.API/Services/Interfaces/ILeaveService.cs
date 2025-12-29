@@ -1,3 +1,4 @@
+using HRMS.AI.Models;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -8,6 +9,7 @@ namespace HRMS.API.Services.Interfaces;
 public interface ILeaveService
 {
     Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequest request, Guid employeeId);
+    Task<LeaveApplicationDetails> CreateLeaveRequestByChatBotAsync(LeaveApplicationDetails request, Guid employeeId, Guid organizationId);
     Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy);
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid userId,LeaveRequestSearchViewModel searchModel, Guid organizationId);
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsByOrganizationAsync(LeaveRequestSearchViewModel searchModel, Guid organizationId);

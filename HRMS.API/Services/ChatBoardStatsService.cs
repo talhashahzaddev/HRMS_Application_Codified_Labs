@@ -353,6 +353,7 @@ namespace HRMS.API.Services
                 {
                     var sb = new System.Text.StringBuilder();
                     sb.AppendLine("Here are your leave balances:");
+                    int index = 1;
 
                     foreach (var item in LeaveBallance)
                     {
@@ -361,7 +362,7 @@ namespace HRMS.API.Services
                         string fmtUsed = item.UsedDays % 1 == 0 ? ((int)item.UsedDays).ToString() : item.UsedDays.ToString("0.##");
                         string fmtRemaining = item.RemainingDays % 1 == 0 ? ((int)item.RemainingDays).ToString() : item.RemainingDays.ToString("0.##");
 
-                        sb.Append($"- {item.LeaveTypeName}: Total {fmtTotal} day");
+                        sb.Append($"{index}. {item.LeaveTypeName}: Total {fmtTotal} day");
                         if (decimal.Parse(fmtTotal) != 1) sb.Append("s");
                         sb.Append($", Used {fmtUsed} day");
                         if (decimal.Parse(fmtUsed) != 1) sb.Append("s");
@@ -369,6 +370,7 @@ namespace HRMS.API.Services
                         if (decimal.Parse(fmtRemaining) != 1) sb.Append("s");
 
                         sb.AppendLine();
+                        index++;
                     }
 
                     return new ChatResponseDto
@@ -388,21 +390,23 @@ namespace HRMS.API.Services
             }
         }
 
-        private Task<ChatResponseDto> HandleApplyForLeave(Guid employeeId, Guid organizationId)
+        private  async Task<ChatResponseDto> HandleApplyForLeave(Guid employeeId, Guid organizationId)
         {
             _logger.LogInformation(
                 "Processing apply for leave request for employee {EmployeeId}",
                 employeeId
             );
+            
+            var LeaveBallance = await HandleGetLeaveBalance (employeeId, organizationId);
 
-            var message = "Apply for leave process is in progress. You can apply for leave from your Leave module using the 'Apply for Leave' option.";
+            var message = LeaveBallance.ResponseText + "\n\nTo proceed with your leave application, please provide the following details: \n1. Leave Type \n2. Leave Start Date \n3. Leave End Date \n4. Reason for Leave";
 
-            return Task.FromResult(new ChatResponseDto
+            return new ChatResponseDto
             {
-                Intent = ChatIntent.GetAttendance,
+                Intent = ChatIntent.ApplyForLeave,
                 ResponseText = message,
-                Module = "Attendance"
-            });
+                Module = "ApplyForLeave"
+            };
         }
 
         private Task<ChatResponseDto> HandleGetPayslip(Guid employeeId, Guid organizationId)
