@@ -9,6 +9,6 @@ namespace HRMS.AI.Services.Interface
 {
     public interface IChatService
     {
-        Task<ChatResponseDto> HandleChatAsync(ChatRequestDto request);
+        Task<ChatResponseDto> HandleChatAsync(ChatRequestDto request,string? roleName);
     }
 }
