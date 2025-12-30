@@ -592,7 +592,9 @@ public class AttendanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var employees = await _attendanceService.GetEmployeesByShiftAsync(organizationId, shiftId);
+            var CurrentEmployee = await GetCurrentEmployeeId();
+           
+            var employees = await _attendanceService.GetEmployeesByShiftAsync(organizationId, shiftId,CurrentEmployee);
 
             return Ok(new ServiceResponse<List<EmployeeShiftDto>>
             {
@@ -937,35 +939,6 @@ public class AttendanceController : ControllerBase
         }
     }
 
-
-    //[HttpGet("/departmentid{}")]
-    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    //public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetEmployeeDepratment(Guid? departmentId)
-    //{
-    //    try
-    //    {
-    //        var organizationId = GetCurrentOrganizationId();
-    //        var currentEmployeeId = await GetCurrentEmployeeId();
-    //        var Getemployees = await _attendanceService.GetdepartmentEmployeesAsync(currentEmployeeId, departmentId,organizationId);
-
-
-
-    //        return Ok(new ServiceResponse<AttendanceReportDto>
-    //        {
-    //            Success = true,
-    //            Data = Getemployees
-    //        });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error generating attendance report");
-    //        return StatusCode(500, new ServiceResponse<AttendanceReportDto>
-    //        {
-    //            Success = false,
-    //            Message = "An error occurred while generating attendance report"
-    //        });
-    //    }
-    //}
 
 
     [HttpGet("departmentEmployees")]
