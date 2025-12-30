@@ -1,4 +1,7 @@
 using HRMS.API.Services.Interfaces;
+using MailKit.Net.Smtp;
+using MailKit.Security;
+using MimeKit;
 
 namespace HRMS.API.Services;
 
@@ -14,47 +17,55 @@ public class EmailService : IEmailService
     }
 
 
-    public async Task<bool> SendEmailAsync(string to, string subject, string body, bool isHtml = true)
+    public async Task<bool> SendEmailAsync(string to, string subject, string body)
     {
-
         try
         {
-            var smtpHost = _configuration["Email:SmtpHost"];
-            var smtpPort = int.Parse(_configuration["Email:SmtpPort"]);
-            var fromEmail = _configuration["Email:FromEmail"];
-            var fromName = _configuration["Email:FromName"];
-            var username = _configuration["Email:Username"];
-            var password = _configuration["Email:Password"];
-
-            using (var smtpClient = new System.Net.Mail.SmtpClient(smtpHost, smtpPort))
+            var email = new MimeMessage();
+            email.From.Add(new MailboxAddress(
+                _configuration["Email:FromName"],
+                _configuration["Email:FromEmail"]
+            ));
+            email.To.Add(MailboxAddress.Parse(to));
+            email.Subject = subject;
+            email.Body = new TextPart(MimeKit.Text.TextFormat.Html)
             {
-                smtpClient.Credentials = new System.Net.NetworkCredential(username, password);
-                smtpClient.EnableSsl = true;
+                Text = body
+            };
 
-                using (var message = new System.Net.Mail.MailMessage())
-                {
-                    message.From = new System.Net.Mail.MailAddress(fromEmail, fromName);
-                    message.To.Add(to);
-                    message.Subject = subject;
-                    message.Body = body;
-                    message.IsBodyHtml = isHtml;
+            using var smtp = new SmtpClient();
+            smtp.Timeout = 20000;
+            var smtpHost = _configuration["Email:SmtpHost"];
+            _logger.LogInformation("SMTP HOST: {Host}", smtpHost);
+            await smtp.ConnectAsync(
+                _configuration["Email:SmtpHost"],
+                int.Parse(_configuration["Email:SmtpPort"]),
+                SecureSocketOptions.StartTls
+            );
 
-
-                    await smtpClient.SendMailAsync(message);
-                }
-
-
+            await smtp.AuthenticateAsync(
+                _configuration["Email:Username"],
+                _configuration["Email:Password"]
+            );
+            try
+            {
+                await smtp.SendAsync(email);
+                _logger.LogInformation("Email send successfully.");
             }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error sending email to {To}", to);
+                throw;
+            }
+            await smtp.DisconnectAsync(true);
 
-            _logger.LogInformation("Email sent successfully to: {To}", to);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send email to: {To}", to);
+            _logger.LogError(ex, "Email failed");
             return false;
         }
-
     }
 
     public async Task<bool> SendWelcomeEmailAsync(string to, string firstName, string organizationName, string tempPassword)
@@ -68,7 +79,7 @@ public class EmailService : IEmailService
             <p>Best regards,<br/>{organizationName} HR Team</p>
         ";
 
-        return await SendEmailAsync(to, subject, body, true);
+        return await SendEmailAsync(to, subject, body);
     }
 
     public async Task<bool> SendLeaveApprovalNotificationAsync(string to, string employeeName, string leaveType, DateTime startDate, DateTime endDate, bool approved)
@@ -83,7 +94,7 @@ public class EmailService : IEmailService
             <p>Best regards,<br/>HR Team</p>
         ";
 
-        return await SendEmailAsync(to, subject, body, true);
+        return await SendEmailAsync(to, subject, body);
     }
 
     public async Task<bool> SendPasswordResetEmailAsync(string to, string firstName, string resetLink)
@@ -98,6 +109,6 @@ public class EmailService : IEmailService
             <p>Best regards,<br/>HRMS Team</p>
         ";
 
-        return await SendEmailAsync(to, subject, body, true);
+        return await SendEmailAsync(to, subject, body);
     }
 }
