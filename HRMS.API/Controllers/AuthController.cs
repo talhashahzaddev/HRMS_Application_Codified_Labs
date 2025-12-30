@@ -248,9 +248,6 @@ public class AuthController : ControllerBase
 
     }
 
-
-
-
     [HttpPost("forgot-password")]
     public async Task<ActionResult<ServiceResponse<bool>>> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
@@ -273,7 +270,7 @@ public class AuthController : ControllerBase
                 Message = "An error occurred while processing password reset request"
             });
         }
-    }
+    } 
 
     [HttpPut("profile")]
     [Authorize]

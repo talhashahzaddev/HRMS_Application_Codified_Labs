@@ -742,6 +742,45 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         }
     }
 
+    //Getting Employee BY shift id for Manager
+
+    public async Task<List<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId,Guid currentEmp)
+    {
+        try
+        {
+
+
+            var sql = @"
+                SELECT 
+                e.employeeid,
+                e.firstname,
+                e.lastname,
+                e.email,
+                ed.shiftid,
+                d.departmentname  
+            FROM employee.employees e
+            INNER JOIN employee.employmentdetails ed 
+                ON e.employeeid = ed.employeeid
+            LEFT JOIN employee.departments d
+                ON ed.departmentid = d.departmentid
+            WHERE e.organizationid = @OrganizationId
+              AND ed.shiftid = @ShiftId
+              AND ed.reportingmanagerid = @CurrentEmp;
+            ";
+
+            var parameters = new { OrganizationId = organizationId, ShiftId = shiftId,CurrentEmp=currentEmp };
+            var result = await QueryAsync<EmployeeShiftDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employees for shift {ShiftId} in organization {OrganizationId}", shiftId, organizationId);
+            throw;
+        }
+    }
+
+
+
     public async Task<Guid?> GetReportingManagerIdAsync(Guid employeeId)
     {
         var sql = @"

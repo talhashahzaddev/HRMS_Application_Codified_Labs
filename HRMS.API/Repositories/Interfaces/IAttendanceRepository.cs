@@ -5,6 +5,8 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IAttendanceRepository
 {
+
+    Task<List<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId, Guid currentEmp);
     Task<ShiftSwapRequestDto?> getshifrequestDetailsAsync(Guid requestId);
     Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId);
     Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber = 1,int pageSize = 10);

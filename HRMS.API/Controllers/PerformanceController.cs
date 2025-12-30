@@ -669,7 +669,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("team-performance-overview")]
-    [Authorize(Roles = "Manager,HR Manager")]
+    [Authorize(Roles = "Super Admin,Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<TeamPerformanceOverviewDto>>> GetTeamPerformanceOverview()
     {
         try

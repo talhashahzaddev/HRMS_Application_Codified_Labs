@@ -22,7 +22,7 @@ public interface IAttendanceService
     Task<bool> ApproveShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto,Guid organizationId);
     Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto);
     Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId);
-    Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId);
+    Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId ,Guid CurrentEmployee);
     Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request,Guid currentEmpId);
     Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto rquest);
     Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request);
