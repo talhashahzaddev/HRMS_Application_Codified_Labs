@@ -356,6 +356,8 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
         return results.ToList();
     }
 
+
+
     public async Task<PayrollPeriod?> GetPayrollPeriodByIdAsync(Guid periodId)
     {
         var sql = @"

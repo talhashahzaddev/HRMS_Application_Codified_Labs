@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
 using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Models.DTOs;
@@ -7,6 +8,7 @@ using HRMS.API.Models.ViewModels;
 using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using iTextSharp.text;
 using NPOI.SS.Formula.Functions;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
@@ -491,11 +493,39 @@ public class AttendanceService : IAttendanceService
     }
 
 
-    public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId)
+    public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId,Guid currentEmployeeId)
     {
-        var result=await _attendanceRepository.GetEmployeesByShiftAsync(organizationId, shiftId);
-      
-        return result;
+
+        try
+        {
+
+            // Check if user is Super Admin or HR Manager
+            var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+
+            AttendanceReportDto completeReport;
+
+            if (isAdminOrHR)
+            {
+                // Super Admin 
+
+                var result = await _attendanceRepository.GetEmployeesByShiftAsync(organizationId, shiftId);
+                return result;
+            }
+            else
+            {
+                //For Manager 
+                var result = await _attendanceRepository.GetManagerEmployeesByShiftAsync(organizationId, shiftId,currentEmployeeId);
+
+                return result;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating Employee By shift");
+            throw;
+        }
+
+
 
     }
 
