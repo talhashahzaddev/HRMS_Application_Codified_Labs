@@ -183,6 +183,7 @@ builder.Services.AddScoped<IChatBoardStatsService, ChatBoardStatsService>();
 builder.Services.AddScoped<IIntentRecognitionService, IntentRecognitionService>();
 builder.Services.AddScoped<IGuidanceAIService, GuidanceAIService>();
 builder.Services.AddScoped<IChatBoardStatsService, ChatBoardStatsService>();
+builder.Services.AddScoped<IChatBoardAiService, ChatBoardAiService>();
 
 // Add Repositories
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
@@ -195,6 +196,7 @@ builder.Services.AddScoped<IPerformanceRepository, PerformanceRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<IChatBoardAiRepository, ChatBoardAiRepository>();
 
 var app = builder.Build();
 
