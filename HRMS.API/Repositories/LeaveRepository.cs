@@ -219,7 +219,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     {
         var sql = @"
             SELECT leavetypeid, typename, description, maxdaysperyear, 
-                   ispaid, carryforwardallowed, color, isactive
+                   ispaid, carryforwardallowed, maxcarryforwarddays, color, isactive
             FROM attendance.leavetypes 
             WHERE organizationid = @organizationId AND isactive = true
             ORDER BY typename";
