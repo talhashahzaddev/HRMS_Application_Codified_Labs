@@ -186,7 +186,14 @@ public class LeaveController : ControllerBase
             var approvedBy = GetCurrentEmployeeId();
             var request = new UpdateLeaveRequestStatusRequest { Status = "approved" };
             var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
-            
+            if (result == false)
+            {
+                return StatusCode(409, new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Leave request not approved"
+                });
+            }
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
