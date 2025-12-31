@@ -18,6 +18,9 @@ namespace HRMS.AI.Models.Enums
         GetPayslip,
         EmployeeInfo,
         LeaveApplicationDetails,
+        GetMySkills,
+        ClockIn,
+        ClockOut,
         Unknown
     }
 
