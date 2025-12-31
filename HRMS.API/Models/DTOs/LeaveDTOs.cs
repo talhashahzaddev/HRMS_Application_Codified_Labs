@@ -51,6 +51,7 @@ public class LeaveTypeDto
     public int MaxDaysPerYear { get; set; }
     public bool IsPaid { get; set; }
     public bool CarryForwardAllowed { get; set; }
+    public int MaxCarryForwardDays { get; set; }
     public string Color { get; set; } = string.Empty;
     public bool IsActive { get; set; }
 }

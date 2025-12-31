@@ -265,6 +265,7 @@ public class LeaveService : ILeaveService
             MaxDaysPerYear = request.MaxDaysPerYear,
             IsPaid = request.IsPaid,
             CarryForwardAllowed = request.CarryForwardAllowed,
+            MaxCarryForwardDays = request.MaxCarryForwardDays,
             Color = request.Color,
             IsActive = true
         };

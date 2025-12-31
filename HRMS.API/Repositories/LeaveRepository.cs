@@ -243,10 +243,10 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         var sqlInsert = @"
         INSERT INTO attendance.leavetypes 
             (leavetypeid, organizationid, typename, description, maxdaysperyear, 
-             ispaid, carryforwardallowed, color, isactive, createdat)
+             ispaid, carryforwardallowed, maxcarryforwarddays, color, isactive, createdat)
         VALUES
             (@LeaveTypeId, @OrganizationId, @TypeName, @Description, @MaxDaysPerYear, 
-             @IsPaid, @CarryForwardAllowed, @Color, @IsActive, NOW());
+             @IsPaid, @CarryForwardAllowed, @maxcarryforwarddays, @Color, @IsActive, NOW());
     ";
 
         var sqlInitEntitlements = @"
@@ -269,6 +269,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                         dto.MaxDaysPerYear,
                         dto.IsPaid,
                         dto.CarryForwardAllowed,
+                        dto.MaxCarryForwardDays,
                         dto.Color,
                         dto.IsActive
                     }, transaction);
