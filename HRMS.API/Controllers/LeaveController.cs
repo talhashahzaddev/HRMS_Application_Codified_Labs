@@ -394,6 +394,43 @@ public class LeaveController : ControllerBase
         }
     }
 
+    [HttpPut("types/{leaveTypeId:guid}")]
+    public async Task<ActionResult<ServiceResponse<Guid>>> EditLeaveType(
+    Guid leaveTypeId,
+    [FromBody] EditLeaveTypeRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var updated = await _leaveService.EditLeaveTypeAsync(organizationId, leaveTypeId, request);
+
+            if (updated)
+            {
+                return Ok(new ServiceResponse<Guid>
+                {
+                    Success = true,
+                    Data = leaveTypeId,
+                    Message = "Leave type updated successfully"
+                });
+            }
+
+            return StatusCode(500, new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = "An error occurred while updating leave type"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating leave type");
+            return StatusCode(500, new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = "An error occurred while updating leave type"
+            });
+        }
+    }
 
 
     [HttpGet("entitlements")]
