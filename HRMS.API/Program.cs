@@ -198,6 +198,9 @@ builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IChatBoardAiRepository, ChatBoardAiRepository>();
 
+// Add Hosted Service for yearly leave balance reset
+builder.Services.AddHostedService<HRMS.API.Services.LeaveBalanceResetHostedService>();
+
 var app = builder.Build();
 
 app.UseSwagger();
