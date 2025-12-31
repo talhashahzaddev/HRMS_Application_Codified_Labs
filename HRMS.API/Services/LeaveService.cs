@@ -283,6 +283,36 @@ public class LeaveService : ILeaveService
 
     }
 
+    public async Task<bool> EditLeaveTypeAsync(
+      Guid organizationId,
+      Guid leaveTypeId,
+      EditLeaveTypeRequest request)
+    {
+        if (leaveTypeId == Guid.Empty)
+            return false;
+
+        // 🔹 BUSINESS RULE ENFORCEMENT (MUST BE HERE)
+        if (!request.CarryForwardAllowed)
+            request.MaxCarryForwardDays = 0;
+
+        if (request.MaxCarryForwardDays < 0)
+            request.MaxCarryForwardDays = 0;
+
+        var dto = new LeaveTypeDto
+        {
+            LeaveTypeId = leaveTypeId,
+            TypeName = request.TypeName,
+            Description = request.Description,
+            MaxDaysPerYear = request.MaxDaysPerYear,
+            IsPaid = request.IsPaid,
+            CarryForwardAllowed = request.CarryForwardAllowed,
+            MaxCarryForwardDays = request.MaxCarryForwardDays, 
+            Color = request.Color,
+            IsActive = request.IsActive
+        };
+
+        return await _leaveRepository.EditLeaveTypeAsync(organizationId, dto);
+    }
 
 
     public async Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year)

@@ -914,3 +914,55 @@ END;
 $$;
 
 
+CREATE OR REPLACE FUNCTION attendance.fn_sync_leave_entitlements_for_leavetype(
+    p_leavetype_id UUID,
+    p_organization_id UUID
+)
+RETURNS VOID
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    current_year INT := EXTRACT(YEAR FROM NOW());
+BEGIN
+    UPDATE attendance.leaveentitlements le
+    SET
+        totaldays = lt.maxdaysperyear::numeric(5,2),
+
+        carryforwarddays = CASE
+            WHEN lt.carryforwardallowed = false THEN 0::numeric(5,2)
+            ELSE LEAST(
+                    le.carryforwarddays,
+                    lt.maxcarryforwarddays::numeric(5,2)
+                 )
+        END,
+
+        remainingdays = GREATEST(
+            (
+                lt.maxdaysperyear::numeric(5,2)
+                +
+                CASE
+                    WHEN lt.carryforwardallowed = false THEN 0::numeric(5,2)
+                    ELSE LEAST(
+                            le.carryforwarddays,
+                            lt.maxcarryforwarddays::numeric(5,2)
+                         )
+                END
+            ) - le.useddays,
+            0::numeric(5,2)
+        ),
+
+        updatedat = NOW()
+
+    FROM attendance.leavetypes lt
+    WHERE lt.leavetypeid = p_leavetype_id
+      AND lt.organizationid = p_organization_id
+      AND le.leavetypeid = p_leavetype_id
+      AND le.year = current_year
+      AND le.employeeid IN (
+          SELECT employeeid
+          FROM employee.employees
+          WHERE organizationid = p_organization_id
+      );
+END;
+$$;
+

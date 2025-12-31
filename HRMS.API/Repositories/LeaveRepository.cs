@@ -296,6 +296,84 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         }
     }
 
+    public async Task<bool> EditLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto)
+    {
+        var sqlUpdate = @"
+UPDATE attendance.leavetypes
+SET
+    typename = @TypeName,
+    description = @Description,
+    maxdaysperyear = @MaxDaysPerYear,
+    ispaid = @IsPaid,
+    carryforwardallowed = @CarryForwardAllowed,
+    maxcarryforwarddays = @MaxCarryForwardDays,
+    color = @Color,
+    isactive = @IsActive,
+    createdat = createdat 
+WHERE leavetypeid = @LeaveTypeId
+  AND organizationid = @OrganizationId;
+";
+
+        // Optional but recommended: create entitlement rows for employees who joined after this leave type was created
+        var sqlEnsureEntitlements = @"
+SELECT attendance.fn_initialize_leave_entitlements_for_new_leavetype(@LeaveTypeId, @OrganizationId);
+";
+
+        // This will update balances correctly based on latest leave type settings
+        var sqlSyncEntitlements = @"
+SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @OrganizationId);
+";
+
+        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+        await connection.OpenAsync();
+
+        using var transaction = await connection.BeginTransactionAsync();
+        try
+        {
+            var rowsAffected = await connection.ExecuteAsync(sqlUpdate, new
+            {
+                dto.LeaveTypeId,
+                OrganizationId = organizationId,
+                dto.TypeName,
+                dto.Description,
+                dto.MaxDaysPerYear,
+                dto.IsPaid,
+                dto.CarryForwardAllowed,
+                dto.MaxCarryForwardDays,
+                dto.Color,
+                dto.IsActive
+            }, transaction);
+
+            // If no row updated: either wrong id or not in this org
+            if (rowsAffected <= 0)
+            {
+                await transaction.RollbackAsync();
+                return false;
+            }
+
+            // Keep system consistent
+            await connection.ExecuteAsync(sqlEnsureEntitlements, new
+            {
+                dto.LeaveTypeId,
+                OrganizationId = organizationId
+            }, transaction);
+
+            await connection.ExecuteAsync(sqlSyncEntitlements, new
+            {
+                dto.LeaveTypeId,
+                OrganizationId = organizationId
+            }, transaction);
+
+            await transaction.CommitAsync();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync();
+            Console.WriteLine($"Error updating LeaveType: {ex.Message}");
+            return false;
+        }
+    }
 
 
 

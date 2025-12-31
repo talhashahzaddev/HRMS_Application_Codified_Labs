@@ -717,4 +717,24 @@ CREATE TABLE IF NOT EXISTS notification.notifications
     CONSTRAINT notifications_pkey PRIMARY KEY (notificationid)
 )
 
+CREATE TABLE chatboard.chat_board_logs
+(
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    employeeid UUID NOT NULL,
+    organizationid UUID NOT NULL,
+    rolename VARCHAR(100) ,
+    usermessage TEXT ,
+    intent VARCHAR(100) ,
+    airesponse TEXT ,
+    createdat TIMESTAMPTZ  DEFAULT NOW(),
+	modulename  VARCHAR(100)
+);
+
+CREATE TABLE admin.system_jobs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    jobkey VARCHAR(100) NOT NULL,
+    year INT NOT NULL,
+    runat TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+);
+
 TABLESPACE pg_default;
