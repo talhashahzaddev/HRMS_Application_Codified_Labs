@@ -5,7 +5,7 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IAttendanceRepository
 {
-
+    Task<bool> CheckAlreadyClockInAsync(Guid employeeId);
     Task<List<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId, Guid currentEmp);
     Task<ShiftSwapRequestDto?> getshifrequestDetailsAsync(Guid requestId);
     Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId);

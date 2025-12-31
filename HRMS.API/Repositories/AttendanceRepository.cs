@@ -1,10 +1,11 @@
+using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
-using Dapper;
 using Npgsql;
 using System.Data;
+using System.Data.Common;
 
 namespace HRMS.API.Repositories;
 
@@ -183,6 +184,36 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
+
+    //Checkin checkout Checkckkss
+
+    public async Task<bool> CheckAlreadyClockInAsync(Guid employeeId)
+    {
+        try
+        {
+            var sql = @"
+            SELECT EXISTS (
+                SELECT 1
+                FROM attendance.attendance
+                WHERE employeeid = @employeeId
+                  AND workdate = (NOW() AT TIME ZONE 'UTC')::date
+                  AND checkouttime IS NULL
+            );
+        ";
+
+            return await ExecuteScalarAsync<bool>(sql, new
+            {
+                employeeId
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking already clock-in for employee {EmployeeId}", employeeId);
+            throw;
+        }
+    }
+
+
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(
         Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null,

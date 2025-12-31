@@ -45,7 +45,7 @@ public class AttendanceController : ControllerBase
             return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
-                Message = "An error occurred while clocking in"
+                Message = ex.Message
             });
         }
     }
@@ -71,7 +71,7 @@ public class AttendanceController : ControllerBase
             return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
-                Message = "An error occurred while clocking out"
+                Message = ex.Message
             });
         }
     }
