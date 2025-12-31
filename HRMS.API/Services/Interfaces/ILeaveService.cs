@@ -15,6 +15,7 @@ public interface ILeaveService
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsByOrganizationAsync(LeaveRequestSearchViewModel searchModel, Guid organizationId);
     Task<List<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId);
     Task<Guid> CreateLeaveTypeAsync(Guid organizationId, CreateLeaveTypeRequest request);
+    Task<bool> EditLeaveTypeAsync(Guid organizationId, Guid leaveTypeId, EditLeaveTypeRequest request);
     Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year);
     Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year);
     Task<LeaveRequestDto?> GetLeaveRequestByIdAsync(Guid requestId);
