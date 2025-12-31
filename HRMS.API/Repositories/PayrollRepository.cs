@@ -345,18 +345,41 @@ public class PayrollRepository : BaseRepository, IPayrollRepository
     public async Task<List<PayrollPeriodDto>> GetPayrollPeriodsAsync(Guid organizationId)
     {
         var sql = @"
-            SELECT periodid, periodname, startdate, enddate, paydate, status,
-                   totalemployees, totalgrossamount, totaltaxamount, totalnetamount,
-                   processedat
-            FROM payroll.payrollperiods
-            WHERE organizationid = @organizationId
-            ORDER BY startdate DESC";
+        SELECT 
+            pp.periodid,
+            pp.periodname,
+            pp.startdate,
+            pp.enddate,
+            pp.paydate,
+            pp.status,
+            pp.totalemployees,
+            pp.totalgrossamount,
+            pp.totaltaxamount,
+
+            -- ? SAME LOGIC AS GetPayrollAsync
+            COALESCE(SUM(pe.netsalary), 0) AS totalnetamount,
+
+            pp.processedat
+        FROM payroll.payrollperiods pp
+        LEFT JOIN payroll.payrollentries pe 
+               ON pp.periodid = pe.periodid
+        WHERE pp.organizationid = @organizationId
+        GROUP BY 
+            pp.periodid,
+            pp.periodname,
+            pp.startdate,
+            pp.enddate,
+            pp.paydate,
+            pp.status,
+            pp.totalemployees,
+            pp.totalgrossamount,
+            pp.totaltaxamount,
+            pp.processedat
+        ORDER BY pp.startdate DESC";
 
         var results = await QueryAsync<PayrollPeriodDto>(sql, new { organizationId });
         return results.ToList();
     }
-
-
 
     public async Task<PayrollPeriod?> GetPayrollPeriodByIdAsync(Guid periodId)
     {
