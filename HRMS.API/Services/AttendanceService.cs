@@ -46,34 +46,57 @@ public class AttendanceService : IAttendanceService
 
     public async Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request)
     {
-        //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
-        var result = await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location);
-        //Update Attendace table on first checkin checkout From sessions
+        //Check if Already Clockin or not
 
-        var TodayAttendace = await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
-        //check if employee is  late or not 
-        var latecheckin = await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
+        var checkin = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
+
+        if (checkin == true)
+        {
+            throw new Exception("You already Clockin");
+        }
+        else
+        {
+            //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location);
+            //Update Attendace table on first checkin checkout From sessions
+
+            var TodayAttendace = await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+            //check if employee is  late or not 
+            var latecheckin = await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
+            return result;
+
+        }
 
 
-
-        return result;
     }
 
     public async Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request)
     {
-        //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
-        var result =await  _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location);
+        //Checking weather employee is already checkout or not
+        var checkin = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
 
-        //Update Attendace table on first checkin checkout From sessions
+        if (checkin == false)
+        {
+            throw new Exception("You already Clockout");
+        }
 
-        var toTodayAttendaceda = await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+        else
+        {
+            //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location);
 
-        //Calculating OverTime when clockout
+            //Update Attendace table on first checkin checkout From sessions
 
-        var overtime = await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
+            var toTodayAttendaceda = await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+
+            //Calculating OverTime when clockout
+
+            var overtime = await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
 
 
-        return result;
+            return result;
+        }
+
     }
 
     public async Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId)

@@ -1,6 +1,7 @@
 ﻿using HRMS.AI.Models;
 using HRMS.AI.Models.Enums;
 using HRMS.AI.Services.Interface;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -20,15 +21,17 @@ namespace HRMS.API.Controllers
         private readonly IChatBoardStatsService _chatBoardStatsService;
         private readonly IGuidanceAIService _guidance_service;
         private readonly ILeaveService _leaveService;
+        private readonly IChatBoardAiService _chatBoardAiService;
         private readonly ILogger<ChatController> _logger;
 
-        public ChatController(IChatService chatService,ILeaveRepository leaveRepository, IChatBoardStatsService chatBoardStatsService,IGuidanceAIService guidanceAIService,ILeaveService leaveService, ILogger<ChatController> logger)
+        public ChatController(IChatService chatService,ILeaveRepository leaveRepository, IChatBoardStatsService chatBoardStatsService,IGuidanceAIService guidanceAIService,ILeaveService leaveService,IChatBoardAiService chatBoardAiService, ILogger<ChatController> logger)
         {
             _chatService = chatService;
             _leaveRepository = leaveRepository;
             _chatBoardStatsService = chatBoardStatsService;
             _guidance_service = guidanceAIService;
             _leaveService = leaveService;
+            _chatBoardAiService = chatBoardAiService;
             _logger = logger;
         }
 
@@ -66,6 +69,21 @@ namespace HRMS.API.Controllers
                         var leaveResponse = await _leaveService.CreateLeaveRequestByChatBotAsync(leavetypedetails, currentUserId, organizationId);
                         response.ResponseText = leaveResponse.statustext;
                     }
+                }
+                if (response != null)
+                {
+                    var AiChatRequest = new AiChatRequestDto
+                    {
+                        employeeid = empid,
+                        organizationid = organizationId,
+                        rolename = roleName!,
+                        usermessage = request.Message,
+                        intent = response.Intent.ToString(),
+                        airesponse = response.ResponseText,
+                        modulename = response.Module,
+                        createdat = DateTime.UtcNow
+                    };
+                    await _chatBoardAiService.SaveChatAsync(AiChatRequest);
                 }
 
                 return Ok(response);

@@ -1,6 +1,7 @@
 ﻿using DocumentFormat.OpenXml.Bibliography;
 using HRMS.AI.Models;
 using HRMS.AI.Models.Enums;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using Microsoft.Extensions.Logging;
@@ -19,14 +20,16 @@ namespace HRMS.API.Services
         private readonly IAttendanceRepository _attendanceRepository;
         private readonly IPerformanceRepository _performanceRepository;
         private readonly IEmployeeRepository _employeeRepository;
+        private readonly IAttendanceService _attendanceService;
         private readonly ILogger<ChatBoardStatsService> _logger;
 
-        public ChatBoardStatsService(ILeaveRepository leaveRepository, IAttendanceRepository attendanceRepository, IPerformanceRepository performanceRepository, IEmployeeRepository employeeRepository, ILogger<ChatBoardStatsService> logger)
+        public ChatBoardStatsService(ILeaveRepository leaveRepository, IAttendanceRepository attendanceRepository, IPerformanceRepository performanceRepository, IEmployeeRepository employeeRepository,IAttendanceService attendanceService, ILogger<ChatBoardStatsService> logger)
         {
             _leaveRepository = leaveRepository;
             _attendanceRepository = attendanceRepository;
             _performanceRepository = performanceRepository;
             _employeeRepository = employeeRepository;
+            _attendanceService = attendanceService;
             _logger = logger;
         }
 
@@ -48,6 +51,12 @@ namespace HRMS.API.Services
                     return await HandleGetPayslip(employeeId, organizationId);
                 case ChatIntent.EmployeeInfo:
                     return await HandleGetEmployeeInfo(employeeId, organizationId);
+                case ChatIntent.GetMySkills:
+                    return await HandleGetMySkills(employeeId, organizationId);
+                case ChatIntent.ClockIn:
+                    return await HandleClockIn(employeeId, organizationId);
+                case ChatIntent.ClockOut:
+                    return await HandleClockOut(employeeId, organizationId);
                 case ChatIntent.Unknown:
                     _logger.LogWarning("Received Unknown intent for employee {EmployeeId}", employeeId);
                     return new ChatResponseDto
@@ -420,5 +429,172 @@ namespace HRMS.API.Services
                 Module = "Attendance"
             });
         }
+
+        private async Task<ChatResponseDto> HandleGetMySkills(Guid employeeId, Guid organizationId)
+        {
+            _logger.LogInformation("Fetching employee skills for employee {EmployeeId}", employeeId);
+
+            try
+            {
+                var skills = await _performanceRepository.GetEmployeeSkillsAsync(employeeId);
+
+                if (skills != null && skills.Count > 0)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine("Here are your registered skills:");
+
+                    int index = 1;
+                    string? currentCategory = null;
+
+                    foreach (var item in skills)
+                    {
+                        // Category heading (grouped)
+                        if (!string.Equals(currentCategory, item.SkillCategory, StringComparison.OrdinalIgnoreCase))
+                        {
+                            currentCategory = item.SkillCategory;
+                            sb.AppendLine();
+                            sb.AppendLine($"📌 {currentCategory}");
+                        }
+
+                        sb.Append($"{index}. {item.SkillName}");
+                        sb.Append($" – Proficiency Level: {item.ProficiencyLevel}");
+
+                        if (item.LastAssessed.HasValue)
+                        {
+                            sb.Append($", Last Assessed: {item.LastAssessed.Value:dd MMM yyyy}");
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(item.AssessorName))
+                        {
+                            sb.Append($", Assessed By: {item.AssessorName}");
+                        }
+
+                        if (!string.IsNullOrWhiteSpace(item.Notes))
+                        {
+                            sb.Append($", Notes: {item.Notes}");
+                        }
+
+                        sb.AppendLine();
+                        index++;
+                    }
+
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetMySkills,
+                        ResponseText = sb.ToString().TrimEnd(),
+                        Module = "Performance"
+                    };
+                }
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMySkills,
+                    ResponseText = "No skill information found for your profile.",
+                    Module = "Performance"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch employee skills for employee {EmployeeId}", employeeId);
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMySkills,
+                    ResponseText = "Error fetching employee skills.",
+                    Module = "Performance"
+                };
+            }
+        }
+
+        private async Task<ChatResponseDto> HandleClockIn(Guid employeeId, Guid organizationId)
+        {
+            _logger.LogInformation("Processing clock-in request for employee {EmployeeId}", employeeId);
+
+            try
+            {
+                var request = new ClockInOutRequest
+                {
+                    Action = "in",
+                    Location = null 
+                };
+
+                var result = await _attendanceService.ClockInAsync(employeeId, request);
+
+                if (result)
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.ClockIn,
+                        ResponseText = "✅ You have successfully clocked in. Have a productive day!",
+                        Module = "Attendance"
+                    };
+                }
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.ClockIn,
+                    ResponseText = "⚠️ Clock-in failed. You may already be clocked in or an error occurred.",
+                    Module = "Attendance"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Clock-in failed for employee {EmployeeId}", employeeId);
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.ClockIn,
+                    ResponseText = "❌ Unable to clock in at the moment. Please try again later.",
+                    Module = "Attendance"
+                };
+            }
+        }
+
+        private async Task<ChatResponseDto> HandleClockOut(Guid employeeId, Guid organizationId)
+        {
+            _logger.LogInformation("Processing clock-out request for employee {EmployeeId}", employeeId);
+
+            try
+            {
+                var request = new ClockInOutRequest
+                {
+                    Action = "out",
+                    Location = null 
+                };
+
+                var result = await _attendanceService.ClockOutAsync(employeeId, request);
+
+                if (result)
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.ClockOut,
+                        ResponseText = "✅ You have successfully clocked out. See you next time!",
+                        Module = "Attendance"
+                    };
+                }
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.ClockOut,
+                    ResponseText = "⚠️ Clock-out failed. You may not be clocked in or an error occurred.",
+                    Module = "Attendance"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Clock-out failed for employee {EmployeeId}", employeeId);
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.ClockOut,
+                    ResponseText = "❌ Unable to clock out at the moment. Please try again later.",
+                    Module = "Attendance"
+                };
+            }
+        }
+
+
+
     }
 }

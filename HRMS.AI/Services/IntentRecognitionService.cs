@@ -38,6 +38,10 @@ namespace HRMS.AI.Services
 
         public async Task<IntentDetectionResult> DetectIntentAsync(string message)
         {
+            // not implemented yet
+            //-GetPayslip:
+            //     User wants to view or download payslip details including monthly salary,
+            //     deductions, allowances, payroll summary, or salary slip.
             var prompt =
                 $@"You are classifying HRMS user messages.
                    Labels:
@@ -76,13 +80,20 @@ namespace HRMS.AI.Services
                           User provides leave application details such as leave type,
                           start date, end date, and reason for applying for leave.
 
-                        - GetPayslip:
-                          User wants to view or download payslip details including monthly salary,
-                          deductions, allowances, payroll summary, or salary slip.
-
                         - EmployeeInfo:
                           User wants to know about there personal info related to him only like who is my manager, what is my name ,
                           and user can also ask like my salry detaisl, my joining date, my date of birth and other question those are linked with employee personal info, and also related how many days i worked in this company.
+
+                        - GetMySkills:
+                          User wants to view their skill set, skill matrix, or skills assessment details.
+
+                        - ClockIn:
+                          User wants to clock in for attendance, mark their start of the workday,
+                          or record their check-in time or check in attendance.
+
+                        - ClockOut:
+                          User wants to clock out for attendance, mark the end of their workday,
+                          or record their check-out time or checkout attendance.
 
                         - Unknown:
                           Any request that does not clearly
@@ -92,7 +103,7 @@ namespace HRMS.AI.Services
                    If the label is Guidance, Greeting, also determine the affected module,and if related department of positions then also return EmployeeManagement if label is Greeting then module is also Greeting. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings,HRPolices, Other.
 
                    Return EXACT output in this format (no extra text):
-                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|Unknown>; Module: <module or empty>
+                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
 
                    User message:
                    ""{message}"".
@@ -163,6 +174,9 @@ namespace HRMS.AI.Services
                     "GetPayslip" => ChatIntent.GetPayslip,
                     "EmployeeInfo" => ChatIntent.EmployeeInfo,
                     "LeaveApplicationDetails" => ChatIntent.LeaveApplicationDetails,
+                    "GetMySkills" => ChatIntent.GetMySkills,
+                    "ClockIn" => ChatIntent.ClockIn,
+                    "ClockOut" => ChatIntent.ClockOut,
                     _ => ChatIntent.Unknown
                 };
 
