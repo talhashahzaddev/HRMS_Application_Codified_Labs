@@ -253,6 +253,7 @@ public class AuthService : IAuthService
             LastName = createdUser.LastName,
             RoleName = "Super Admin",
             OrganizationName = orgResponse.Data.Name,
+            Domain = orgResponse.Data.Domain,
             Token = accessToken,
             RefreshToken = refreshToken,
             TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
