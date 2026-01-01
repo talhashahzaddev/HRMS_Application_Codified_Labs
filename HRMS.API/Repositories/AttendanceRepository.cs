@@ -1733,6 +1733,48 @@ WHERE ed.employeeid = @EmployeeId
     }
 
 
+    //public async Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(
+    //Guid organizationId,
+    //Guid? departmentId)
+    //{
+    //    try
+    //    {
+    //        var sql = @"
+    //        SELECT 
+    //            e.employeeid AS EmployeeId,
+    //            e.firstname AS FirstName,
+    //            e.lastname AS LastName
+    //        FROM employee.employees e
+    //        INNER JOIN employee.employmentdetails d
+    //            ON e.employeeid = d.employeeid
+    //        WHERE e.organizationid = @OrganizationId
+    //          AND e.status = 'active'
+    //          AND d.iscurrent = true
+    //          AND (@DepartmentId IS NULL OR d.departmentid = @DepartmentId)
+    //        ORDER BY e.firstname, e.lastname;
+    //    ";
+
+    //        var parameters = new
+    //        {
+    //            OrganizationId = organizationId,
+    //            DepartmentId = departmentId
+    //        };
+
+    //        // ?? EXACT same repository pattern you use everywhere
+    //        var result = await QueryAsync<EmployeeSimpleDto>(sql, parameters);
+
+    //        return result.ToList();
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex,
+    //            "Error retrieving employee list for Admin in Organization {OrganizationId}",
+    //            organizationId);
+
+    //        throw;
+    //    }
+    //}
+
     public async Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(
     Guid organizationId,
     Guid? departmentId)
@@ -1740,18 +1782,22 @@ WHERE ed.employeeid = @EmployeeId
         try
         {
             var sql = @"
-            SELECT 
-                e.employeeid AS EmployeeId,
-                e.firstname AS FirstName,
-                e.lastname AS LastName
-            FROM employee.employees e
-            INNER JOIN employee.employmentdetails d
-                ON e.employeeid = d.employeeid
-            WHERE e.organizationid = @OrganizationId
-              AND e.status = 'active'
-              AND d.iscurrent = true
-              AND (@DepartmentId IS NULL OR d.departmentid = @DepartmentId)
-            ORDER BY e.firstname, e.lastname;
+        SELECT 
+            e.employeeid     AS EmployeeId,
+            e.employeecode   AS EmployeeCode,
+            e.firstname      AS FirstName,
+            e.lastname       AS LastName,
+            e.email          AS Email,
+            e.status         AS Status,
+            e.hiredate       AS HireDate
+        FROM employee.employees e
+        INNER JOIN employee.employmentdetails d
+            ON e.employeeid = d.employeeid
+        WHERE e.organizationid = @OrganizationId
+          AND e.status = 'active'
+          AND d.iscurrent = true
+          AND (@DepartmentId IS NULL OR d.departmentid = @DepartmentId)
+        ORDER BY e.firstname, e.lastname;
         ";
 
             var parameters = new
@@ -1760,20 +1806,22 @@ WHERE ed.employeeid = @EmployeeId
                 DepartmentId = departmentId
             };
 
-            // ?? EXACT same repository pattern you use everywhere
             var result = await QueryAsync<EmployeeSimpleDto>(sql, parameters);
 
             return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
+            _logger.LogError(
+                ex,
                 "Error retrieving employee list for Admin in Organization {OrganizationId}",
-                organizationId);
+                organizationId
+            );
 
             throw;
         }
     }
+
 
     public async Task<List<EmployeeSimpleDto>> GetManagerEmployeeAsync(
         Guid managerId,

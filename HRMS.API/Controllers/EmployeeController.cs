@@ -339,6 +339,36 @@ public class EmployeeController : ControllerBase
         }
     }
 
+  
+    // GET: api/employees/positions/{positionId}/employees
+    [HttpGet("positions/{positionId}/employees")]
+    public async Task<ActionResult<ServiceResponse<PositionEmployeesMainDto>>> GetEmployeesByPosition(Guid positionId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId(); // Your method to get current org
+
+            var result = await _employeeService.GetEmployeesByPositionAsync(organizationId, positionId);
+
+            return Ok(new ServiceResponse<PositionEmployeesMainDto>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting employees for position {PositionId}", positionId);
+
+            return StatusCode(500, new ServiceResponse<PositionEmployeesMainDto>
+            {
+                Success = false,
+                Message = "Failed to load employees for this position"
+            });
+        }
+    }
+
+
 
     [HttpPut("positions/{positionId}/status")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdatePositionStatus(
@@ -463,7 +493,7 @@ public class EmployeeController : ControllerBase
         try
         {
             var position = await _employeeService.UpdatePositionAsync(id, request);
-            
+
             return Ok(new ServiceResponse<PositionDto>
             {
                 Success = true,
@@ -489,6 +519,9 @@ public class EmployeeController : ControllerBase
             });
         }
     }
+
+
+
 
     [HttpDelete("positions/{id}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
