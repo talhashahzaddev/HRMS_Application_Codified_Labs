@@ -14,6 +14,7 @@ public class AuthResponse
     public string LastName { get; set; } = string.Empty;
     public string RoleName { get; set; } = string.Empty;
     public string OrganizationName { get; set; } = string.Empty;
+    public string? Domain { get; set; }
     public string Token { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
     public DateTime TokenExpiration { get; set; }
