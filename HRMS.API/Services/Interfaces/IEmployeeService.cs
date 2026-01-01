@@ -6,6 +6,9 @@ namespace HRMS.API.Services.Interfaces;
 
 public interface IEmployeeService
 {
+    Task<PositionEmployeesMainDto> GetEmployeesByPositionAsync(Guid organizationId, Guid positionId);
+
+
     Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequestDTo request, IFormFile? profileFile);
     Task<bool> UpdateDepartmentStatusAsync(Guid organizationId, Guid departmentId, bool isActive);
     Task<bool> UpdatePositionStatusAsync(Guid organizationId,Guid positionId,bool isActive);
