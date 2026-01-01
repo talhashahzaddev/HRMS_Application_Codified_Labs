@@ -28,12 +28,23 @@ namespace HRMS.API.Services
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                var nowUtc = DateTime.Now;
+                var nowUtc = DateTime.UtcNow;
                 var nextRun = new DateTime(nowUtc.Year + 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                 var delay = nextRun - nowUtc;
 
+                //_logger.LogInformation("Leave reset job sleeping until {NextRun}", nextRun);
+                //await Task.Delay(delay, stoppingToken);
                 _logger.LogInformation("Leave reset job sleeping until {NextRun}", nextRun);
-                await Task.Delay(delay, stoppingToken);
+
+                while (delay > TimeSpan.Zero && !stoppingToken.IsCancellationRequested)
+                {
+                    // Delay in chunks of max 24 days
+                    var chunk = delay > TimeSpan.FromDays(24) ? TimeSpan.FromDays(24) : delay;
+                    await Task.Delay(chunk, stoppingToken);
+
+                    delay -= chunk;
+                }
+
 
                 try
                 {
