@@ -28,23 +28,17 @@ namespace HRMS.API.Services
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                var nowUtc = DateTime.Now;
-                var nextRun = new DateTime(nowUtc.Year + 1, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                var delay = nextRun - nowUtc;
-
-                _logger.LogInformation("Leave reset job sleeping until {NextRun}", nextRun);
-                await Task.Delay(delay, stoppingToken);
-
-                try
+                var today = DateTime.UtcNow.Date;
+                if (today.Month == 1 && today.Day == 1)
                 {
                     await AddNewYearLeaveEntitlementsAsync();
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Yearly leave balance reset failed");
-                }
+
+                await Task.Delay(TimeSpan.FromHours(24), stoppingToken);
             }
+
         }
+
         private async Task AddNewYearLeaveEntitlementsAsync()
         {
             using var scope = _serviceProvider.CreateScope();

@@ -15,7 +15,16 @@ using HRMS.AI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configure Serilog
+// ===================== RAILWAY PORT FIX =====================
+if (!builder.Environment.IsDevelopment())
+{
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+    builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+}
+
+// ===========================================================
+
+// -------------------- SERILOG --------------------
 Log.Logger = new LoggerConfiguration()
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
@@ -25,32 +34,35 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
-// Add services to the container
+// -------------------- CONTROLLERS --------------------
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
     });
+
 builder.Services.AddEndpointsApiExplorer();
+
+// -------------------- SWAGGER --------------------
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new() { 
-        Title = "HRMS API", 
+    c.SwaggerDoc("v1", new()
+    {
+        Title = "HRMS API",
         Version = "v1",
         Description = "Human Resource Management System API"
     });
-    
-    // Add JWT Authentication to Swagger
+
     c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
     {
-        Description = "JWT Authorization header using the Bearer scheme",
+        Description = "JWT Authorization header using Bearer scheme",
         Name = "Authorization",
         In = Microsoft.OpenApi.Models.ParameterLocation.Header,
         Type = Microsoft.OpenApi.Models.SecuritySchemeType.Http,
         Scheme = "bearer"
     });
-    
+
     c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
     {
         {
@@ -62,38 +74,37 @@ builder.Services.AddSwaggerGen(c =>
                     Id = "Bearer"
                 }
             },
-            new string[] {}
+            Array.Empty<string>()
         }
     });
 });
 
-// Configure Dapper
+// -------------------- DAPPER --------------------
 DapperConfiguration.Configure();
 
-// Add database connection
-builder.Services.AddSingleton<IDatabaseConnectionFactory>(provider =>
+// -------------------- DATABASE --------------------
+builder.Services.AddSingleton<IDatabaseConnectionFactory>(_ =>
 {
-    // Try Railway environment variable first
     var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-
-    // If not found, fallback to local appsettings.json
     var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
 
-    var finalConnectionString = !string.IsNullOrEmpty(envConnection) ? envConnection : configConnection;
+    var finalConnection = !string.IsNullOrEmpty(envConnection)
+        ? envConnection
+        : configConnection;
 
-    Console.WriteLine($"✅ Using connection source: {(envConnection != null ? "Railway Environment Variable" : "Local appsettings.json")}");
-    Console.WriteLine($"Connection string (sanitized): {finalConnectionString?.Split('@').Last()}");
+    if (string.IsNullOrEmpty(finalConnection))
+        throw new Exception("❌ Database connection string not found");
 
-    return new DatabaseConnectionFactory(finalConnectionString!);
+    Console.WriteLine($"✅ DB Source: {(envConnection != null ? "Railway ENV" : "Local Config")}");
+
+    return new DatabaseConnectionFactory(finalConnection);
 });
 
-
-// Add JWT Authentication
+// -------------------- JWT --------------------
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 builder.Services.Configure<JwtSettings>(jwtSettings);
 
-var secretKey = jwtSettings["SecretKey"]!;
-var key = Encoding.ASCII.GetBytes(secretKey);
+var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"]!);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -117,13 +128,13 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-
+// -------------------- CLOUDINARY --------------------
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("CloudinarySettings"));
 
-builder.Services.AddSingleton<CloudinaryService>();
+builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 
-// Add CORS
+// -------------------- CORS --------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -134,38 +145,28 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Register IHttpClientFactory for services that need HttpClient
+// -------------------- HTTP CLIENTS --------------------
 builder.Services.AddHttpClient();
 
-// Configure typed HttpClients for AI services
-builder.Services.AddHttpClient<GuidanceAIService>(client => {
-    // Optionally configure base address or default headers from configuration
-    var groqUrl = builder.Configuration["GroqAI:Url"];
-    if (!string.IsNullOrEmpty(groqUrl)) client.BaseAddress = new Uri(groqUrl);
+builder.Services.AddHttpClient<GuidanceAIService>(client =>
+{
+    var url = builder.Configuration["GroqAI:Url"];
+    if (!string.IsNullOrEmpty(url))
+        client.BaseAddress = new Uri(url);
 });
 
-builder.Services.AddHttpClient<IntentRecognitionService>(client => {
-    var groqUrl = builder.Configuration["GroqAI:Url"];
-    if (!string.IsNullOrEmpty(groqUrl)) client.BaseAddress = new Uri(groqUrl);
+builder.Services.AddHttpClient<IntentRecognitionService>(client =>
+{
+    var url = builder.Configuration["GroqAI:Url"];
+    if (!string.IsNullOrEmpty(url))
+        client.BaseAddress = new Uri(url);
 });
 
-// Register services using their interfaces
-//builder.Services.AddScoped<IGuidanceAIService, GuidanceAIService>();
-//builder.Services.AddScoped<IIntentRecognitionService, IntentRecognitionService>();
-
-// Add AutoMapper
+// -------------------- AUTOMAPPER & VALIDATION --------------------
 builder.Services.AddAutoMapper(typeof(MappingProfile));
-
-// Add FluentValidation
 builder.Services.AddValidatorsFromAssembly(typeof(Program).Assembly);
 
-// Register additional services and repositories (commented out until implementations are ready)
-// builder.Services.AddScoped<IDepartmentService, DepartmentService>();
-// builder.Services.AddScoped<IPositionService, PositionService>();
-// builder.Services.AddScoped<IDepartmentRepository, DepartmentRepository>();
-// builder.Services.AddScoped<IPositionRepository, PositionRepository>();
-
-// Add Services
+// -------------------- SERVICES --------------------
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IOrganizationService, OrganizationService>();
 builder.Services.AddScoped<IEmployeeService, EmployeeService>();
@@ -177,15 +178,13 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IChatBoardStatsService, ChatBoardStatsService>();
 builder.Services.AddScoped<IIntentRecognitionService, IntentRecognitionService>();
 builder.Services.AddScoped<IGuidanceAIService, GuidanceAIService>();
-builder.Services.AddScoped<IChatBoardStatsService, ChatBoardStatsService>();
 builder.Services.AddScoped<IChatBoardAiService, ChatBoardAiService>();
 
-// Add Repositories
+// -------------------- REPOSITORIES --------------------
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
@@ -198,28 +197,28 @@ builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IChatBoardAiRepository, ChatBoardAiRepository>();
 
-// Add Hosted Service for yearly leave balance reset
-builder.Services.AddHostedService<HRMS.API.Services.LeaveBalanceResetHostedService>();
+// -------------------- HOSTED SERVICES --------------------
+builder.Services.AddHostedService<LeaveBalanceResetHostedService>();
 
+// ===================== PIPELINE =====================
 var app = builder.Build();
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "HRMS API V1");
-    c.RoutePrefix = string.Empty; // Swagger at root
+    c.RoutePrefix = string.Empty;
 });
 
 app.UseStaticFiles();
 
-app.UseHttpsRedirection();
+// ❌ REMOVED HTTPS REDIRECTION (Railway handles HTTPS)
 
+// IMPORTANT ORDER
 app.UseCors("AllowAll");
-
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Add custom middleware
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
@@ -227,12 +226,12 @@ app.MapControllers();
 
 try
 {
-    Log.Information("Starting HRMS API application");
+    Log.Information("🚀 HRMS API started successfully");
     app.Run();
 }
 catch (Exception ex)
 {
-    Log.Fatal(ex, "Application terminated unexpectedly");
+    Log.Fatal(ex, "❌ Application crashed");
 }
 finally
 {
