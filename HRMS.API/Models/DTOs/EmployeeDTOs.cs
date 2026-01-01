@@ -38,6 +38,13 @@ public class EmployeeSimpleDto
     public Guid EmployeeId { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTime? HireDate { get; set; } // Optional if you wa
+    public string EmployeeCode { get; set; } = string.Empty;
+
+
+
 }
 
 
@@ -181,6 +188,35 @@ public class PositionDto
     public int EmployeeCount { get; set; }
     public DateTime CreatedAt { get; set; }
 }
+
+
+
+
+public class PositionEmployeeDto
+{
+    public Guid PositionId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTime? HireDate { get; set; } // Optional if you want hire date
+    public string PositionTitle { get; set; } = string.Empty;
+}
+
+public class PositionEmployeesMainDto
+{
+    public Guid PositionId { get; set; }
+    public string PositionTitle { get; set; } = string.Empty;
+    public int EmployeeCount { get; set; }
+    public List<PositionEmployeeDto> Employees { get; set; } = new();
+}
+
+
+
+
+
 
 public class CreatePositionRequest
 {

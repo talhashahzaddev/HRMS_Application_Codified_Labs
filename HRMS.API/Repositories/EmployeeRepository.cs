@@ -1,12 +1,13 @@
-﻿using HRMS.API.Configuration;
+﻿using Dapper;
+using DocumentFormat.OpenXml.InkML;
+using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
-using System.Data;
-using System.Text.Json;
-using Dapper;
 using Npgsql;
 using NPOI.SS.Formula.Functions;
+using System.Data;
+using System.Text.Json;
 
 namespace HRMS.API.Repositories;
 
@@ -750,6 +751,42 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         {
             throw;
         }
+    }
+
+
+    //Emloyee gettig of postion
+    public async Task<List<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId)
+    {
+        var sql = @"
+        SELECT 
+            ee.employeeid AS EmployeeId,
+            ee.employeecode AS EmployeeCode,
+            ee.firstname AS FirstName,
+            ee.lastname AS LastName,
+            ee.email AS Email,
+            ee.status AS Status,
+            ee.hiredate AS HireDate,
+            ep.positionid AS PositionId,
+            ep.positiontitle AS PositionTitle
+        FROM employee.employmentdetails edet
+        INNER JOIN employee.employees ee 
+            ON edet.employeeid = ee.employeeid
+        INNER JOIN employee.positions ep
+            ON edet.positionid = ep.positionid
+        WHERE edet.positionid = @PositionId
+          AND edet.iscurrent = true
+          AND ep.organizationid = @OrganizationId
+        ORDER BY ee.firstname, ee.lastname;
+    ";
+
+        // Use helper QueryAsync method to keep consistent with ExecuteScalarAsync pattern
+        var employees = await QueryAsync<PositionEmployeeDto>(sql, new
+        {
+            OrganizationId = organizationId,
+            PositionId = positionId
+        });
+
+        return employees.ToList();
     }
 
 

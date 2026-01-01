@@ -282,10 +282,10 @@ public class EmployeeService : IEmployeeService
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,
     string? status = null)
     {
-        var positions = await _employeeRepository.GetPositionsAsync(organizationId, departmentId,search,status);
+        var positions = await _employeeRepository.GetPositionsAsync(organizationId, departmentId, search, status);
         var positionDtos = _mapper.Map<List<PositionDto>>(positions);
 
-      
+
         foreach (var positionDto in positionDtos)
         {
             var position = positions.FirstOrDefault(p => p.PositionId == positionDto.PositionId);
@@ -294,6 +294,31 @@ public class EmployeeService : IEmployeeService
 
         return positionDtos;
     }
+
+    //  Postion Employee
+    public async Task<PositionEmployeesMainDto> GetEmployeesByPositionAsync(Guid organizationId, Guid positionId)
+    {
+        var employees = await _employeeRepository.GetEmployeesForPositionAsync(organizationId, positionId);
+
+        var result = new PositionEmployeesMainDto
+        {
+            PositionId = positionId,
+            PositionTitle = employees.FirstOrDefault()?.PositionTitle ?? string.Empty,
+            EmployeeCount = employees.Count,
+            Employees = employees
+        };
+
+        return result;
+    }
+
+
+
+
+
+
+
+
+
 
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId)
     {
