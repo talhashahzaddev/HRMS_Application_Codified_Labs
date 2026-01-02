@@ -40,7 +40,8 @@ public class AuthRepository : BaseRepository, IAuthRepository
                 },
                 Organization = new Organization
                 {
-                    Name = result.organizationname
+                    Name = result.organizationname,
+                    Domain=result.domain
                 }
             };
         }
