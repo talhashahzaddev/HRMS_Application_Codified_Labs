@@ -7,25 +7,17 @@
 -- ======================================================
 -- Function: fn_authenticate_user
 -- ======================================================
+
+
 CREATE OR REPLACE FUNCTION auth.fn_authenticate_user(
-    p_email character varying,
-    p_password_hash character varying
-)
-RETURNS TABLE(
-    userId uuid, 
-    organizationId uuid, 
-    email character varying, 
-    firstName character varying, 
-    lastName character varying, 
-    roleName character varying, 
-    permissions jsonb, 
-    organizationName character varying, 
-    isActive boolean
-) 
-LANGUAGE 'plpgsql'
-COST 100
-VOLATILE PARALLEL UNSAFE
-ROWS 1000
+	p_email character varying,
+	p_password_hash character varying)
+    RETURNS TABLE(userid uuid, organizationid uuid, email character varying, firstname character varying, lastname character varying, rolename character varying, permissions jsonb, organizationname character varying,domain character varying,  isactive boolean) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
 AS $BODY$
 BEGIN
     RETURN QUERY
@@ -38,6 +30,7 @@ BEGIN
         r.roleName,
         r.permissions,
         o.name AS organizationName,
+		o.domain,
         u.isActive
     FROM auth.users u
     INNER JOIN auth.roles r ON u.roleId = r.roleId
@@ -51,6 +44,7 @@ $BODY$;
 
 ALTER FUNCTION auth.fn_authenticate_user(character varying, character varying)
     OWNER TO postgres;
+
 
 
 -- ======================================================
