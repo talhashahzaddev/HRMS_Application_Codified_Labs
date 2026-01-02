@@ -14,67 +14,73 @@ public class DomainRepository : BaseRepository, IDomainRepository
 
     /// <summary>
     /// Validates if a domain exists in the organizations table
-    /// Checks if the domain matches exactly or if the stored domain starts with the subdomain
-    /// Example: Stored domain "acmecorp.com" should match subdomain "acmecorp"
+    /// Uses EXACT matching only (case-insensitive)
+    /// Domains are normalized (lowercase, no special characters, no spaces) before comparison
     /// </summary>
     public async Task<Organization?> ValidateDomainAsync(string domain)
     {
-        // Normalize domain: remove protocol, www, and extract subdomain
+        // Normalize domain: lowercase, remove special characters, spaces, and extract subdomain
         var normalizedDomain = NormalizeDomain(domain);
 
-        // Query to check if domain exists in the database
-        // We check:
-        // 1. Exact match: domain = "acmecorp"
-        // 2. Starts with subdomain: domain LIKE "acmecorp.%"
-        // 3. Contains subdomain at start: domain LIKE "acmecorp%"
+        if (string.IsNullOrWhiteSpace(normalizedDomain))
+        {
+            return null;
+        }
+
+        // Query to check if domain exists in the database using EXACT match only
+        // Extract subdomain from stored domain (first part before dot) and compare exactly
+        // Since DB domains are already normalized (lowercase, no special chars), we just extract subdomain
+        // Handle both cases: domain with dots (e.g., "myorg.com") and without (e.g., "myorg")
         var sql = @"
             SELECT * 
             FROM auth.organizations 
-            WHERE (LOWER(domain) = LOWER(@normalizedDomain)
-               OR LOWER(domain) LIKE LOWER(@startsWithPattern)
-               OR LOWER(domain) LIKE LOWER(@containsPattern))
+            WHERE (
+                LOWER(TRIM(SPLIT_PART(LOWER(TRIM(COALESCE(domain, ''))), '.', 1))) = LOWER(@normalizedDomain)
+                OR LOWER(TRIM(COALESCE(domain, ''))) = LOWER(@normalizedDomain)
+            )
             AND status = 'active'
+            AND domain IS NOT NULL
+            AND TRIM(domain) != ''
             LIMIT 1";
-
-        // Pattern for domains that start with the subdomain (e.g., "acmecorp.com", "acmecorp.org")
-        var startsWithPattern = $"{normalizedDomain}.%";
-        // Pattern for domains that contain the subdomain (fallback)
-        var containsPattern = $"{normalizedDomain}%";
 
         return await QuerySingleOrDefaultAsync<Organization>(sql, new 
         { 
-            normalizedDomain, 
-            startsWithPattern,
-            containsPattern
+            normalizedDomain
         });
     }
 
     /// <summary>
-    /// Gets organization by domain
+    /// Gets organization by domain using exact match
     /// </summary>
     public async Task<Organization?> GetOrganizationByDomainAsync(string domain)
     {
         var normalizedDomain = NormalizeDomain(domain);
         
+        if (string.IsNullOrWhiteSpace(normalizedDomain))
+        {
+            return null;
+        }
+        
         var sql = @"
             SELECT * 
             FROM auth.organizations 
-            WHERE (LOWER(domain) = LOWER(@normalizedDomain)
-               OR LOWER(domain) LIKE LOWER(@pattern))
+            WHERE LOWER(TRIM(domain)) = LOWER(@normalizedDomain)
             AND status = 'active'
             LIMIT 1";
 
-        var pattern = $"%{normalizedDomain}%";
-
         return await QuerySingleOrDefaultAsync<Organization>(sql, new 
         { 
-            normalizedDomain,
-            pattern
+            normalizedDomain
         });
     }
 
     /// <summary>
-    /// Normalizes domain string by removing protocol, www, and extracting subdomain
+    /// Normalizes domain string by:
+    /// 1. Removing protocol, www, and extracting subdomain
+    /// 2. Converting to lowercase
+    /// 3. Removing special characters (keeping only alphanumeric and hyphens)
+    /// 4. Removing spaces
+    /// 5. Removing leading/trailing hyphens
     /// </summary>
     private string NormalizeDomain(string domain)
     {
@@ -94,12 +100,30 @@ public class DomainRepository : BaseRepository, IDomainRepository
         var parts = domain.Split('.');
         if (parts.Length > 0)
         {
-            // If it's a subdomain like "xyz.briskpeople.com", return "xyz"
-            // If it's just "xyz", return "xyz"
-            return parts[0].ToLowerInvariant();
+            // If it's a subdomain like "xyz.briskpeople.com", use "xyz"
+            // If it's just "xyz", use "xyz"
+            domain = parts[0];
         }
 
-        return domain.ToLowerInvariant();
+        // Convert to lowercase
+        domain = domain.ToLowerInvariant();
+
+        // Remove all special characters except hyphens and alphanumeric
+        domain = System.Text.RegularExpressions.Regex.Replace(domain, @"[^a-z0-9-]", "");
+
+        // Remove spaces (though regex above should have handled this)
+        domain = domain.Replace(" ", "");
+
+        // Remove consecutive hyphens
+        while (domain.Contains("--"))
+        {
+            domain = domain.Replace("--", "-");
+        }
+
+        // Remove leading and trailing hyphens
+        domain = domain.Trim('-');
+
+        return domain;
     }
 }
 
