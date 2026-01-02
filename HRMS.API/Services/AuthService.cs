@@ -93,6 +93,7 @@ public class AuthService : IAuthService
             LastName = user.LastName,
             RoleName = user.Role?.RoleName ?? "Employee",
             OrganizationName = user.Organization?.Name ?? "Unknown",
+            Domain=user.Organization?.Domain,
             Token = accessToken,
             RefreshToken = refreshToken,
             TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
