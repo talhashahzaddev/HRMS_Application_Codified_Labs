@@ -1,11 +1,13 @@
+using DocumentFormat.OpenXml.Office2016.Excel;
+using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
+using HRMS.API.Models.ViewModels;
+using HRMS.API.Requests;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Asn1.Ocsp;
 using System.Security.Claims;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Models.ViewModels;
-using HRMS.API.Services.Interfaces;
-using HRMS.API.Models.Entities;
-using HRMS.API.Requests;
 
 namespace HRMS.API.Controllers;
 
@@ -24,123 +26,74 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("requests")]
-    public async Task<ActionResult<ServiceResponse<PagedResult<LeaveRequestDto>>>> GetLeaveRequests([FromQuery] LeaveRequestSearchViewModel searchModel)
+
+    public async Task<IActionResult> GetLeaveRequests([FromQuery] LeaveRequestSearchViewModel searchModel)
     {
-        try
-        {
-            var currentUserId = GetCurrentEmployeeId();
-            var organizationId = GetCurrentOrganizationId();
-            var requests = await _leaveService.GetLeaveRequestsAsync(currentUserId,searchModel, organizationId);
-            
-            return Ok(new ServiceResponse<PagedResult<LeaveRequestDto>>
-            {
-                Success = true,
-                Data = requests
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving leave requests");
-            return StatusCode(500, new ServiceResponse<PagedResult<LeaveRequestDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving leave requests"
-            });
-        }
+
+        _logger.LogInformation("Getting Current Employee");
+        var currentUserId = GetCurrentEmployeeId();
+        _logger.LogInformation("Getting Current Organization");
+        var organizationId = GetCurrentOrganizationId();
+        _logger.LogInformation("Getting Leave For user :{currentUserId}", currentUserId);
+
+        var requests = await _leaveService.GetLeaveRequestsAsync(currentUserId, searchModel, organizationId);
+
+        _logger.LogInformation("Response: {response}", requests);
+        return new ObjectResult(requests);
+
     }
+
+
+
 
     [HttpGet("requests/hr")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<PagedResult<LeaveRequestDto>>>> GetLeaveRequestsForHR([FromQuery] LeaveRequestSearchViewModel searchModel)
+    public async Task<IActionResult> GetLeaveRequestsForHR([FromQuery] LeaveRequestSearchViewModel searchModel)
     {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            var requests = await _leaveService.GetLeaveRequestsByOrganizationAsync(searchModel, organizationId);
-            
-            return Ok(new ServiceResponse<PagedResult<LeaveRequestDto>>
-            {
-                Success = true,
-                Data = requests
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving leave requests for HR");
-            return StatusCode(500, new ServiceResponse<PagedResult<LeaveRequestDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving leave requests"
-            });
-        }
+        _logger.LogInformation("Getting Current Organization");
+        var organizationId = GetCurrentOrganizationId();
+
+        _logger.LogInformation("Getting Leave Requests For HR. OrganizationId: {organizationId}", organizationId);
+
+        var requests = await _leaveService.GetLeaveRequestsByOrganizationAsync(searchModel, organizationId);
+
+        _logger.LogInformation("Response: {response}", requests);
+        return new ObjectResult(requests);
+
     }
+
+
 
     [HttpGet("requests/{id}")]
-    public async Task<ActionResult<ServiceResponse<LeaveRequestDto>>> GetLeaveRequest(Guid id)
+    public async Task<IActionResult> GetLeaveRequest(Guid id)
     {
-        try
-        {
-            var request = await _leaveService.GetLeaveRequestByIdAsync(id);
-            if (request == null)
-            {
-                return NotFound(new ServiceResponse<LeaveRequestDto>
-                {
-                    Success = false,
-                    Message = "Leave request not found"
-                });
-            }
 
-            return Ok(new ServiceResponse<LeaveRequestDto>
-            {
-                Success = true,
-                Data = request
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving leave request {RequestId}", id);
-            return StatusCode(500, new ServiceResponse<LeaveRequestDto>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving leave request"
-            });
-        }
+        _logger.LogInformation("Getting leave request for Request.Rrequestid :{requestid}", id);
+        var request = await _leaveService.GetLeaveRequestByIdAsync(id);
+
+        _logger.LogInformation("Response: {response}", request);
+
+        //return StatusCode(request.StatusCode, request);
+        return new ObjectResult(request);
+
     }
+
 
     [HttpGet("getleaverequestbyemployeeid")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveRequest>>>> GetLeaveRequestByEmployeeId()
+    public async Task<IActionResult> GetLeaveRequestByEmployeeId()
     {
+        _logger.LogInformation("Getting Leave Requests for current employee");
+
         var userId = GetCurrentEmployeeId();
 
-        try
-        {
-            var requests = await _leaveService.GetLeaveRequestByEmployeeId(userId);
+        var response = await _leaveService.GetLeaveRequestByEmployeeId(userId);
 
-            if (requests == null || !requests.Any())
-            {
-                return NotFound(new ServiceResponse<List<LeaveRequest>>
-                {
-                    Success = false,
-                    Message = "No leave requests found"
-                });
-            }
+        _logger.LogInformation("Response: {response}", response);
 
-            return Ok(new ServiceResponse<List<LeaveRequest>>
-            {
-                Success = true,
-                Data = requests
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving leave requests for employee {UserId}", userId);
-            return StatusCode(500, new ServiceResponse<List<LeaveRequest>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving leave requests"
-            });
-        }
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
     }
+
 
 
     [HttpPost("requests")]
@@ -149,8 +102,10 @@ public class LeaveController : ControllerBase
         try
         {
             var UserId = GetCurrentEmployeeId();
+
+            var idd = Guid.Parse("5579f3d7-5f3c-48b6-9927-54cf9e9edf59");
             var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, UserId);
-            
+
             return CreatedAtAction(nameof(GetLeaveRequest), new { id = leaveRequest.RequestId }, new ServiceResponse<LeaveRequestDto>
             {
                 Success = true,
@@ -177,391 +132,253 @@ public class LeaveController : ControllerBase
         }
     }
 
+
     [HttpPut("requests/{id}/approve")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<bool>>> ApproveLeaveRequest(Guid id)
+    public async Task<IActionResult> ApproveLeaveRequest(Guid id)
     {
-        try
-        {
-            var approvedBy = GetCurrentEmployeeId();
-            var request = new UpdateLeaveRequestStatusRequest { Status = "approved" };
-            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
-            if (result == false)
-            {
-                return StatusCode(409, new ServiceResponse<bool>
-                {
-                    Success = false,
-                    Message = "Leave request not approved"
-                });
-            }
-            return Ok(new ServiceResponse<bool>
-            {
-                Success = true,
-                Message = "Leave request approved successfully",
-                Data = result
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error approving leave request {RequestId}", id);
-            return StatusCode(500, new ServiceResponse<bool>
-            {
-                Success = false,
-                Message = "An error occurred while approving leave request"
-            });
-        }
+        _logger.LogInformation("Approving Leave Request. RequestId: {requestId}", id);
+
+        var approvedBy = GetCurrentEmployeeId();
+        var request = new UpdateLeaveRequestStatusRequest { Status = "approved" };
+
+        var response = await _leaveService
+            .UpdateLeaveRequestStatusAsync(id, request, approvedBy);
+
+        _logger.LogInformation("Response: {response}", response);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
     }
+
+
+
+
 
     [HttpPut("requests/{id}/reject")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<bool>>> RejectLeaveRequest(Guid id, [FromBody] UpdateLeaveRequestStatusRequest request)
+    public async Task<IActionResult> RejectLeaveRequest(
+    Guid id,
+    [FromBody] UpdateLeaveRequestStatusRequest request)
     {
-        try
-        {
-            var approvedBy = GetCurrentEmployeeId();
-            request.Status = "rejected";
-            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
-            
-            return Ok(new ServiceResponse<bool>
-            {
-                Success = true,
-                Message = "Leave request rejected successfully",
-                Data = result
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error rejecting leave request {RequestId}", id);
-            return StatusCode(500, new ServiceResponse<bool>
-            {
-                Success = false,
-                Message = "An error occurred while rejecting leave request"
-            });
-        }
+        _logger.LogInformation("Rejecting Leave Request. RequestId: {requestId}", id);
+
+        var approvedBy = GetCurrentEmployeeId();
+        request.Status = "rejected";
+
+        var response = await _leaveService
+            .UpdateLeaveRequestStatusAsync(id, request, approvedBy);
+
+        _logger.LogInformation("Response: {response}", response);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
+
 
     [HttpPut("requests/{id}")]
-    public async Task<ActionResult<ServiceResponse<LeaveRequestDto>>> UpdateLeaveRequest(Guid id, [FromBody] UpdateLeaveRequest request)
+    public async Task<IActionResult> UpdateLeaveRequest(Guid id,[FromBody] UpdateLeaveRequest request)
     {
-        try
-        {
-            var employeeId = GetCurrentEmployeeId();
-            var updatedRequest = await _leaveService.UpdateLeaveRequestAsync(id, request, employeeId);
-            
-            if (updatedRequest == null)
-            {
-                return NotFound(new ServiceResponse<LeaveRequestDto>
-                {
-                    Success = false,
-                    Message = "Leave request not found or cannot be updated"
-                });
-            }
 
-            return Ok(new ServiceResponse<LeaveRequestDto>
-            {
-                Success = true,
-                Message = "Leave request updated successfully",
-                Data = updatedRequest
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ServiceResponse<LeaveRequestDto>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Forbid();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating leave request {RequestId}", id);
-            return StatusCode(500, new ServiceResponse<LeaveRequestDto>
-            {
-                Success = false,
-                Message = "An error occurred while updating leave request"
-            });
-        }
+        _logger.LogInformation("Getting Current Employeeid");
+        var employeeId = GetCurrentEmployeeId();
+
+        _logger.LogInformation("Updating Leave Request. RequestId: {RequestId}", id);
+        var response = await _leaveService.UpdateLeaveRequestAsync(id, request, employeeId);
+
+        _logger.LogInformation("Response: {@Response}", response);
+
+        return StatusCode(response.StatusCode, response);
     }
+
 
     [HttpDelete("requests/{id}")]
-    public async Task<ActionResult<ServiceResponse<bool>>> CancelLeaveRequest(Guid id)
+    public async Task<IActionResult> CancelLeaveRequest(Guid id)
     {
-        try
-        {
-            var employeeId = GetCurrentEmployeeId();
-            var result = await _leaveService.CancelLeaveRequestAsync(id, employeeId);
-            
-            if (!result)
-            {
-                return NotFound(new ServiceResponse<bool>
-                {
-                    Success = false,
-                    Message = "Leave request not found or cannot be cancelled"
-                });
-            }
 
-            return Ok(new ServiceResponse<bool>
-            {
-                Success = true,
-                Message = "Leave request cancelled successfully",
-                Data = result
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ServiceResponse<bool>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Forbid();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error cancelling leave request {RequestId}", id);
-            return StatusCode(500, new ServiceResponse<bool>
-            {
-                Success = false,
-                Message = "An error occurred while cancelling leave request"
-            });
-        }
+        _logger.LogInformation("getting current employee", id);
+
+        var employeeId = GetCurrentEmployeeId();
+
+        _logger.LogInformation("Cancelling Leave Request. RequestId: {RequestId}", id);
+          var response = await _leaveService.CancelLeaveRequestAsync(id, employeeId);
+
+        _logger.LogInformation("Response: {@Response}", response);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
+
+
+
 
     [HttpGet("types")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveTypeDto>>>> GetLeaveTypes()
+    public async Task<IActionResult> GetLeaveTypes()
     {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            var leaveTypes = await _leaveService.GetLeaveTypesAsync(organizationId);
-            
-            return Ok(new ServiceResponse<List<LeaveTypeDto>>
-            {
-                Success = true,
-                Data = leaveTypes
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving leave types");
-            return StatusCode(500, new ServiceResponse<List<LeaveTypeDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving leave types"
-            });
-        }
+        _logger.LogInformation("Fetching Leave Types");
+
+        var organizationId = GetCurrentOrganizationId();
+
+        var response = await _leaveService.GetLeaveTypesAsync(organizationId);
+
+        _logger.LogInformation("Response: {@Response}", response);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
+
+
+
     [HttpPost("types")]
-    public async Task<ActionResult<ServiceResponse<Guid>>> CreateLeaveType([FromBody] CreateLeaveTypeRequest request)
+    public async Task<IActionResult> CreateLeaveType([FromBody] CreateLeaveTypeRequest request)
     {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            var leaveTypeId = await _leaveService.CreateLeaveTypeAsync(organizationId, request);
-            if(leaveTypeId != Guid.Empty)
-            {
-                return Ok(new ServiceResponse<Guid>
-                {
-                    Success = true,
-                    Data = leaveTypeId,
-                    Message = "Leave type created successfully"
-                });
-            }
-            else
-            {
-                return StatusCode(500, new ServiceResponse<Guid>
-                {
-                    Success = false,
-                    Message = "An error occurred while creating leave type"
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating leave type");
-            return StatusCode(500, new ServiceResponse<Guid>
-            {
-                Success = false,
-                Message = "An error occurred while creating leave type"
-            });
-        }
+     
+        var organizationId = GetCurrentOrganizationId();
+        _logger.LogInformation("Creating Leave Type");
+        var response = await _leaveService.CreateLeaveTypeAsync(organizationId, request);
+
+        _logger.LogInformation("Response: {@Response}", response);
+
+        return StatusCode(response.StatusCode, response);
     }
+
 
     [HttpPut("types/{leaveTypeId:guid}")]
-    public async Task<ActionResult<ServiceResponse<Guid>>> EditLeaveType(
-    Guid leaveTypeId,
-    [FromBody] EditLeaveTypeRequest request)
+    public async Task<IActionResult> EditLeaveType(Guid leaveTypeId,[FromBody] EditLeaveTypeRequest request)
     {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
+        _logger.LogInformation("Editing Leave Type. LeaveTypeId: {LeaveTypeId}", leaveTypeId);
 
-            var updated = await _leaveService.EditLeaveTypeAsync(organizationId, leaveTypeId, request);
+        var organizationId = GetCurrentOrganizationId();
 
-            if (updated)
-            {
-                return Ok(new ServiceResponse<Guid>
-                {
-                    Success = true,
-                    Data = leaveTypeId,
-                    Message = "Leave type updated successfully"
-                });
-            }
+        var response = await _leaveService.EditLeaveTypeAsync(organizationId, leaveTypeId, request);
 
-            return StatusCode(500, new ServiceResponse<Guid>
-            {
-                Success = false,
-                Message = "An error occurred while updating leave type"
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error updating leave type");
-            return StatusCode(500, new ServiceResponse<Guid>
-            {
-                Success = false,
-                Message = "An error occurred while updating leave type"
-            });
-        }
+        _logger.LogInformation("Response: {@Response}", response);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
 
 
     [HttpGet("entitlements")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveEntitlementDto>>>> GetLeaveEntitlements([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
+    public async Task<IActionResult> GetLeaveEntitlements([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
     {
-        try
-        {
-            var empId = employeeId ?? GetCurrentEmployeeId();
-            var entitlementYear = year ?? DateTime.Now.Year;
-            var entitlements = await _leaveService.GetLeaveEntitlementsAsync(empId, entitlementYear);
-            
-            return Ok(new ServiceResponse<List<LeaveEntitlementDto>>
-            {
-                Success = true,
-                Data = entitlements
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving leave entitlements");
-            return StatusCode(500, new ServiceResponse<List<LeaveEntitlementDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving leave entitlements"
-            });
-        }
+        var empId = employeeId ?? GetCurrentEmployeeId();
+        var entitlementYear = year ?? DateTime.Now.Year;
+
+        _logger.LogInformation(
+            "GetLeaveEntitlements | EmpId: {EmpId}, Year: {Year}",
+            empId, entitlementYear);
+
+        var response = await _leaveService.GetLeaveEntitlementsAsync(
+            empId, entitlementYear);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
+
 
     [HttpGet("balance")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveBalanceDto>>>> GetLeaveBalance([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
+   
+    public async Task<IActionResult> GetLeaveBalance([FromQuery] Guid? employeeId = null,[FromQuery] int? year = null)
     {
-        try
-        {
-            var empId = employeeId ?? GetCurrentEmployeeId();
-            var balanceYear = year ?? DateTime.Now.Year;
-            var balance = await _leaveService.GetLeaveBalanceAsync(empId, balanceYear);
-            
-            return Ok(new ServiceResponse<List<LeaveBalanceDto>>
-            {
-                Success = true,
-                Data = balance
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving leave balance");
-            return StatusCode(500, new ServiceResponse<List<LeaveBalanceDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving leave balance"
-            });
-        }
+        _logger.LogInformation("Fetching Leave Balance");
+
+        var empId = employeeId ?? GetCurrentEmployeeId();
+        var balanceYear = year ?? DateTime.Now.Year;
+
+        var response = await _leaveService.GetLeaveBalanceAsync(empId, balanceYear);
+
+        _logger.LogInformation("Response: {@Response}", response);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
 
-    [HttpGet("calendar")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveCalendarDto>>>> GetLeaveCalendar([FromQuery] DateTime startDate,DateTime endDate)
-    {
-        try
-        {
-            var userId = GetCurrentEmployeeId();
-            var data = await _leaveService.GetLeaveRequestsForCalendarAsync(userId, startDate, endDate);
 
-            return Ok(new ServiceResponse<List<LeaveCalendarDto>>
-            {
-                Success = true,
-                Data = data
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving leave calendar");
-            return StatusCode(500, new ServiceResponse<List<LeaveCalendarDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving leave calendar"
-            });
-        }
+    [HttpGet("calendar")]
+ 
+    public async Task<IActionResult> GetLeaveCalendar([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    {
+        _logger.LogInformation("Fetching Leave Calendar. StartDate: {StartDate}, EndDate: {EndDate}", startDate, endDate);
+
+        var userId = GetCurrentEmployeeId();
+
+
+        var response = await _leaveService.GetLeaveRequestsForCalendarAsync(userId, startDate, endDate);
+
+        _logger.LogInformation("Response: {@Response}", response);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
 
     [HttpGet("team/remaining-leaves")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<PagedResult<TeamRemainingLeavesDto>>>> GetTeamRemainingLeaves([FromQuery] TeamRemainingLeavesSearchViewModel searchModel)
+    public async Task<IActionResult> GetTeamRemainingLeaves([FromQuery] TeamRemainingLeavesSearchViewModel searchModel)
     {
-        try
-        {
-            var managerUserId = GetCurrentEmployeeId();
-            var organizationId = GetCurrentOrganizationId();
-            
-            var data = await _leaveService.GetTeamRemainingLeavesAsync(managerUserId, organizationId, searchModel);
+        var managerUserId = GetCurrentEmployeeId();
+        var organizationId = GetCurrentOrganizationId();
 
-            return Ok(new ServiceResponse<PagedResult<TeamRemainingLeavesDto>>
-            {
-                Success = true,
-                Data = data
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving team remaining leaves");
-            return StatusCode(500, new ServiceResponse<PagedResult<TeamRemainingLeavesDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving team remaining leaves"
-            });
-        }
+        _logger.LogInformation("Fetching Team Remaining Leaves. ManagerUserId: {ManagerUserId}, OrganizationId: {OrganizationId}",
+            managerUserId, organizationId);
+
+        var response = await _leaveService.GetTeamRemainingLeavesAsync(managerUserId, organizationId, searchModel);
+
+        _logger.LogInformation("Response: {@Response}", response);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
 
     [HttpGet("check-overlap")]
-    public async Task<ActionResult<ServiceResponse<bool>>> CheckLeaveOverlap([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? excludeRequestId = null)
+
+    public async Task<IActionResult> CheckLeaveOverlap([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? excludeRequestId = null)
     {
-        try
-        {
-            var employeeId = GetCurrentEmployeeId();
-            var hasOverlap = await _leaveService.HasOverlappingLeaveAsync(employeeId, startDate, endDate, excludeRequestId);
-            
-            return Ok(new ServiceResponse<bool>
-            {
-                Success = true,
-                Data = hasOverlap
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error checking leave overlap");
-            return StatusCode(500, new ServiceResponse<bool>
-            {
-                Success = false,
-                Message = "An error occurred while checking leave overlap"
-            });
-        }
+        var employeeId = GetCurrentEmployeeId();
+
+        _logger.LogInformation(
+            "CheckLeaveOverlap | EmployeeId: {EmployeeId}, StartDate: {StartDate}, EndDate: {EndDate}, ExcludeRequestId: {ExcludeRequestId}",
+            employeeId, startDate, endDate, excludeRequestId);
+
+        var response = await _leaveService.HasOverlappingLeaveAsync(employeeId, startDate, endDate, excludeRequestId);
+
+        //return StatusCode(response.StatusCode, response);
+        return new ObjectResult(response);
+
     }
+
+    //public async Task<ActionResult<ServiceResponse<bool>>> CheckLeaveOverlap([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? excludeRequestId = null)
+    //{
+    //    try
+    //    {
+    //        var employeeId = GetCurrentEmployeeId();
+    //        var hasOverlap = await _leaveService.HasOverlappingLeaveAsync(employeeId, startDate, endDate, excludeRequestId);
+
+    //        return Ok(new ServiceResponse<bool>
+    //        {
+    //            Success = true,
+    //            Data = hasOverlap
+    //        });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error checking leave overlap");
+    //        return StatusCode(500, new ServiceResponse<bool>
+    //        {
+    //            Success = false,
+    //            Message = "An error occurred while checking leave overlap"
+    //        });
+    //    }
+    //}
+
 
 
     private Guid GetCurrentEmployeeId()

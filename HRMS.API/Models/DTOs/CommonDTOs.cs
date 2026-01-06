@@ -6,22 +6,22 @@ public class PagedResult<T>
 {
     [JsonPropertyName("data")]
     public List<T> Data { get; set; } = new();
-    
+
     [JsonPropertyName("totalCount")]
     public int TotalCount { get; set; }
-    
+
     [JsonPropertyName("page")]
     public int Page { get; set; }
-    
+
     [JsonPropertyName("pageSize")]
     public int PageSize { get; set; }
-    
+
     [JsonPropertyName("totalPages")]
     public int TotalPages => (int)Math.Ceiling((double)TotalCount / PageSize);
-    
+
     [JsonPropertyName("hasNextPage")]
     public bool HasNextPage => Page < TotalPages;
-    
+
     [JsonPropertyName("hasPreviousPage")]
     public bool HasPreviousPage => Page > 1;
 }
@@ -29,9 +29,10 @@ public class PagedResult<T>
 public class ServiceResponse<T>
 {
     public T? Data { get; set; }
-    public bool Success { get; set; } = true;
-    public string Message { get; set; } = "";
-    public List<string>? Errors { get; set; }
+    public bool Success { get; set; }
+    public int StatusCode { get; set; }
+    public string Message { get; set; }
+    public string? Errors { get; set; }
 }
 
 public class DashboardStatsDto
