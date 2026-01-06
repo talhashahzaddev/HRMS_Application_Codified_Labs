@@ -738,3 +738,49 @@ CREATE TABLE admin.system_jobs (
 );
 
 TABLESPACE pg_default;
+
+-- ==============================
+-- PAYMENT SCHEMA
+-- ==============================
+-- Table: payment.subscriptionplans
+
+-- DROP TABLE IF EXISTS payment.subscriptionplans;
+
+CREATE TABLE IF NOT EXISTS payment.subscriptionplans
+(
+    planid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    name text COLLATE pg_catalog."default" NOT NULL,
+    monthlyprice numeric,
+    annualprice numeric,
+    maxusers integer,
+    features jsonb,
+    iscustom boolean DEFAULT false,
+    isactive boolean DEFAULT true,
+    CONSTRAINT subscriptionplans_pkey PRIMARY KEY (planid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS payment.subscriptionplans
+    OWNER to postgres;
+
+    -- Table: payment.companysubscriptions
+
+-- DROP TABLE IF EXISTS payment.companysubscriptions;
+
+CREATE TABLE IF NOT EXISTS payment.companysubscriptions
+(
+    subscriptionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    companyid uuid,
+    planid uuid,
+    status text COLLATE pg_catalog."default",
+    billingcycle text COLLATE pg_catalog."default",
+    startdate timestamp without time zone,
+    enddate timestamp without time zone,
+    CONSTRAINT companysubscriptions_pkey PRIMARY KEY (subscriptionid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS payment.companysubscriptions
+    OWNER to postgres;
