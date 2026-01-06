@@ -15,3 +15,4 @@ public interface IDomainService
     Task<ServiceResponse<DomainValidationResponse>> ValidateDomainAsync(string domain);
 }
 
+
