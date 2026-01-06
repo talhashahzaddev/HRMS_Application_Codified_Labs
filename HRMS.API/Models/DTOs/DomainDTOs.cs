@@ -12,3 +12,4 @@ public class DomainValidationResponse
     public string? Message { get; set; }
 }
 
+

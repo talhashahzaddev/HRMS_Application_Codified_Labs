@@ -22,3 +22,4 @@ public interface IDomainRepository
     Task<Organization?> GetOrganizationByDomainAsync(string domain);
 }
 
+
