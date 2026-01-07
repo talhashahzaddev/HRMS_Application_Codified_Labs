@@ -150,6 +150,134 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
         return affectedRows > 0;
     }
 
+    public async Task<CompanySubscriptionDto?> GetCompanySubscriptionByIdAsync(Guid subscriptionId)
+    {
+        var sql = @"
+            SELECT 
+                subscriptionid,
+                companyid,
+                planid,
+                status,
+                billingcycle,
+                startdate,
+                enddate
+            FROM payment.companysubscriptions
+            WHERE subscriptionid = @subscriptionId";
+
+        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { subscriptionId });
+        
+        if (result == null)
+            return null;
+
+        return MapToCompanySubscriptionDto(result);
+    }
+
+    public async Task<IEnumerable<CompanySubscriptionDto>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId)
+    {
+        var sql = @"
+            SELECT 
+                subscriptionid,
+                companyid,
+                planid,
+                status,
+                billingcycle,
+                startdate,
+                enddate
+            FROM payment.companysubscriptions
+            WHERE companyid = @companyId";
+
+        var results = await QueryAsync<dynamic>(sql, new { companyId });
+        return results.Select(MapToCompanySubscriptionDto);
+    }
+
+    public async Task<IEnumerable<CompanySubscriptionDto>> GetAllCompanySubscriptionsAsync()
+    {
+        var sql = @"
+            SELECT 
+                subscriptionid,
+                companyid,
+                planid,
+                status,
+                billingcycle,
+                startdate,
+                enddate
+            FROM payment.companysubscriptions";
+
+        var results = await QueryAsync<dynamic>(sql);
+        return results.Select(MapToCompanySubscriptionDto);
+    }
+
+    public async Task<Guid> CreateCompanySubscriptionAsync(CreateCompanySubscriptionRequest request)
+    {
+        var sql = @"
+            INSERT INTO payment.companysubscriptions 
+                (companyid, planid, status, billingcycle, startdate, enddate)
+            VALUES 
+                (@companyId, @planId, @status, @billingCycle, @startDate, @endDate)
+            RETURNING subscriptionid";
+
+        var subscriptionId = await ExecuteScalarAsync<Guid>(sql, new
+        {
+            companyId = request.CompanyId,
+            planId = request.PlanId,
+            status = request.Status,
+            billingCycle = request.BillingCycle,
+            startDate = request.StartDate,
+            endDate = request.EndDate
+        });
+
+        return subscriptionId;
+    }
+
+    public async Task<bool> UpdateCompanySubscriptionAsync(Guid subscriptionId, UpdateCompanySubscriptionRequest request)
+    {
+        var sql = @"
+            UPDATE payment.companysubscriptions
+            SET 
+                planid = @planId,
+                status = @status,
+                billingcycle = @billingCycle,
+                startdate = @startDate,
+                enddate = @endDate
+            WHERE subscriptionid = @subscriptionId";
+
+        var affectedRows = await ExecuteAsync(sql, new
+        {
+            subscriptionId,
+            planId = request.PlanId,
+            status = request.Status,
+            billingCycle = request.BillingCycle,
+            startDate = request.StartDate,
+            endDate = request.EndDate
+        });
+
+        return affectedRows > 0;
+    }
+
+    public async Task<bool> DeleteCompanySubscriptionAsync(Guid subscriptionId)
+    {
+        var sql = @"
+            DELETE FROM payment.companysubscriptions
+            WHERE subscriptionid = @subscriptionId";
+
+        var affectedRows = await ExecuteAsync(sql, new { subscriptionId });
+        return affectedRows > 0;
+    }
+
+    private CompanySubscriptionDto MapToCompanySubscriptionDto(dynamic row)
+    {
+        return new CompanySubscriptionDto
+        {
+            SubscriptionId = row.subscriptionid,
+            CompanyId = row.companyid,
+            PlanId = row.planid,
+            Status = row.status,
+            BillingCycle = row.billingcycle,
+            StartDate = row.startdate,
+            EndDate = row.enddate
+        };
+    }
+
     private SubscriptionPlanDto MapToSubscriptionPlanDto(dynamic row)
     {
         Dictionary<string, object>? features = null;

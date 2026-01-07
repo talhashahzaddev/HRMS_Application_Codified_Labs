@@ -1,7 +1,9 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Asn1.Ocsp;
+using System.Security.Claims;
 
 namespace HRMS.API.Controllers;
 
@@ -74,7 +76,7 @@ public class PaymentController : ControllerBase
         try
         {
             var response = await _paymentService.GetSubscriptionPlanByIdAsync(planId);
-            
+
             if (!response.Success)
             {
                 return NotFound(response);
@@ -122,7 +124,7 @@ public class PaymentController : ControllerBase
             }
 
             var response = await _paymentService.CreateSubscriptionPlanAsync(request);
-            
+
             if (!response.Success)
             {
                 return BadRequest(response);
@@ -193,7 +195,7 @@ public class PaymentController : ControllerBase
             }
 
             var response = await _paymentService.UpdateSubscriptionPlanAsync(planId, request);
-            
+
             if (!response.Success)
             {
                 return NotFound(response);
@@ -249,7 +251,7 @@ public class PaymentController : ControllerBase
         try
         {
             var response = await _paymentService.InactivateSubscriptionPlanAsync(planId);
-            
+
             if (!response.Success)
             {
                 return NotFound(response);
@@ -296,7 +298,7 @@ public class PaymentController : ControllerBase
         try
         {
             var response = await _paymentService.DeleteSubscriptionPlanAsync(planId);
-            
+
             if (!response.Success)
             {
                 return NotFound(response);
@@ -332,5 +334,308 @@ public class PaymentController : ControllerBase
             });
         }
     }
+
+    /// <summary>
+    /// Get all company subscriptions
+    /// </summary>
+    [HttpGet("company-subscriptions")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<CompanySubscriptionDto>>>> GetAllCompanySubscriptions()
+    {
+        try
+        {
+            var response = await _paymentService.GetAllCompanySubscriptionsAsync();
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving all company subscriptions");
+            return StatusCode(500, new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving company subscriptions"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get company subscription by ID
+    /// </summary>
+    [HttpGet("company-subscriptions/{subscriptionId:guid}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<CompanySubscriptionDto>>> GetCompanySubscriptionById(Guid subscriptionId)
+    {
+        try
+        {
+            var response = await _paymentService.GetCompanySubscriptionByIdAsync(subscriptionId);
+
+            if (!response.Success)
+            {
+                return NotFound(response);
+            }
+
+            return Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for getting company subscription: {SubscriptionId}", subscriptionId);
+            return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving company subscription {SubscriptionId}", subscriptionId);
+            return StatusCode(500, new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the company subscription"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get company subscriptions by company ID
+    /// </summary>
+    [HttpGet("company-subscriptions/company/{companyId:guid}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<CompanySubscriptionDto>>>> GetCompanySubscriptionsByCompanyId(Guid companyId)
+    {
+        try
+        {
+            Guid organizationId = GetCurrentOrganizationId();
+            companyId = organizationId;
+            var response = await _paymentService.GetCompanySubscriptionsByCompanyIdAsync(companyId);
+            return Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for getting subscriptions for company: {CompanyId}", companyId);
+            return BadRequest(new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving subscriptions for company {CompanyId}", companyId);
+            return StatusCode(500, new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving company subscriptions"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Create a new company subscription
+    /// </summary>
+    [HttpPost("company-subscriptions")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<CompanySubscriptionDto>>> CreateCompanySubscription([FromBody] CreateCompanySubscriptionRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+            var organizationId = GetCurrentOrganizationId();
+            request.CompanyId = organizationId;
+            var response = await _paymentService.CreateCompanySubscriptionAsync(request);
+
+            if (!response.Success)
+            {
+                return BadRequest(response); // Or whatever status is appropriate for failure
+            }
+
+            return CreatedAtAction(
+                nameof(GetCompanySubscriptionById),
+                new { subscriptionId = response.Data?.SubscriptionId },
+                response);
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating company subscription");
+            return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating company subscription");
+            return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error creating company subscription");
+            return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error creating company subscription");
+            return StatusCode(500, new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating the company subscription"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Update an existing company subscription
+    /// </summary>
+    [HttpPut("company-subscriptions/{subscriptionId:guid}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<CompanySubscriptionDto>>> UpdateCompanySubscription(
+        Guid subscriptionId,
+        [FromBody] UpdateCompanySubscriptionRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+
+            var response = await _paymentService.UpdateCompanySubscriptionAsync(subscriptionId, request);
+
+            if (!response.Success)
+            {
+                return NotFound(response);
+            }
+
+            return Ok(response);
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating company subscription: {SubscriptionId}", subscriptionId);
+            return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating company subscription: {SubscriptionId}", subscriptionId);
+            return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error updating company subscription: {SubscriptionId}", subscriptionId);
+            return BadRequest(new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error updating company subscription {SubscriptionId}", subscriptionId);
+            return StatusCode(500, new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating the company subscription"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Delete a company subscription
+    /// </summary>
+    [HttpDelete("company-subscriptions/{subscriptionId:guid}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteCompanySubscription(Guid subscriptionId)
+    {
+        try
+        {
+            var response = await _paymentService.DeleteCompanySubscriptionAsync(subscriptionId);
+
+            if (!response.Success)
+            {
+                return NotFound(response);
+            }
+
+            return NoContent();
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for deleting company subscription: {SubscriptionId}", subscriptionId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error deleting company subscription: {SubscriptionId}", subscriptionId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error deleting company subscription {SubscriptionId}", subscriptionId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting the company subscription"
+            });
+        }
+    }
+    /// <summary>
+    /// Get Current Company
+    /// </summary>
+    /// private Guid GetCurrentOrganizationId()
+    private Guid GetCurrentOrganizationId()
+    {
+        var orgIdClaim = User.FindFirstValue("organizationId");
+
+        if (string.IsNullOrEmpty(orgIdClaim))
+        {
+            _logger.LogError("Organization ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("Organization ID not found in token");
+        }
+
+        if (!Guid.TryParse(orgIdClaim, out var organizationId))
+        {
+            _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
+            throw new UnauthorizedAccessException("Invalid organization ID format");
+        }
+
+        return organizationId;
+    }
 }
+
 
