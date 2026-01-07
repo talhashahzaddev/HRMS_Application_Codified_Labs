@@ -63,6 +63,15 @@ public class CompanySubscriptionDto
     public DateTime? EndDate { get; set; }
 }
 
+public class CompanySubscriptionDetailsDto
+{
+    public Guid PlanId { get; set; }
+    public string PlanName { get; set; } = string.Empty;
+    public string BillingCycle { get; set; } = string.Empty;
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+}
+
 public class CreateCompanySubscriptionRequest
 {
     [Required]
@@ -97,4 +106,3 @@ public class UpdateCompanySubscriptionRequest
     
     public DateTime? EndDate { get; set; }
 }
-

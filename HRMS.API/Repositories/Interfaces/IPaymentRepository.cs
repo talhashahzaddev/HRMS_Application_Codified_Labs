@@ -16,6 +16,7 @@ public interface IPaymentRepository
     Task<CompanySubscriptionDto?> GetCompanySubscriptionByIdAsync(Guid subscriptionId);
     Task<IEnumerable<CompanySubscriptionDto>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId);
     Task<IEnumerable<CompanySubscriptionDto>> GetAllCompanySubscriptionsAsync();
+    Task<CompanySubscriptionDetailsDto?> GetCompanySubscriptionDetailsByCompanyIdAsync(Guid companyId);
     Task<Guid> CreateCompanySubscriptionAsync(CreateCompanySubscriptionRequest request);
     Task<bool> UpdateCompanySubscriptionAsync(Guid subscriptionId, UpdateCompanySubscriptionRequest request);
     Task<bool> DeleteCompanySubscriptionAsync(Guid subscriptionId);

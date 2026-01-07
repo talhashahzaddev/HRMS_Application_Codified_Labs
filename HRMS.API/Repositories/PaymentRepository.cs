@@ -207,6 +207,37 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
         return results.Select(MapToCompanySubscriptionDto);
     }
 
+    public async Task<CompanySubscriptionDetailsDto?> GetCompanySubscriptionDetailsByCompanyIdAsync(Guid companyId)
+    {
+        var sql = @"
+            SELECT 
+                cs.planid,
+                sp.name as planname,
+                cs.billingcycle,
+                cs.startdate,
+                cs.enddate
+            FROM payment.companysubscriptions cs
+            JOIN payment.subscriptionplans sp ON cs.planid = sp.planid
+            WHERE cs.companyid = @companyId
+            AND cs.enddate > CURRENT_TIMESTAMP
+            ORDER BY cs.enddate DESC
+            LIMIT 1";
+
+        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { companyId });
+
+        if (result == null)
+            return null;
+
+        return new CompanySubscriptionDetailsDto
+        {
+            PlanId = result.planid,
+            PlanName = result.planname,
+            BillingCycle = result.billingcycle,
+            StartDate = result.startdate,
+            EndDate = result.enddate
+        };
+    }
+
     public async Task<Guid> CreateCompanySubscriptionAsync(CreateCompanySubscriptionRequest request)
     {
         var sql = @"

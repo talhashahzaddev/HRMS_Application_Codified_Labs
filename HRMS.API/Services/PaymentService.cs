@@ -418,6 +418,24 @@ public class PaymentService : IPaymentService
         };
     }
 
+    public async Task<ServiceResponse<CompanySubscriptionDetailsDto>> GetCompanySubscriptionDetailsByCompanyIdAsync(Guid companyId)
+    {
+        _logger.LogInformation("Getting subscription details for company: {CompanyId}", companyId);
+
+        if (companyId == Guid.Empty)
+        {
+            throw new ArgumentException("Company ID cannot be empty", nameof(companyId));
+        }
+
+        var details = await _paymentRepository.GetCompanySubscriptionDetailsByCompanyIdAsync(companyId);
+
+        return new ServiceResponse<CompanySubscriptionDetailsDto>
+        {
+            Success = true,
+            Data = details // Can be null, frontend will handle it
+        };
+    }
+
     public async Task<ServiceResponse<CompanySubscriptionDto>> CreateCompanySubscriptionAsync(CreateCompanySubscriptionRequest request)
     {
         _logger.LogInformation("Creating company subscription for company: {CompanyId}, Plan: {PlanId}", request?.CompanyId, request?.PlanId);

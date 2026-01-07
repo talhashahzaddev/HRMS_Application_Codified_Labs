@@ -431,6 +431,41 @@ public class PaymentController : ControllerBase
     }
 
     /// <summary>
+    /// Get detailed company subscription info (active) by company ID (for header display)
+    /// </summary>
+    [HttpGet("company-subscription-details/{companyId:guid}")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<CompanySubscriptionDetailsDto>>> GetCompanySubscriptionDetailsByCompanyId(Guid companyId)
+    {
+        try
+        {
+            Guid organizationId = GetCurrentOrganizationId();
+            companyId = organizationId; // Ensure user can only access their own org data
+            
+            var response = await _paymentService.GetCompanySubscriptionDetailsByCompanyIdAsync(companyId);
+            return Ok(response);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for getting subscription details for company: {CompanyId}", companyId);
+            return BadRequest(new ServiceResponse<CompanySubscriptionDetailsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving subscription details for company {CompanyId}", companyId);
+            return StatusCode(500, new ServiceResponse<CompanySubscriptionDetailsDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving company subscription details"
+            });
+        }
+    }
+
+    /// <summary>
     /// Create a new company subscription
     /// </summary>
     [HttpPost("company-subscriptions")]
