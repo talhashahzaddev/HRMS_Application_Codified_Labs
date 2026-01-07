@@ -358,5 +358,292 @@ public class PaymentService : IPaymentService
             throw new InvalidOperationException("An error occurred while deleting the subscription plan", ex);
         }
     }
+
+    public async Task<ServiceResponse<CompanySubscriptionDto>> GetCompanySubscriptionByIdAsync(Guid subscriptionId)
+    {
+        _logger.LogInformation("Getting company subscription by ID: {SubscriptionId}", subscriptionId);
+
+        if (subscriptionId == Guid.Empty)
+        {
+            throw new ArgumentException("Subscription ID cannot be empty", nameof(subscriptionId));
+        }
+
+        var subscription = await _paymentRepository.GetCompanySubscriptionByIdAsync(subscriptionId);
+        
+        if (subscription == null)
+        {
+            _logger.LogWarning("Company subscription not found: {SubscriptionId}", subscriptionId);
+            return new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = "Company subscription not found"
+            };
+        }
+
+        return new ServiceResponse<CompanySubscriptionDto>
+        {
+            Success = true,
+            Data = subscription
+        };
+    }
+
+    public async Task<ServiceResponse<IEnumerable<CompanySubscriptionDto>>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId)
+    {
+        _logger.LogInformation("Getting subscriptions for company: {CompanyId}", companyId);
+
+        if (companyId == Guid.Empty)
+        {
+            throw new ArgumentException("Company ID cannot be empty", nameof(companyId));
+        }
+
+        var subscriptions = await _paymentRepository.GetCompanySubscriptionsByCompanyIdAsync(companyId);
+
+        return new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+        {
+            Success = true,
+            Data = subscriptions
+        };
+    }
+
+    public async Task<ServiceResponse<IEnumerable<CompanySubscriptionDto>>> GetAllCompanySubscriptionsAsync()
+    {
+        _logger.LogInformation("Getting all company subscriptions");
+
+        var subscriptions = await _paymentRepository.GetAllCompanySubscriptionsAsync();
+
+        return new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+        {
+            Success = true,
+            Data = subscriptions
+        };
+    }
+
+    public async Task<ServiceResponse<CompanySubscriptionDetailsDto>> GetCompanySubscriptionDetailsByCompanyIdAsync(Guid companyId)
+    {
+        _logger.LogInformation("Getting subscription details for company: {CompanyId}", companyId);
+
+        if (companyId == Guid.Empty)
+        {
+            throw new ArgumentException("Company ID cannot be empty", nameof(companyId));
+        }
+
+        var details = await _paymentRepository.GetCompanySubscriptionDetailsByCompanyIdAsync(companyId);
+
+        return new ServiceResponse<CompanySubscriptionDetailsDto>
+        {
+            Success = true,
+            Data = details // Can be null, frontend will handle it
+        };
+    }
+
+    public async Task<ServiceResponse<CompanySubscriptionDto>> CreateCompanySubscriptionAsync(CreateCompanySubscriptionRequest request)
+    {
+        _logger.LogInformation("Creating company subscription for company: {CompanyId}, Plan: {PlanId}", request?.CompanyId, request?.PlanId);
+
+        // Validate request
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        }
+
+        if (request.CompanyId == Guid.Empty)
+        {
+            throw new ArgumentException("Company ID is required", nameof(request));
+        }
+        
+        if (request.PlanId == Guid.Empty)
+        {
+            throw new ArgumentException("Plan ID is required", nameof(request));
+        }
+        
+        if (string.IsNullOrWhiteSpace(request.Status))
+        {
+            throw new ArgumentException("Status is required", nameof(request));
+        }
+        
+        if (string.IsNullOrWhiteSpace(request.BillingCycle))
+        {
+            throw new ArgumentException("Billing cycle is required", nameof(request));
+        }
+
+        // Validate Plan Exists
+        var plan = await _paymentRepository.GetSubscriptionPlanByIdAsync(request.PlanId);
+        if (plan == null)
+        {
+            throw new ArgumentException("Invalid Plan ID. Plan does not exist.", nameof(request));
+        }
+
+        try
+        {
+            var subscriptionId = await _paymentRepository.CreateCompanySubscriptionAsync(request);
+            
+            if (subscriptionId == Guid.Empty)
+            {
+                _logger.LogError("Failed to create company subscription");
+                throw new InvalidOperationException("Failed to create company subscription");
+            }
+
+            var createdSubscription = await _paymentRepository.GetCompanySubscriptionByIdAsync(subscriptionId);
+
+            if (createdSubscription == null)
+            {
+                _logger.LogError("Created subscription but failed to retrieve it: {SubscriptionId}", subscriptionId);
+                throw new InvalidOperationException("Failed to retrieve created subscription");
+            }
+
+            _logger.LogInformation("Successfully created company subscription: {SubscriptionId}", subscriptionId);
+
+            return new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = true,
+                Message = "Company subscription created successfully",
+                Data = createdSubscription
+            };
+        }
+        catch (ArgumentException)
+        {
+            throw; // Re-throw validation exceptions
+        }
+        catch (InvalidOperationException)
+        {
+            throw; // Re-throw business logic exceptions
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error creating company subscription");
+            throw new InvalidOperationException("An error occurred while creating the company subscription", ex);
+        }
+    }
+
+    public async Task<ServiceResponse<CompanySubscriptionDto>> UpdateCompanySubscriptionAsync(Guid subscriptionId, UpdateCompanySubscriptionRequest request)
+    {
+        _logger.LogInformation("Updating company subscription: {SubscriptionId}", subscriptionId);
+
+        if (subscriptionId == Guid.Empty)
+        {
+            throw new ArgumentException("Subscription ID cannot be empty", nameof(subscriptionId));
+        }
+
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        }
+
+        // Validate Plan Exists
+        if (request.PlanId == Guid.Empty)
+        {
+             throw new ArgumentException("Plan ID is required", nameof(request));
+        }
+        
+        var plan = await _paymentRepository.GetSubscriptionPlanByIdAsync(request.PlanId);
+        if (plan == null)
+        {
+            throw new ArgumentException("Invalid Plan ID. Plan does not exist.", nameof(request));
+        }
+
+        // Check if subscription exists
+        var existingSubscription = await _paymentRepository.GetCompanySubscriptionByIdAsync(subscriptionId);
+        if (existingSubscription == null)
+        {
+            _logger.LogWarning("Company subscription not found for update: {SubscriptionId}", subscriptionId);
+            return new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = false,
+                Message = "Company subscription not found"
+            };
+        }
+
+        try
+        {
+            var success = await _paymentRepository.UpdateCompanySubscriptionAsync(subscriptionId, request);
+            
+            if (!success)
+            {
+                _logger.LogError("Failed to update company subscription: {SubscriptionId}", subscriptionId);
+                throw new InvalidOperationException("Failed to update company subscription");
+            }
+
+            var updatedSubscription = await _paymentRepository.GetCompanySubscriptionByIdAsync(subscriptionId);
+
+            if (updatedSubscription == null)
+            {
+                _logger.LogError("Updated subscription but failed to retrieve it: {SubscriptionId}", subscriptionId);
+                throw new InvalidOperationException("Failed to retrieve updated subscription");
+            }
+
+            _logger.LogInformation("Successfully updated company subscription: {SubscriptionId}", subscriptionId);
+
+            return new ServiceResponse<CompanySubscriptionDto>
+            {
+                Success = true,
+                Message = "Company subscription updated successfully",
+                Data = updatedSubscription
+            };
+        }
+        catch (ArgumentException)
+        {
+            throw; // Re-throw validation exceptions
+        }
+        catch (InvalidOperationException)
+        {
+            throw; // Re-throw business logic exceptions
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error updating company subscription: {SubscriptionId}", subscriptionId);
+            throw new InvalidOperationException("An error occurred while updating the company subscription", ex);
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteCompanySubscriptionAsync(Guid subscriptionId)
+    {
+        _logger.LogInformation("Deleting company subscription: {SubscriptionId}", subscriptionId);
+
+        if (subscriptionId == Guid.Empty)
+        {
+            throw new ArgumentException("Subscription ID cannot be empty", nameof(subscriptionId));
+        }
+
+        var existingSubscription = await _paymentRepository.GetCompanySubscriptionByIdAsync(subscriptionId);
+        
+        if (existingSubscription == null)
+        {
+            _logger.LogWarning("Company subscription not found for deletion: {SubscriptionId}", subscriptionId);
+            return new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "Company subscription not found"
+            };
+        }
+
+        try
+        {
+            var success = await _paymentRepository.DeleteCompanySubscriptionAsync(subscriptionId);
+            
+            if (!success)
+            {
+                _logger.LogError("Failed to delete company subscription: {SubscriptionId}", subscriptionId);
+                throw new InvalidOperationException("Failed to delete company subscription");
+            }
+
+            _logger.LogInformation("Successfully deleted company subscription: {SubscriptionId}", subscriptionId);
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Company subscription deleted successfully",
+                Data = true
+            };
+        }
+        catch (InvalidOperationException)
+        {
+            throw; // Re-throw business logic exceptions
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error deleting company subscription: {SubscriptionId}", subscriptionId);
+            throw new InvalidOperationException("An error occurred while deleting the company subscription", ex);
+        }
+    }
 }
 
