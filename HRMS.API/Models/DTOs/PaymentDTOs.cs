@@ -52,3 +52,57 @@ public class UpdateSubscriptionPlanRequest
     public bool IsActive { get; set; }
 }
 
+public class CompanySubscriptionDto
+{
+    public Guid SubscriptionId { get; set; }
+    public Guid CompanyId { get; set; }
+    public Guid PlanId { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string BillingCycle { get; set; } = string.Empty;
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+}
+
+public class CompanySubscriptionDetailsDto
+{
+    public Guid PlanId { get; set; }
+    public string PlanName { get; set; } = string.Empty;
+    public string BillingCycle { get; set; } = string.Empty;
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+}
+
+public class CreateCompanySubscriptionRequest
+{
+    [Required]
+    public Guid CompanyId { get; set; }
+    
+    [Required]
+    public Guid PlanId { get; set; }
+    
+    [Required]
+    public string Status { get; set; } = string.Empty;
+    
+    [Required]
+    public string BillingCycle { get; set; } = string.Empty;
+    
+    public DateTime? StartDate { get; set; }
+    
+    public DateTime? EndDate { get; set; }
+}
+
+public class UpdateCompanySubscriptionRequest
+{
+    [Required]
+    public Guid PlanId { get; set; }
+    
+    [Required]
+    public string Status { get; set; } = string.Empty;
+    
+    [Required]
+    public string BillingCycle { get; set; } = string.Empty;
+    
+    public DateTime? StartDate { get; set; }
+    
+    public DateTime? EndDate { get; set; }
+}
