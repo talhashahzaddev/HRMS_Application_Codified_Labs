@@ -1782,23 +1782,34 @@ WHERE ed.employeeid = @EmployeeId
         try
         {
             var sql = @"
-        SELECT 
-            e.employeeid     AS EmployeeId,
-            e.employeecode   AS EmployeeCode,
-            e.firstname      AS FirstName,
-            e.lastname       AS LastName,
-            e.email          AS Email,
-            e.status         AS Status,
-            e.hiredate       AS HireDate
-        FROM employee.employees e
-        INNER JOIN employee.employmentdetails d
-            ON e.employeeid = d.employeeid
-        WHERE e.organizationid = @OrganizationId
-          AND e.status = 'active'
-          AND d.iscurrent = true
-          AND (@DepartmentId IS NULL OR d.departmentid = @DepartmentId)
-        ORDER BY e.firstname, e.lastname;
-        ";
+       SELECT 
+    e.employeeid       AS EmployeeId,
+    e.employeecode     AS EmployeeCode,
+    e.firstname        AS FirstName,
+    e.lastname         AS LastName,
+    p.positiontitle    AS Position,         
+    e.email            AS Email,
+    e.status           AS Status,
+    e.hiredate         AS HireDate,    
+    CONCAT(m.firstname, ' ', m.lastname) AS ReportingManagerName 
+
+FROM employee.employees e
+
+INNER JOIN employee.employmentdetails d 
+    ON e.employeeid = d.employeeid
+
+LEFT JOIN employee.positions p 
+    ON d.positionid = p.positionid
+
+LEFT JOIN employee.employees m 
+    ON d.reportingmanagerid = m.employeeid
+
+WHERE e.organizationid = @OrganizationId
+  AND e.status = 'active'
+  AND d.iscurrent = true
+  AND (@DepartmentId IS NULL OR d.departmentid = @DepartmentId)
+
+ORDER BY e.firstname, e.lastname";
 
             var parameters = new
             {
@@ -1834,10 +1845,20 @@ WHERE ed.employeeid = @EmployeeId
             SELECT 
                 e.employeeid AS EmployeeId,
                 e.firstname AS FirstName,
-                e.lastname AS LastName
+                e.lastname AS LastName,
+                p.positiontitle    AS Position,
+                CONCAT(m.firstname, ' ', m.lastname) AS ReportingManagerName
             FROM employee.employees e
             INNER JOIN employee.employmentdetails d
                 ON e.employeeid = d.employeeid
+
+LEFT JOIN employee.positions p 
+    ON d.positionid = p.positionid
+
+
+LEFT JOIN employee.employees m 
+    ON d.reportingmanagerid = m.employeeid
+
             WHERE e.organizationid = @OrganizationId
               AND e.status = 'active'
               AND d.reportingmanagerid = @ManagerId

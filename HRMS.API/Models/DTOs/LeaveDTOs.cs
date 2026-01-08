@@ -75,6 +75,8 @@ public class LeaveBalanceDto
     public decimal TotalDays { get; set; }
     public decimal UsedDays { get; set; }
     public decimal RemainingDays { get; set; }
+    public decimal CarryForwardDays { get; set; }
+
     public string Color { get; set; } = string.Empty;
 }
 
