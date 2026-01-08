@@ -498,6 +498,31 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         }
     }
 
+    public async Task<bool> CheckEmployeeLimitAsync(Guid organizationId)
+    {
+        try
+        {
+        var sql = @"
+            SELECT 
+                CASE 
+                    WHEN sp.maxusers IS NULL THEN true
+                    WHEN (SELECT COUNT(*) FROM auth.Users WHERE OrganizationId = @organizationId) < sp.maxusers THEN true
+                    ELSE false
+                END
+            FROM payment.companysubscriptions cs
+            INNER JOIN payment.subscriptionplans sp ON cs.planid = sp.planid
+            WHERE cs.companyid = @organizationId AND cs.status = 'active'
+            ORDER BY cs.startdate DESC
+            LIMIT 1";
+
+        return await QuerySingleOrDefaultAsync<bool>(sql, new { organizationId });
+        }
+        catch (Exception ex)
+        {
+            throw;
+        }
+    }
+
 
     public async Task<bool> UpdateEmployeeAsync(Employee employee)
     {
