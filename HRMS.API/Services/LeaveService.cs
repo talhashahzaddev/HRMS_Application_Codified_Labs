@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using HRMS.AI.Models;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
@@ -58,7 +58,7 @@ public class LeaveService : ILeaveService
             {
                 Receiveruserid = reportingmangerid,
                 Senderuserid = employee.EmployeeId,
-                Ttitle = "Leave Request",
+                Title = "Leave Request",
                 RequestId = leaveRequest.RequestId,
                 Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  request a Leave ",
                 Notificationtype = "Request",
@@ -188,7 +188,7 @@ public class LeaveService : ILeaveService
             {
                 Receiveruserid = Originalnotification.SenderUserId,
                 Senderuserid = Originalnotification.ReceiverUserId,
-                Ttitle = "Leave Request",
+                Title = "Leave Request",
                 RequestId = Originalnotification.requestid,
                 Message = message,
                 Notificationtype = "Message",
@@ -211,7 +211,7 @@ public class LeaveService : ILeaveService
                     {
                         Receiveruserid = employeeInfo.Value.userId, // Employee who requested leave (userId)
                         Senderuserid = empId, // Manager/HR who approved/rejected (userId)
-                        Ttitle = "Leave Request",
+                        Title = "Leave Request",
                         RequestId = requestId,
                         Message = message,
                         Notificationtype = "Message",

@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
 using DocumentFormat.OpenXml.Wordprocessing;
@@ -498,7 +498,7 @@ public class AttendanceService : IAttendanceService
             {
                 Receiveruserid = request.EmployeeId,
                 Senderuserid = currentEmpid,
-                Ttitle = "Shit Assign",
+                Title = "Shit Assign",
                 //RequestId = leaveRequest.RequestId,
                 //Message = $" {currentEmp.FirstName} assign you shift of  {shiftDetails.ShiftName} ",
                 Message = $" You assign shift of {shiftDetails.ShiftName} ",
@@ -579,7 +579,7 @@ public class AttendanceService : IAttendanceService
             {
                 Receiveruserid = reportingmangerid,
                 Senderuserid = employee.EmployeeId,
-                Ttitle = "Swap Request",
+                Title = "Swap Request",
                 Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
                 Notificationtype = "Request",
                 Createdby = requestDto.EmployeeId,
@@ -614,7 +614,7 @@ public class AttendanceService : IAttendanceService
                 {
                     Receiveruserid = shiftrequestDetails.EmployeeId,
                     Senderuserid = dto.ApprovedBy,
-                    Ttitle = "Shift Swap Request",
+                    Title = "Shift Swap Request",
                     Message = $"Your shift swap request is Rejected {dto.RejectionReason} ",
                     Notificationtype = "Message",
                     Createdby = dto.ApprovedBy,
@@ -636,7 +636,7 @@ public class AttendanceService : IAttendanceService
                 {
                     Receiveruserid = shiftrequestDetails.EmployeeId,
                     Senderuserid = dto.ApprovedBy,
-                    Ttitle = "Shift Swap Request",
+                    Title = "Shift Swap Request",
                     Message = $"Your shift swap request is Accepted ",
                     Notificationtype = "Message",
                     Createdby = dto.ApprovedBy,

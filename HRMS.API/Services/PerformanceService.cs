@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
@@ -695,7 +695,7 @@ public class PerformanceService : IPerformanceService
                         {
                             Receiveruserid = reportingManagerEmployeeId, // Reporting manager
                             Senderuserid = request.EmployeeId, // Employee who created self-assessment
-                            Ttitle = "Self-Assessment Created",
+                            Title = "Self-Assessment Created",
                             Notificationtype = "Performance",
                             Message = $"{employeeName} has submitted a self-assessment",
                             Redirecturl = "/performance/appraisals",
