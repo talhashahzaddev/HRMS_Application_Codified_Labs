@@ -1,4 +1,4 @@
-﻿namespace HRMS.API.Models.DTOs
+namespace HRMS.API.Models.DTOs
 {
     public class NotificationDto
     {
@@ -7,7 +7,7 @@
         {
             public Guid? Receiveruserid { get; set; } // Who sees it
             public Guid? Senderuserid { get; set; }  // Who triggered it
-            public string Ttitle { get; set; }       // Leave, Attendance, Employee
+            public string Title { get; set; }       // Leave, Attendance, Employee
             public string Notificationtype { get; set; } // RequestCreated, Approved, etc.
             public Guid RequestId { get; set; }  //For getting request id 
             public string Message { get; set; }

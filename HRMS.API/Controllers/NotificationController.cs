@@ -1,8 +1,9 @@
-﻿using HRMS.API.Models.DTOs;
+﻿﻿using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Linq;
 using static HRMS.API.Models.DTOs.NotificationDto;
 
 namespace HRMS.API.Controllers
@@ -27,19 +28,66 @@ namespace HRMS.API.Controllers
         {
             try
             {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new ServiceResponse<bool>
+                    {
+                        Success = false,
+                        Message = "Invalid request data",
+                        Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                    });
+                }
+
                 var organizationid = GetCurrentOrganizationId();
 
-                await _notificationService.CreateNotificationAsync(organizationid, request);
+                var response = await _notificationService.CreateNotificationAsync(organizationid, request);
 
-                return Ok(new ServiceResponse<bool>
+                if (!response.Success)
                 {
-                    Success = true,
-                    Message = "Notification sent successfully"
+                    return BadRequest(response);
+                }
+
+                return Ok(response);
+            }
+            catch (ArgumentNullException ex)
+            {
+                _logger.LogWarning(ex, "Null request provided for sending notification");
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument for sending notification");
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized access while sending notification");
+                return StatusCode(403, new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Business logic error sending notification");
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error sending notification");
+                _logger.LogError(ex, "Unexpected error sending notification");
                 return StatusCode(500, new ServiceResponse<bool>
                 {
                     Success = false,
@@ -53,21 +101,43 @@ namespace HRMS.API.Controllers
         {
             try
             {
+                if (userId == Guid.Empty)
+                {
+                    return BadRequest(new ServiceResponse<List<Notification>>
+                    {
+                        Success = false,
+                        Message = "User ID is required"
+                    });
+                }
+
                 var organizationId = GetCurrentOrganizationId(); // optional if needed
 
                 // Repository/service will handle filtering, sorting, etc.
-                var notifications = await _notificationService.GetNotificationsForUserAsync(userId, organizationId);
+                var response = await _notificationService.GetNotificationsForUserAsync(userId, organizationId);
 
-                return Ok(new ServiceResponse<List<Notification>>
+                return Ok(response);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument for getting user notifications: {UserId}", userId);
+                return BadRequest(new ServiceResponse<List<Notification>>
                 {
-                    Success = true,
-                    Message = "Notifications retrieved successfully",
-                    Data = notifications
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                _logger.LogWarning(ex, "Unauthorized access while getting user notifications: {UserId}", userId);
+                return StatusCode(403, new ServiceResponse<List<Notification>>
+                {
+                    Success = false,
+                    Message = ex.Message
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error retrieving notifications");
+                _logger.LogError(ex, "Error retrieving notifications for user: {UserId}", userId);
                 return StatusCode(500, new ServiceResponse<List<Notification>>
                 {
                     Success = false,
@@ -81,18 +151,45 @@ namespace HRMS.API.Controllers
         {
             try
             {
-                var result = await _notificationService.MarkNotificationAsReadAsync(notificationId);
-                
-                return Ok(new ServiceResponse<bool>
+                if (notificationId == Guid.Empty)
                 {
-                    Success = true,
-                    Message = "Notification marked as read",
-                    Data = true
+                    return BadRequest(new ServiceResponse<bool>
+                    {
+                        Success = false,
+                        Message = "Notification ID is required"
+                    });
+                }
+
+                var response = await _notificationService.MarkNotificationAsReadAsync(notificationId);
+                
+                if (!response.Success)
+                {
+                    return NotFound(response);
+                }
+
+                return Ok(response);
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument for marking notification as read: {NotificationId}", notificationId);
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogError(ex, "Business logic error marking notification as read: {NotificationId}", notificationId);
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = ex.Message
                 });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error marking notification as read");
+                _logger.LogError(ex, "Error marking notification as read: {NotificationId}", notificationId);
                 return StatusCode(500, new ServiceResponse<bool>
                 {
                     Success = false,
