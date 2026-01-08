@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.InkML;
+using DocumentFormat.OpenXml.InkML;
 using HRMS.API.Configuration;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
@@ -98,7 +98,7 @@ namespace HRMS.API.Repositories
                 organizationId,
                 receiverUserId = request.Receiveruserid,
                 senderUserId = request.Senderuserid,
-                title = request.Ttitle,
+                title = request.Title,
                 notificationType = request.Notificationtype,
                 message = request.Message,
                 requestId=request.RequestId,
