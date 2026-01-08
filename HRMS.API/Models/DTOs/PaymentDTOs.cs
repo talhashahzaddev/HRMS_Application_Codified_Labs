@@ -70,6 +70,7 @@ public class CompanySubscriptionDetailsDto
     public string BillingCycle { get; set; } = string.Empty;
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    public bool IsExpired { get; set; }
 }
 
 public class CreateCompanySubscriptionRequest

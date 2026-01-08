@@ -215,11 +215,14 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
                 sp.name as planname,
                 cs.billingcycle,
                 cs.startdate,
-                cs.enddate
+                cs.enddate,
+                CASE 
+                    WHEN cs.enddate < CURRENT_TIMESTAMP THEN true 
+                    ELSE false 
+                END as isexpired
             FROM payment.companysubscriptions cs
             JOIN payment.subscriptionplans sp ON cs.planid = sp.planid
             WHERE cs.companyid = @companyId
-            AND cs.enddate > CURRENT_TIMESTAMP
             ORDER BY cs.enddate DESC
             LIMIT 1";
 
@@ -234,30 +237,63 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
             PlanName = result.planname,
             BillingCycle = result.billingcycle,
             StartDate = result.startdate,
-            EndDate = result.enddate
+            EndDate = result.enddate,
+            IsExpired = result.isexpired
         };
     }
 
     public async Task<Guid> CreateCompanySubscriptionAsync(CreateCompanySubscriptionRequest request)
     {
-        var sql = @"
-            INSERT INTO payment.companysubscriptions 
-                (companyid, planid, status, billingcycle, startdate, enddate)
-            VALUES 
-                (@companyId, @planId, @status, @billingCycle, @startDate, @endDate)
-            RETURNING subscriptionid";
+        // First, check if a subscription already exists for this company
+        var checkSql = "SELECT subscriptionid FROM payment.companysubscriptions WHERE companyid = @companyId LIMIT 1";
+        var existingSubscriptionId = await QuerySingleOrDefaultAsync<Guid?>(checkSql, new { companyId = request.CompanyId });
 
-        var subscriptionId = await ExecuteScalarAsync<Guid>(sql, new
+        if (existingSubscriptionId.HasValue)
         {
-            companyId = request.CompanyId,
-            planId = request.PlanId,
-            status = request.Status,
-            billingCycle = request.BillingCycle,
-            startDate = request.StartDate,
-            endDate = request.EndDate
-        });
+            // UPDATE existing subscription
+            var updateSql = @"
+                UPDATE payment.companysubscriptions 
+                SET planid = @planId, 
+                    status = @status, 
+                    billingcycle = @billingCycle, 
+                    startdate = @startDate, 
+                    enddate = @endDate
+                WHERE subscriptionid = @subscriptionId";
 
-        return subscriptionId;
+            await ExecuteAsync(updateSql, new
+            {
+                subscriptionId = existingSubscriptionId.Value,
+                planId = request.PlanId,
+                status = request.Status,
+                billingCycle = request.BillingCycle,
+                startDate = request.StartDate,
+                endDate = request.EndDate
+            });
+
+            return existingSubscriptionId.Value;
+        }
+        else
+        {
+            // INSERT new subscription
+            var insertSql = @"
+                INSERT INTO payment.companysubscriptions 
+                    (companyid, planid, status, billingcycle, startdate, enddate)
+                VALUES 
+                    (@companyId, @planId, @status, @billingCycle, @startDate, @endDate)
+                RETURNING subscriptionid";
+
+            var subscriptionId = await ExecuteScalarAsync<Guid>(insertSql, new
+            {
+                companyId = request.CompanyId,
+                planId = request.PlanId,
+                status = request.Status,
+                billingCycle = request.BillingCycle,
+                startDate = request.StartDate,
+                endDate = request.EndDate
+            });
+
+            return subscriptionId;
+        }
     }
 
     public async Task<bool> UpdateCompanySubscriptionAsync(Guid subscriptionId, UpdateCompanySubscriptionRequest request)
