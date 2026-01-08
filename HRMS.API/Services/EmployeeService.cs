@@ -42,6 +42,11 @@ public class EmployeeService : IEmployeeService
     {
         _logger.LogInformation("Creating employee for organization: {OrganizationId}", organizationId);
         
+        // Check employee limit
+        var isWithinLimit = await _employeeRepository.CheckEmployeeLimitAsync(organizationId);
+        if (!isWithinLimit)
+            throw new InvalidOperationException("You have reached the limit to add max number of employee.");
+
         // Validate required fields
         if (string.IsNullOrEmpty(request.Email))
             throw new InvalidOperationException("Employee email is required");
