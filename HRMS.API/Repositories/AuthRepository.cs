@@ -124,6 +124,10 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
     //Changes Here
     public async Task<bool> SavePasswordResetTokenAsync(Guid userId, string token, DateTime expiresAt)
     {
+        try
+        {
+
+        
         var createdAt = DateTime.Now;
         var sql = @"
   INSERT INTO auth.password_reset_tokens (userid, token, expiresat,createdat)
@@ -131,6 +135,11 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
 
         var affected = await ExecuteAsync(sql, new { userId, token, expiresAt, createdAt });
         return affected > 0;
+    }
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
 
