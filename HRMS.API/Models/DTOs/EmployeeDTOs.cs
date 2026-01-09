@@ -40,9 +40,10 @@ public class EmployeeSimpleDto
     public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
-    public DateTime? HireDate { get; set; } // Optional if you wa
+    public DateTime? HireDate { get; set; } 
     public string EmployeeCode { get; set; } = string.Empty;
-
+    public string Position { get; set; } = string.Empty; 
+    public string ReportingManagerName { get; set; } = string.Empty;
 
 
 }

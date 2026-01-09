@@ -398,7 +398,8 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
             SELECT lt.typename as leave_type_name, lt.color,
                    COALESCE(le.totaldays, 0) as total_days,
                    COALESCE(le.useddays, 0) as used_days,
-                   COALESCE(le.remainingdays, 0) as remaining_days
+                   COALESCE(le.remainingdays, 0) as remaining_days,
+                   COALESCE(le.carryforwarddays, 0) as carryforwarddays                
             FROM attendance.leavetypes lt
             LEFT JOIN attendance.leaveentitlements le ON lt.leavetypeid = le.leavetypeid 
                 AND le.employeeid = @employeeId AND le.year = @year
