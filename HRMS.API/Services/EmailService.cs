@@ -16,7 +16,6 @@ public class EmailService : IEmailService
         _configuration = configuration;
     }
 
-
     public async Task<bool> SendEmailAsync(string to, string subject, string body)
     {
         try
@@ -35,30 +34,35 @@ public class EmailService : IEmailService
 
             using var smtp = new SmtpClient();
             smtp.Timeout = 20000;
+
             var smtpHost = _configuration["Email:SmtpHost"];
-            _logger.LogInformation("SMTP HOST: {Host}", smtpHost);
+            var smtpPort = int.Parse(_configuration["Email:SmtpPort"]);
+            _logger.LogInformation("SMTP HOST: {Host}, PORT: {Port}", smtpHost, smtpPort);
+
+            // ✅ Changed here: use SslOnConnect for port 465
             await smtp.ConnectAsync(
-                _configuration["Email:SmtpHost"],
-                int.Parse(_configuration["Email:SmtpPort"]),
-                SecureSocketOptions.StartTls
+                smtpHost,
+                smtpPort,
+                SecureSocketOptions.SslOnConnect
             );
 
             await smtp.AuthenticateAsync(
                 _configuration["Email:Username"],
                 _configuration["Email:Password"]
             );
+
             try
             {
                 await smtp.SendAsync(email);
-                _logger.LogInformation("Email send successfully.");
+                _logger.LogInformation("Email sent successfully.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error sending email to {To}", to);
                 throw;
             }
-            await smtp.DisconnectAsync(true);
 
+            await smtp.DisconnectAsync(true);
             return true;
         }
         catch (Exception ex)
@@ -68,6 +72,7 @@ public class EmailService : IEmailService
         }
     }
 
+    // Other methods remain unchanged
     public async Task<bool> SendWelcomeEmailAsync(string to, string firstName, string organizationName, string tempPassword)
     {
         var subject = $"Welcome to {organizationName} HRMS";
@@ -99,7 +104,7 @@ public class EmailService : IEmailService
 
     public async Task<bool> SendPasswordResetEmailAsync(string to, string firstName, string resetLink)
     {
-        var subject = $"Password Reset Request - {Guid.NewGuid().ToString().Substring(0, 6)}"; // unique subject to avoid 
+        var subject = $"Password Reset Request - {Guid.NewGuid().ToString().Substring(0, 6)}";
         var body = $@"
             <h2>Password Reset</h2>
             <p>Dear {firstName},</p>
