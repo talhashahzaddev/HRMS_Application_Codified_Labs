@@ -34,7 +34,7 @@ public class EmailService : IEmailService
             };
 
             using var smtp = new SmtpClient();
-            smtp.Timeout = 99999;
+            smtp.Timeout = 20000;
             var smtpHost = _configuration["Email:SmtpHost"];
             _logger.LogInformation("SMTP HOST: {Host}", smtpHost);
             await smtp.ConnectAsync(
