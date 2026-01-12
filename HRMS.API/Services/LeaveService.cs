@@ -35,42 +35,70 @@ public class LeaveService : ILeaveService
 
     public async Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequest request, Guid employeeId)
     {
-        var empId = await _leaveRepository.GetEmpId(employeeId);
-        // Check for overlapping leave requests
-        var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(empId, request.StartDate, request.EndDate);
-        if (hasOverlap)
+        _logger.LogInformation("Creating leave request for employee: {EmployeeId}", employeeId);
+
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+
+        if (request.LeaveTypeId == Guid.Empty)
+            throw new ArgumentException("Leave type ID is required", nameof(request));
+
+        if (request.StartDate.Date > request.EndDate.Date)
+            throw new ArgumentException("Start date must be before or equal to end date", nameof(request));
+
+        try
         {
-            throw new InvalidOperationException("Leave request overlaps with existing leave");
-        }
-        var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
-            empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
+            var empId = await _leaveRepository.GetEmpId(employeeId);
+            var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(empId, request.StartDate, request.EndDate);
+            if (hasOverlap)
+                throw new InvalidOperationException("Leave request overlaps with existing leave");
 
-        //Create Notification
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
-        //Getting reciverid
-        var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
+            var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
+                empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
-        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
-        if (leaveRequest!=null)
+            var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
+            var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
 
-        {
-            var notification = new NotificationCreateDto
+            if (leaveRequest != null)
             {
-                Receiveruserid = reportingmangerid,
-                Senderuserid = employee.EmployeeId,
-                Title = "Leave Request",
-                RequestId = leaveRequest.RequestId,
-                Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  request a Leave ",
-                Notificationtype = "Request",
-                Createdby = employee.EmployeeId,
-                moduletype="Leave",
-                Redirecturl= "/leave/team",
-                organizationId = employee.OrganizationId
-            };
-            await _notificationRepository.CreateNotificationAsync(employee.OrganizationId, notification);
-        }
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = reportingmangerid,
+                    Senderuserid = employee.EmployeeId,
+                    Title = "Leave Request",
+                    RequestId = leaveRequest.RequestId,
+                    Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  request a Leave ",
+                    Notificationtype = "Request",
+                    Createdby = employee.EmployeeId,
+                    moduletype = "Leave",
+                    Redirecturl = "/leave/team",
+                    organizationId = employee.OrganizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(employee.OrganizationId, notification);
+            }
 
-        return _mapper.Map<LeaveRequestDto>(leaveRequest);
+            return _mapper.Map<LeaveRequestDto>(leaveRequest);
+        }
+        catch (ArgumentNullException)
+        {
+            throw;
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error creating leave request for employee: {EmployeeId}", employeeId);
+            throw new InvalidOperationException("An error occurred while creating the leave request", ex);
+        }
     }
     public async Task<LeaveApplicationDetails> CreateLeaveRequestByChatBotAsync(LeaveApplicationDetails request, Guid employeeId, Guid organizationId)
     {
@@ -146,6 +174,8 @@ public class LeaveService : ILeaveService
     }
     public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
         var empId = await _leaveRepository.GetEmpId(employeeId);
         var LeaveRequest = await _leaveRepository.GetLeaveRequestsByEmployeeId(empId);
         return LeaveRequest;
@@ -153,83 +183,112 @@ public class LeaveService : ILeaveService
 
     public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy)
     {
-        var empId = await _leaveRepository.GetEmpId(approvedBy);
-        // First, update the leave request status using the requestId parameter directly
-        var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(requestId, request.Status, empId, request.RejectionReason);
+        if (requestId == Guid.Empty)
+            throw new ArgumentException("Request ID cannot be empty", nameof(requestId));
+        if (approvedBy == Guid.Empty)
+            throw new ArgumentException("Approver user ID cannot be empty", nameof(approvedBy));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.Status))
+            throw new ArgumentException("Status is required", nameof(request));
 
-        if (!result)
-        {
-            _logger.LogWarning("Failed to update leave request status for RequestId: {RequestId}", requestId);
-            return false;
-        }
+        var normalizedStatus = request.Status.Trim().ToLowerInvariant();
+        if (normalizedStatus != "approved" && normalizedStatus != "rejected")
+            throw new ArgumentException("Invalid status. Allowed: approved or rejected", nameof(request));
+        if (normalizedStatus == "rejected" && string.IsNullOrWhiteSpace(request.RejectionReason))
+            throw new ArgumentException("Rejection reason is required when rejecting", nameof(request));
 
-        // Try to get the original notification (if it exists)
-        var Originalnotification = await _notificationRepository.getnotificationdetailAsync(requestId);
+        try
+        {
+            var empId = await _leaveRepository.GetEmpId(approvedBy);
+            var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(requestId, request.Status, empId, request.RejectionReason);
 
-        // Build the notification message based on status
-        string message;
-        if (request.Status.ToLower() == "approved")
-        {
-            message = "Your leave request has been approved";
-        }
-        else if (request.Status.ToLower() == "rejected")
-        {
-            message = $"Your leave request has been rejected. Reason: {request.RejectionReason}";
-        }
-        else
-        {
-            message = $"Your leave request status has been updated to {request.Status}";
-        }
-
-        // If original notification exists, use it to create response notification
-        if (Originalnotification != null)
-        {
-            var notification = new NotificationCreateDto
+            if (!result)
             {
-                Receiveruserid = Originalnotification.SenderUserId,
-                Senderuserid = Originalnotification.ReceiverUserId,
-                Title = "Leave Request",
-                RequestId = Originalnotification.requestid,
-                Message = message,
-                Notificationtype = "Message",
-                Createdby = Originalnotification.SenderUserId,
-            };
-            await _notificationRepository.CreateNotificationAsync(Originalnotification.organizationId, notification);
-        }
-        else
-        {
-            // If no original notification exists (e.g., approved/rejected from pending approvals section),
-            // get leave request details to find the employee and create notification
-            var leaveRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
-            if (leaveRequest != null)
+                _logger.LogWarning("Failed to update leave request status for RequestId: {RequestId}", requestId);
+                return false;
+            }
+
+            var Originalnotification = await _notificationRepository.getnotificationdetailAsync(requestId);
+
+            string message = normalizedStatus == "approved"
+                ? "Your leave request has been approved"
+                : $"Your leave request has been rejected. Reason: {request.RejectionReason}";
+
+            if (Originalnotification != null)
             {
-                // Get employee userId and organizationId from employeeId
-                var employeeInfo = await _notificationRepository.GetEmployeeUserInfoAsync(leaveRequest.EmployeeId);
-                if (employeeInfo.HasValue)
+                var notification = new NotificationCreateDto
                 {
-                    var notification = new NotificationCreateDto
+                    Receiveruserid = Originalnotification.SenderUserId,
+                    Senderuserid = Originalnotification.ReceiverUserId,
+                    Title = "Leave Request",
+                    RequestId = Originalnotification.requestid,
+                    Message = message,
+                    Notificationtype = "Message",
+                    Createdby = Originalnotification.SenderUserId,
+                };
+                await _notificationRepository.CreateNotificationAsync(Originalnotification.organizationId, notification);
+            }
+            else
+            {
+                var leaveRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
+                if (leaveRequest != null)
+                {
+                    var employeeInfo = await _notificationRepository.GetEmployeeUserInfoAsync(leaveRequest.EmployeeId);
+                    if (employeeInfo.HasValue)
                     {
-                        Receiveruserid = employeeInfo.Value.userId, // Employee who requested leave (userId)
-                        Senderuserid = empId, // Manager/HR who approved/rejected (userId)
-                        Title = "Leave Request",
-                        RequestId = requestId,
-                        Message = message,
-                        Notificationtype = "Message",
-                        Createdby = empId,
-                        moduletype = "Leave",
-                        Redirecturl = "/leave/my-leaves",
-                        organizationId = employeeInfo.Value.organizationId
-                    };
-                    await _notificationRepository.CreateNotificationAsync(employeeInfo.Value.organizationId, notification);
+                        var notification = new NotificationCreateDto
+                        {
+                            Receiveruserid = employeeInfo.Value.userId,
+                            Senderuserid = empId,
+                            Title = "Leave Request",
+                            RequestId = requestId,
+                            Message = message,
+                            Notificationtype = "Message",
+                            Createdby = empId,
+                            moduletype = "Leave",
+                            Redirecturl = "/leave/my-leaves",
+                            organizationId = employeeInfo.Value.organizationId
+                        };
+                        await _notificationRepository.CreateNotificationAsync(employeeInfo.Value.organizationId, notification);
+                    }
                 }
             }
-        }
 
-        return true;
+            return true;
+        }
+        catch (ArgumentNullException)
+        {
+            throw;
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error updating leave request status for RequestId: {RequestId}", requestId);
+            throw new InvalidOperationException("An error occurred while updating leave request status", ex);
+        }
     }
 
     public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid userId, LeaveRequestSearchViewModel searchModel, Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (userId == Guid.Empty)
+            throw new ArgumentException("User ID cannot be empty", nameof(userId));
+        if (searchModel == null)
+            throw new ArgumentNullException(nameof(searchModel), "Search model cannot be null");
+        if (searchModel.Page <= 0)
+            throw new ArgumentException("Page must be greater than 0", nameof(searchModel));
+        if (searchModel.PageSize <= 0)
+            throw new ArgumentException("Page size must be greater than 0", nameof(searchModel));
+
         Guid ? empid= await _leaveRepository.GetEmpId(userId);
         searchModel.EmployeeId = empid;
         return await _leaveRepository.GetLeaveRequestsAsync(
@@ -242,6 +301,15 @@ public class LeaveService : ILeaveService
 
     public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsByOrganizationAsync(LeaveRequestSearchViewModel searchModel, Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (searchModel == null)
+            throw new ArgumentNullException(nameof(searchModel), "Search model cannot be null");
+        if (searchModel.Page <= 0)
+            throw new ArgumentException("Page must be greater than 0", nameof(searchModel));
+        if (searchModel.PageSize <= 0)
+            throw new ArgumentException("Page size must be greater than 0", nameof(searchModel));
+
         return await _leaveRepository.GetLeaveRequestsByOrganizationAsync(
             organizationId,
             searchModel.Status,
@@ -251,12 +319,33 @@ public class LeaveService : ILeaveService
 
     public async Task<List<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _leaveRepository.GetLeaveTypesAsync(organizationId);
     }
     public async Task<Guid> CreateLeaveTypeAsync(Guid organizationId, CreateLeaveTypeRequest request)
     {
-        var leaveTypeId = Guid.NewGuid();
+        _logger.LogInformation("Creating leave type for organization: {OrganizationId}", organizationId);
 
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.TypeName))
+            throw new ArgumentException("Leave type name is required", nameof(request));
+        if (request.MaxDaysPerYear <= 0)
+            throw new ArgumentException("Max days per year must be greater than 0", nameof(request));
+
+        if (!request.CarryForwardAllowed)
+            request.MaxCarryForwardDays = 0;
+        if (request.MaxCarryForwardDays < 0)
+            request.MaxCarryForwardDays = 0;
+
+        var existing = await _leaveRepository.GetLeaveTypesAsync(organizationId);
+        if (existing.Any(t => string.Equals(t.TypeName?.Trim(), request.TypeName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Leave type with name '{request.TypeName}' already exists");
+
+        var leaveTypeId = Guid.NewGuid();
         var dto = new LeaveTypeDto
         {
             LeaveTypeId = leaveTypeId,
@@ -270,17 +359,31 @@ public class LeaveService : ILeaveService
             IsActive = true
         };
 
-        var result = await _leaveRepository.CreateLeaveTypeAsync(organizationId, dto);
-        if(result)
+        try
         {
+            var result = await _leaveRepository.CreateLeaveTypeAsync(organizationId, dto);
+            if (!result)
+                throw new InvalidOperationException("Failed to create leave type");
+
             return leaveTypeId;
         }
-        else
+        catch (ArgumentNullException)
         {
-            return Guid.Empty;
+            throw;
         }
-
-
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error creating leave type for organization: {OrganizationId}", organizationId);
+            throw new InvalidOperationException("An error occurred while creating the leave type", ex);
+        }
     }
 
     public async Task<bool> EditLeaveTypeAsync(
@@ -288,13 +391,21 @@ public class LeaveService : ILeaveService
       Guid leaveTypeId,
       EditLeaveTypeRequest request)
     {
-        if (leaveTypeId == Guid.Empty)
-            return false;
+        _logger.LogInformation("Editing leave type: {LeaveTypeId}", leaveTypeId);
 
-        // 🔹 BUSINESS RULE ENFORCEMENT (MUST BE HERE)
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (leaveTypeId == Guid.Empty)
+            throw new ArgumentException("Leave type ID cannot be empty", nameof(leaveTypeId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.TypeName))
+            throw new ArgumentException("Leave type name is required", nameof(request));
+        if (request.MaxDaysPerYear <= 0)
+            throw new ArgumentException("Max days per year must be greater than 0", nameof(request));
+
         if (!request.CarryForwardAllowed)
             request.MaxCarryForwardDays = 0;
-
         if (request.MaxCarryForwardDays < 0)
             request.MaxCarryForwardDays = 0;
 
@@ -306,34 +417,80 @@ public class LeaveService : ILeaveService
             MaxDaysPerYear = request.MaxDaysPerYear,
             IsPaid = request.IsPaid,
             CarryForwardAllowed = request.CarryForwardAllowed,
-            MaxCarryForwardDays = request.MaxCarryForwardDays, 
+            MaxCarryForwardDays = request.MaxCarryForwardDays,
             Color = request.Color,
             IsActive = request.IsActive
         };
 
-        return await _leaveRepository.EditLeaveTypeAsync(organizationId, dto);
+        try
+        {
+            var updated = await _leaveRepository.EditLeaveTypeAsync(organizationId, dto);
+            if (!updated)
+                throw new KeyNotFoundException($"Leave type with ID {leaveTypeId} not found");
+
+            return true;
+        }
+        catch (ArgumentNullException)
+        {
+            throw;
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (KeyNotFoundException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error editing leave type: {LeaveTypeId}", leaveTypeId);
+            throw new InvalidOperationException("An error occurred while editing the leave type", ex);
+        }
     }
 
 
     public async Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        if (year <= 0)
+            throw new ArgumentException("Year must be a positive number", nameof(year));
         return await _leaveRepository.GetLeaveEntitlementsAsync(employeeId, year);
     }
 
     public async Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        if (year <= 0)
+            throw new ArgumentException("Year must be a positive number", nameof(year));
         var empId = await _leaveRepository.GetEmpId(employeeId);
         return await _leaveRepository.GetLeaveBalanceAsync(empId, year);
     }
 
     public async Task<LeaveRequestDto?> GetLeaveRequestByIdAsync(Guid requestId)
     {
+        if (requestId == Guid.Empty)
+            throw new ArgumentException("Request ID cannot be empty", nameof(requestId));
         var leaveRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
         return leaveRequest != null ? _mapper.Map<LeaveRequestDto>(leaveRequest) : null;
     }
 
     public async Task<LeaveRequestDto?> UpdateLeaveRequestAsync(Guid requestId, UpdateLeaveRequest request, Guid employeeId)
     {
+        if (requestId == Guid.Empty)
+            throw new ArgumentException("Request ID cannot be empty", nameof(requestId));
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (request.StartDate.Date > request.EndDate.Date)
+            throw new ArgumentException("Start date must be before or equal to end date", nameof(request));
         // First check if the request exists and is pending
         var existingRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
         if (existingRequest == null)
@@ -385,6 +542,10 @@ public class LeaveService : ILeaveService
 
     public async Task<bool> CancelLeaveRequestAsync(Guid requestId, Guid employeeId)
     {
+        if (requestId == Guid.Empty)
+            throw new ArgumentException("Request ID cannot be empty", nameof(requestId));
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
         // First check if the request exists and is pending
         var existingRequest = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
         if (existingRequest == null)
@@ -409,6 +570,10 @@ public class LeaveService : ILeaveService
     }
     public async Task<List<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        if (startDate.Date > endDate.Date)
+            throw new ArgumentException("Start date must be before or equal to end date");
         var EMPId = await _leaveRepository.GetEmpId(employeeId);
         var requests = await _leaveRepository.GetLeaveRequestsAsync(EMPId, startDate, endDate);
 
@@ -444,6 +609,16 @@ public class LeaveService : ILeaveService
         Guid organizationId,
         TeamRemainingLeavesSearchViewModel searchModel)
     {
+        if (managerUserId == Guid.Empty)
+            throw new ArgumentException("Manager user ID cannot be empty", nameof(managerUserId));
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (searchModel == null)
+            throw new ArgumentNullException(nameof(searchModel), "Search model cannot be null");
+        if (searchModel.Page <= 0)
+            throw new ArgumentException("Page must be greater than 0", nameof(searchModel));
+        if (searchModel.PageSize <= 0)
+            throw new ArgumentException("Page size must be greater than 0", nameof(searchModel));
         // Get user role name
         var roleName = await _leaveRepository.GetUserRoleNameAsync(managerUserId);
 
@@ -514,6 +689,10 @@ public class LeaveService : ILeaveService
 
     public async Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        if (startDate.Date > endDate.Date)
+            throw new ArgumentException("Start date must be before or equal to end date");
         var empId = await _leaveRepository.GetEmpId(employeeId);
         return await _leaveRepository.HasOverlappingLeaveAsync(empId, startDate, endDate, excludeRequestId);
     }

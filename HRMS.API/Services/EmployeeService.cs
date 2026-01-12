@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using ClosedXML.Excel;
 using CloudinaryDotNet.Core;
 using DocumentFormat.OpenXml.Bibliography;
@@ -41,23 +41,38 @@ public class EmployeeService : IEmployeeService
     public async Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId)
     {
         _logger.LogInformation("Creating employee for organization: {OrganizationId}", organizationId);
-        
-        // Check employee limit
-        var isWithinLimit = await _employeeRepository.CheckEmployeeLimitAsync(organizationId);
-        if (!isWithinLimit)
-            throw new InvalidOperationException("You have reached the limit to add max number of employee.");
 
-        // Validate required fields
-        if (string.IsNullOrEmpty(request.Email))
-            throw new InvalidOperationException("Employee email is required");
-        
-        if (string.IsNullOrEmpty(request.FirstName))
-            throw new InvalidOperationException("Employee first name is required");
-            
-        if (string.IsNullOrEmpty(request.LastName))
-            throw new InvalidOperationException("Employee last name is required");
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
 
-        // Validate unique employee code and email
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+            throw new ArgumentException("Employee email is required", nameof(request));
+
+        if (string.IsNullOrWhiteSpace(request.FirstName))
+            throw new ArgumentException("Employee first name is required", nameof(request));
+
+        if (string.IsNullOrWhiteSpace(request.LastName))
+            throw new ArgumentException("Employee last name is required", nameof(request));
+
+        if (!request.DateOfBirth.HasValue)
+            throw new ArgumentException("Date of birth is required", nameof(request));
+
+        if (request.DateOfBirth.Value.Date >= DateTime.UtcNow.Date)
+            throw new ArgumentException("Date of birth must be in the past", nameof(request));
+
+        if (request.HireDate == default)
+            throw new ArgumentException("Hire date is required", nameof(request));
+
+        if (request.HireDate.Date > DateTime.UtcNow.Date)
+            throw new ArgumentException("Hire date cannot be in the future", nameof(request));
+
+        //var isWithinLimit = await _employeeRepository.CheckEmployeeLimitAsync(organizationId);
+        //if (!isWithinLimit)
+        //    throw new InvalidOperationException("You have reached the limit to add max number of employee.");
+
         var existingByCode = await _employeeRepository.GetEmployeeByCodeAsync(organizationId, request.EmployeeNumber);
         if (existingByCode != null)
             throw new InvalidOperationException($"Employee with code '{request.EmployeeNumber}' already exists");
@@ -66,17 +81,14 @@ public class EmployeeService : IEmployeeService
         if (existingByEmail != null)
             throw new InvalidOperationException($"Employee with email '{request.Email}' already exists");
 
-        // Step 1: Create user account first
         Guid? userId = null;
-        string? roleName = "Employee"; // Default role
-        
-        // If position is assigned, get the role from that position
+        string? roleName = "Employee";
+
         if (request.PositionId.HasValue)
         {
             var position = await _employeeRepository.GetPositionByIdAsync(request.PositionId.Value);
             if (position?.RoleId.HasValue == true)
             {
-                // Get role name by role ID
                 var roles = await _authService.GetOrganizationRolesAsync(organizationId);
                 var assignedRole = roles.FirstOrDefault(r => r.RoleId == position.RoleId.Value);
                 if (assignedRole != null)
@@ -86,11 +98,10 @@ public class EmployeeService : IEmployeeService
             }
         }
 
-        // Create user account with default password "Password123"
         var createUserRequest = new CreateUserRequest
         {
             Email = request.Email,
-            Password = "Password123", // Default password
+            Password = "Password123",
             FirstName = request.FirstName,
             LastName = request.LastName,
             RoleName = roleName
@@ -100,46 +111,54 @@ public class EmployeeService : IEmployeeService
         {
             var userDto = await _authService.CreateUserAsync(createUserRequest, organizationId);
             userId = userDto.UserId;
-            _logger.LogInformation("Created user account {UserId} for employee {Email} with role {RoleName}", 
+            _logger.LogInformation("Created user account {UserId} for employee {Email} with role {RoleName}",
                 userId, request.Email, roleName);
+
+            var organizationCurrency = await _settingsRepository.GetCurrencyAsync(organizationId);
+            if (string.IsNullOrEmpty(organizationCurrency))
+            {
+                organizationCurrency = "USD";
+                _logger.LogWarning("No currency set for organization {OrganizationId}, defaulting to USD", organizationId);
+            }
+
+            var employee = _mapper.Map<Employee>(request);
+            employee.OrganizationId = organizationId;
+            employee.UserId = userId;
+
+            var createdEmployee = await _employeeRepository.CreateEmployeeAsync(employee);
+
+            _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}", createdEmployee.EmployeeId, userId);
+
+            await _employeeRepository.UpdateEmploymentDetailCurrencyAsync(createdEmployee.EmployeeId, organizationCurrency);
+            _logger.LogInformation("Updated EmploymentDetail currency to {Currency} for employee {EmployeeId}", organizationCurrency, createdEmployee.EmployeeId);
+
+            var result = await _employeeRepository.GetEmployeedetailsAsync(createdEmployee.EmployeeId);
+            return _mapper.Map<EmployeeDto>(result);
+        }
+        catch (ArgumentNullException)
+        {
+            throw;
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create user account for employee {Email}", request.Email);
-            throw new InvalidOperationException($"Failed to create user account for employee: {ex.Message}");
+            _logger.LogError(ex, "Unexpected error creating employee for organization: {OrganizationId}", organizationId);
+            throw new InvalidOperationException("An error occurred while creating the employee", ex);
         }
-
-        // Step 2: Get organization currency
-        var organizationCurrency = await _settingsRepository.GetCurrencyAsync(organizationId);
-        if (string.IsNullOrEmpty(organizationCurrency))
-        {
-            organizationCurrency = "USD"; // Default to USD if no currency is set
-            _logger.LogWarning("No currency set for organization {OrganizationId}, defaulting to USD", organizationId);
-        }
-
-        // Step 3: Create employee record with the created user ID
-        var employee = _mapper.Map<Employee>(request);
-        employee.OrganizationId = organizationId;
-        employee.UserId = userId;
-
-        var createdEmployee = await _employeeRepository.CreateEmployeeAsync(employee);
-
-        _logger.LogInformation("Created employee {EmployeeId} with user account {UserId}",
-            createdEmployee.EmployeeId, userId);
-
-        // Step 4: Update EmploymentDetail currency to match organization currency
-        await _employeeRepository.UpdateEmploymentDetailCurrencyAsync(createdEmployee.EmployeeId, organizationCurrency);
-        _logger.LogInformation("Updated EmploymentDetail currency to {Currency} for employee {EmployeeId}",
-            organizationCurrency, createdEmployee.EmployeeId);
-
-        var result = await _employeeRepository.GetEmployeedetailsAsync(createdEmployee.EmployeeId);
-
-       
-        return _mapper.Map<EmployeeDto>(result);
     }
 
     public async Task<EmployeeDto?> GetEmployeeByIdAsync(Guid userId)
     {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(userId));
+
         var empid = await _employeeRepository.getemployeeid(userId);
 
         var employee = await _employeeRepository.GetEmployeeByIdAsync(empid);
@@ -149,11 +168,23 @@ public class EmployeeService : IEmployeeService
 
     public async Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(EmployeeSearchViewModel searchModel, Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
+        if (searchModel == null)
+            throw new ArgumentNullException(nameof(searchModel), "Search model cannot be null");
+
+        if (searchModel.Page <= 0)
+            throw new ArgumentException("Page must be greater than 0", nameof(searchModel));
+
+        if (searchModel.PageSize <= 0)
+            throw new ArgumentException("Page size must be greater than 0", nameof(searchModel));
+
         return await _employeeRepository.GetEmployeesAsync(
             organizationId,
             searchModel.SearchTerm,
             searchModel.DepartmentId,
-            searchModel.PositionId,       // pass it
+            searchModel.PositionId,
             searchModel.EmploymentType,
             searchModel.Status,
             searchModel.Page,
@@ -162,6 +193,12 @@ public class EmployeeService : IEmployeeService
 
     public async Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequest request)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+
         var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
@@ -173,6 +210,12 @@ public class EmployeeService : IEmployeeService
 
     public async Task<bool> DeleteEmployeeAsync(Guid employeeId, string? status)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+
+        if (string.IsNullOrWhiteSpace(status))
+            throw new ArgumentException("Status is required", nameof(status));
+
         if (status.ToLower() == "delete")
         {
             status = "delete";
@@ -182,12 +225,19 @@ public class EmployeeService : IEmployeeService
             status = "active";
         }
 
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        if (employee == null)
+            throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
+
         return await _employeeRepository.DeleteEmployeeAsync(employeeId, status);
     }
 
 
     public async Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
         var departments = await _employeeRepository.GetDepartmentsAsync(organizationId, searchQuery, status);
 
         return departments.Select(d => new DepartmentDto
@@ -209,6 +259,12 @@ public class EmployeeService : IEmployeeService
     Guid positionId,
     bool isActive)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
+        if (positionId == Guid.Empty)
+            throw new ArgumentException("Position ID cannot be empty", nameof(positionId));
+
         // business decision directly
         bool status = isActive;
 
@@ -227,6 +283,12 @@ public class EmployeeService : IEmployeeService
     Guid departmentId,
     bool isActive)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
+        if (departmentId == Guid.Empty)
+            throw new ArgumentException("Department ID cannot be empty", nameof(departmentId));
+
         // business decision directly
         bool status = isActive;
 
@@ -242,6 +304,12 @@ public class EmployeeService : IEmployeeService
     //
     public async Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequestDTo request, IFormFile? profileFile)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+
         //Update user table first
         // get employee userId to update employe in user 
         var userId = await _employeeRepository.GetEmpUserIdAsync(employeeId);
@@ -273,10 +341,21 @@ public class EmployeeService : IEmployeeService
         return true;
     }
 
-
-
     public async Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+
+        if (string.IsNullOrWhiteSpace(request.DepartmentName))
+            throw new ArgumentException("Department name is required", nameof(request));
+
+        var existing = await _employeeRepository.GetDepartmentsAsync(organizationId, request.DepartmentName, null);
+        if (existing.Any(d => string.Equals(d.DepartmentName?.Trim(), request.DepartmentName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Department with name '{request.DepartmentName}' already exists");
+
         var department = _mapper.Map<Models.Entities.Department>(request);
         department.OrganizationId = organizationId;
 
@@ -287,6 +366,9 @@ public class EmployeeService : IEmployeeService
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,
     string? status = null)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
         var positions = await _employeeRepository.GetPositionsAsync(organizationId, departmentId, search, status);
         var positionDtos = _mapper.Map<List<PositionDto>>(positions);
 
@@ -303,6 +385,11 @@ public class EmployeeService : IEmployeeService
     //  Postion Employee
     public async Task<PositionEmployeesMainDto> GetEmployeesByPositionAsync(Guid organizationId, Guid positionId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (positionId == Guid.Empty)
+            throw new ArgumentException("Position ID cannot be empty", nameof(positionId));
+
         var employees = await _employeeRepository.GetEmployeesForPositionAsync(organizationId, positionId);
 
         var result = new PositionEmployeesMainDto
@@ -327,12 +414,33 @@ public class EmployeeService : IEmployeeService
 
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
         var positions = await _employeeRepository.GetPositionsAsync(organizationId, null);
         return _mapper.Map<List<PositionDto>>(positions);
     }
 
     public async Task<PositionDto> CreatePositionAsync(CreatePositionRequest request, Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.PositionTitle))
+            throw new ArgumentException("Position title is required", nameof(request));
+
+        var existing = await _employeeRepository.GetPositionsAsync(organizationId, null, request.PositionTitle, null);
+        if (existing.Any(p => string.Equals(p.PositionTitle?.Trim(), request.PositionTitle.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Position with title '{request.PositionTitle}' already exists");
+
+        if (request.DepartmentId.HasValue)
+        {
+            var department = await _employeeRepository.GetDepartmentByIdAsync(request.DepartmentId.Value);
+            if (department == null)
+                throw new KeyNotFoundException($"Department with ID {request.DepartmentId.Value} not found");
+        }
+
         var position = _mapper.Map<Position>(request);
         position.OrganizationId = organizationId;
 
@@ -343,10 +451,23 @@ public class EmployeeService : IEmployeeService
     public async Task<DepartmentDto> UpdateDepartmentAsync(Guid departmentId, CreateDepartmentRequest request)
     {
         _logger.LogInformation("Updating department: {DepartmentId}", departmentId);
-        
+
+        if (departmentId == Guid.Empty)
+            throw new ArgumentException("Department ID cannot be empty", nameof(departmentId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.DepartmentName))
+            throw new ArgumentException("Department name is required", nameof(request));
+
         var department = await _employeeRepository.GetDepartmentByIdAsync(departmentId);
+
         if (department == null)
             throw new KeyNotFoundException($"Department with ID {departmentId} not found");
+
+        var existing = await _employeeRepository.GetDepartmentsAsync(department.OrganizationId, request.DepartmentName, null);
+        if (existing.Any(d => d.DepartmentId != departmentId &&
+                              string.Equals(d.DepartmentName?.Trim(), request.DepartmentName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Department with name '{request.DepartmentName}' already exists");
 
         _mapper.Map(request, department);
         var updatedDepartment = await _employeeRepository.UpdateDepartmentAsync(department);
@@ -376,11 +497,24 @@ public class EmployeeService : IEmployeeService
 
     public async Task<PositionDto> UpdatePositionAsync(Guid positionId, CreatePositionRequest request)
     {
+        if (positionId == Guid.Empty)
+            throw new ArgumentException("Position ID cannot be empty", nameof(positionId));
+
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.PositionTitle))
+            throw new ArgumentException("Position title is required", nameof(request));
+
         _logger.LogInformation("Updating position: {PositionId}", positionId);
         
         var position = await _employeeRepository.GetPositionByIdAsync(positionId);
         if (position == null)
             throw new KeyNotFoundException($"Position with ID {positionId} not found");
+
+        var duplicates = await _employeeRepository.GetPositionsAsync(position.OrganizationId, null, request.PositionTitle, null);
+        if (duplicates.Any(p => p.PositionId != positionId &&
+                                string.Equals(p.PositionTitle?.Trim(), request.PositionTitle.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Position with title '{request.PositionTitle}' already exists");
 
         var oldRoleId = position.RoleId;
         _mapper.Map(request, position);
@@ -407,6 +541,9 @@ public class EmployeeService : IEmployeeService
 
     public async Task<bool> DeletePositionAsync(Guid positionId)
     {
+        if (positionId == Guid.Empty)
+            throw new ArgumentException("Position ID cannot be empty", nameof(positionId));
+
         _logger.LogInformation("Deleting position: {PositionId}", positionId);
         
         var position = await _employeeRepository.GetPositionByIdAsync(positionId);
@@ -427,6 +564,9 @@ public class EmployeeService : IEmployeeService
     // New missing methods implementation
     public async Task<EmployeeDto> ActivateEmployeeAsync(Guid employeeId)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+
         _logger.LogInformation("Activating employee: {EmployeeId}", employeeId);
         
         var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
@@ -442,6 +582,9 @@ public class EmployeeService : IEmployeeService
 
     public async Task<EmployeeDto> DeactivateEmployeeAsync(Guid employeeId)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+
         _logger.LogInformation("Deactivating employee: {EmployeeId}", employeeId);
         
         var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
@@ -457,6 +600,9 @@ public class EmployeeService : IEmployeeService
 
     public async Task<DepartmentDto?> GetDepartmentByIdAsync(Guid departmentId)
     {
+        if (departmentId == Guid.Empty)
+            throw new ArgumentException("Department ID cannot be empty", nameof(departmentId));
+
         _logger.LogInformation("Retrieving department: {DepartmentId}", departmentId);
         
         var department = await _employeeRepository.GetDepartmentByIdAsync(departmentId);
@@ -465,6 +611,9 @@ public class EmployeeService : IEmployeeService
 
     public async Task<PositionDto?> GetPositionByIdAsync(Guid positionId)
     {
+        if (positionId == Guid.Empty)
+            throw new ArgumentException("Position ID cannot be empty", nameof(positionId));
+
         _logger.LogInformation("Retrieving position: {PositionId}", positionId);
         
         var position = await _employeeRepository.GetPositionByIdAsync(positionId);
@@ -473,6 +622,9 @@ public class EmployeeService : IEmployeeService
 
     public async Task<EmployeeStatisticsDto> GetEmployeeStatisticsAsync(Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
         _logger.LogInformation("Retrieving employee statistics for organization: {OrganizationId}", organizationId);
         
         // Mock implementation - in a real app, this would calculate from database
@@ -505,6 +657,9 @@ public class EmployeeService : IEmployeeService
 
     public async Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
         _logger.LogInformation("Retrieving managers for organization: {OrganizationId}", organizationId);
         
         var managers = await _employeeRepository.GetManagersAsync(organizationId);
@@ -557,6 +712,16 @@ public class EmployeeService : IEmployeeService
 
     public async Task<byte[]> ExportEmployeesAsync(Guid organizationId, string format)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
+        if (string.IsNullOrWhiteSpace(format))
+            throw new ArgumentException("Export format is required", nameof(format));
+
+        var normalized = format.Trim().ToLowerInvariant();
+        if (normalized != "xlsx" && normalized != "csv")
+            throw new ArgumentException("Invalid export format. Allowed: xlsx or csv", nameof(format));
+
         _logger.LogInformation(
             "Exporting employees for organization: {OrganizationId}", organizationId);
 
@@ -660,6 +825,11 @@ public class EmployeeService : IEmployeeService
 
     public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
     {
+        if (managerEmployeeId == Guid.Empty)
+            throw new ArgumentException("Manager Employee ID cannot be empty", nameof(managerEmployeeId));
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
         return await _employeeRepository.GetEmployeesByManagerAsync(managerEmployeeId, organizationId);
     }
 }

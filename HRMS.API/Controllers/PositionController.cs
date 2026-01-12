@@ -68,6 +68,15 @@ public class PositionController : ControllerBase
                 Data = position
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving position: {PositionId}", id);
+            return BadRequest(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving position {PositionId}", id);
