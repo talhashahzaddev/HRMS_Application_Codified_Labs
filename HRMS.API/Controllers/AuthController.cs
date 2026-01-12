@@ -30,9 +30,17 @@ public class AuthController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<AuthResponse>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var response = await _authService.AuthenticateAsync(request);
             
-            // Debug: Log the token to see what claims it contains
             _logger.LogInformation("Generated JWT Token: {Token}", response.Token);
             
             return Ok(new ServiceResponse<AuthResponse>
@@ -42,9 +50,45 @@ public class AuthController : ControllerBase
                 Data = response
             });
         }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Email not found during login");
+            return NotFound(new ServiceResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for login");
+            return BadRequest(new ServiceResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for login");
+            return BadRequest(new ServiceResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(new ServiceResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error during login");
+            return BadRequest(new ServiceResponse<AuthResponse>
             {
                 Success = false,
                 Message = ex.Message
@@ -56,7 +100,7 @@ public class AuthController : ControllerBase
             return StatusCode(500, new ServiceResponse<AuthResponse>
             {
                 Success = false,
-                Message = ex.Message
+                Message = "An error occurred during login"
 
             });
         }
@@ -67,12 +111,39 @@ public class AuthController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<AuthResponse>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var response = await _authService.RefreshTokenAsync(request);
             return Ok(new ServiceResponse<AuthResponse>
             {
                 Success = true,
                 Message = "Token refreshed successfully",
                 Data = response
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for token refresh");
+            return BadRequest(new ServiceResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for token refresh");
+            return BadRequest(new ServiceResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (UnauthorizedAccessException ex)
@@ -110,6 +181,23 @@ public class AuthController : ControllerBase
                 Data = result
             });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument during logout");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Logout failed");
@@ -145,6 +233,15 @@ public class AuthController : ControllerBase
                 Data = user
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving user {UserId}", id);
+            return BadRequest(new ServiceResponse<UserDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving user {UserId}", id);
@@ -171,6 +268,14 @@ public class AuthController : ControllerBase
                 Data = user
             });
         }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<UserDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving current user");
@@ -187,12 +292,39 @@ public class AuthController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<AuthResponse>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var response = await _authService.RegisterAsync(request);
             return Ok(new ServiceResponse<AuthResponse>
             {
                 Success = true,
                 Message = "Registration successful",
                 Data = response
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for registration");
+            return BadRequest(new ServiceResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for registration");
+            return BadRequest(new ServiceResponse<AuthResponse>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (InvalidOperationException ex)
@@ -220,8 +352,15 @@ public class AuthController : ControllerBase
     {
         try
         {
-            if (string.IsNullOrEmpty(request.token) || string.IsNullOrEmpty(request.password))
-                return BadRequest(new { message = "Token or password cannot be empty" });
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
 
             var result = await _authService.ResetPasswordAsync(request);
 
@@ -235,13 +374,30 @@ public class AuthController : ControllerBase
 
 
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for reset password");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Reset password failed for email: {Email}");
             return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
-                Message = ex.Message
+                Message = "An error occurred during password reset"
             });
 
         }
@@ -253,12 +409,30 @@ public class AuthController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var result = await _authService.ForgotPasswordAsync(request);
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Password reset email sent successfully",
                 Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for forgot password");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -306,6 +480,15 @@ public class AuthController : ControllerBase
                 Message = ex.Message
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating profile");
+            return BadRequest(new ServiceResponse<UserDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Profile update failed for user: {UserId}", GetCurrentUserId());
@@ -323,6 +506,15 @@ public class AuthController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var userId = GetCurrentUserId();
             var result = await _authService.ChangePasswordAsync(userId, request);
             
@@ -336,6 +528,24 @@ public class AuthController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             return Unauthorized(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for changing password");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error during password change for user: {UserId}", GetCurrentUserId());
+            return BadRequest(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message
@@ -522,7 +732,11 @@ public class AuthController : ControllerBase
         {
             var organizationId = GetOrganizationIdFromClaims();
             if (organizationId == null)
-                return BadRequest("Organization ID not found in claims");
+                return BadRequest(new ServiceResponse<RoleDto>
+                {
+                    Success = false,
+                    Message = "Organization ID not found in claims"
+                });
 
             var role = await _authService.CreateRoleAsync(request, organizationId.Value);
             return Ok(new ServiceResponse<RoleDto>
@@ -530,6 +744,15 @@ public class AuthController : ControllerBase
                 Success = true,
                 Data = role,
                 Message = "Role created successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating role");
+            return BadRequest(new ServiceResponse<RoleDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (InvalidOperationException ex)
@@ -558,7 +781,11 @@ public class AuthController : ControllerBase
         {
             var organizationId = GetOrganizationIdFromClaims();
             if (organizationId == null)
-                return BadRequest("Organization ID not found in claims");
+                return BadRequest(new ServiceResponse<List<RoleDto>>
+                {
+                    Success = false,
+                    Message = "Organization ID not found in claims"
+                });
 
             var roles = await _authService.GetOrganizationRolesAsync(organizationId.Value);
             return Ok(new ServiceResponse<List<RoleDto>>

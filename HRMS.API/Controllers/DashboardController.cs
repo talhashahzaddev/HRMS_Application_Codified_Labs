@@ -34,6 +34,23 @@ public class DashboardController : ControllerBase
                 Data = summary
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving dashboard summary");
+            return BadRequest(new ServiceResponse<DashboardSummaryDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<DashboardSummaryDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving dashboard summary");
@@ -57,6 +74,23 @@ public class DashboardController : ControllerBase
             {
                 Success = true,
                 Data = stats
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving dashboard stats");
+            return BadRequest(new ServiceResponse<DashboardStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<DashboardStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -84,6 +118,23 @@ public class DashboardController : ControllerBase
                 Data = stats
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving attendance stats");
+            return BadRequest(new ServiceResponse<AttendanceStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<AttendanceStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving attendance stats");
@@ -107,6 +158,23 @@ public class DashboardController : ControllerBase
             {
                 Success = true,
                 Data = stats
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving leave stats");
+            return BadRequest(new ServiceResponse<LeaveStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<LeaveStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -134,6 +202,23 @@ public class DashboardController : ControllerBase
                 Data = stats
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving payroll stats");
+            return BadRequest(new ServiceResponse<PayrollStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<PayrollStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving payroll stats");
@@ -157,6 +242,23 @@ public class DashboardController : ControllerBase
             {
                 Success = true,
                 Data = stats
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving performance stats");
+            return BadRequest(new ServiceResponse<PerformanceStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<PerformanceStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -184,6 +286,23 @@ public class DashboardController : ControllerBase
                 Data = growth
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving employee growth");
+            return BadRequest(new ServiceResponse<EmployeeGrowthDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<EmployeeGrowthDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee growth");
@@ -207,6 +326,23 @@ public class DashboardController : ControllerBase
             {
                 Success = true,
                 Data = stats
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving department stats");
+            return BadRequest(new ServiceResponse<List<DepartmentStatsDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<List<DepartmentStatsDto>>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -234,6 +370,23 @@ public class DashboardController : ControllerBase
                 Data = events
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving upcoming events");
+            return BadRequest(new ServiceResponse<List<UpcomingEventDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<List<UpcomingEventDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving upcoming events");
@@ -257,6 +410,23 @@ public class DashboardController : ControllerBase
             {
                 Success = true,
                 Data = activities
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving recent activities");
+            return BadRequest(new ServiceResponse<List<RecentActivityDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<List<RecentActivityDto>>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
