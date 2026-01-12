@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using BCrypt.Net;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
@@ -45,30 +45,32 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request)
     {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.Email)) throw new ArgumentException("Email is required", nameof(request.Email));
+        if (string.IsNullOrWhiteSpace(request.Password)) throw new ArgumentException("Password is required", nameof(request.Password));
         _logger.LogInformation("Authentication attempt for email: {Email}", request.Email);
 
         var userEmail = await _authRepository.GetUserByEmailAsync(request.Email);
 
         if (userEmail == null)
         {
-            _logger.LogWarning("Authentication failed for email: {Email}", request.Email);
-            throw new UnauthorizedAccessException("Invalid email or password");
+            _logger.LogWarning("Email not found: {Email}", request.Email);
+            throw new KeyNotFoundException("Email not found");
         }
-
 
         string hashedPassword = await _authRepository.GetHashedPassword(request.Email);
         var passwordHash = BCrypt.Net.BCrypt.Verify(request.Password, hashedPassword);
         if (!passwordHash)
         {
             _logger.LogWarning("Invalid password for email: {Email}", request.Email);
-            throw new UnauthorizedAccessException("Invalid email or password");
+            throw new UnauthorizedAccessException("Invalid password");
         }
         User? user = await _authRepository.AuthenticateAsync(request.Email, hashedPassword);
 
         if (user == null)
         {
-            _logger.LogWarning("Authentication failed for email: {Email}", request.Email);
-            throw new UnauthorizedAccessException("Invalid email or password");
+            _logger.LogWarning("Login failed after credential verification for email: {Email}", request.Email);
+            throw new InvalidOperationException("Login failed");
         }
 
         // Debug: Log user details
@@ -102,7 +104,17 @@ public class AuthService : IAuthService
 
     public async Task<AuthResponse> RefreshTokenAsync(RefreshTokenRequest request)
     {
-        var principal = GetPrincipalFromExpiredToken(request.RefreshToken);
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.RefreshToken)) throw new ArgumentException("Refresh token is required", nameof(request.RefreshToken));
+        ClaimsPrincipal? principal;
+        try
+        {
+            principal = GetPrincipalFromExpiredToken(request.RefreshToken);
+        }
+        catch (SecurityTokenException)
+        {
+            throw new UnauthorizedAccessException("Invalid refresh token");
+        }
         if (principal?.Identity?.Name == null)
             throw new UnauthorizedAccessException("Invalid refresh token");
 
@@ -134,6 +146,7 @@ public class AuthService : IAuthService
 
     public async Task<bool> LogoutAsync(Guid userId)
     {
+        if (userId == Guid.Empty) throw new ArgumentException("User ID is required", nameof(userId));
         return await _authRepository.UpdateRefreshTokenAsync(userId, string.Empty, DateTime.UtcNow);
     }
 
@@ -187,6 +200,12 @@ public class AuthService : IAuthService
     // New registration method that creates organization and SuperAdmin user
     public async Task<AuthResponse> RegisterAsync(HRMS.API.Models.DTOs.RegisterRequest request)
     {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.Email)) throw new ArgumentException("Email is required", nameof(request.Email));
+        if (string.IsNullOrWhiteSpace(request.Password)) throw new ArgumentException("Password is required", nameof(request.Password));
+        if (string.IsNullOrWhiteSpace(request.FirstName)) throw new ArgumentException("First name is required", nameof(request.FirstName));
+        if (string.IsNullOrWhiteSpace(request.LastName)) throw new ArgumentException("Last name is required", nameof(request.LastName));
+        if (string.IsNullOrWhiteSpace(request.CompanyName)) throw new ArgumentException("Company name is required", nameof(request.CompanyName));
         _logger.LogInformation("Registration attempt for email: {Email} and organization: {CompanyName}", request.Email, request.CompanyName);
 
         // Check if user already exists
@@ -296,6 +315,8 @@ public class AuthService : IAuthService
 
     public async Task<bool> ForgotPasswordAsync(HRMS.API.Models.DTOs.ForgotPasswordRequest request)
     {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.Email)) throw new ArgumentException("Email is required", nameof(request.Email));
         _logger.LogInformation("Forgot password request for email: {Email}", request.Email);
 
         var user = await _authRepository.GetUserByEmailAsync(request.Email);
@@ -330,6 +351,7 @@ public class AuthService : IAuthService
 
     public async Task<bool> ResetPasswordAsync(HRMS.API.Models.DTOs.ResetPasswordRequest request)
     {
+        if (request == null) throw new ArgumentNullException(nameof(request));
         _logger.LogInformation("Reset password attempt using token: {Token}", request.token);
 
         if (string.IsNullOrWhiteSpace(request.token) || string.IsNullOrWhiteSpace(request.password))
@@ -385,6 +407,8 @@ public class AuthService : IAuthService
 
     public async Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, IFormFile? profileurl)
     {
+        if (userId == Guid.Empty) throw new ArgumentException("User ID is required", nameof(userId));
+        if (request == null) throw new ArgumentNullException(nameof(request));
 
         //Update user Table
 
@@ -426,6 +450,10 @@ public class AuthService : IAuthService
 
     public async Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
     {
+        if (userId == Guid.Empty) throw new ArgumentException("User ID is required", nameof(userId));
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword)) throw new ArgumentException("Current password is required", nameof(request.CurrentPassword));
+        if (string.IsNullOrWhiteSpace(request.NewPassword)) throw new ArgumentException("New password is required", nameof(request.NewPassword));
         _logger.LogInformation("Change password attempt for user: {UserId}", userId);
         
         var user = await _authRepository.GetUserByIdAsync(userId);
@@ -571,6 +599,9 @@ public class AuthService : IAuthService
 
     public async Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, Guid organizationId)
     {
+        if (organizationId == Guid.Empty) throw new ArgumentException("Organization ID is required", nameof(organizationId));
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.RoleName)) throw new ArgumentException("Role name is required", nameof(request.RoleName));
         // Validate role name uniqueness within organization
         var existingRole = await _authRepository.GetRoleByNameAsync(organizationId, request.RoleName);
         if (existingRole != null)
@@ -595,6 +626,7 @@ public class AuthService : IAuthService
 
     public async Task<List<RoleDto>> GetOrganizationRolesAsync(Guid organizationId)
     {
+        if (organizationId == Guid.Empty) throw new ArgumentException("Organization ID is required", nameof(organizationId));
         var roles = await _authRepository.GetOrganizationRolesAsync(organizationId);
         return roles.Select(MapToRoleDto).ToList();
     }

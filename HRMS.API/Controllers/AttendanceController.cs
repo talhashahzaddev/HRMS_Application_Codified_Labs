@@ -29,6 +29,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var employeeId = await GetCurrentEmployeeId(); // This would need to be implemented
             var result = await _attendanceService.ClockInAsync(employeeId, request);
             
@@ -37,6 +46,33 @@ public class AttendanceController : ControllerBase
                 Success = true,
                 Message = "Clocked in successfully",
                 Data = result
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for clock in");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for clock in");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error during clock in");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -55,6 +91,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var employeeId = await GetCurrentEmployeeId();
             var result = await _attendanceService.ClockOutAsync(employeeId, request);
             
@@ -63,6 +108,33 @@ public class AttendanceController : ControllerBase
                 Success = true,
                 Message = "Clocked out successfully",
                 Data = result
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for clock out");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for clock out");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error during clock out");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -88,6 +160,15 @@ public class AttendanceController : ControllerBase
             {
                 Success = true,
                 Data = attendance
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving today's attendance");
+            return BadRequest(new ServiceResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -116,6 +197,15 @@ public class AttendanceController : ControllerBase
                 Data = attendance
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving attendance records");
+            return BadRequest(new ServiceResponse<PagedResult<AttendanceDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving attendance records");
@@ -139,6 +229,15 @@ public class AttendanceController : ControllerBase
             {
                 Success = true,
                 Data = summary
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving attendance summary");
+            return BadRequest(new ServiceResponse<AttendanceSummaryDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -167,6 +266,15 @@ public class AttendanceController : ControllerBase
                 Data = attendance
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving department attendance");
+            return BadRequest(new ServiceResponse<List<AttendanceDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving department attendance");
@@ -190,6 +298,15 @@ public class AttendanceController : ControllerBase
             {
                 Success = true,
                 Data = session
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving current session");
+            return BadRequest(new ServiceResponse<TimeTrackingSessionDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -218,6 +335,15 @@ public class AttendanceController : ControllerBase
                 Data = sessions
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving current sessions");
+            return BadRequest(new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving current sessions");
@@ -243,6 +369,15 @@ public class AttendanceController : ControllerBase
             {
                 Success = true,
                 Data = sessions
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving sessions by id");
+            return BadRequest(new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -279,6 +414,15 @@ public class AttendanceController : ControllerBase
                 Data = attendance
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving attendance by id");
+            return BadRequest(new ServiceResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving attendance {AttendanceId}", id);
@@ -296,6 +440,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<AttendanceDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var attendance = await _attendanceService.CreateManualAttendanceAsync(request);
             
             return CreatedAtAction(nameof(GetAttendance), new { id = attendance.AttendanceId }, new ServiceResponse<AttendanceDto>
@@ -303,6 +456,33 @@ public class AttendanceController : ControllerBase
                 Success = true,
                 Message = "Manual attendance record created successfully",
                 Data = attendance
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating manual attendance");
+            return BadRequest(new ServiceResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating manual attendance");
+            return BadRequest(new ServiceResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error creating manual attendance");
+            return BadRequest(new ServiceResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -322,6 +502,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<AttendanceDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var attendance = await _attendanceService.UpdateAttendanceAsync(id, request);
             
             return Ok(new ServiceResponse<AttendanceDto>
@@ -334,6 +523,33 @@ public class AttendanceController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating attendance {AttendanceId}", id);
+            return BadRequest(new ServiceResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating attendance {AttendanceId}", id);
+            return BadRequest(new ServiceResponse<AttendanceDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error updating attendance {AttendanceId}", id);
+            return BadRequest(new ServiceResponse<AttendanceDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -368,6 +584,15 @@ public class AttendanceController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for deleting attendance {AttendanceId}", id);
+            return BadRequest(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message
@@ -424,6 +649,15 @@ public class AttendanceController : ControllerBase
                 Data = summary
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving my attendance summary");
+            return BadRequest(new ServiceResponse<AttendanceSummaryDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving my attendance summary");
@@ -464,6 +698,15 @@ public class AttendanceController : ControllerBase
                 Data = result
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving employee attendance");
+            return BadRequest(new ServiceResponse<PagedResult<AttendanceSessionWithInfoDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee attendance");
@@ -492,6 +735,15 @@ public class AttendanceController : ControllerBase
                 Data = attendance
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving employee attendance");
+            return BadRequest(new ServiceResponse<List<AttendanceDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee attendance");
@@ -517,6 +769,15 @@ public class AttendanceController : ControllerBase
                 Data = calendar
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving employee attendance calendar");
+            return BadRequest(new ServiceResponse<List<AttendanceCalendarDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee attendance calendar");
@@ -535,6 +796,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
 
             var createdShift = await _attendanceService.CreateShiftAsync(organizationId, request);
@@ -543,6 +813,33 @@ public class AttendanceController : ControllerBase
             {
                 Success = true,
                 Message = "Shift Created Sucessfully"
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating shift");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating shift");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error creating shift");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -562,6 +859,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var currentEmp = await GetCurrentEmployeeId();
 
@@ -572,6 +878,33 @@ public class AttendanceController : ControllerBase
                 Success = true,
                 Message = "Shift assigned successfully.",
                 Data = true
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for assigning shift");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for assigning shift");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error assigning shift");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -603,6 +936,15 @@ public class AttendanceController : ControllerBase
                 Data = employees
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving employees by shift");
+            return BadRequest(new ServiceResponse<List<EmployeeShiftDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employees by shift");
@@ -621,6 +963,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
 
             // Call service to create the shift swap request
@@ -631,6 +982,36 @@ public class AttendanceController : ControllerBase
                 Success = success,
                 Message = success ? "Shift swap request created successfully." : "Failed to create shift swap request.",
                 Data = success
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating shift swap");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = false
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating shift swap");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = false
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error creating shift swap request");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = false
             });
         }
         catch (Exception ex)
@@ -650,6 +1031,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var status = dto.IsApproved ? "approved" : " rejected";
             var organizationId= GetCurrentOrganizationId();
             var success = await _attendanceService.ApproveShiftSwapRequestAsync(dto,organizationId);
@@ -659,6 +1049,36 @@ public class AttendanceController : ControllerBase
                 Success = success,
                 Message = success ? $"Shift swap request {status} successfully." : "Failed to process request.",
                 Data = success
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for approving shift swap");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = false
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for approving shift swap");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = false
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error processing shift swap request {RequestId}", dto.RequestId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = false
             });
         }
         catch (Exception ex)
@@ -689,6 +1109,16 @@ public class AttendanceController : ControllerBase
                 Data = requests
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for fetching pending shift swap requests");
+            return BadRequest(new ServiceResponse<List<PendingShiftSwapDto>>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = null
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching pending shift swap requests");
@@ -715,6 +1145,16 @@ public class AttendanceController : ControllerBase
                 Success = true,
                 Message = requests.Count > 0 ? "Shift swap requests retrieved successfully." : "No shift swap requests found.",
                 Data = requests
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for fetching shift swap requests for employee {EmployeeId}", employeeId);
+            return BadRequest(new ServiceResponse<List<PendingShiftSwapDto>>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = null
             });
         }
         catch (Exception ex)
@@ -745,7 +1185,7 @@ public class AttendanceController : ControllerBase
 
             if (shift == null)
             {
-                return Ok(new ServiceResponse<ShiftDto>
+                return NotFound(new ServiceResponse<ShiftDto>
                 {
                     Success = false,
                     Message = "Shift not found for the given employee.",
@@ -758,6 +1198,16 @@ public class AttendanceController : ControllerBase
                 Success = true,
                 Message = "Employee shift retrieved successfully.",
                 Data = shift
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for fetching shift for employee {EmployeeId}", employeeId);
+            return BadRequest(new ServiceResponse<ShiftDto>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = null
             });
         }
         catch (Exception ex)
@@ -789,6 +1239,15 @@ public class AttendanceController : ControllerBase
                 Data = shifts
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving all shifts");
+            return BadRequest(new ServiceResponse<List<ShiftDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all shifts");
@@ -805,6 +1264,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
 
             var success = await _attendanceService.UpdateShiftAsync(organizationId, shiftId, request);
@@ -816,6 +1284,33 @@ public class AttendanceController : ControllerBase
             {
                 Success = true,
                 Message = "Shift updated successfully"
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating shift {ShiftId}", shiftId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating shift {ShiftId}", shiftId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error updating shift {ShiftId}", shiftId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -847,6 +1342,15 @@ public class AttendanceController : ControllerBase
                 Message = "Shift deleted successfully"
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for deleting shift {ShiftId}", shiftId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting shift {ShiftId}", shiftId);
@@ -872,6 +1376,15 @@ public class AttendanceController : ControllerBase
             {
                 Success = true,
                 Data = calendar
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving my attendance calendar");
+            return BadRequest(new ServiceResponse<List<AttendanceCalendarDto>>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -901,6 +1414,15 @@ public class AttendanceController : ControllerBase
                 Data = stats
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving daily attendance stats");
+            return BadRequest(new ServiceResponse<DailyAttendanceStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving daily attendance stats");
@@ -926,6 +1448,15 @@ public class AttendanceController : ControllerBase
             {
                 Success = true,
                 Data = report
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for generating attendance report");
+            return BadRequest(new ServiceResponse<AttendanceReportDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -974,6 +1505,14 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!new[] { "csv", "xlsx" }.Contains(format.ToLower()))
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid export format. Allowed formats are 'csv' and 'xlsx'"
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var currentEmployeeId = await GetCurrentEmployeeId();
             var fileBytes = await _attendanceService.ExportAttendanceReportAsync(organizationId, startDate, endDate, format, employeeId, currentEmployeeId,departmentId, status);
@@ -982,6 +1521,15 @@ public class AttendanceController : ControllerBase
             var fileName = $"attendance-report-{startDate:yyyy-MM-dd}-to-{endDate:yyyy-MM-dd}.{format}";
             
             return File(fileBytes, contentType, fileName);
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for exporting attendance report");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
         }
         catch (Exception ex)
         {
@@ -1000,6 +1548,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var result = await _attendanceService.BulkApproveAttendanceAsync(request.AttendanceIds);
             
             return Ok(new ServiceResponse<bool>
@@ -1007,6 +1564,24 @@ public class AttendanceController : ControllerBase
                 Success = true,
                 Message = $"Successfully approved {request.AttendanceIds.Count} attendance records",
                 Data = result
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for bulk approve attendance");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for bulk approve attendance");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -1026,6 +1601,15 @@ public class AttendanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var result = await _attendanceService.BulkRejectAttendanceAsync(request.AttendanceIds, request.Reason);
             
             return Ok(new ServiceResponse<bool>
@@ -1033,6 +1617,24 @@ public class AttendanceController : ControllerBase
                 Success = true,
                 Message = $"Successfully rejected {request.AttendanceIds.Count} attendance records",
                 Data = result
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for bulk reject attendance");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for bulk reject attendance");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
