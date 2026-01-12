@@ -46,62 +46,95 @@ public class AttendanceService : IAttendanceService
 
     public async Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request)
     {
-        //Check if Already Clockin or not
-
-        var checkin = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
-
-        if (checkin == true)
+        
+        _logger.LogInformation("Clocking in employee: {EmployeeId}", employeeId);
+        if (employeeId == Guid.Empty)
         {
-            throw new Exception("You already Clockin");
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
         }
-        else
+        if (request == null)
         {
-            //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        }
+        try
+        {
+            var alreadyClockedIn = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
+            if (alreadyClockedIn)
+            {
+                throw new InvalidOperationException("Already clocked in");
+            }
             var result = await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location);
-            //Update Attendace table on first checkin checkout From sessions
-
-            var TodayAttendace = await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
-            //check if employee is  late or not 
-            var latecheckin = await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
+            await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+            await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
             return result;
-
         }
-
-
+        catch (ArgumentNullException)
+        {
+            throw;
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during clock in for employee: {EmployeeId}", employeeId);
+            throw new InvalidOperationException("An error occurred while clocking in", ex);
+        }
     }
 
     public async Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request)
     {
-        //Checking weather employee is already checkout or not
-        var checkin = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
-
-        if (checkin == false)
+        _logger.LogInformation("Clocking out employee: {EmployeeId}", employeeId);
+        if (employeeId == Guid.Empty)
         {
-            throw new Exception("You already Clockout");
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
         }
-
-        else
+        if (request == null)
         {
-            //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        }
+        try
+        {
+            var isClockedIn = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
+            if (!isClockedIn)
+            {
+                throw new InvalidOperationException("Not clocked in");
+            }
             var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location);
-
-            //Update Attendace table on first checkin checkout From sessions
-
-            var toTodayAttendaceda = await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
-
-            //Calculating OverTime when clockout
-
-            var overtime = await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
-
-
+            await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+            await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
             return result;
         }
-
+        catch (ArgumentNullException)
+        {
+            throw;
+        }
+        catch (ArgumentException)
+        {
+            throw;
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during clock out for employee: {EmployeeId}", employeeId);
+            throw new InvalidOperationException("An error occurred while clocking out", ex);
+        }
     }
 
     public async Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId)
     {
-        //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
+        if (employeeId == Guid.Empty)
+        {
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        }
         var attendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
         return attendance != null ? _mapper.Map<AttendanceDto>(attendance) : null;
     }
@@ -117,13 +150,11 @@ public class AttendanceService : IAttendanceService
 
     public async Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId, DateTime? date = null)
     {
-        // Use the provided date, or default to today
-      
-
-        // Get attendance ID for the employee on that date
+        if (employeeId == Guid.Empty)
+        {
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        }
         var attendanceId = await _attendanceRepository.GetAttendanceIdAsync(employeeId, date);
-
-        // Fetch sessions for that attendance ID
         return await _attendanceRepository.GetTodaySessionAsync(attendanceId);
     }
 
@@ -131,7 +162,22 @@ public class AttendanceService : IAttendanceService
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(AttendanceSearchViewModel searchModel, Guid organizationId, Guid currentEmployeeId)
     {
-        // Check if user is Super Admin or HR Manager
+        if (searchModel == null)
+        {
+            throw new ArgumentNullException(nameof(searchModel), "Search model cannot be null");
+        }
+        if (searchModel.Page <= 0)
+        {
+            throw new ArgumentException("Page must be greater than zero", nameof(searchModel.Page));
+        }
+        if (searchModel.PageSize <= 0)
+        {
+            throw new ArgumentException("Page size must be greater than zero", nameof(searchModel.PageSize));
+        }
+        if (searchModel.EndDate < searchModel.StartDate)
+        {
+            throw new ArgumentException("End date cannot be earlier than start date", nameof(searchModel.EndDate));
+        }
         var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
         
         if (isAdminOrHR)
@@ -234,13 +280,27 @@ public class AttendanceService : IAttendanceService
 
     public async Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
-        //var EMP_Id = await _attendanceRepository.GetEmpId(employeeId);
-
+        if (employeeId == Guid.Empty)
+        {
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        }
+        if (endDate < startDate)
+        {
+            throw new ArgumentException("End date cannot be earlier than start date", nameof(endDate));
+        }
         return await _attendanceRepository.GetAttendanceSummaryAsync(employeeId, startDate, endDate);
     }
 
     public async Task<bool> UpdateAttendanceAsync(Guid attendanceId, CreateAttendanceRequest request)
     {
+        if (attendanceId == Guid.Empty)
+        {
+            throw new ArgumentException("Attendance ID cannot be empty", nameof(attendanceId));
+        }
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        }
         var attendance = _mapper.Map<Attendance>(request);
         return await _attendanceRepository.UpdateAttendanceAsync(attendanceId, attendance);
     }
@@ -253,6 +313,22 @@ public class AttendanceService : IAttendanceService
     int pageNumber,
     int pageSize)
     {
+        if (employeeId == Guid.Empty)
+        {
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        }
+        if (endDate < startDate)
+        {
+            throw new ArgumentException("End date cannot be earlier than start date", nameof(endDate));
+        }
+        if (pageNumber <= 0)
+        {
+            throw new ArgumentException("Page number must be greater than zero", nameof(pageNumber));
+        }
+        if (pageSize <= 0)
+        {
+            throw new ArgumentException("Page size must be greater than zero", nameof(pageSize));
+        }
         return await _attendanceRepository.GetEmployeeSessionsWithInfoAsync(
             employeeId,
             startDate,
@@ -266,6 +342,10 @@ public class AttendanceService : IAttendanceService
 
     public async Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date)
     {
+        if (departmentId == Guid.Empty)
+        {
+            throw new ArgumentException("Department ID cannot be empty", nameof(departmentId));
+        }
         return await _attendanceRepository.GetDepartmentAttendanceAsync(departmentId, date);
     }
 
@@ -273,8 +353,11 @@ public class AttendanceService : IAttendanceService
     public async Task<TimeTrackingSessionDto?> GetCurrentSessionAsync(Guid employeeId)
     {
         _logger.LogInformation("Getting current session for employee: {EmployeeId}", employeeId);
+        if (employeeId == Guid.Empty)
+        {
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+        }
 
-        // Mock implementation - return current active session if exists
         var todayAttendance = await GetTodayAttendanceAsync(employeeId);
 
         if (todayAttendance?.CheckInTime != null && todayAttendance.CheckOutTime == null)
@@ -297,6 +380,10 @@ public class AttendanceService : IAttendanceService
     public async Task<AttendanceDto?> GetAttendanceByIdAsync(Guid attendanceId)
     {
         _logger.LogInformation("Getting attendance by ID: {AttendanceId}", attendanceId);
+        if (attendanceId == Guid.Empty)
+        {
+            throw new ArgumentException("Attendance ID cannot be empty", nameof(attendanceId));
+        }
         
         var attendance = await _attendanceRepository.GetAttendanceByIdAsync(attendanceId);
         return attendance != null ? _mapper.Map<AttendanceDto>(attendance) : null;
@@ -305,6 +392,18 @@ public class AttendanceService : IAttendanceService
     public async Task<AttendanceDto> CreateManualAttendanceAsync(ManualAttendanceRequest request)
     {
         _logger.LogInformation("Creating manual attendance for employee: {EmployeeId}", request.EmployeeId);
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        }
+        if (request.EmployeeId == Guid.Empty)
+        {
+            throw new ArgumentException("Employee ID is required", nameof(request));
+        }
+        if (request.CheckOutTime.HasValue && request.CheckOutTime.Value < request.CheckInTime)
+        {
+            throw new ArgumentException("Check-out time cannot be earlier than check-in time", nameof(request));
+        }
         
         var attendance = new Attendance
         {
@@ -327,6 +426,18 @@ public class AttendanceService : IAttendanceService
     public async Task<AttendanceDto> UpdateAttendanceAsync(Guid attendanceId, ManualAttendanceRequest request)
     {
         _logger.LogInformation("Updating attendance: {AttendanceId}", attendanceId);
+        if (attendanceId == Guid.Empty)
+        {
+            throw new ArgumentException("Attendance ID cannot be empty", nameof(attendanceId));
+        }
+        if (request == null)
+        {
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        }
+        if (request.CheckOutTime.HasValue && request.CheckOutTime.Value < request.CheckInTime)
+        {
+            throw new ArgumentException("Check-out time cannot be earlier than check-in time", nameof(request));
+        }
         
         var existingAttendance = await _attendanceRepository.GetAttendanceByIdAsync(attendanceId);
         if (existingAttendance == null)
@@ -348,6 +459,10 @@ public class AttendanceService : IAttendanceService
     public async Task<bool> DeleteAttendanceAsync(Guid attendanceId)
     {
         _logger.LogInformation("Deleting attendance: {AttendanceId}", attendanceId);
+        if (attendanceId == Guid.Empty)
+        {
+            throw new ArgumentException("Attendance ID cannot be empty", nameof(attendanceId));
+        }
         
         var attendance = await _attendanceRepository.GetAttendanceByIdAsync(attendanceId);
         if (attendance == null)
@@ -748,6 +863,14 @@ public class AttendanceService : IAttendanceService
     Guid? departmentId,
     Guid organizationId)
     {
+        if (currentEmployeeId == Guid.Empty)
+        {
+            throw new ArgumentException("Current employee ID cannot be empty", nameof(currentEmployeeId));
+        }
+        if (organizationId == Guid.Empty)
+        {
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        }
         List<EmployeeDto> result;
 
         // Check if user is Super Admin or HR Manager

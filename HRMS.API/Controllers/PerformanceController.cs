@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using HRMS.API.Models.DTOs;
@@ -40,6 +40,24 @@ public class PerformanceController : ControllerBase
                 Data = cycles
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving appraisal cycles");
+            return BadRequest(new ServiceResponse<List<AppraisalCycleDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access retrieving appraisal cycles");
+            return StatusCode(403, new ServiceResponse<List<AppraisalCycleDto>>
+            {
+                Success = false,
+                Message = "You do not have permission to access this resource."
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving appraisal cycles");
@@ -57,6 +75,15 @@ public class PerformanceController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<AppraisalCycleDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             //i change this function time stamp problem performance.fn_create_appraisal_cycle
             var organizationId = GetCurrentOrganizationId();
             var cycle = await _performanceService.CreateAppraisalCycleAsync(
@@ -67,6 +94,24 @@ public class PerformanceController : ControllerBase
                 Success = true,
                 Message = "Appraisal cycle created successfully",
                 Data = cycle
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while creating appraisal cycle");
+            return BadRequest(new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error creating appraisal cycle");
+            return BadRequest(new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -135,6 +180,15 @@ public class PerformanceController : ControllerBase
             {
                 Success = true,
                 Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving employee appraisals");
+            return BadRequest(new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -241,6 +295,15 @@ public class PerformanceController : ControllerBase
             {
                 Success = true,
                 Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving my created appraisals");
+            return BadRequest(new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (UnauthorizedAccessException ex)
@@ -580,6 +643,15 @@ public class PerformanceController : ControllerBase
                 Data = result
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving my team employee skills");
+            return BadRequest(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access attempt for my team employee skills");
@@ -631,6 +703,15 @@ public class PerformanceController : ControllerBase
                 Data = result
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving all employee skills");
+            return BadRequest(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all employee skills");
@@ -655,6 +736,15 @@ public class PerformanceController : ControllerBase
             {
                 Success = true,
                 Data = summary
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving performance summary");
+            return BadRequest(new ServiceResponse<PerformanceSummaryDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -761,13 +851,22 @@ public class PerformanceController : ControllerBase
                 Data = result,
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while retrieving KRAs");
+            return BadRequest(new ServiceResponse<PagedResult<KRADto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error While Getting all KRas");
-            return StatusCode(500, new ServiceResponse<List<TopPerformerDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<KRADto>>
             {
                 Success = false,
-                Message = "Error Getting KRass"
+                Message = "An error occurred while retrieving KRAs"
             });
         }
     }
@@ -782,10 +881,28 @@ public class PerformanceController : ControllerBase
             //var organizationId = GetCurrentOrganizationId();
             var result = await _performanceService.GetKRAByIdAsync(kraId);
 
+            if (result == null)
+            {
+                return NotFound(new ServiceResponse<KRADto>
+                {
+                    Success = false,
+                    Message = "KRA not found"
+                });
+            }
+
             return Ok(new ServiceResponse<KRADto>
             {
                 Success = true,
                 Data = result,
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while retrieving KRA by id");
+            return BadRequest(new ServiceResponse<KRADto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -815,6 +932,24 @@ public class PerformanceController : ControllerBase
                 Data = result,
             });
         }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "KRA not found while updating: {KRAId}", kraId);
+            return NotFound(new ServiceResponse<KRADto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while updating KRA");
+            return BadRequest(new ServiceResponse<KRADto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error While creating KRas");
@@ -841,6 +976,15 @@ public class PerformanceController : ControllerBase
             {
                 Success = true,
                 Message = $"KRA status updated to {(isActive ? "Active" : "Inactive")} successfully"
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "KRA not found while updating status: {KRAId}", kraId);
+            return NotFound(new ServiceResponse<string>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -1258,6 +1402,15 @@ public class PerformanceController : ControllerBase
                 Data = true
             });
         }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Appraisal cycle not found while deleting: {CycleId}", cycleId);
+            return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (InvalidOperationException ex)
         {
             return BadRequest(new ServiceResponse<bool>
@@ -1334,6 +1487,15 @@ public class PerformanceController : ControllerBase
                 Success = true,
                 Message = "KRA deleted successfully",
                 Data = true
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "KRA not found while deleting: {KRAId}", kraId);
+            return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -1514,6 +1676,15 @@ public class PerformanceController : ControllerBase
                 Success = true,
                 Message = "Appraisal deleted successfully",
                 Data = true
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Appraisal not found while deleting: {AppraisalId}", appraisalId);
+            return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
