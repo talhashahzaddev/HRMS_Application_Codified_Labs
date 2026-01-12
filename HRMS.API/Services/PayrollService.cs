@@ -26,6 +26,21 @@ public class PayrollService : IPayrollService
 
     public async Task<PayrollPeriodDto> CreatePayrollPeriodAsync(CreatePayrollPeriodRequest request, Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.PeriodName))
+            throw new ArgumentException("Period name is required", nameof(request));
+        if (request.StartDate == default)
+            throw new ArgumentException("Start date is required", nameof(request));
+        if (request.EndDate == default)
+            throw new ArgumentException("End date is required", nameof(request));
+        if (request.EndDate < request.StartDate)
+            throw new ArgumentException("End date must be on or after start date", nameof(request));
+        var periods = await _payrollRepository.GetPayrollPeriodsAsync(organizationId);
+        if (periods.Any(p => string.Equals(p.PeriodName?.Trim(), request.PeriodName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Payroll period with name '{request.PeriodName}' already exists");
         var payrollPeriod = await _payrollRepository.CreatePayrollPeriodAsync(
             organizationId, request.PeriodName, request.StartDate, request.EndDate, request.PayDate);
 
@@ -34,11 +49,15 @@ public class PayrollService : IPayrollService
 
     public async Task<List<PayrollPeriodDto>> GetPayrollPeriodsAsync(Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _payrollRepository.GetPayrollPeriodsAsync(organizationId);
     }
 
     public async Task<PayrollPeriodDto?> GetPayrollPeriodByIdAsync(Guid periodId)
     {
+        if (periodId == Guid.Empty)
+            throw new ArgumentException("Period ID cannot be empty", nameof(periodId));
         var period = await _payrollRepository.GetPayrollPeriodByIdAsync(periodId);
         return period != null ? _mapper.Map<PayrollPeriodDto>(period) : null;
     }
@@ -49,6 +68,16 @@ public class PayrollService : IPayrollService
 
         try
         {
+            if (organizationId == Guid.Empty)
+                throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+            if (periodId == Guid.Empty)
+                throw new ArgumentException("Period ID cannot be empty", nameof(periodId));
+            if (ruleId.HasValue)
+            {
+                var rule = await _payrollRepository.GetSalaryRuleByIdAsync(ruleId.Value);
+                if (rule == null)
+                    throw new KeyNotFoundException($"Salary rule with ID {ruleId.Value} not found");
+            }
             // Validate period exists and is in correct status
             var period = await _payrollRepository.GetPayrollPeriodByIdAsync(periodId);
             if (period == null)
@@ -81,50 +110,108 @@ public class PayrollService : IPayrollService
 
     public async Task<PagedResult<PayrollEntryDto>> GetPayrollEntriesAsync(Guid periodId, int page = 1, int pageSize = 50)
     {
+        if (periodId == Guid.Empty)
+            throw new ArgumentException("Period ID cannot be empty", nameof(periodId));
+        if (page <= 0)
+            throw new ArgumentException("Page must be greater than 0", nameof(page));
+        if (pageSize <= 0)
+            throw new ArgumentException("Page size must be greater than 0", nameof(pageSize));
         return await _payrollRepository.GetPayrollEntriesAsync(periodId, page, pageSize);
     }
 
     public async Task<PayrollSummaryDto> GetPayrollSummaryAsync(Guid periodId)
     {
+        if (periodId == Guid.Empty)
+            throw new ArgumentException("Period ID cannot be empty", nameof(periodId));
         return await _payrollRepository.GetPayrollSummaryAsync(periodId);
     }
 
     public async Task<bool> ProcessPayrollPaymentAsync(Guid entryId, string paymentMethod, string paymentReference)
     {
+        if (entryId == Guid.Empty)
+            throw new ArgumentException("Entry ID cannot be empty", nameof(entryId));
+        if (string.IsNullOrWhiteSpace(paymentMethod))
+            throw new ArgumentException("Payment method is required", nameof(paymentMethod));
+        if (string.IsNullOrWhiteSpace(paymentReference))
+            throw new ArgumentException("Payment reference is required", nameof(paymentReference));
         return await _payrollRepository.ProcessPayrollPaymentAsync(entryId, paymentMethod, paymentReference);
     }
 
     // Salary Component Operations
     public async Task<SalaryComponentDto> CreateSalaryComponentAsync(CreateSalaryComponentRequest request, Guid organizationId)
     {
-        try
-        {
-
-            var component = await _payrollRepository.CreateSalaryComponentAsync(
-                organizationId,
-                request);
-            return _mapper.Map<SalaryComponentDto>(component);
-        }
-        catch
-        {
-            throw;
-        }
-
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.Name))
+            throw new ArgumentException("Component name is required", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.Code))
+            throw new ArgumentException("Component code is required", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.Type))
+            throw new ArgumentException("Component type is required", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.CalculationType))
+            throw new ArgumentException("Calculation type is required", nameof(request));
+        if (!(request.Type.Equals("earning", StringComparison.OrdinalIgnoreCase) || request.Type.Equals("deduction", StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException("Component type must be 'earning' or 'deduction'", nameof(request));
+        if (!(request.CalculationType.Equals("fixed", StringComparison.OrdinalIgnoreCase) || request.CalculationType.Equals("percentage", StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException("Calculation type must be 'fixed' or 'percentage'", nameof(request));
+        if (request.Value < 0)
+            throw new ArgumentException("Component value cannot be negative", nameof(request));
+        var existingComponents = await _payrollRepository.GetSalaryComponentsAsync(organizationId);
+        if (existingComponents.Any(c => string.Equals(c.Name?.Trim(), request.Name.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Salary component with name '{request.Name}' already exists");
+        if (existingComponents.Any(c => string.Equals(c.Code?.Trim(), request.Code.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Salary component with code '{request.Code}' already exists");
+        var component = await _payrollRepository.CreateSalaryComponentAsync(
+            organizationId,
+            request);
+        return _mapper.Map<SalaryComponentDto>(component);
     }
 
     public async Task<List<SalaryComponentDto>> GetSalaryComponentsAsync(Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _payrollRepository.GetSalaryComponentsAsync(organizationId);
     }
 
     public async Task<SalaryComponentDto?> GetSalaryComponentByIdAsync(Guid componentId)
     {
+        if (componentId == Guid.Empty)
+            throw new ArgumentException("Component ID cannot be empty", nameof(componentId));
         var component = await _payrollRepository.GetSalaryComponentByIdAsync(componentId);
         return component != null ? _mapper.Map<SalaryComponentDto>(component) : null;
     }
 
     public async Task<SalaryComponentDto> UpdateSalaryComponentAsync(Guid componentId, UpdateSalaryComponentRequest request)
     {
+        if (componentId == Guid.Empty)
+            throw new ArgumentException("Component ID cannot be empty", nameof(componentId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.Name))
+            throw new ArgumentException("Component name is required", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.Code))
+            throw new ArgumentException("Component code is required", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.Type))
+            throw new ArgumentException("Component type is required", nameof(request));
+        if (string.IsNullOrWhiteSpace(request.CalculationType))
+            throw new ArgumentException("Calculation type is required", nameof(request));
+        if (!(request.Type.Equals("earning", StringComparison.OrdinalIgnoreCase) || request.Type.Equals("deduction", StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException("Component type must be 'earning' or 'deduction'", nameof(request));
+        if (!(request.CalculationType.Equals("fixed", StringComparison.OrdinalIgnoreCase) || request.CalculationType.Equals("percentage", StringComparison.OrdinalIgnoreCase)))
+            throw new ArgumentException("Calculation type must be 'fixed' or 'percentage'", nameof(request));
+        if (request.Value < 0)
+            throw new ArgumentException("Component value cannot be negative", nameof(request));
+        var existing = await _payrollRepository.GetSalaryComponentByIdAsync(componentId);
+        if (existing == null)
+            throw new KeyNotFoundException($"Salary component with ID {componentId} not found");
+        var existingComponents = await _payrollRepository.GetSalaryComponentsAsync(existing.OrganizationId);
+        if (existingComponents.Any(c => c.ComponentId != componentId && string.Equals(c.Name?.Trim(), request.Name.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Salary component with name '{request.Name}' already exists");
+        if (existingComponents.Any(c => c.ComponentId != componentId && string.Equals(c.Code?.Trim(), request.Code.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Salary component with code '{request.Code}' already exists");
         var component = await _payrollRepository.UpdateSalaryComponentAsync(
             componentId,
             request);
@@ -134,12 +221,28 @@ public class PayrollService : IPayrollService
 
     public async Task<bool> DeleteSalaryComponentAsync(Guid componentId)
     {
+        if (componentId == Guid.Empty)
+            throw new ArgumentException("Component ID cannot be empty", nameof(componentId));
         return await _payrollRepository.DeleteSalaryComponentAsync(componentId);
     }
 
     // Salary Rule Operations
     public async Task<SalaryRuleDto> CreateSalaryRuleAsync(CreateSalaryRuleRequest request, Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.RuleName))
+            throw new ArgumentException("Rule name is required", nameof(request));
+        if (request.ComponentId == Guid.Empty)
+            throw new ArgumentException("Component ID cannot be empty", nameof(request));
+        var component = await _payrollRepository.GetSalaryComponentByIdAsync(request.ComponentId);
+        if (component == null)
+            throw new KeyNotFoundException($"Salary component with ID {request.ComponentId} not found");
+        var rules = await _payrollRepository.GetSalaryRulesAsync(organizationId);
+        if (rules.Any(r => string.Equals(r.RuleName?.Trim(), request.RuleName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Salary rule with name '{request.RuleName}' already exists");
         var rule = await _payrollRepository.CreateSalaryRuleAsync(
             organizationId,
             request);
@@ -149,17 +252,38 @@ public class PayrollService : IPayrollService
 
     public async Task<List<SalaryRuleDto>> GetSalaryRulesAsync(Guid organizationId)
     {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _payrollRepository.GetSalaryRulesAsync(organizationId);
     }
 
     public async Task<SalaryRuleDto?> GetSalaryRuleByIdAsync(Guid ruleId)
     {
+        if (ruleId == Guid.Empty)
+            throw new ArgumentException("Rule ID cannot be empty", nameof(ruleId));
         var rule = await _payrollRepository.GetSalaryRuleByIdAsync(ruleId);
         return rule != null ? _mapper.Map<SalaryRuleDto>(rule) : null;
     }
 
     public async Task<SalaryRuleDto> UpdateSalaryRuleAsync(Guid ruleId, UpdateSalaryRuleRequest request)
     {
+        if (ruleId == Guid.Empty)
+            throw new ArgumentException("Rule ID cannot be empty", nameof(ruleId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.RuleName))
+            throw new ArgumentException("Rule name is required", nameof(request));
+        if (request.ComponentId == Guid.Empty)
+            throw new ArgumentException("Component ID cannot be empty", nameof(request));
+        var existingRule = await _payrollRepository.GetSalaryRuleByIdAsync(ruleId);
+        if (existingRule == null)
+            throw new KeyNotFoundException($"Salary rule with ID {ruleId} not found");
+        var component = await _payrollRepository.GetSalaryComponentByIdAsync(request.ComponentId);
+        if (component == null)
+            throw new KeyNotFoundException($"Salary component with ID {request.ComponentId} not found");
+        var rules = await _payrollRepository.GetSalaryRulesAsync(existingRule.OrganizationId);
+        if (rules.Any(r => r.RuleId != ruleId && string.Equals(r.RuleName?.Trim(), request.RuleName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Salary rule with name '{request.RuleName}' already exists");
         var rule = await _payrollRepository.UpdateSalaryRuleAsync(
             ruleId,
             request);
@@ -169,6 +293,8 @@ public class PayrollService : IPayrollService
 
     public async Task<bool> DeleteSalaryRuleAsync(Guid ruleId)
     {
+        if (ruleId == Guid.Empty)
+            throw new ArgumentException("Rule ID cannot be empty", nameof(ruleId));
         return await _payrollRepository.DeleteSalaryRuleAsync(ruleId);
     }
 
@@ -176,12 +302,18 @@ public class PayrollService : IPayrollService
     public async Task<PayrollSummaryDto> GetPayrollDashboardSummaryAsync(Guid organizationId)
     {
         _logger.LogInformation("Getting payroll dashboard summary for organization: {OrganizationId}", organizationId);
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _payrollRepository.GetPayrollDashboardSummaryAsync(organizationId);
     }
 
     public async Task<PayrollSummaryDto> GetPayrollReportSummaryAsync(Guid organizationId, PayrollReportFilterRequest filter)
     {
         _logger.LogInformation("Getting payroll report summary for organization: {OrganizationId}", organizationId);
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (filter == null)
+            throw new ArgumentNullException(nameof(filter), "Filter cannot be null");
         return await _payrollRepository.GetPayrollReportSummaryAsync(organizationId, filter);
     }
 
@@ -189,7 +321,12 @@ public class PayrollService : IPayrollService
     {
         _logger.LogInformation("Getting paged payroll periods for organization: {OrganizationId}, page: {Page}, limit: {Limit}, search: {Search}, status: {Status}",
             organizationId, page, limit, search, status);
-
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (page <= 0)
+            throw new ArgumentException("Page must be greater than 0", nameof(page));
+        if (limit <= 0)
+            throw new ArgumentException("Limit must be greater than 0", nameof(limit));
         var periods = await GetPayrollPeriodsAsync(organizationId);
 
         if (!string.IsNullOrEmpty(search))
@@ -217,13 +354,26 @@ public class PayrollService : IPayrollService
     public async Task<PayrollPeriodDto?> GetCurrentPayrollPeriodAsync(Guid organizationId)
     {
         _logger.LogInformation("Getting current payroll period for organization: {OrganizationId}", organizationId);
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _payrollRepository.GetCurrentPayrollPeriodAsync(organizationId);
     }
 
     public async Task<PayrollPeriodDto> UpdatePayrollPeriodAsync(Guid periodId, UpdatePayrollPeriodRequest request)
     {
         _logger.LogInformation("Updating payroll period: {PeriodId}", periodId);
-
+        if (periodId == Guid.Empty)
+            throw new ArgumentException("Period ID cannot be empty", nameof(periodId));
+        if (request == null)
+            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        if (string.IsNullOrWhiteSpace(request.PeriodName))
+            throw new ArgumentException("Period name is required", nameof(request));
+        if (request.StartDate == default)
+            throw new ArgumentException("Start date is required", nameof(request));
+        if (request.EndDate == default)
+            throw new ArgumentException("End date is required", nameof(request));
+        if (request.EndDate < request.StartDate)
+            throw new ArgumentException("End date must be on or after start date", nameof(request));
         var existingPeriod = await _payrollRepository.GetPayrollPeriodByIdAsync(periodId);
         if (existingPeriod == null)
             throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");
@@ -235,7 +385,8 @@ public class PayrollService : IPayrollService
     public async Task<bool> DeletePayrollPeriodAsync(Guid periodId)
     {
         _logger.LogInformation("Deleting payroll period: {PeriodId}", periodId);
-
+        if (periodId == Guid.Empty)
+            throw new ArgumentException("Period ID cannot be empty", nameof(periodId));
         var period = await _payrollRepository.GetPayrollPeriodByIdAsync(periodId);
         if (period == null)
             throw new KeyNotFoundException($"Payroll period with ID {periodId} not found");

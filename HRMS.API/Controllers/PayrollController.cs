@@ -87,6 +87,15 @@ public class PayrollController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<PayrollPeriodDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var period = await _payrollService.CreatePayrollPeriodAsync(request, organizationId);
             
@@ -95,6 +104,32 @@ public class PayrollController : ControllerBase
                 Success = true,
                 Message = "Payroll period created successfully",
                 Data = period
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating payroll period");
+            return BadRequest(new ServiceResponse<PayrollPeriodDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating payroll period");
+            return BadRequest(new ServiceResponse<PayrollPeriodDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<PayrollPeriodDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -140,6 +175,14 @@ public class PayrollController : ControllerBase
                 }
             });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<PayrollCalculationResult>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<PayrollCalculationResult>
@@ -180,6 +223,14 @@ public class PayrollController : ControllerBase
                 Data = entries
             });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<PagedResult<PayrollEntryDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving payroll entries for period {PeriodId}", id);
@@ -202,6 +253,14 @@ public class PayrollController : ControllerBase
             {
                 Success = true,
                 Data = summary
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<PayrollSummaryDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -227,6 +286,24 @@ public class PayrollController : ControllerBase
                 Success = true,
                 Message = "Payment processed successfully",
                 Data = result
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for processing payment");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for processing payment");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -313,6 +390,24 @@ public class PayrollController : ControllerBase
                 Data = period
             });
         }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating payroll period");
+            return BadRequest(new ServiceResponse<PayrollPeriodDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating payroll period");
+            return BadRequest(new ServiceResponse<PayrollPeriodDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<PayrollPeriodDto>
@@ -387,6 +482,24 @@ public class PayrollController : ControllerBase
                 Data = entries
             });
         }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null filter provided for retrieving payroll entries");
+            return BadRequest(new ServiceResponse<PagedResult<PayrollEntryDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving payroll entries");
+            return BadRequest(new ServiceResponse<PagedResult<PayrollEntryDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving filtered payroll entries");
@@ -409,6 +522,15 @@ public class PayrollController : ControllerBase
             {
                 Success = true,
                 Data = entries
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving payroll entries by employee");
+            return BadRequest(new ServiceResponse<PagedResult<PayrollEntryDto>>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -469,6 +591,14 @@ public class PayrollController : ControllerBase
                 Data = entry
             });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<PayrollEntryDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<PayrollEntryDto>
@@ -502,6 +632,14 @@ public class PayrollController : ControllerBase
                 Data = result
             });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error approving multiple payroll entries");
@@ -525,6 +663,14 @@ public class PayrollController : ControllerBase
                 Success = true,
                 Message = "Payroll entry rejected successfully",
                 Data = entry
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<PayrollEntryDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (KeyNotFoundException ex)
@@ -560,6 +706,14 @@ public class PayrollController : ControllerBase
                 Data = entry
             });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<PayrollEntryDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<PayrollEntryDto>
@@ -593,6 +747,14 @@ public class PayrollController : ControllerBase
                 Data = result
             });
         }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error marking multiple payroll entries as paid");
@@ -616,6 +778,15 @@ public class PayrollController : ControllerBase
             {
                 Success = true,
                 Data = report
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null filter provided for generating payroll report");
+            return BadRequest(new ServiceResponse<PayrollReportDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -656,6 +827,24 @@ public class PayrollController : ControllerBase
             
             return File(fileBytes, contentType, fileName);
         }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null filter provided for exporting payroll report");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid export format or argument");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting payroll report");
@@ -681,6 +870,15 @@ public class PayrollController : ControllerBase
                 Data = result
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for generating payslips");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating payslips");
@@ -700,6 +898,15 @@ public class PayrollController : ControllerBase
             var fileBytes = await _payrollService.DownloadPayslipAsync(id);
             
             return File(fileBytes, "application/pdf", $"payslip-{id}.pdf");
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for downloading payslip");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
         }
         catch (Exception ex)
         {
@@ -724,6 +931,15 @@ public class PayrollController : ControllerBase
                 Success = true,
                 Message = "Payslips emailed successfully",
                 Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for emailing payslips");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -755,6 +971,15 @@ public class PayrollController : ControllerBase
                 Data = statistics
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for payroll statistics");
+            return BadRequest(new ServiceResponse<PayrollStatisticsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving payroll statistics");
@@ -778,6 +1003,15 @@ public class PayrollController : ControllerBase
             {
                 Success = true,
                 Data = breakdown
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for department payroll breakdown");
+            return BadRequest(new ServiceResponse<List<DepartmentPayrollBreakdownDto>>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -804,6 +1038,15 @@ public class PayrollController : ControllerBase
                 Data = taxSummary
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for calculating tax deductions");
+            return BadRequest(new ServiceResponse<PayrollTaxSummaryDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error calculating tax deductions");
@@ -826,6 +1069,15 @@ public class PayrollController : ControllerBase
             {
                 Success = true,
                 Data = summary
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving deduction summary");
+            return BadRequest(new ServiceResponse<PayrollDeductionSummaryDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -899,6 +1151,15 @@ public class PayrollController : ControllerBase
                 Data = components
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving salary components");
+            return BadRequest(new ServiceResponse<List<SalaryComponentDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving salary components");
@@ -947,6 +1208,15 @@ public class PayrollController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<SalaryComponentDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var component = await _payrollService.CreateSalaryComponentAsync(request, organizationId);
             
@@ -957,6 +1227,32 @@ public class PayrollController : ControllerBase
                     Data = component,
                     Message = "Salary component created successfully"
                 });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating salary component");
+            return BadRequest(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating salary component");
+            return BadRequest(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
         }
         catch (Exception ex)
         {
@@ -974,6 +1270,15 @@ public class PayrollController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<SalaryComponentDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var component = await _payrollService.UpdateSalaryComponentAsync(id, request);
             
             return Ok(new ServiceResponse<SalaryComponentDto>
@@ -983,12 +1288,38 @@ public class PayrollController : ControllerBase
                 Message = "Salary component updated successfully"
             });
         }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating salary component");
+            return BadRequest(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating salary component");
+            return BadRequest(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException)
         {
             return NotFound(new ServiceResponse<SalaryComponentDto>
             {
                 Success = false,
                 Message = "Salary component not found"
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<SalaryComponentDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -1054,6 +1385,15 @@ public class PayrollController : ControllerBase
                 Data = rules
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving salary rules");
+            return BadRequest(new ServiceResponse<List<SalaryRuleDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving salary rules");
@@ -1102,6 +1442,15 @@ public class PayrollController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<SalaryRuleDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var rule = await _payrollService.CreateSalaryRuleAsync(request, organizationId);
             
@@ -1112,6 +1461,32 @@ public class PayrollController : ControllerBase
                     Data = rule,
                     Message = "Salary rule created successfully"
                 });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating salary rule");
+            return BadRequest(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating salary rule");
+            return BadRequest(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
         }
         catch (Exception ex)
         {
@@ -1129,6 +1504,15 @@ public class PayrollController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<SalaryRuleDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var rule = await _payrollService.UpdateSalaryRuleAsync(id, request);
             
             return Ok(new ServiceResponse<SalaryRuleDto>
@@ -1138,12 +1522,38 @@ public class PayrollController : ControllerBase
                 Message = "Salary rule updated successfully"
             });
         }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating salary rule");
+            return BadRequest(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating salary rule");
+            return BadRequest(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException)
         {
             return NotFound(new ServiceResponse<SalaryRuleDto>
             {
                 Success = false,
                 Message = "Salary rule not found"
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<SalaryRuleDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)

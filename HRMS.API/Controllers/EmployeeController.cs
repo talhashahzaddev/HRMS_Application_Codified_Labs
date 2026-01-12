@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Asn1.Ocsp;
 using System.Security.Claims;
 using System.Text.Json;
+using System.Linq;
 
 namespace HRMS.API.Controllers;
 
@@ -87,6 +88,15 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<EmployeeDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var employee = await _employeeService.CreateEmployeeAsync(request, organizationId);
             
@@ -95,6 +105,24 @@ public class EmployeeController : ControllerBase
                 Success = true,
                 Message = "Employee created successfully",
                 Data = employee
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating employee");
+            return BadRequest(new ServiceResponse<EmployeeDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating employee");
+            return BadRequest(new ServiceResponse<EmployeeDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (InvalidOperationException ex)
@@ -122,6 +150,15 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var result = await _employeeService.UpdateEmployeeAsync(id, request);
             
             return Ok(new ServiceResponse<bool>
@@ -131,9 +168,36 @@ public class EmployeeController : ControllerBase
                 Data = result
             });
         }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating employee: {EmployeeId}", id);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating employee: {EmployeeId}", id);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error updating employee: {EmployeeId}", id);
+            return BadRequest(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message
@@ -168,6 +232,15 @@ public class EmployeeController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for deleting employee: {EmployeeId}", id);
+            return BadRequest(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message
@@ -216,6 +289,15 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<DepartmentDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var department = await _employeeService.CreateDepartmentAsync(request, organizationId);
             
@@ -224,6 +306,33 @@ public class EmployeeController : ControllerBase
                 Success = true,
                 Message = "Department created successfully",
                 Data = department
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Duplicate department name error");
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating department");
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating department");
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -243,6 +352,15 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<DepartmentDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var department = await _employeeService.UpdateDepartmentAsync(id, request);
             
             return Ok(new ServiceResponse<DepartmentDto>
@@ -252,9 +370,36 @@ public class EmployeeController : ControllerBase
                 Data = department
             });
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business rule violation when updating department: {DepartmentId}", id);
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating department: {DepartmentId}", id);
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating department: {DepartmentId}", id);
+            return BadRequest(new ServiceResponse<DepartmentDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -288,6 +433,7 @@ public class EmployeeController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
+            _logger.LogWarning(ex, "Department not found for deletion: {DepartmentId}", id);
             return NotFound(new ServiceResponse<bool>
             {
                 Success = false,
@@ -296,6 +442,7 @@ public class EmployeeController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogError(ex, "Business logic error deleting department: {DepartmentId}", id);
             return BadRequest(new ServiceResponse<bool>
             {
                 Success = false,
@@ -465,6 +612,15 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<PositionDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var position = await _employeeService.CreatePositionAsync(request, organizationId);
             
@@ -473,6 +629,42 @@ public class EmployeeController : ControllerBase
                 Success = true,
                 Message = "Position created successfully",
                 Data = position
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating position");
+            return BadRequest(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business rule violation when creating position");
+            return BadRequest(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Related entity not found when creating position");
+            return NotFound(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating position");
+            return BadRequest(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -492,6 +684,15 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<PositionDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var position = await _employeeService.UpdatePositionAsync(id, request);
 
             return Ok(new ServiceResponse<PositionDto>
@@ -501,9 +702,36 @@ public class EmployeeController : ControllerBase
                 Data = position
             });
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business rule violation when updating position: {PositionId}", id);
+            return BadRequest(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating position: {PositionId}", id);
+            return BadRequest(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating position: {PositionId}", id);
+            return BadRequest(new ServiceResponse<PositionDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -540,6 +768,7 @@ public class EmployeeController : ControllerBase
         }
         catch (KeyNotFoundException ex)
         {
+            _logger.LogWarning(ex, "Position not found for deletion: {PositionId}", id);
             return NotFound(new ServiceResponse<bool>
             {
                 Success = false,
@@ -548,6 +777,7 @@ public class EmployeeController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogError(ex, "Business logic error deleting position: {PositionId}", id);
             return BadRequest(new ServiceResponse<bool>
             {
                 Success = false,
@@ -575,6 +805,15 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             // Manual deserialization of JSON strings into Dictionary
             if (Request.Form.ContainsKey("Address"))
                 request.Address = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["Address"]);
@@ -590,6 +829,24 @@ public class EmployeeController : ControllerBase
                 Success = true,
                 Message = "Employee updated successfully",
                 Data = true
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating employee: {EmployeeId}", request.EmployeeId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating employee: {EmployeeId}", request.EmployeeId);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (KeyNotFoundException ex)
@@ -635,6 +892,15 @@ public class EmployeeController : ControllerBase
                 Message = ex.Message
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for activating employee: {EmployeeId}", id);
+            return BadRequest(new ServiceResponse<EmployeeDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error activating employee {EmployeeId}", id);
@@ -663,6 +929,15 @@ public class EmployeeController : ControllerBase
         catch (KeyNotFoundException ex)
         {
             return NotFound(new ServiceResponse<EmployeeDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for deactivating employee: {EmployeeId}", id);
+            return BadRequest(new ServiceResponse<EmployeeDto>
             {
                 Success = false,
                 Message = ex.Message
@@ -700,6 +975,15 @@ public class EmployeeController : ControllerBase
                 Data = department
             });
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving department: {DepartmentId}", id);
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving department {DepartmentId}", id);
@@ -730,6 +1014,15 @@ public class EmployeeController : ControllerBase
             {
                 Success = true,
                 Data = position
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving position: {PositionId}", id);
+            return BadRequest(new ServiceResponse<PositionDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -858,6 +1151,15 @@ public class EmployeeController : ControllerBase
             
             return File(fileBytes, contentType, fileName);
         }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid export format requested: {Format}", format);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error exporting employees");
@@ -865,6 +1167,32 @@ public class EmployeeController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while exporting employees"
+            });
+        }
+    }
+
+    [HttpGet("managers/{managerEmployeeId}/employees")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeListItemDto>>>> GetEmployeesByManager(Guid managerEmployeeId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employees = await _employeeService.GetEmployeesByManagerAsync(managerEmployeeId, organizationId);
+            
+            return Ok(new ServiceResponse<List<EmployeeListItemDto>>
+            {
+                Success = true,
+                Data = employees
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employees for manager {ManagerEmployeeId}", managerEmployeeId);
+            return StatusCode(500, new ServiceResponse<List<EmployeeListItemDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving manager's employees"
             });
         }
     }
