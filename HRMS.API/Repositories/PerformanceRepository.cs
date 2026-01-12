@@ -1082,7 +1082,7 @@ WHERE es.employeeskillid = @employeeSkillId";
         INSERT INTO performance.selfassessments
         (employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat)
         VALUES
-        (@EmployeeId, @CycleId, @KraId, @SkillId, @Rating, @Comments, @EvidenceUrls::jsonb, 'Submitted', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        (@EmployeeId, @CycleId, @KraId, @SkillId, @Rating, @Comments, @EvidenceUrls::jsonb, 'draft', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         RETURNING selfassessmentid, employeeid, cycleid, kraid, skillid, rating, comments, evidenceurls, status, createdat, updatedat;
     ";
 
