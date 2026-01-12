@@ -83,6 +83,15 @@ public class DepartmentController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<DepartmentDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
             var department = await _employeeService.CreateDepartmentAsync(request, organizationId);
             
@@ -91,6 +100,33 @@ public class DepartmentController : ControllerBase
                 Success = true,
                 Message = "Department created successfully",
                 Data = department
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating department");
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating department");
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business rule violation when creating department");
+            return BadRequest(new ServiceResponse<DepartmentDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)

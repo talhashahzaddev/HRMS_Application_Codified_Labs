@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using System.Linq;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Services.Interfaces;
@@ -118,9 +119,9 @@ public class LeaveController : ControllerBase
 
             if (requests == null || !requests.Any())
             {
-                return NotFound(new ServiceResponse<List<LeaveRequest>>
+                return Ok(new ServiceResponse<List<LeaveRequest>>
                 {
-                    Success = false,
+                    Success = true,
                     Message = "No leave requests found"
                 });
             }
@@ -148,6 +149,15 @@ public class LeaveController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<LeaveRequestDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var UserId = GetCurrentEmployeeId();
             var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, UserId);
             
@@ -156,6 +166,24 @@ public class LeaveController : ControllerBase
                 Success = true,
                 Message = "Leave request submitted successfully",
                 Data = leaveRequest
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating leave request");
+            return BadRequest(new ServiceResponse<LeaveRequestDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating leave request");
+            return BadRequest(new ServiceResponse<LeaveRequestDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (InvalidOperationException ex)
@@ -172,7 +200,7 @@ public class LeaveController : ControllerBase
             return StatusCode(500, new ServiceResponse<LeaveRequestDto>
             {
                 Success = false,
-                Message = ex.Message
+                Message = "An error occurred while creating leave request"
             });
         }
     }
@@ -186,19 +214,45 @@ public class LeaveController : ControllerBase
             var approvedBy = GetCurrentEmployeeId();
             var request = new UpdateLeaveRequestStatusRequest { Status = "approved" };
             var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
-            if (result == false)
-            {
-                return StatusCode(409, new ServiceResponse<bool>
-                {
-                    Success = false,
-                    Message = "Leave request not approved"
-                });
-            }
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Leave request approved successfully",
                 Data = result
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for approving leave request: {RequestId}", id);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for approving leave request: {RequestId}", id);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -218,6 +272,15 @@ public class LeaveController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var approvedBy = GetCurrentEmployeeId();
             request.Status = "rejected";
             var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
@@ -227,6 +290,40 @@ public class LeaveController : ControllerBase
                 Success = true,
                 Message = "Leave request rejected successfully",
                 Data = result
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for rejecting leave request: {RequestId}", id);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for rejecting leave request: {RequestId}", id);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
@@ -245,6 +342,15 @@ public class LeaveController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<LeaveRequestDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var employeeId = GetCurrentEmployeeId();
             var updatedRequest = await _leaveService.UpdateLeaveRequestAsync(id, request, employeeId);
             
@@ -262,6 +368,24 @@ public class LeaveController : ControllerBase
                 Success = true,
                 Message = "Leave request updated successfully",
                 Data = updatedRequest
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating leave request: {RequestId}", id);
+            return BadRequest(new ServiceResponse<LeaveRequestDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating leave request: {RequestId}", id);
+            return BadRequest(new ServiceResponse<LeaveRequestDto>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (InvalidOperationException ex)
@@ -309,6 +433,15 @@ public class LeaveController : ControllerBase
                 Success = true,
                 Message = "Leave request cancelled successfully",
                 Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for cancelling leave request: {RequestId}", id);
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (InvalidOperationException ex)
@@ -363,25 +496,49 @@ public class LeaveController : ControllerBase
     {
         try
         {
-            var organizationId = GetCurrentOrganizationId();
-            var leaveTypeId = await _leaveService.CreateLeaveTypeAsync(organizationId, request);
-            if(leaveTypeId != Guid.Empty)
+            if (!ModelState.IsValid)
             {
-                return Ok(new ServiceResponse<Guid>
-                {
-                    Success = true,
-                    Data = leaveTypeId,
-                    Message = "Leave type created successfully"
-                });
-            }
-            else
-            {
-                return StatusCode(500, new ServiceResponse<Guid>
+                return BadRequest(new ServiceResponse<Guid>
                 {
                     Success = false,
-                    Message = "An error occurred while creating leave type"
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
                 });
             }
+            var organizationId = GetCurrentOrganizationId();
+            var leaveTypeId = await _leaveService.CreateLeaveTypeAsync(organizationId, request);
+            return Ok(new ServiceResponse<Guid>
+            {
+                Success = true,
+                Data = leaveTypeId,
+                Message = "Leave type created successfully"
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating leave type");
+            return BadRequest(new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating leave type");
+            return BadRequest(new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = ex.Message
+            });
         }
         catch (Exception ex)
         {
@@ -401,6 +558,15 @@ public class LeaveController : ControllerBase
     {
         try
         {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<Guid>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
             var organizationId = GetCurrentOrganizationId();
 
             var updated = await _leaveService.EditLeaveTypeAsync(organizationId, leaveTypeId, request);
@@ -415,10 +581,44 @@ public class LeaveController : ControllerBase
                 });
             }
 
-            return StatusCode(500, new ServiceResponse<Guid>
+            return NotFound(new ServiceResponse<Guid>
             {
                 Success = false,
-                Message = "An error occurred while updating leave type"
+                Message = "Leave type not found"
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating leave type: {LeaveTypeId}", leaveTypeId);
+            return BadRequest(new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for updating leave type: {LeaveTypeId}", leaveTypeId);
+            return BadRequest(new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = ex.Message
             });
         }
         catch (Exception ex)
