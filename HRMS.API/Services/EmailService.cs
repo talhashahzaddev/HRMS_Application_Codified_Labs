@@ -1,7 +1,7 @@
 using HRMS.API.Services.Interfaces;
-using MailKit.Net.Smtp;
-using MailKit.Security;
-using MimeKit;
+using Mailjet.Client;
+using Mailjet.Client.Resources;
+using Newtonsoft.Json.Linq;
 
 namespace HRMS.API.Services;
 
@@ -20,60 +20,69 @@ public class EmailService : IEmailService
     {
         try
         {
-            var email = new MimeMessage();
-            email.From.Add(new MailboxAddress(
-                _configuration["Email:FromName"],
-                _configuration["Email:FromEmail"]
-            ));
-            email.To.Add(MailboxAddress.Parse(to));
-            email.Subject = subject;
-            email.Body = new TextPart(MimeKit.Text.TextFormat.Html)
+            var publicKey = _configuration["MailJet:PublicKey"];
+            var privateKey = _configuration["MailJet:PrivateKey"];
+            var fromEmail = _configuration["MailJet:FromEmail"];
+            var fromName = _configuration["MailJet:FromName"];
+
+            if (string.IsNullOrWhiteSpace(fromEmail))
             {
-                Text = body
-            };
-
-            using var smtp = new SmtpClient();
-            smtp.Timeout = 20000;
-
-            var smtpHost = _configuration["Email:SmtpHost"];
-            var smtpPort = int.Parse(_configuration["Email:SmtpPort"]);
-            _logger.LogInformation("SMTP HOST: {Host}, PORT: {Port}", smtpHost, smtpPort);
-
-            // ✅ Changed here: use SslOnConnect for port 465
-            await smtp.ConnectAsync(
-                smtpHost,
-                smtpPort,
-                SecureSocketOptions.SslOnConnect
-            );
-
-            await smtp.AuthenticateAsync(
-                _configuration["Email:Username"],
-                _configuration["Email:Password"]
-            );
-
-            try
-            {
-                await smtp.SendAsync(email);
-                _logger.LogInformation("Email sent successfully.");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error sending email to {To}", to);
-                throw;
+                _logger.LogError("MailJet FromEmail is missing or not verified.");
+                return false;
             }
 
-            await smtp.DisconnectAsync(true);
+            var client = new MailjetClient(publicKey, privateKey);
+
+            var request = new MailjetRequest
+            {
+                Resource = SendV31.Resource
+            }
+            .Property(Send.Messages, new JArray {
+                new JObject {
+                    { "From", new JObject {
+                        { "Email", fromEmail },
+                        { "Name", fromName }
+                    }},
+                    { "To", new JArray {
+                        new JObject {
+                            { "Email", to },
+                            { "Name", to }
+                        }
+                    }},
+                    { "Subject", subject },
+                    { "HTMLPart", body }
+                }
+            });
+
+            var response = await client.PostAsync(request);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError(
+                    "Mailjet email failed. Status: {Status}, Response: {Response}",
+                    response.StatusCode,
+                    response.GetData()
+                );
+                return false;
+            }
+
+            _logger.LogInformation("Email sent successfully to {To}", to);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Email failed");
+            _logger.LogError(ex, "Mailjet email exception");
             return false;
         }
     }
 
-    // Other methods remain unchanged
-    public async Task<bool> SendWelcomeEmailAsync(string to, string firstName, string organizationName, string tempPassword)
+    // ================= EXISTING METHODS (UNCHANGED) =================
+
+    public async Task<bool> SendWelcomeEmailAsync(
+        string to,
+        string firstName,
+        string organizationName,
+        string tempPassword)
     {
         var subject = $"Welcome to {organizationName} HRMS";
         var body = $@"
@@ -87,14 +96,21 @@ public class EmailService : IEmailService
         return await SendEmailAsync(to, subject, body);
     }
 
-    public async Task<bool> SendLeaveApprovalNotificationAsync(string to, string employeeName, string leaveType, DateTime startDate, DateTime endDate, bool approved)
+    public async Task<bool> SendLeaveApprovalNotificationAsync(
+        string to,
+        string employeeName,
+        string leaveType,
+        DateTime startDate,
+        DateTime endDate,
+        bool approved)
     {
         var status = approved ? "approved" : "rejected";
         var subject = $"Leave Request {status.ToUpper()}";
         var body = $@"
             <h2>Leave Request Update</h2>
             <p>Dear {employeeName},</p>
-            <p>Your {leaveType} request from {startDate:MMM dd, yyyy} to {endDate:MMM dd, yyyy} has been <strong>{status}</strong>.</p>
+            <p>Your {leaveType} request from {startDate:MMM dd, yyyy} 
+               to {endDate:MMM dd, yyyy} has been <strong>{status}</strong>.</p>
             <p>Please contact HR if you have any questions.</p>
             <p>Best regards,<br/>HR Team</p>
         ";
@@ -102,13 +118,16 @@ public class EmailService : IEmailService
         return await SendEmailAsync(to, subject, body);
     }
 
-    public async Task<bool> SendPasswordResetEmailAsync(string to, string firstName, string resetLink)
+    public async Task<bool> SendPasswordResetEmailAsync(
+        string to,
+        string firstName,
+        string resetLink)
     {
-        var subject = $"Password Reset Request - {Guid.NewGuid().ToString().Substring(0, 6)}";
+        var subject = $"Password Reset Request - {Guid.NewGuid().ToString()[..6]}";
         var body = $@"
             <h2>Password Reset</h2>
             <p>Dear {firstName},</p>
-            <p>You have requested to reset your password. Click the link below to reset it:</p>
+            <p>You have requested to reset your password. Click the link below:</p>
             <p><a href=""{resetLink}"">Reset Password</a></p>
             <p>If you didn't request this, please ignore this email.</p>
             <p>Best regards,<br/>HRMS Team</p>
