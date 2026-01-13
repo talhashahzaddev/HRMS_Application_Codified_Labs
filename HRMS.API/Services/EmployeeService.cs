@@ -49,25 +49,25 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentNullException(nameof(request), "Request cannot be null");
 
         if (string.IsNullOrWhiteSpace(request.Email))
-            throw new ArgumentException("Employee email is required", nameof(request));
+            throw new ArgumentException("Employee email is required");
 
         if (string.IsNullOrWhiteSpace(request.FirstName))
-            throw new ArgumentException("Employee first name is required", nameof(request));
+            throw new ArgumentException("Employee first name is required");
 
         if (string.IsNullOrWhiteSpace(request.LastName))
-            throw new ArgumentException("Employee last name is required", nameof(request));
+            throw new ArgumentException("Employee last name is required");
 
         if (!request.DateOfBirth.HasValue)
-            throw new ArgumentException("Date of birth is required", nameof(request));
+            throw new ArgumentException("Date of birth is required");
 
         if (request.DateOfBirth.Value.Date >= DateTime.UtcNow.Date)
-            throw new ArgumentException("Date of birth must be in the past", nameof(request));
+            throw new ArgumentException("Date of birth must be in the past");
 
         if (request.HireDate == default)
-            throw new ArgumentException("Hire date is required", nameof(request));
+            throw new ArgumentException("Hire date is required");
 
         if (request.HireDate.Date > DateTime.UtcNow.Date)
-            throw new ArgumentException("Hire date cannot be in the future", nameof(request));
+            throw new ArgumentException("Hire date cannot be in the future");
 
         //var isWithinLimit = await _employeeRepository.CheckEmployeeLimitAsync(organizationId);
         //if (!isWithinLimit)
@@ -403,15 +403,6 @@ public class EmployeeService : IEmployeeService
         return result;
     }
 
-
-
-
-
-
-
-
-
-
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty)
@@ -430,9 +421,11 @@ public class EmployeeService : IEmployeeService
         if (string.IsNullOrWhiteSpace(request.PositionTitle))
             throw new ArgumentException("Position title is required", nameof(request));
 
-        var existing = await _employeeRepository.GetPositionsAsync(organizationId, null, request.PositionTitle, null);
-        if (existing.Any(p => string.Equals(p.PositionTitle?.Trim(), request.PositionTitle.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException($"Position with title '{request.PositionTitle}' already exists");
+        var existing = await _employeeRepository.GetPositionsAsync(organizationId, request.DepartmentId, request.PositionTitle, null);
+        if (existing.Any(p =>
+                p.DepartmentId == request.DepartmentId &&
+                string.Equals(p.PositionTitle?.Trim(), request.PositionTitle.Trim(), StringComparison.OrdinalIgnoreCase)))
+            throw new InvalidOperationException($"Position with title '{request.PositionTitle}' already exists in this department");
 
         if (request.DepartmentId.HasValue)
         {
@@ -511,10 +504,11 @@ public class EmployeeService : IEmployeeService
         if (position == null)
             throw new KeyNotFoundException($"Position with ID {positionId} not found");
 
-        var duplicates = await _employeeRepository.GetPositionsAsync(position.OrganizationId, null, request.PositionTitle, null);
+        var duplicates = await _employeeRepository.GetPositionsAsync(position.OrganizationId, request.DepartmentId, request.PositionTitle, null);
         if (duplicates.Any(p => p.PositionId != positionId &&
+                                p.DepartmentId == request.DepartmentId &&
                                 string.Equals(p.PositionTitle?.Trim(), request.PositionTitle.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException($"Position with title '{request.PositionTitle}' already exists");
+            throw new InvalidOperationException($"Position with title '{request.PositionTitle}' already exists in this department");
 
         var oldRoleId = position.RoleId;
         _mapper.Map(request, position);

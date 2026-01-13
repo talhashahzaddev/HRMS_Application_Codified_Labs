@@ -152,6 +152,9 @@ public class UpdateEmployeeRequestDTo
 
     public Guid? roleId { get; set; }
     public IFormFile? ProfilePicture { get; set; }
+    public string? EmploymentType { get; set; }   // Full-Time, Part-Time, Contract, Intern
+    public string? PayType { get; set; }
+
 }
 
 

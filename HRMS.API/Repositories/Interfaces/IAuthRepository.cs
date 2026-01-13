@@ -8,6 +8,9 @@ public interface IAuthRepository
 {
 
     ////adding this line here
+    Task<Guid> AdminIntoEmployeeDetailsAsync( Guid positionId, Guid employeeId);
+    Task<Guid> GetEmployeeIdByEmailAsync(string email);
+    Task<Guid> GetPositionByEmailAsync(string email);
     Task<bool> SavePasswordResetTokenAsync(Guid userId, string token, DateTime expiresAt);
     Task<PasswordResetToken?> GetPasswordResetTokenAsync(string token);
     Task<bool> UpdateUserPasswordAsync(Guid userId, string newPasswordHash);

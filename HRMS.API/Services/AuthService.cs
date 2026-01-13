@@ -258,12 +258,26 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("SuperAdmin user {UserId} created successfully for organization {OrganizationId}", createdUser.UserId, organizationId);
 
+        
+
+
 
         //Generating Employee Code for employee table
         createdUser.employeecode = GenerateEmployeeCode();
 
         //Inserting Super Admin into Employee table
         await _authRepository.adminIntoEmployeeAsync(createdUser);
+
+        //Getting created super admin from Employee table 
+        //Getting superadmin position
+
+ 
+        //var position = await _authRepository.GetPositionByEmailAsync(createdUser.Email);
+        //var superadminEmployeeid = await _authRepository.GetEmployeeIdByEmailAsync(createdUser.Email);
+
+       
+        ////Putting super admin in employee details table
+        //await _authRepository.AdminIntoEmployeeDetailsAsync(position, superadminEmployeeid);
 
         return new AuthResponse
         {
@@ -278,9 +292,11 @@ public class AuthService : IAuthService
             RefreshToken = refreshToken,
             TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
         };
+
+
     }
 
-   
+
     private string? ExtractDomainFromUrl(string url)
     {
         try

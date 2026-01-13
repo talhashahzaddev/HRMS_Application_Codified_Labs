@@ -363,6 +363,56 @@ WHERE token = @token;
 
 
     }
+    //Getting positionid  by email
+
+    public async Task<Guid> GetPositionByEmailAsync(string email)
+    {
+        const string sql = @"
+        SELECT 
+            p.positionid
+        FROM employee.positions p
+        INNER JOIN auth.users u ON u.roleid = p.roleid
+        WHERE u.email = @Email
+        LIMIT 1;";
+
+        var position = await QuerySingleOrDefaultAsync<Guid>(sql, new { Email = email });
+
+        return position;
+    }
+    public async Task<Guid> GetEmployeeIdByEmailAsync(string email)
+    {
+        const string sql = @"
+        SELECT e.employeeid
+        FROM employee.employees e
+        WHERE e.email = @Email
+          AND e.status = 'active'
+        LIMIT 1;";
+
+        var employeeId = await QuerySingleOrDefaultAsync<Guid>(sql, new { Email = email });
+
+        return employeeId;
+    }
+
+
+    public async Task<Guid> AdminIntoEmployeeDetailsAsync(Guid employeeId, Guid positionId)
+    {
+        const string sql = @"
+        INSERT INTO employee.employmentdetails
+            (employeeid, positionid, effectivedate, iscurrent)
+        VALUES
+            (@EmployeeId, @PositionId, CURRENT_DATE, true)
+        RETURNING detailid;";
+
+        // ExecuteScalarAsync returns the generated detailid
+        var detailId = await ExecuteScalarAsync<Guid>(sql, new
+        {
+            EmployeeId = employeeId,
+            PositionId = positionId
+        });
+
+        return detailId;
+    }
+
 
 
 
