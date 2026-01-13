@@ -353,7 +353,7 @@ public class AuthService : IAuthService
 
         // 4️⃣ Generate link for frontend reset page
         //var resetLink = $"http://localhost:4200/reset-password?token={resetToken}";
-        var resetLink = $"https://reset-password.briskpeople.com/reset-password?token={resetToken}";
+        var resetLink = $"https://login.briskpeople.com/reset-password?token={resetToken}";
 
         // 5️⃣ Send email
         await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, resetLink);
