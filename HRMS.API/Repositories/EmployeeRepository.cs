@@ -154,8 +154,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         {
             DepartmentId = request.DepartmentId,
             PositionId = request.PositionId,
-            EmploymentType = "full_time", // Default value
-            PayType = "salary",           // Default value
+            EmploymentType = request.EmploymentType, // Default value
+            PayType = request.PayType,           // Default value
             BasicSalary = request.BasicSalary,
             Currency = "USD",             // Default value
             WorkLocation = request.WorkLocation,
