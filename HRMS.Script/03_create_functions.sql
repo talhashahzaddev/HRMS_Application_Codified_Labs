@@ -57,17 +57,16 @@ fn_create_organization
 -- Function: fn_create_user
 -- ======================================================
 CREATE OR REPLACE FUNCTION auth.fn_create_user(
-    p_organization_id uuid,
-    p_email character varying,
-    p_password_hash character varying,
-    p_first_name character varying,
-    p_last_name character varying,
-    p_role_name character varying DEFAULT 'Employee'::character varying
-)
-RETURNS uuid
-LANGUAGE 'plpgsql'
-COST 100
-VOLATILE PARALLEL UNSAFE
+	p_organization_id uuid,
+	p_email character varying,
+	p_password_hash character varying,
+	p_first_name character varying,
+	p_last_name character varying,
+	p_role_name character varying DEFAULT 'Employee'::character varying)
+    RETURNS TABLE(user_id uuid, role_id uuid) -- <--- CHANGED: Returns a table structure
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
 AS $BODY$
 DECLARE
     newUserId UUID;
@@ -82,11 +81,13 @@ BEGIN
         RAISE EXCEPTION 'Role % not found for organization', p_role_name;
     END IF;
     
+    -- Insert the user
     INSERT INTO auth.users (organizationId, email, passwordHash, firstName, lastName, roleId)
     VALUES (p_organization_id, p_email, p_password_hash, p_first_name, p_last_name, roleIdVar)
     RETURNING userId INTO newUserId;
     
-    RETURN newUserId;
+    -- Return both values as a query result
+    RETURN QUERY SELECT newUserId, roleIdVar;
 END;
 $BODY$;
 
