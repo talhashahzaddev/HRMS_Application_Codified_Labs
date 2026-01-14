@@ -409,7 +409,7 @@ WHERE token = @token;
         });
 
         return detailId;
-    }
+        }
 
 
 
@@ -420,8 +420,10 @@ WHERE token = @token;
 
     public async Task<User> CreateUserAsync(User user)
     {
-        var userId = await ExecuteScalarAsync<Guid>(
-            "SELECT auth.fn_create_user(@organizationId, @email, @passwordHash, @firstName, @lastName, @roleName)",
+        // Use QuerySingleAsync to fetch the single row containing multiple columns
+        // NOTE: We used "SELECT * FROM" to explode the Table result into separate columns
+        var result = await QuerySingleAsync<dynamic>(
+            "SELECT * FROM auth.fn_create_user(@organizationId, @email, @passwordHash, @firstName, @lastName, @roleName)",
             new
             {
                 organizationId = user.OrganizationId,
@@ -432,8 +434,40 @@ WHERE token = @token;
                 roleName = user.Role?.RoleName ?? "Employee"
             });
 
-        user.UserId = userId;
+        // Map the snake_case results from PostgreSQL to your C# model
+        user.UserId = result.user_id;
+        user.RoleId = result.role_id;
+
         return user;
+    }
+
+    public async Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId, string title = "Super Admin")
+    {
+        // Note: We include PositionTitle because it is defined as NOT NULL in your schema.
+        // We include OrganizationId so the position is linked to the correct tenant.
+        const string sql = @"
+        INSERT INTO employee.positions (
+            organizationid, 
+            positiontitle, 
+            roleid,
+            isactive
+        )
+        VALUES (
+            @organizationId, 
+            @positionTitle, 
+            @roleId,
+            true
+        )
+        RETURNING positionid;";
+
+        var positionId = await ExecuteScalarAsync<Guid>(sql, new
+        {
+            organizationId = organizationId,
+            positionTitle = title,
+            roleId = roleId
+        });
+
+        return positionId;
     }
 
     public async Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt)
