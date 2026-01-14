@@ -317,8 +317,7 @@ WHERE token = @token;
     {
         var sql = @"UPDATE auth.users SET 
         firstname=@FirstName, lastname=@LastName, email=@Email, 
-       emailverified=@EmailVerified, 
-      roleid=@roleId,
+       emailverified=@EmailVerified,
          updatedat=CURRENT_TIMESTAMP 
         WHERE userid=@UserId";
 
@@ -327,8 +326,7 @@ WHERE token = @token;
             FirstName = request?.FirstName,
             LastName = request?.LastName,
             Email = request?.Email,
-            EmailVerified = false,          // Default false
-            roleId = request?.roleId,
+            EmailVerified = false,
             UserId = userId
         });
 

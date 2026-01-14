@@ -948,7 +948,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         var sql = @"
             SELECT COUNT(*) 
             FROM employee.employees e
-            INNER JOIN employee.employment_details ed ON e.employeeid = ed.employeeid
+            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
             WHERE ed.departmentid = @departmentId AND e.status != 'deleted'";
 
         return await ExecuteScalarAsync<int>(sql, new { departmentId });
