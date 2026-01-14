@@ -74,14 +74,14 @@ public class AuthService : IAuthService
         }
 
         // Debug: Log user details
-        _logger.LogInformation("Authenticated user: UserId={UserId}, OrganizationId={OrganizationId}, Email={Email}", 
+        _logger.LogInformation("Authenticated user: UserId={UserId}, OrganizationId={OrganizationId}, Email={Email}",
             user.UserId, user.OrganizationId, user.Email);
 
         var (accessToken, refreshToken) = await GenerateTokensAsync(user);
 
         // Update refresh token in database
         await _authRepository.UpdateRefreshTokenAsync(user.UserId, refreshToken, DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays));
-        
+
         // Update last login
         await _authRepository.UpdateLastLoginAsync(user.UserId);
 
@@ -95,7 +95,7 @@ public class AuthService : IAuthService
             LastName = user.LastName,
             RoleName = user.Role?.RoleName ?? "Employee",
             OrganizationName = user.Organization?.Name ?? "Unknown",
-            Domain=user.Organization?.Domain,
+            Domain = user.Organization?.Domain,
             Token = accessToken,
             RefreshToken = refreshToken,
             TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
@@ -127,7 +127,7 @@ public class AuthService : IAuthService
         }
 
         var (newAccessToken, newRefreshToken) = await GenerateTokensAsync(user);
-        
+
         await _authRepository.UpdateRefreshTokenAsync(user.UserId, newRefreshToken, DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays));
 
         return new AuthResponse
@@ -191,7 +191,7 @@ public class AuthService : IAuthService
             return false;
 
         var newPasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
-        
+
         // Update password logic would go here - for now, return true
 
         return true;
@@ -258,7 +258,7 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("SuperAdmin user {UserId} created successfully for organization {OrganizationId}", createdUser.UserId, organizationId);
 
-        
+
 
 
 
@@ -271,11 +271,11 @@ public class AuthService : IAuthService
         //Getting created super admin from Employee table 
         //Getting superadmin position
 
- 
+
         //var position = await _authRepository.GetPositionByEmailAsync(createdUser.Email);
         //var superadminEmployeeid = await _authRepository.GetEmployeeIdByEmailAsync(createdUser.Email);
 
-       
+
         ////Putting super admin in employee details table
         //await _authRepository.AdminIntoEmployeeDetailsAsync(position, superadminEmployeeid);
 
@@ -345,8 +345,8 @@ public class AuthService : IAuthService
         // 1️⃣ Generate unique reset token
         var resetToken = Guid.NewGuid().ToString();
 
-        // 2️⃣ Set expiration (e.g., 15 minutes from now)
-        var expiresAt = DateTime.Now.AddMinutes(15);
+        // 2️⃣ Set expiration (15 minutes from now — UTC)
+        var expiresAt = DateTime.UtcNow.AddMinutes(15);
 
         // 3️⃣ Save to DB
         await _authRepository.SavePasswordResetTokenAsync(user.UserId.Value, resetToken, expiresAt);
@@ -392,14 +392,12 @@ public class AuthService : IAuthService
             throw new UnauthorizedAccessException("Token has already been used");
         }
 
-
-        //Expires function problem
-
-        if (tokenRecord.expiresat <= DateTime.Now)
+        if (tokenRecord.expiresat <= DateTime.UtcNow)
         {
             _logger.LogWarning("Reset password failed - token expired: {Token}", request.token);
             throw new UnauthorizedAccessException("Token has expired");
         }
+
 
         // 3) Load user
         var user = await _authRepository.GetUserByIdAsync(tokenRecord.userid);
@@ -472,7 +470,7 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(request.CurrentPassword)) throw new ArgumentException("Current password is required", nameof(request.CurrentPassword));
         if (string.IsNullOrWhiteSpace(request.NewPassword)) throw new ArgumentException("New password is required", nameof(request.NewPassword));
         _logger.LogInformation("Change password attempt for user: {UserId}", userId);
-        
+
         var user = await _authRepository.GetUserByIdAsync(userId);
         if (user == null)
         {
@@ -513,7 +511,7 @@ public class AuthService : IAuthService
         var key = Encoding.ASCII.GetBytes(_jwtSettings.SecretKey);
 
         // Debug logging
-        _logger.LogInformation("Generating token for user: {UserId}, OrganizationId: {OrganizationId}", 
+        _logger.LogInformation("Generating token for user: {UserId}, OrganizationId: {OrganizationId}",
             user.UserId, user.OrganizationId);
 
         // Check if OrganizationId is valid
@@ -534,7 +532,7 @@ public class AuthService : IAuthService
         };
 
         // Debug: Log all claims
-        _logger.LogInformation("JWT Claims: {Claims}", 
+        _logger.LogInformation("JWT Claims: {Claims}",
             string.Join(", ", claims.Select(c => $"{c.Type}={c.Value}")));
 
         var tokenDescriptor = new SecurityTokenDescriptor
@@ -599,7 +597,7 @@ public class AuthService : IAuthService
     public async Task<AuthResponse> CreateTestTokenAsync(User user)
     {
         var (accessToken, refreshToken) = await GenerateTokensAsync(user);
-        
+
         return new AuthResponse
         {
             UserId = user.UserId,
