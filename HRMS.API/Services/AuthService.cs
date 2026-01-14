@@ -447,8 +447,43 @@ public class AuthService : IAuthService
                 profileUrl = uploadedUrl; // Use Cloudinary URL
             }
         }
+        // Phone number validation
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+        {
+            // Must start with + and contain only digits after that
+            if (!request.Phone.StartsWith("+"))
+            {
+                throw new InvalidOperationException(
+                    "Phone number must include country code, e.g. +923001234567"
+                );
+            }
 
+            // Remove '+' and check digits only
+            var digits = request.Phone.Substring(1);
 
+            if (!digits.All(char.IsDigit))
+            {
+                throw new InvalidOperationException(
+                    "Phone number must contain digits only after country code"
+                );
+            }
+
+            // E.164 max length = 15 digits
+            if (digits.Length > 15)
+            {
+                throw new InvalidOperationException(
+                    "Phone number cannot exceed 15 digits"
+                );
+            }
+
+            // Reasonable minimum length
+            if (digits.Length < 8)
+            {
+                throw new InvalidOperationException(
+                    "Phone number is too short"
+                );
+            }
+        }
         //_mapper.Map(request, employee);
         //Update Employee table
         var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request, profileUrl);
