@@ -250,6 +250,7 @@ public class AuthService : IAuthService
 
         var createdUser = await _authRepository.CreateUserAsync(user);
 
+     
         // Generate tokens for immediate login
         var (accessToken, refreshToken) = await GenerateTokensAsync(createdUser);
 
@@ -273,11 +274,15 @@ public class AuthService : IAuthService
 
 
         //var position = await _authRepository.GetPositionByEmailAsync(createdUser.Email);
-        //var superadminEmployeeid = await _authRepository.GetEmployeeIdByEmailAsync(createdUser.Email);
+        var superadminEmployeeid = await _authRepository.GetEmployeeIdByEmailAsync(createdUser.Email);
 
-
+        var position = await _authRepository.CreatePositionAsync(
+ createdUser.OrganizationId.Value,
+ createdUser.RoleId.Value,
+ "Super Admin"
+);
         ////Putting super admin in employee details table
-        //await _authRepository.AdminIntoEmployeeDetailsAsync(position, superadminEmployeeid);
+        await _authRepository.AdminIntoEmployeeDetailsAsync(superadminEmployeeid, position);
 
         return new AuthResponse
         {

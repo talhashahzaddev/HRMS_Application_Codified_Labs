@@ -32,6 +32,7 @@ public interface IAuthRepository
     Task<User?> GetUserByIdAsync(Guid? userId);
     Task<User?> GetUserByEmailAsync(string email);
     Task<User> CreateUserAsync(User user);
+    Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId, string title = "Super Admin");
     Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt);
     Task<bool> UpdateLastLoginAsync(Guid? userId);
     Task<string> GetHashedPassword(string email);
