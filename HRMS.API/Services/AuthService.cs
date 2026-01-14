@@ -447,10 +447,6 @@ public class AuthService : IAuthService
                 profileUrl = uploadedUrl; // Use Cloudinary URL
             }
         }
-
-
-
-
         // Phone number validation
         if (!string.IsNullOrWhiteSpace(request.Phone))
         {
@@ -488,11 +484,6 @@ public class AuthService : IAuthService
                 );
             }
         }
-
-      
-
-
-
         //_mapper.Map(request, employee);
         //Update Employee table
         var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request, profileUrl);
