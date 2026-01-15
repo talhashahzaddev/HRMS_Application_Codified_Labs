@@ -138,36 +138,76 @@ public class PayrollService : IPayrollService
     }
 
     // Salary Component Operations
+    //public async Task<SalaryComponentDto> CreateSalaryComponentAsync(CreateSalaryComponentRequest request, Guid organizationId)
+    //{
+    //    //if (organizationId == Guid.Empty)
+    //    //    throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+    //    //if (request == null)
+    //    //    throw new ArgumentNullException(nameof(request), "Request cannot be null");
+    //    //if (string.IsNullOrWhiteSpace(request.Name))
+    //    //    throw new ArgumentException("Component name is required", nameof(request));
+    //    ////if (string.IsNullOrWhiteSpace(request.Code))
+    //    ////    throw new ArgumentException("Component code is required", nameof(request));
+    //    //if (string.IsNullOrWhiteSpace(request.Type))
+    //    //    throw new ArgumentException("Component type is required", nameof(request));
+    //    //if (string.IsNullOrWhiteSpace(request.CalculationType))
+    //    //    throw new ArgumentException("Calculation type is required", nameof(request));
+    //    //if (!(request.Type.Equals("earning", StringComparison.OrdinalIgnoreCase) || request.Type.Equals("deduction", StringComparison.OrdinalIgnoreCase)))
+    //    //    throw new ArgumentException("Component type must be 'earning' or 'deduction'", nameof(request));
+    //    //if (!(request.CalculationType.Equals("fixed", StringComparison.OrdinalIgnoreCase) || request.CalculationType.Equals("percentage", StringComparison.OrdinalIgnoreCase)))
+    //    //    throw new ArgumentException("Calculation type must be 'fixed' or 'percentage'", nameof(request));
+    //    //if (request.Value < 0)
+    //    //    throw new ArgumentException("Component value cannot be negative", nameof(request));
+    //    //var existingComponents = await _payrollRepository.GetSalaryComponentsAsync(organizationId);
+    //    //if (existingComponents.Any(c => string.Equals(c.Name?.Trim(), request.Name.Trim(), StringComparison.OrdinalIgnoreCase)))
+    //    //    throw new InvalidOperationException($"Salary component with name '{request.Name}' already exists");
+    //    //if (existingComponents.Any(c => string.Equals(c.Code?.Trim(), request.Code.Trim(), StringComparison.OrdinalIgnoreCase)))
+    //    //    throw new InvalidOperationException($"Salary component with code '{request.Code}' already exists");
+    //    var component = await _payrollRepository.CreateSalaryComponentAsync(
+    //        organizationId,
+    //        request);
+    //    return _mapper.Map<SalaryComponentDto>(component);
+    //}
+
+
     public async Task<SalaryComponentDto> CreateSalaryComponentAsync(CreateSalaryComponentRequest request, Guid organizationId)
     {
+        // Essential validations
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
         if (request == null)
             throw new ArgumentNullException(nameof(request), "Request cannot be null");
+
         if (string.IsNullOrWhiteSpace(request.Name))
-            throw new ArgumentException("Component name is required", nameof(request));
-        if (string.IsNullOrWhiteSpace(request.Code))
-            throw new ArgumentException("Component code is required", nameof(request));
-        if (string.IsNullOrWhiteSpace(request.Type))
-            throw new ArgumentException("Component type is required", nameof(request));
-        if (string.IsNullOrWhiteSpace(request.CalculationType))
-            throw new ArgumentException("Calculation type is required", nameof(request));
-        if (!(request.Type.Equals("earning", StringComparison.OrdinalIgnoreCase) || request.Type.Equals("deduction", StringComparison.OrdinalIgnoreCase)))
-            throw new ArgumentException("Component type must be 'earning' or 'deduction'", nameof(request));
-        if (!(request.CalculationType.Equals("fixed", StringComparison.OrdinalIgnoreCase) || request.CalculationType.Equals("percentage", StringComparison.OrdinalIgnoreCase)))
-            throw new ArgumentException("Calculation type must be 'fixed' or 'percentage'", nameof(request));
+            throw new ArgumentException("Component name is required");
+
         if (request.Value < 0)
-            throw new ArgumentException("Component value cannot be negative", nameof(request));
+            throw new ArgumentException("Component value cannot be negative");
+
+        // Optional: type validation
+        if (!string.IsNullOrWhiteSpace(request.Type))
+        {
+            var allowedTypes = new[] { "earning", "deduction", "allowance" }; // include allowance if needed
+            if (!allowedTypes.Contains(request.Type.Trim().ToLower()))
+                throw new ArgumentException("Component type must be 'earning', 'deduction', or 'allowance'", nameof(request));
+        }
+
+        // Organization-specific duplicate check
         var existingComponents = await _payrollRepository.GetSalaryComponentsAsync(organizationId);
+
         if (existingComponents.Any(c => string.Equals(c.Name?.Trim(), request.Name.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException($"Salary component with name '{request.Name}' already exists");
-        if (existingComponents.Any(c => string.Equals(c.Code?.Trim(), request.Code.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException($"Salary component with code '{request.Code}' already exists");
-        var component = await _payrollRepository.CreateSalaryComponentAsync(
-            organizationId,
-            request);
+            throw new InvalidOperationException($"Salary component with name '{request.Name}' already exists in this organization");
+
+        //if (!string.IsNullOrWhiteSpace(request.Code) &&
+        //    existingComponents.Any(c => string.Equals(c.Code?.Trim(), request.Code.Trim(), StringComparison.OrdinalIgnoreCase)))
+        //    throw new InvalidOperationException($"Salary component with code '{request.Code}' already exists in this organization");
+
+        // Create the component
+        var component = await _payrollRepository.CreateSalaryComponentAsync(organizationId, request);
         return _mapper.Map<SalaryComponentDto>(component);
     }
+
 
     public async Task<List<SalaryComponentDto>> GetSalaryComponentsAsync(Guid organizationId)
     {
@@ -210,8 +250,8 @@ public class PayrollService : IPayrollService
         var existingComponents = await _payrollRepository.GetSalaryComponentsAsync(existing.OrganizationId);
         if (existingComponents.Any(c => c.ComponentId != componentId && string.Equals(c.Name?.Trim(), request.Name.Trim(), StringComparison.OrdinalIgnoreCase)))
             throw new InvalidOperationException($"Salary component with name '{request.Name}' already exists");
-        if (existingComponents.Any(c => c.ComponentId != componentId && string.Equals(c.Code?.Trim(), request.Code.Trim(), StringComparison.OrdinalIgnoreCase)))
-            throw new InvalidOperationException($"Salary component with code '{request.Code}' already exists");
+        //if (existingComponents.Any(c => c.ComponentId != componentId && string.Equals(c.Code?.Trim(), request.Code.Trim(), StringComparison.OrdinalIgnoreCase)))
+        //    throw new InvalidOperationException($"Salary component with code '{request.Code}' already exists");
         var component = await _payrollRepository.UpdateSalaryComponentAsync(
             componentId,
             request);
