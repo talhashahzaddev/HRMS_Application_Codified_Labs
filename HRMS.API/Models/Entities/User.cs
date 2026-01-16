@@ -50,7 +50,10 @@ public class User : BaseEntity
     // Navigation properties
     [NotMapped]
     public Organization? Organization { get; set; }
-    
+
     [NotMapped]
-    public Role? Role { get; set; } 
+    public Role? Role { get; set; }
+    public bool? IsEmailVerified { get; set; }
+    public string? EmailVerificationToken { get; set; }
+    public DateTime? EmailVerificationExpiry { get; set; }
 }

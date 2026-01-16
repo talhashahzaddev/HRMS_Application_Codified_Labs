@@ -465,16 +465,26 @@ public class AuthController : ControllerBase
             var userId = GetCurrentUserId();
             var user = await _authService.UpdateProfileAsync(userId, request,profileurl);
             
-            return Ok(new ServiceResponse<UserDto>
+            return Ok(new ServiceResponse<bool>
             {
                 Success = true,
                 Message = "Profile updated successfully",
                 //Data = user
             });
         }
+
+        catch (InvalidOperationException ex) //  USER ERROR
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+
         catch (KeyNotFoundException ex)
         {
-            return NotFound(new ServiceResponse<UserDto>
+            return NotFound(new ServiceResponse<bool>
             {
                 Success = false,
                 Message = ex.Message
@@ -492,7 +502,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Profile update failed for user: {UserId}", GetCurrentUserId());
-            return StatusCode(500, new ServiceResponse<UserDto>
+            return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
                 Message = "An error occurred while updating profile"
@@ -554,6 +564,44 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Password change failed for user: {UserId}", GetCurrentUserId());
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    [HttpGet("verify-email")]
+    public async Task<ActionResult<ServiceResponse<bool>>> VerifyEmail([FromQuery] string token)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return BadRequest("Invalid verification token");
+
+            var result = await _authService.VerifyEmailAsync(token);
+
+            if (!result)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Verification link expired or invalid",
+                    Data = result
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Email verified successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Email verification failed for token: {Token}", token);
             return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,
