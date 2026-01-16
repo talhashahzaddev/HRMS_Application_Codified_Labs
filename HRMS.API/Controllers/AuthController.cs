@@ -572,6 +572,44 @@ public class AuthController : ControllerBase
         }
     }
 
+    [HttpGet("verify-email")]
+    public async Task<ActionResult<ServiceResponse<bool>>> VerifyEmail([FromQuery] string token)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(token))
+                return BadRequest("Invalid verification token");
+
+            var result = await _authService.VerifyEmailAsync(token);
+
+            if (!result)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Verification link expired or invalid",
+                    Data = result
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Email verified successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Email verification failed for token: {Token}", token);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
     private Guid GetCurrentUserId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

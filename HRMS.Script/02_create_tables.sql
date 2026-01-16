@@ -50,6 +50,11 @@ CREATE TABLE auth.Users (
     UpdatedAt TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+ALTER TABLE auth.users
+ADD COLUMN emailVerify BOOLEAN DEFAULT NULL,
+ADD COLUMN emailVerifyToken CHARACTER VARYING,
+ADD COLUMN emailVerifyExpiry TIMESTAMP WITH TIME ZONE;
+
 -- Table: auth.password_reset_tokens
 
 -- DROP TABLE IF EXISTS auth.password_reset_tokens;

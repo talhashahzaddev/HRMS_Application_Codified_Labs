@@ -3,6 +3,42 @@
 -- auth FUNCTIONS
 -- =====================================================================
 
+-- ======================================================
+-- Function: fn_verify_email
+-- ======================================================
+
+CREATE OR REPLACE FUNCTION auth.fn_verify_email(
+	p_token character varying,
+	p_verify_time timestamp with time zone)
+    RETURNS boolean
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    v_rows_affected INTEGER;
+BEGIN
+    UPDATE auth.users
+    SET
+        emailVerify = TRUE,
+        emailVerifyToken = NULL,
+        emailVerifyExpiry = NULL
+    WHERE emailVerifyToken = p_token
+      AND emailVerifyExpiry > p_verify_time
+      AND emailVerify = FALSE;
+
+    GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
+
+    IF v_rows_affected > 0 THEN
+        RETURN TRUE;
+    END IF;
+
+    RETURN FALSE;
+END;
+$BODY$;
+
+ALTER FUNCTION auth.fn_verify_email(character varying, timestamp with time zone)
+    OWNER TO postgres;
 
 -- ======================================================
 -- Function: fn_authenticate_user
@@ -62,7 +98,10 @@ CREATE OR REPLACE FUNCTION auth.fn_create_user(
 	p_password_hash character varying,
 	p_first_name character varying,
 	p_last_name character varying,
-	p_role_name character varying DEFAULT 'Employee'::character varying)
+	p_role_name character varying DEFAULT 'Employee'::character varying,
+	p_email_verify boolean DEFAULT NULL,
+	p_email_verify_token character varying DEFAULT NULL,
+	p_email_verify_expiry timestamp with time zone DEFAULT NULL)
     RETURNS TABLE(user_id uuid, role_id uuid) -- <--- CHANGED: Returns a table structure
     LANGUAGE 'plpgsql'
     COST 100
@@ -82,8 +121,8 @@ BEGIN
     END IF;
     
     -- Insert the user
-    INSERT INTO auth.users (organizationId, email, passwordHash, firstName, lastName, roleId)
-    VALUES (p_organization_id, p_email, p_password_hash, p_first_name, p_last_name, roleIdVar)
+    INSERT INTO auth.users (organizationId, email, passwordHash, firstName, lastName, roleId, emailVerify, emailVerifyToken, emailVerifyExpiry)
+    VALUES (p_organization_id, p_email, p_password_hash, p_first_name, p_last_name, roleIdVar, p_email_verify, p_email_verify_token, p_email_verify_expiry)
     RETURNING userId INTO newUserId;
     
     -- Return both values as a query result

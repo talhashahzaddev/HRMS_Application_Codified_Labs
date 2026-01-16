@@ -27,4 +27,5 @@ public interface IAuthService
     Task<string> GetHashedPasswordAsync(string email);
     Task<User?> GetUserForTestingAsync(string email, string hashedPassword);
     Task<AuthResponse> CreateTestTokenAsync(User user);
+    Task<bool> VerifyEmailAsync(string token);
 }
