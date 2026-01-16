@@ -3,6 +3,7 @@ using BCrypt.Net;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
+using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Identity.Data;
@@ -235,7 +236,7 @@ public class AuthService : IAuthService
 
         // Step 2: Create SuperAdmin user for the organization
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
-
+        var emailVerificationToken = Guid.NewGuid().ToString("N");
         var user = new User
         {
             OrganizationId = organizationId,
@@ -245,63 +246,34 @@ public class AuthService : IAuthService
             LastName = request.LastName,
             Role = new Role { RoleName = "Super Admin" }, // Always SuperAdmin for registration
             IsActive = true,
-            CreatedAt = DateTime.UtcNow
+            CreatedAt = DateTime.UtcNow,
+            IsEmailVerified = false,
+            EmailVerificationToken = emailVerificationToken,
+            EmailVerificationExpiry = DateTime.UtcNow.AddHours(24)
         };
 
         var createdUser = await _authRepository.CreateUserAsync(user);
 
-     
-        // Generate tokens for immediate login
-        var (accessToken, refreshToken) = await GenerateTokensAsync(createdUser);
-
-        // Update refresh token in database
-        await _authRepository.UpdateRefreshTokenAsync(createdUser.UserId, refreshToken, DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays));
-
         _logger.LogInformation("SuperAdmin user {UserId} created successfully for organization {OrganizationId}", createdUser.UserId, organizationId);
-
-
-
-
-
-        //Generating Employee Code for employee table
+        
         createdUser.employeecode = GenerateEmployeeCode();
-
-        //Inserting Super Admin into Employee table
+        
         await _authRepository.adminIntoEmployeeAsync(createdUser);
 
-        //Getting created super admin from Employee table 
-        //Getting superadmin position
-
-
-        //var position = await _authRepository.GetPositionByEmailAsync(createdUser.Email);
         var superadminEmployeeid = await _authRepository.GetEmployeeIdByEmailAsync(createdUser.Email);
 
-        var position = await _authRepository.CreatePositionAsync(
- createdUser.OrganizationId.Value,
- createdUser.RoleId.Value,
- "Super Admin"
-);
-        ////Putting super admin in employee details table
+        var position = await _authRepository.CreatePositionAsync(createdUser.OrganizationId.Value, createdUser.RoleId.Value, "Super Admin");
+
         await _authRepository.AdminIntoEmployeeDetailsAsync(superadminEmployeeid, position);
 
+        await _emailService.SendVerificationEmailAsync(request.Email, request.FirstName, emailVerificationToken);
+        
         return new AuthResponse
         {
-            UserId = createdUser.UserId,
-            Email = createdUser.Email,
-            FirstName = createdUser.FirstName,
-            LastName = createdUser.LastName,
-            RoleName = "Super Admin",
-            OrganizationName = orgResponse.Data.Name,
-            Domain = orgResponse.Data.Domain,
-            Token = accessToken,
-            RefreshToken = refreshToken,
-            TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
+            Token = null,
+            RefreshToken = null,
         };
-
-
     }
-
-
     private string? ExtractDomainFromUrl(string url)
     {
         try
@@ -540,9 +512,11 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("Password changed successfully for user {UserId}", userId);
         return true;
-
-
-        return true;
+    }
+    public async Task<bool> VerifyEmailAsync(string token)
+    {
+        var result = await _authRepository.VerifyEmail(token);
+        return result;
     }
 
     private async Task<(string accessToken, string refreshToken)> GenerateTokensAsync(User user)

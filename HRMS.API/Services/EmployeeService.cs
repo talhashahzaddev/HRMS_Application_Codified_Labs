@@ -11,6 +11,7 @@ using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using OfficeOpenXml;
 using System.Linq;
+using System.Text;
 
 namespace HRMS.API.Services;
 
@@ -22,13 +23,17 @@ public class EmployeeService : IEmployeeService
     private readonly IMapper _mapper;
     private readonly ILogger<EmployeeService> _logger;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly IEmailService _emailService;
+    private readonly IConfiguration _configuration;
     public EmployeeService(
         IEmployeeRepository employeeRepository,
         IAuthService authService,
         ISettingsRepository settingsRepository,
         IMapper mapper,
          ICloudinaryService cloudinaryService,
-        ILogger<EmployeeService> logger)
+        ILogger<EmployeeService> logger,
+        IEmailService emailService,
+        IConfiguration configuration)
     {
         _employeeRepository = employeeRepository;
         _authService = authService;
@@ -36,6 +41,8 @@ public class EmployeeService : IEmployeeService
         _cloudinaryService = cloudinaryService;
         _mapper = mapper;
         _logger = logger;
+        _emailService = emailService;
+        _configuration = configuration;
     }
 
     public async Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId)
@@ -98,10 +105,12 @@ public class EmployeeService : IEmployeeService
             }
         }
 
+        var randomPassword = GenerateRandomPassword(10);
+        _logger.LogInformation("Generated random password for new employee: {randomPassword} ", randomPassword);
         var createUserRequest = new CreateUserRequest
         {
             Email = request.Email,
-            Password = "Password123",
+            Password = randomPassword,
             FirstName = request.FirstName,
             LastName = request.LastName,
             RoleName = roleName
@@ -133,6 +142,12 @@ public class EmployeeService : IEmployeeService
             _logger.LogInformation("Updated EmploymentDetail currency to {Currency} for employee {EmployeeId}", organizationCurrency, createdEmployee.EmployeeId);
 
             var result = await _employeeRepository.GetEmployeedetailsAsync(createdEmployee.EmployeeId);
+            if (result != null)
+            {
+                var loginLink = _configuration["EmployeePortal:LoginUrl"];
+                _logger.LogInformation("Successfully retrieved details for employee {EmployeeId}", createdEmployee.EmployeeId);
+                await _emailService.SendEmployeeCredentialsAsync(result.Email, result.FirstName, randomPassword, loginLink);
+            }
             return _mapper.Map<EmployeeDto>(result);
         }
         catch (ArgumentNullException)
@@ -464,7 +479,7 @@ public class EmployeeService : IEmployeeService
 
         _mapper.Map(request, department);
         var updatedDepartment = await _employeeRepository.UpdateDepartmentAsync(department);
-        
+
         _logger.LogInformation("Department {DepartmentId} updated successfully", departmentId);
         return _mapper.Map<DepartmentDto>(updatedDepartment);
     }
@@ -472,7 +487,7 @@ public class EmployeeService : IEmployeeService
     public async Task<bool> DeleteDepartmentAsync(Guid departmentId)
     {
         _logger.LogInformation("Deleting department: {DepartmentId}", departmentId);
-        
+
         var department = await _employeeRepository.GetDepartmentByIdAsync(departmentId);
         if (department == null)
             throw new KeyNotFoundException($"Department with ID {departmentId} not found");
@@ -483,7 +498,7 @@ public class EmployeeService : IEmployeeService
             throw new InvalidOperationException($"Cannot delete department with {employeeCount} employees. Please reassign employees first.");
 
         var result = await _employeeRepository.DeleteDepartmentAsync(departmentId);
-        
+
         _logger.LogInformation("Department {DepartmentId} deleted successfully", departmentId);
         return result;
     }
@@ -499,7 +514,7 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Position title is required", nameof(request));
 
         _logger.LogInformation("Updating position: {PositionId}", positionId);
-        
+
         var position = await _employeeRepository.GetPositionByIdAsync(positionId);
         if (position == null)
             throw new KeyNotFoundException($"Position with ID {positionId} not found");
@@ -513,7 +528,7 @@ public class EmployeeService : IEmployeeService
         var oldRoleId = position.RoleId;
         _mapper.Map(request, position);
         var updatedPosition = await _employeeRepository.UpdatePositionAsync(position);
-        
+
         // If the role of the position changed, update all employees with this position
         if (oldRoleId != updatedPosition.RoleId && updatedPosition.RoleId.HasValue)
         {
@@ -523,12 +538,12 @@ public class EmployeeService : IEmployeeService
                 if (employee.UserId.HasValue)
                 {
                     await _authService.UpdateUserRoleAsync(employee.UserId.Value, updatedPosition.RoleId.Value);
-                    _logger.LogInformation("Updated user {UserId} role to {RoleId} due to position {PositionId} role change", 
+                    _logger.LogInformation("Updated user {UserId} role to {RoleId} due to position {PositionId} role change",
                         employee.UserId, updatedPosition.RoleId, positionId);
                 }
             }
         }
-        
+
         _logger.LogInformation("Position {PositionId} updated successfully", positionId);
         return _mapper.Map<PositionDto>(updatedPosition);
     }
@@ -539,7 +554,7 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Position ID cannot be empty", nameof(positionId));
 
         _logger.LogInformation("Deleting position: {PositionId}", positionId);
-        
+
         var position = await _employeeRepository.GetPositionByIdAsync(positionId);
         if (position == null)
             throw new KeyNotFoundException($"Position with ID {positionId} not found");
@@ -550,7 +565,7 @@ public class EmployeeService : IEmployeeService
             throw new InvalidOperationException($"Cannot delete position with {employeeCount} employees. Please reassign employees first.");
 
         var result = await _employeeRepository.DeletePositionAsync(positionId);
-        
+
         _logger.LogInformation("Position {PositionId} deleted successfully", positionId);
         return result;
     }
@@ -562,14 +577,14 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
 
         _logger.LogInformation("Activating employee: {EmployeeId}", employeeId);
-        
+
         var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
 
         employee.Status = "active";
         await _employeeRepository.UpdateEmployeeAsync(employee);
-        
+
         _logger.LogInformation("Employee {EmployeeId} activated successfully", employeeId);
         return _mapper.Map<EmployeeDto>(employee);
     }
@@ -580,14 +595,14 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
 
         _logger.LogInformation("Deactivating employee: {EmployeeId}", employeeId);
-        
+
         var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
 
         employee.Status = "inactive";
         await _employeeRepository.UpdateEmployeeAsync(employee);
-        
+
         _logger.LogInformation("Employee {EmployeeId} deactivated successfully", employeeId);
         return _mapper.Map<EmployeeDto>(employee);
     }
@@ -598,7 +613,7 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Department ID cannot be empty", nameof(departmentId));
 
         _logger.LogInformation("Retrieving department: {DepartmentId}", departmentId);
-        
+
         var department = await _employeeRepository.GetDepartmentByIdAsync(departmentId);
         return department != null ? _mapper.Map<DepartmentDto>(department) : null;
     }
@@ -609,7 +624,7 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Position ID cannot be empty", nameof(positionId));
 
         _logger.LogInformation("Retrieving position: {PositionId}", positionId);
-        
+
         var position = await _employeeRepository.GetPositionByIdAsync(positionId);
         return position != null ? _mapper.Map<PositionDto>(position) : null;
     }
@@ -620,7 +635,7 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
 
         _logger.LogInformation("Retrieving employee statistics for organization: {OrganizationId}", organizationId);
-        
+
         // Mock implementation - in a real app, this would calculate from database
         var statistics = new EmployeeStatisticsDto
         {
@@ -645,7 +660,7 @@ public class EmployeeService : IEmployeeService
                 new() { EmploymentType = "Contract", EmployeeCount = 10, Percentage = 6.7m }
             }
         };
-        
+
         return statistics;
     }
 
@@ -655,7 +670,7 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
 
         _logger.LogInformation("Retrieving managers for organization: {OrganizationId}", organizationId);
-        
+
         var managers = await _employeeRepository.GetManagersAsync(organizationId);
         return _mapper.Map<List<EmployeeDto>>(managers);
     }
@@ -663,7 +678,7 @@ public class EmployeeService : IEmployeeService
     public async Task<bool> BulkActivateEmployeesAsync(List<Guid> employeeIds)
     {
         _logger.LogInformation("Bulk activating {Count} employees", employeeIds.Count);
-        
+
         var successCount = 0;
         foreach (var employeeId in employeeIds)
         {
@@ -677,7 +692,7 @@ public class EmployeeService : IEmployeeService
                 _logger.LogWarning(ex, "Failed to activate employee {EmployeeId}", employeeId);
             }
         }
-        
+
         _logger.LogInformation("Successfully activated {SuccessCount} out of {TotalCount} employees", successCount, employeeIds.Count);
         return successCount == employeeIds.Count;
     }
@@ -685,7 +700,7 @@ public class EmployeeService : IEmployeeService
     public async Task<bool> BulkDeactivateEmployeesAsync(List<Guid> employeeIds)
     {
         _logger.LogInformation("Bulk deactivating {Count} employees", employeeIds.Count);
-        
+
         var successCount = 0;
         foreach (var employeeId in employeeIds)
         {
@@ -699,7 +714,7 @@ public class EmployeeService : IEmployeeService
                 _logger.LogWarning(ex, "Failed to deactivate employee {EmployeeId}", employeeId);
             }
         }
-        
+
         _logger.LogInformation("Successfully deactivated {SuccessCount} out of {TotalCount} employees", successCount, employeeIds.Count);
         return successCount == employeeIds.Count;
     }
@@ -825,5 +840,17 @@ public class EmployeeService : IEmployeeService
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
 
         return await _employeeRepository.GetEmployeesByManagerAsync(managerEmployeeId, organizationId);
+    }
+
+    private string GenerateRandomPassword(int length)
+    {
+        const string valid = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890";
+        StringBuilder res = new StringBuilder();
+        Random rnd = new Random();
+        for (int i = 0; i < length; i++)
+        {
+            res.Append(valid[rnd.Next(valid.Length)]);
+        }
+        return res.ToString();
     }
 }
