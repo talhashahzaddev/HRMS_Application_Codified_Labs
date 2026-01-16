@@ -223,7 +223,7 @@ public class EmailService : IEmailService
     }
     public async Task<bool> SendVerificationEmailAsync(string email,string adminName,string verificationToken)
     {
-        var verifyLink =$"{_configuration["EmployeePortal:BaseUrl"]}verify-email?token={verificationToken}";
+        var verifyLink =$"{_configuration["EmployeePortal:PortalUrl"]}verify-email?token={verificationToken}";
 
         var subject = "Verify Your Organization Email | BriskPeople";
 
