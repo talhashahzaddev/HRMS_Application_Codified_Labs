@@ -141,7 +141,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
             // ---------------------------------------------------------------
             if (existingId != null)
             {
-                var updateSql = @"
+                                var updateSql = @"
                 UPDATE performance.employeeappraisals
                 SET
                     kraratings = COALESCE(kraratings, '{}'::jsonb)
@@ -149,19 +149,21 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
                     feedback = @feedback,
                     improvementareas = @improvementAreas,
                     developmentplan = @developmentPlan,
+                    status = @status, 
                     updatedat = NOW()
                 WHERE appraisalid = @id
                 RETURNING appraisalid;
-            ";
+                ";
 
-                appraisal.AppraisalId = await ExecuteScalarAsync<Guid>(updateSql, new
-                {
-                    id = existingId,
-                    kraRatings = JsonSerializer.Serialize(appraisal.KraRatings),
-                    feedback = appraisal.Feedback,
-                    improvementAreas = appraisal.ImprovementAreas,
-                    developmentPlan = appraisal.DevelopmentPlan
-                });
+                                appraisal.AppraisalId = await ExecuteScalarAsync<Guid>(updateSql, new
+                                {
+                                    id = existingId,
+                                    kraRatings = JsonSerializer.Serialize(appraisal.KraRatings),
+                                    feedback = appraisal.Feedback,
+                                    improvementAreas = appraisal.ImprovementAreas,
+                                    developmentPlan = appraisal.DevelopmentPlan,
+                                    status = appraisal.Status
+                                });
 
                 return appraisal;
             }
@@ -200,7 +202,22 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
                 developmentPlan = appraisal.DevelopmentPlan,
                 status = appraisal.Status
             });
+            if (appraisal.AppraisalId != null)
+            {
+                // 2️⃣ Update selfassessments
+                var updateSelfSql = @"
+                                UPDATE performance.selfassessments 
+                                SET status = @status
+                                WHERE cycleid = @cycleId AND employeeid = @employeeId;
+                                ";
 
+                await ExecuteAsync(updateSelfSql, new
+                {
+                    cycleId = appraisal.CycleId,
+                    employeeId = appraisal.EmployeeId,
+                    status = appraisal.Status
+                });
+            }
             return appraisal;
         }
         catch (InvalidOperationException ex)
