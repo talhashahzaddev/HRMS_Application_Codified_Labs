@@ -99,6 +99,8 @@ public class CreateAppraisalRequest
     public string? Feedback { get; set; }
     public string? ImprovementAreas { get; set; }
     public string? DevelopmentPlan { get; set; }
+    public bool IsSubmit { get; set; }
+
 }
 
 public class PerformanceSummaryDto
