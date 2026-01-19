@@ -1183,15 +1183,15 @@ public class AttendanceController : ControllerBase
         {
             var shift = await _attendanceService.GetShiftByEmployeeIdAsync(employeeId);
 
-            if (shift == null)
-            {
-                return NotFound(new ServiceResponse<ShiftDto>
-                {
-                    Success = false,
-                    Message = "Shift not found for the given employee.",
-                    Data = null
-                });
-            }
+            //if (shift == null)
+            //{
+            //    return NotFound(new ServiceResponse<ShiftDto>
+            //    {
+            //        Success = true,
+            //        Message = "Shift not found for the given employee.",
+            //        Data = null
+            //    });
+            //}
 
             return Ok(new ServiceResponse<ShiftDto>
             {

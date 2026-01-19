@@ -602,6 +602,7 @@ public class AttendanceService : IAttendanceService
 
         //Create Notification 
         var currentEmp = await _employeeRepository.GetEmployeeByIdAsync(currentEmpid);
+        //var employee = await _employeeRepository.GetEmployeeByIdAsync(currentEmp);
         //Get shift details
         var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(request.ShiftId);
 
@@ -613,10 +614,9 @@ public class AttendanceService : IAttendanceService
             {
                 Receiveruserid = request.EmployeeId,
                 Senderuserid = currentEmpid,
-                Title = "Shit Assign",
+                Title = "Shift Assign",
                 //RequestId = leaveRequest.RequestId,
-                //Message = $" {currentEmp.FirstName} assign you shift of  {shiftDetails.ShiftName} ",
-                Message = $" You assign shift of {shiftDetails.ShiftName} ",
+                Message = $"{currentEmp.FirstName} {currentEmp.LastName}, assign you shift of {shiftDetails.ShiftName} ",
                 Notificationtype = "Message",
                 Createdby = currentEmpid,
                 moduletype = "Shift",
