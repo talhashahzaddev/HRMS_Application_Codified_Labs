@@ -819,4 +819,70 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
             return 0;
         }
     }
+
+    public async Task<OnboardingStatusDto> GetOnboardingStatusAsync(Guid organizationId)
+    {
+        try
+        {
+            using var connection = _connectionFactory.CreateConnection();
+            
+            // Step 2: Create Team - Check if Departments, Positions, or Employees exist
+            var createTeam = await connection.ExecuteScalarAsync<bool>(
+                @"SELECT EXISTS(
+                    SELECT 1 FROM employee.departments WHERE organizationid = @organizationId AND isactive = true
+                    UNION
+                    SELECT 1 FROM employee.positions WHERE organizationid = @organizationId AND isactive = true
+                    UNION
+                    SELECT 1 FROM employee.employees WHERE organizationid = @organizationId
+                    LIMIT 1
+                )",
+                new { organizationId });
+
+            // Step 3: Define Leave Types - Check if LeaveTypes exist
+            var defineLeaveTypes = await connection.ExecuteScalarAsync<bool>(
+                @"SELECT EXISTS(
+                    SELECT 1 FROM attendance.leavetypes 
+                    WHERE organizationid = @organizationId AND isactive = true
+                    LIMIT 1
+                )",
+                new { organizationId });
+
+            // Step 4: Mark Attendance - Check if any employee has marked attendance OR if shifts exist
+            var markAttendance = await connection.ExecuteScalarAsync<bool>(
+                @"SELECT EXISTS(
+                    SELECT 1 FROM attendance.attendance a
+                    INNER JOIN employee.employees e ON a.employeeid = e.employeeid
+                    WHERE e.organizationid = @organizationId
+                    UNION
+                    SELECT 1 FROM attendance.shifts 
+                    WHERE organizationid = @organizationId AND isactive = true
+                    LIMIT 1
+                )",
+                new { organizationId });
+
+            // Step 5: Process Payroll - Check if PayrollPeriods exist, then check if PayrollEntries exist for those periods
+            var processPayroll = await connection.ExecuteScalarAsync<bool>(
+                @"SELECT EXISTS(
+                    SELECT 1 FROM payroll.payrollentries pe
+                    INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
+                    WHERE pp.organizationid = @organizationId
+                    LIMIT 1
+                )",
+                new { organizationId });
+
+            return new OnboardingStatusDto
+            {
+                SignUp = true, // Always true if user is on dashboard
+                CreateTeam = createTeam,
+                DefineLeaveTypes = defineLeaveTypes,
+                MarkAttendance = markAttendance,
+                ProcessPayroll = processPayroll
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting onboarding status for organization {OrganizationId}", organizationId);
+            throw;
+        }
+    }
 }

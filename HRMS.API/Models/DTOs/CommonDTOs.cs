@@ -128,6 +128,15 @@ public class EmployeeGrowthDto
     public List<int> NewEmployees { get; set; } = new();
 }
 
+public class OnboardingStatusDto
+{
+    public bool SignUp { get; set; } = true; // Always true if user is on dashboard
+    public bool CreateTeam { get; set; }
+    public bool DefineLeaveTypes { get; set; }
+    public bool MarkAttendance { get; set; }
+    public bool ProcessPayroll { get; set; }
+}
+
 public class UpcomingEventDto
 {
     public string Id { get; set; } = string.Empty;
