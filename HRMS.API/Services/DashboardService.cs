@@ -227,6 +227,16 @@ public class DashboardService : IDashboardService
         return await _dashboardRepository.GetQuickStatsAsync(organizationId);
     }
 
+    public async Task<OnboardingStatusDto> GetOnboardingStatusAsync(Guid organizationId)
+    {
+        if (organizationId == Guid.Empty)
+        {
+            _logger.LogWarning("Invalid organizationId for GetOnboardingStatusAsync");
+            throw new ArgumentException("Organization ID is required", nameof(organizationId));
+        }
+        return await _dashboardRepository.GetOnboardingStatusAsync(organizationId);
+    }
+
     private static bool IsValidStatsPeriod(string? period)
     {
         if (string.IsNullOrWhiteSpace(period)) return false;
