@@ -620,6 +620,49 @@ public class DashboardController : ControllerBase
         }
     }
 
+    [HttpGet("onboarding-status")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<OnboardingStatusDto>>> GetOnboardingStatus()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var status = await _dashboardService.GetOnboardingStatusAsync(organizationId);
+            
+            return Ok(new ServiceResponse<OnboardingStatusDto>
+            {
+                Success = true,
+                Data = status
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving onboarding status");
+            return BadRequest(new ServiceResponse<OnboardingStatusDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new ServiceResponse<OnboardingStatusDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving onboarding status");
+            return StatusCode(500, new ServiceResponse<OnboardingStatusDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving onboarding status"
+            });
+        }
+    }
+
     private Guid GetCurrentOrganizationId()
     {
         // Debug: Log all claims in the token

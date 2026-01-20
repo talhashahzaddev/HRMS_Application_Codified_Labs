@@ -20,4 +20,5 @@ public interface IDashboardRepository
     Task<List<object>> GetTopPerformersAsync(Guid organizationId, int limit = 5);
     Task<object> GetRemindersAsync(Guid organizationId);
     Task<object> GetQuickStatsAsync(Guid organizationId);
+    Task<OnboardingStatusDto> GetOnboardingStatusAsync(Guid organizationId);
 }
