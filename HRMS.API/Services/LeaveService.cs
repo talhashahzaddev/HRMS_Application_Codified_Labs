@@ -60,7 +60,13 @@ public class LeaveService : ILeaveService
                 empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
             //Subtracting the days From leave Elementals of Employee
-            var totalleaveDays = (request.EndDate.Date - request.StartDate.Date).Days + 1;
+            //var totalleaveDays = (request.EndDate.Date - request.StartDate.Date).Days + 1;
+            int totalleaveDays = 0;
+            for (var date = request.StartDate.Date; date <= request.EndDate.Date; date = date.AddDays(1))
+            {
+                if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+                    totalleaveDays++;
+            }
 
             ////Method for Subctracting the days
 
@@ -72,6 +78,8 @@ public class LeaveService : ILeaveService
 
             var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
             var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
+
+            
 
             if (leaveRequest != null)
             {

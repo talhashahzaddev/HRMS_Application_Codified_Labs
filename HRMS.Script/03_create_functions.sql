@@ -603,51 +603,59 @@ $$ LANGUAGE plpgsql;
 
 
 -- Function to approve/reject leave request
+
 CREATE OR REPLACE FUNCTION attendance.fn_update_leave_request_status(
-    p_request_id UUID,
-    p_status VARCHAR(20),
-    p_approved_by UUID,
-    p_rejection_reason TEXT DEFAULT NULL
-)
-RETURNS BOOLEAN AS $$
+	p_request_id uuid,
+	p_status character varying,
+	p_approved_by uuid,
+	p_rejection_reason text DEFAULT NULL::text)
+    RETURNS boolean
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
 DECLARE
     leave_request RECORD;
     current_year INTEGER;
 BEGIN
-    -- Get leave request details
-    SELECT * INTO leave_request 
-    FROM attendance.leaverequests 
+    -- Get leave request
+    SELECT *
+    INTO leave_request
+    FROM attendance.leaverequests
     WHERE requestId = p_request_id;
-    
+
     IF leave_request IS NULL THEN
         RAISE EXCEPTION 'Leave request not found';
     END IF;
-    
+
     current_year := EXTRACT(YEAR FROM leave_request.startDate);
-    
-    -- Update request status
-    UPDATE attendance.leaverequests 
+
+    -- ?? Update leave request status only
+    UPDATE attendance.leaverequests
     SET status = p_status,
         approvedBy = p_approved_by,
         approvedAt = CASE WHEN p_status = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END,
         rejectionReason = p_rejection_reason,
         updatedAt = CURRENT_TIMESTAMP
     WHERE requestId = p_request_id;
-    
-    -- If approved, update leave entitlements
-    IF p_status = 'approved' THEN
-        UPDATE attendance.leaveentitlements 
-        SET usedDays = usedDays + leave_request.daysRequested,
-            remainingDays = remainingDays - leave_request.daysRequested,
+
+    -- ?? Handle reject: Add days back to leave entitlements
+    IF p_status = 'rejected' THEN
+        UPDATE attendance.leaveentitlements
+        SET usedDays = usedDays - leave_request.daysRequested,
+            remainingDays = remainingDays + leave_request.daysRequested,
             updatedAt = CURRENT_TIMESTAMP
-        WHERE employeeId = leave_request.employeeId 
-          AND leaveTypeId = leave_request.leaveTypeId 
+        WHERE employeeId = leave_request.employeeId
+          AND leaveTypeId = leave_request.leaveTypeId
           AND year = current_year;
     END IF;
-    
+
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql;
+$BODY$;
+
+ALTER FUNCTION attendance.fn_update_leave_request_status(uuid, character varying, uuid, text)
+    OWNER TO postgres;
 
 -- =====================================================================
 -- PAYROLL FUNCTIONS
