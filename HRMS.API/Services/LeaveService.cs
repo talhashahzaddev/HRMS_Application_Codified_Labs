@@ -59,6 +59,17 @@ public class LeaveService : ILeaveService
             var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
                 empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
 
+            //Subtracting the days From leave Elementals of Employee
+            var totalleaveDays = (request.EndDate.Date - request.StartDate.Date).Days + 1;
+
+            ////Method for Subctracting the days
+
+            if (leaveRequest != null && leaveRequest.RequestId != Guid.Empty)
+            {
+                var SubctractingDays = await _leaveRepository.SubstractLeaveDayAsync(request.LeaveTypeId, empId, totalleaveDays);
+
+            }
+
             var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
             var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
 
@@ -202,6 +213,8 @@ public class LeaveService : ILeaveService
         {
             var empId = await _leaveRepository.GetEmpId(approvedBy);
             var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(requestId, request.Status, empId, request.RejectionReason);
+
+
 
             if (!result)
             {
