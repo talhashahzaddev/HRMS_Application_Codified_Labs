@@ -5,6 +5,8 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface ILeaveRepository
 {
+    //adding gthe method  here
+    Task<bool> SubstractLeaveDayAsync(Guid leaveTypeId, Guid employeeId, int totalLeaveDays);
     Task<Guid> GetEmpId(Guid? employeeId);
     Task<LeaveRequest> CreateLeaveRequestAsync(Guid employeeId, Guid leaveTypeId, DateTime startDate, DateTime endDate, string? reason = null);
     Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, string status, Guid approvedBy, string? rejectionReason = null);

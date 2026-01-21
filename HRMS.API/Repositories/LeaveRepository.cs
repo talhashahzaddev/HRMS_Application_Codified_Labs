@@ -49,11 +49,50 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                 Reason = reason
             };
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             return null;
         }
     }
+
+
+    public async Task<bool> SubstractLeaveDayAsync(
+    Guid leaveTypeId,
+    Guid employeeId,
+    int totalLeaveDays)
+    {
+        var year = DateTime.UtcNow.Year;
+
+        const string sql = @"
+        UPDATE attendance.leaveentitlements
+        SET 
+            useddays = useddays + @TotalLeaveDays,
+            remainingdays = remainingdays - @TotalLeaveDays,
+            updatedat = CURRENT_TIMESTAMP
+        WHERE employeeid = @EmployeeId
+          AND leavetypeid = @LeaveTypeId
+          AND year = @Year
+          AND remainingdays >= @TotalLeaveDays
+        RETURNING entitlementid;
+    ";
+
+        var result = await ExecuteScalarAsync<Guid?>(
+            sql,
+            new
+            {
+                EmployeeId = employeeId,
+                LeaveTypeId = leaveTypeId,
+                Year = year,
+                TotalLeaveDays = totalLeaveDays
+            });
+
+        if (result == null)
+            throw new InvalidOperationException("Insufficient leave balance or entitlement not found");
+
+        return true;
+    }
+
+
 
     public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, string status, Guid approvedBy, string? rejectionReason = null)
     {
