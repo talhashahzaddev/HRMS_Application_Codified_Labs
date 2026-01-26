@@ -399,10 +399,11 @@ $BODY$;
 
 
 CREATE OR REPLACE FUNCTION attendance.fn_clock_in_out(
-	p_employee_id uuid,
-	p_action character varying,
-	p_timestamp timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-	p_location jsonb DEFAULT NULL::jsonb)
+    p_employee_id uuid,
+    p_action character varying,
+    p_timestamp timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    p_location jsonb DEFAULT NULL::jsonb,
+    p_notes character varying DEFAULT NULL)
     RETURNS boolean
     LANGUAGE 'plpgsql'
     COST 100
@@ -420,8 +421,8 @@ BEGIN
     WHERE employeeId = p_employee_id AND workDate = todayDate;
 
     IF attendanceRecord IS NULL THEN
-        INSERT INTO attendance.Attendance (employeeId, workDate, location, status)
-        VALUES (p_employee_id, todayDate, COALESCE(p_location, '{}'), 'present')
+        INSERT INTO attendance.Attendance (employeeId, workDate, location, status, notes)
+        VALUES (p_employee_id, todayDate, COALESCE(p_location, '{}'), 'present', p_notes)
         RETURNING * INTO attendanceRecord;
     END IF;
 
@@ -443,6 +444,7 @@ BEGIN
         UPDATE attendance.Attendance 
         SET checkOutTime = p_timestamp,
             location     = COALESCE(p_location, location),
+            notes        = COALESCE(p_notes, notes),
             updatedAt    = CURRENT_TIMESTAMP
         WHERE attendanceId = attendanceRecord.attendanceId;
 
@@ -487,7 +489,7 @@ CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
 	p_end_date timestamp with time zone DEFAULT NULL::timestamp with time zone,
 	p_limit integer DEFAULT 100,
 	p_offset integer DEFAULT 0)
-    RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, sessionscount integer, totalcount bigint) 
+    RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, sessionscount integer, notes character varying, totalcount bigint) 
     LANGUAGE 'plpgsql'
     COST 100
     VOLATILE PARALLEL UNSAFE
@@ -517,6 +519,7 @@ BEGIN
         COALESCE(a.overtimehours,0)::numeric AS overtimehours,
         COALESCE(a.status,'absent')::varchar AS status,
         COALESCE(sess.sessionscount,0)::integer AS sessionscount,
+        a.notes::character varying AS notes,
         totalRecords::bigint AS totalcount
     FROM (
         SELECT generate_series(
