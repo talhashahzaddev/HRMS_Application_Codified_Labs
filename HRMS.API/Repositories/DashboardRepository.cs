@@ -472,57 +472,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
         }
     }
 
-    //public async Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(Guid organizationId, int count = 5)
-    //{
-    //    try
-    //    {
-    //        using var connection = _connectionFactory.CreateConnection();
-
-    //        // Get upcoming birthdays and work anniversaries
-    //        var events = await connection.QueryAsync<UpcomingEventDto>(
-    //            @"SELECT 
-    //                'birthday' as Type,
-    //                CONCAT(e.firstName, ' ', e.lastName, '''s Birthday') as Title,
-    //                CONCAT('Birthday celebration for ', e.firstName, ' ', e.lastName) as Description,
-    //                TO_CHAR(e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)), 'YYYY-MM-DD') as Date,
-    //                '09:00' as Time
-    //            FROM employee.employees e
-    //            WHERE e.organizationId = @organizationId
-    //                AND e.status = 'active'
-    //                AND e.dateOfBirth IS NOT NULL
-    //                AND e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) >= CURRENT_DATE
-    //                AND e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) <= CURRENT_DATE + INTERVAL '30 days'
-
-    //            UNION ALL
-
-    //            SELECT 
-    //                'anniversary' as Type,
-    //                CONCAT(e.firstName, ' ', e.lastName, '''s Work Anniversary') as Title,
-    //                CONCAT('Work anniversary celebration for ', e.firstName, ' ', e.lastName) as Description,
-    //                TO_CHAR(e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)), 'YYYY-MM-DD') as Date,
-    //                '15:00' as Time
-    //            FROM employee.employees e
-    //            WHERE e.organizationId = @organizationId
-    //                AND e.status = 'active'
-    //                AND e.hireDate IS NOT NULL
-    //                AND e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) >= CURRENT_DATE
-    //                AND e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) <= CURRENT_DATE + INTERVAL '30 days'
-
-    //            ORDER BY Date ASC
-    //            LIMIT @count",
-    //            new { organizationId, count });
-
-    //        return events.ToList();
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error getting upcoming events for organization {OrganizationId}", organizationId);
-    //        return new List<UpcomingEventDto>();
-    //    }
-    //}
-
-
-
+  
 
     public async Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(Guid organizationId, int count = 5)
     {
