@@ -359,11 +359,47 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("employeeSession/{id}")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByid(Guid id, [FromQuery] DateTime? date = null)
-    {
+     {
         try
         {
             //var employeeId = await GetCurrentEmployeeId();
             var sessions = await _attendanceService.EmployeeTodaySessions(id,date);
+
+            return Ok(new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = true,
+                Data = sessions
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving sessions by id");
+            return BadRequest(new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving current sessions");
+            return StatusCode(500, new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving current sessions"
+            });
+        }
+    }
+
+
+    [HttpGet("employeeSessionforcalendar/{id}")]
+    public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByidforcalendar(Guid id, [FromQuery] DateTime? date = null)
+    {
+        try
+        {
+
+            var employeeId = await GetCurrentEmployeeId();
+            var sessions = await _attendanceService.EmployeeTodaySessions(employeeId, date);
 
             return Ok(new ServiceResponse<List<AttendanceSessionDto>>
             {
