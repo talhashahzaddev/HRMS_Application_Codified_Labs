@@ -31,6 +31,7 @@ public class ClockInOutRequest
 {
     public string Action { get; set; } = string.Empty; // "in" or "out"
     public Dictionary<string, object>? Location { get; set; }
+    public string? Notes { get; set; }
 }
 
 public class AttendanceSearchRequest

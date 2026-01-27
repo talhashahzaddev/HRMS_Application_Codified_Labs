@@ -63,7 +63,7 @@ public class AttendanceService : IAttendanceService
             {
                 throw new InvalidOperationException("Already clocked in");
             }
-            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location);
+            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location, request.Notes);
             await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
             await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
             return result;
@@ -105,7 +105,7 @@ public class AttendanceService : IAttendanceService
             {
                 throw new InvalidOperationException("Not clocked in");
             }
-            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location);
+            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location, request.Notes);
             await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
             await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
             return result;

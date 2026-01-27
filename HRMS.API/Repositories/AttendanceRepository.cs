@@ -18,18 +18,19 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         _logger = logger;
     }
 
-    public async Task<bool> ClockInOutAsync(Guid employeeId, string action, DateTime timestamp, Dictionary<string, object>? location = null)
+    public async Task<bool> ClockInOutAsync(Guid employeeId, string action, DateTime timestamp, Dictionary<string, object>? location = null, string? notes = null)
     {
         try
         {
             var result = await ExecuteScalarAsync<bool>(
-                "SELECT attendance.fn_clock_in_out(@employeeId, @action, @timestamp, @location::jsonb)",
+                "SELECT attendance.fn_clock_in_out(@employeeId, @action, @timestamp, @location::jsonb, @notes)",
                 new
                 {
                     employeeId,
                     action,
                     timestamp,
-                    location = System.Text.Json.JsonSerializer.Serialize(location ?? new())
+                    location = System.Text.Json.JsonSerializer.Serialize(location ?? new()),
+                    notes
                 });
 
             return result;
@@ -247,7 +248,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 TotalHours = r.totalhours,
                 SessionsCount = r.sessionscount,
                 OvertimeHours = r.overtimehours,
-                Status = r.status
+                Status = r.status,
+                Notes = r.notes
             }).ToList();
 
             var totalCount = results.FirstOrDefault()?.totalcount ?? 0;
