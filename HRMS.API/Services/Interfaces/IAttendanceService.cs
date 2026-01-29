@@ -25,8 +25,8 @@ public interface IAttendanceService
     Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId ,Guid CurrentEmployee);
     Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request,Guid currentEmpId);
     Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto rquest);
-    Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request);
-    Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request);
+    Task<ClockInOutResponse> ClockInAsync(Guid employeeId, ClockInOutRequest request);
+    Task<ClockInOutResponse> ClockOutAsync(Guid employeeId, ClockInOutRequest request);
     Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId);
     Task<PagedResult<AttendanceDto>> GetAttendanceAsync(AttendanceSearchViewModel searchModel, Guid organizationId, Guid currentEmployeeId);
     Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate);

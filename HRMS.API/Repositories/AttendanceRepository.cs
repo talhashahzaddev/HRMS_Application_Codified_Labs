@@ -233,8 +233,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                     limit = pageSize,
                     offset = (page - 1) * pageSize,
                     departmentId,
-                   Status
-
+                    Status 
                 });
 
             var attendanceList = results.Select(r => new AttendanceDto
@@ -249,6 +248,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 SessionsCount = r.sessionscount,
                 OvertimeHours = r.overtimehours,
                 Status = r.status,
+                ShiftId = r.shiftid,
                 Notes = r.notes
             }).ToList();
 
@@ -646,13 +646,13 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         try
         {
             var createdAt = DateTime.UtcNow;
-
+                
             var sql = @"
         INSERT INTO attendance.shifts
-        (organizationid, shiftname, starttime, endtime, breakduration, breakstarttime, breakendtime,
+        (organizationid, shiftname, starttime, endtime,marginhours, breakduration, breakstarttime, breakendtime,
          overtimestarttime, maxovertimeinminutes, daysofweek, timezone, createdat)
         VALUES
-        (@OrganizationId, @ShiftName, @StartTime, @EndTime, @BreakDuration, @BreakStartTime, @BreakEndTime,
+        (@OrganizationId, @ShiftName, @StartTime, @EndTime,@marginHours, @BreakDuration, @BreakStartTime, @BreakEndTime,
          @OvertimeStartTime, @MaxOvertimeInMinutes, @DaysofWeek, @Timezone, @CreatedAt);
     ";
 
@@ -662,6 +662,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 ShiftName = request.ShiftName,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
+                marginHours = request.marginHours,
 
                 BreakDuration = request.BreakDuration ?? 0,
                 BreakStartTime = request.BreakStartTime,
@@ -1039,8 +1040,6 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         try
         {
-            var employeeId = await GetEmpId(employeeIdd);
-
             var sql = @"
        SELECT 
     s.shiftid AS ""ShiftId"",
@@ -1048,6 +1047,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     s.shiftname AS ""ShiftName"",
     s.starttime AS ""StartTime"",
     s.endtime AS ""EndTime"",
+    s.marginhours AS ""marginHours"",
     s.breakduration AS ""BreakDuration"",
     s.daysofweek AS ""DaysOfWeek""
 FROM employee.employmentdetails ed
@@ -1058,7 +1058,7 @@ WHERE ed.employeeid = @EmployeeId
 
     ";
 
-            var parameters = new { EmployeeId = employeeId };
+            var parameters = new { EmployeeId = employeeIdd };
             var result = await QuerySingleOrDefaultAsync<ShiftDto>(sql, parameters);
 
             return result;
@@ -1070,7 +1070,7 @@ WHERE ed.employeeid = @EmployeeId
         }
     }
 
-
+   
     //Get employee all request
 
     public async Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeIdd)
@@ -1162,6 +1162,7 @@ WHERE ed.employeeid = @EmployeeId
             shiftname AS ShiftName,
             starttime AS StartTime,
             endtime AS EndTime,
+            marginhours AS marginHours,
             breakstarttime AS BreakStartTime,
             breakendtime AS BreakEndTime,
             overtimestarttime AS OvertimeStartTime,
@@ -1241,6 +1242,7 @@ WHERE ed.employeeid = @EmployeeId
             shiftname = @ShiftName,
             starttime = @StartTime,
             endtime = @EndTime,
+            marginhours = @marginHours,
             breakstarttime = @BreakStartTime,
             breakendtime = @BreakEndTime,
             overtimestarttime = @OvertimeStartTime,
@@ -1259,6 +1261,7 @@ WHERE ed.employeeid = @EmployeeId
                 ShiftName = request.ShiftName,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
+                MarginHours = request.marginHours,
                 BreakStartTime = request.BreakStartTime,
                 BreakEndTime = request.BreakEndTime,
                 OvertimeStartTime = request.OvertimeStartTime,

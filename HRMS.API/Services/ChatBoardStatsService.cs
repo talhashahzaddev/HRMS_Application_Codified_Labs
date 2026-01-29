@@ -520,7 +520,7 @@ namespace HRMS.API.Services
 
                 var result = await _attendanceService.ClockInAsync(employeeId, request);
 
-                if (result)
+                if (result.Success)
                 {
                     return new ChatResponseDto
                     {
@@ -564,7 +564,7 @@ namespace HRMS.API.Services
 
                 var result = await _attendanceService.ClockOutAsync(employeeId, request);
 
-                if (result)
+                if (result.Success)
                 {
                     return new ChatResponseDto
                     {

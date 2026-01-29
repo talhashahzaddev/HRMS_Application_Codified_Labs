@@ -25,10 +25,12 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-in")]
-    public async Task<ActionResult<ServiceResponse<bool>>> ClockIn([FromBody] ClockInOutRequest request)
+    public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockIn([FromBody] ClockInOutRequest request)
     {
         try
         {
+            _logger.LogInformation("ClockIn request received: ShiftId={ShiftId}, Action={Action}", request.ShiftId, request.Action);
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(new ServiceResponse<bool>
@@ -40,11 +42,11 @@ public class AttendanceController : ControllerBase
             }
             var employeeId = await GetCurrentEmployeeId(); // This would need to be implemented
             var result = await _attendanceService.ClockInAsync(employeeId, request);
-            
-            return Ok(new ServiceResponse<bool>
+
+            return Ok(new ServiceResponse<ClockInOutResponse>
             {
-                Success = true,
-                Message = "Clocked in successfully",
+                Success = result.Success,
+                Message = result.Message,
                 Data = result
             });
         }
@@ -87,7 +89,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-out")]
-    public async Task<ActionResult<ServiceResponse<bool>>> ClockOut([FromBody] ClockInOutRequest request)
+    public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockOut([FromBody] ClockInOutRequest request)
     {
         try
         {
@@ -102,11 +104,11 @@ public class AttendanceController : ControllerBase
             }
             var employeeId = await GetCurrentEmployeeId();
             var result = await _attendanceService.ClockOutAsync(employeeId, request);
-            
-            return Ok(new ServiceResponse<bool>
+
+            return Ok(new ServiceResponse<ClockInOutResponse>
             {
-                Success = true,
-                Message = "Clocked out successfully",
+                Success = result.Success,
+                Message = result.Message,
                 Data = result
             });
         }
