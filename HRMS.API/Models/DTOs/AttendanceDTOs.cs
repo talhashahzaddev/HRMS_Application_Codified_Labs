@@ -16,6 +16,12 @@ public class AttendanceDto
     public decimal OvertimeHours { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    public Guid? ShiftId { get; set; }
+}
+public class ClockInOutResponse
+{
+    public bool Success { get; set; }
+    public string Message { get; set; } = string.Empty;
 }
 
 public class CreateAttendanceRequest
@@ -32,6 +38,7 @@ public class ClockInOutRequest
     public string Action { get; set; } = string.Empty; // "in" or "out"
     public Dictionary<string, object>? Location { get; set; }
     public string? Notes { get; set; }
+    public Guid ShiftId { get; set; }
 }
 
 public class AttendanceSearchRequest
@@ -95,6 +102,7 @@ public class CreateShiftDto
     public string ShiftName { get; set; }                 // Name of the shift e.g., "Morning", "Evening"
     public TimeSpan? StartTime { get; set; }              // Start time of the shift
     public TimeSpan? EndTime { get; set; }                // End time of the shift
+    public int marginHours { get; set; }                    
 
     public int? BreakDuration { get; set; } = 0;          // Break duration in minutes
     public TimeSpan? BreakStartTime { get; set; }         // Added: Break start time
@@ -115,6 +123,7 @@ public class UpdateShiftDto
     public string ShiftName { get; set; }                   // Name of the shift e.g., "Morning", "Evening"
     public TimeSpan? StartTime { get; set; }               // Start time of the shift
     public TimeSpan? EndTime { get; set; }                 // End time of the shift
+    public int marginHours { get; set; }
 
     public TimeSpan? BreakStartTime { get; set; }          // Optional: Break start time
     public TimeSpan? BreakEndTime { get; set; }            // Optional: Break end time
@@ -132,6 +141,8 @@ public class AssignShiftDto
 {
     public Guid EmployeeId { get; set; }
     public Guid ShiftId { get; set; }
+    public DateTime AssignedDate { get; set; }
+
 }
 
 public class EmployeeShiftDto
@@ -153,6 +164,7 @@ public class ShiftDto
     public string ShiftName { get; set; }
     public TimeSpan StartTime { get; set; }
     public TimeSpan EndTime { get; set; }
+    public int marginHours { get; set; }
 
     public TimeSpan? BreakStartTime { get; set; }      // optional
     public TimeSpan? BreakEndTime { get; set; }        // optional

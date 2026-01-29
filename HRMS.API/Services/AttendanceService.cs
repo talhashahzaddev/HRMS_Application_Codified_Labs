@@ -44,50 +44,66 @@ public class AttendanceService : IAttendanceService
         _logger = logger;
     }
 
-    public async Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request)
+    public async Task<ClockInOutResponse> ClockInAsync(Guid employeeId, ClockInOutRequest request)
     {
-        
-        _logger.LogInformation("Clocking in employee: {EmployeeId}", employeeId);
         if (employeeId == Guid.Empty)
-        {
-            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
-        }
+            throw new ArgumentException("Employee ID cannot be empty");
+
         if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+        if (shift == null)
+            throw new InvalidOperationException("No shift assigned");
+
+        var now = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+        var shiftStartDateTime = now.Date + shift.StartTime;
+        var shiftStart = shiftStartDateTime.AddHours(+shift.marginHours);
+        var allowedFrom = shiftStartDateTime.AddHours(-shift.marginHours);
+
+        // ❌ Outside margin
+        if (now < allowedFrom)
+            throw new InvalidOperationException("Clock-in outside allowed margin hours");
+
+        // Already clocked in?
+        if (await _attendanceRepository.CheckAlreadyClockInAsync(employeeId))
+            throw new InvalidOperationException("Already clocked in");
+
+        var todayAttendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
+
+        string message = "Clocked in successfully";
+
+        // FIRST clock-in & LATE
+        if (todayAttendance == null && now > shiftStart)
         {
-            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+            var lateBy = now - shiftStartDateTime;
+            message = $"Clocked in successfully, but you are late by {lateBy.Hours}h {lateBy.Minutes}m";
         }
-        try
+
+        await _attendanceRepository.ClockInOutAsync(
+            employeeId,
+            "in",
+            DateTime.UtcNow,
+            request.Location,
+            request.Notes);
+
+        await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+        await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
+
+        _logger.LogInformation(message);
+
+        return new ClockInOutResponse
         {
-            var alreadyClockedIn = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
-            if (alreadyClockedIn)
-            {
-                throw new InvalidOperationException("Already clocked in");
-            }
-            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location, request.Notes);
-            await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
-            await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
-            return result;
-        }
-        catch (ArgumentNullException)
-        {
-            throw;
-        }
-        catch (ArgumentException)
-        {
-            throw;
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during clock in for employee: {EmployeeId}", employeeId);
-            throw new InvalidOperationException("An error occurred while clocking in", ex);
-        }
+            Success = true,
+            Message = message
+        };
     }
 
-    public async Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request)
+
+    public async Task<ClockInOutResponse> ClockOutAsync(Guid employeeId, ClockInOutRequest request)
     {
         _logger.LogInformation("Clocking out employee: {EmployeeId}", employeeId);
         if (employeeId == Guid.Empty)
@@ -98,36 +114,60 @@ public class AttendanceService : IAttendanceService
         {
             throw new ArgumentNullException(nameof(request), "Request cannot be null");
         }
-        try
-        {
+       
+            var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+            _logger.LogInformation("Fetched shift: {@shift}", shift);
+
+            if (shift == null)
+            {
+                throw new InvalidOperationException("No shift assigned");
+            }
             var isClockedIn = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
             if (!isClockedIn)
             {
                 throw new InvalidOperationException("Not clocked in");
             }
-            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location, request.Notes);
+
+
+            // 3️⃣ APPLY MARGIN LOGIC
+            var margin = TimeSpan.FromHours(shift.marginHours);
+
+            var now = TimeZoneInfo
+                .ConvertTimeFromUtc(DateTime.UtcNow,
+                    TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"))
+                .TimeOfDay;
+
+            var allowedFrom = shift.EndTime - margin;
+            var allowedTo = shift.EndTime + margin;
+            string message;
+            if (now < allowedFrom)
+            {
+                var earlyBy = shift.EndTime - now;
+                message = $"Clocked out successfully, but you left early by {earlyBy.Hours}h {earlyBy.Minutes}m";
+            }
+            else if (now > allowedTo)
+            {
+                var lateBy = now - shift.EndTime;
+                message = $"Clocked out successfully, but you left late by {lateBy.Hours}h {lateBy.Minutes}m";
+            }
+            else
+            {
+                message = "Clocked out successfully";
+            }
+
+            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location,request.Notes);
             await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
             await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
-            return result;
-        }
-        catch (ArgumentNullException)
+        
+        _logger.LogInformation(message);
+
+        return new ClockInOutResponse
         {
-            throw;
-        }
-        catch (ArgumentException)
-        {
-            throw;
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during clock out for employee: {EmployeeId}", employeeId);
-            throw new InvalidOperationException("An error occurred while clocking out", ex);
-        }
-    }
+            Success = true,
+            Message = message
+        };
+     
+    }   
 
     public async Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId)
     {
@@ -785,7 +825,8 @@ public class AttendanceService : IAttendanceService
 
     public async Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId)
     {
-        return await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+        var empId = await _attendanceRepository.GetEmpId(employeeId);
+        return await _attendanceRepository.GetShiftByEmployeeIdAsync(empId);
     }
 
     public async Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId)
