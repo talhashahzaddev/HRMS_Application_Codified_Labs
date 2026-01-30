@@ -141,11 +141,25 @@ namespace HRMS.API.Repositories
         ";
 
             // Execute query and map results to Notification objects
-           var notifications = await QueryAsync<Notification>(sql, new { requestId=requestId});
+            var notifications = await QueryAsync<Notification>(sql, new { requestId = requestId });
 
             return notifications.FirstOrDefault();
 
         }
+
+        //Delete Noitfication
+
+        public async Task<bool> DeleteNotificationAsync(Guid id)
+        {
+            
+                var sql = @"delete from notification.notifications where requestid=@id ";
+
+                var results = await ExecuteAsync(sql, new{id});
+                return results>0;
+
+        }
+
+
 
         // Get userId and organizationId from employeeId
         public async Task<(Guid userId, Guid organizationId)?> GetEmployeeUserInfoAsync(Guid employeeId)

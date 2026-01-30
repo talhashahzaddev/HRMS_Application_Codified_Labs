@@ -4,6 +4,7 @@ namespace HRMS.API.Repositories.Interfaces
 {
     public interface INotificationRepository
     {
+        Task<bool> DeleteNotificationAsync(Guid id);
         Task<bool> CreateNotificationAsync(Guid? organizationId, NotificationCreateDto request);
         Task<List<Notification>> GetUserNotificationsAsync(Guid userId, Guid organizationId);
         Task<bool> MarkNotificationAsReadAsync(Guid notificationId);

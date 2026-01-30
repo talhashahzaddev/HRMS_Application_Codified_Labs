@@ -587,7 +587,10 @@ public class LeaveService : ILeaveService
         }
 
         // Cancel the request
-        return await _leaveRepository.CancelLeaveRequestAsync(requestId);
+        var result= await _leaveRepository.CancelLeaveRequestAsync(requestId);
+        //Cancel notification too
+        return await _notificationRepository.DeleteNotificationAsync(requestId);
+
     }
     public async Task<List<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
