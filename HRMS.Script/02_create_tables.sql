@@ -789,3 +789,85 @@ TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS payment.companysubscriptions
     OWNER to postgres;
+
+-- ============================
+-- Expense Categories
+-- ============================
+CREATE TABLE IF NOT EXISTS expense.expensecategories
+(
+    categoryid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    name character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT expensecategories_pkey PRIMARY KEY (categoryid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS expense.expensecategories
+    OWNER to postgres;
+
+-- ============================
+-- Expenses
+-- ============================
+-- Table: expense.expenses
+
+-- DROP TABLE IF EXISTS expense.expenses;
+
+CREATE TABLE IF NOT EXISTS expense.expenses
+(
+    expenseid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    categoryid uuid,
+    title character varying(150) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    amount numeric(12,2) NOT NULL,
+    billdate date NOT NULL,
+    paymentmethod character varying(50) COLLATE pg_catalog."default",
+    merchant character varying(150) COLLATE pg_catalog."default",
+    receipturl text COLLATE pg_catalog."default",
+    status character varying(30) COLLATE pg_catalog."default" NOT NULL DEFAULT 'Pending'::character varying,
+    approvedby uuid,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT expenses_pkey PRIMARY KEY (expenseid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS expense.expenses
+    OWNER to postgres;
+
+-- ============================
+-- Recurring Expenses
+-- ============================
+-- Table: expense.recurringexpenses
+
+-- DROP TABLE IF EXISTS expense.recurringexpenses;
+
+CREATE TABLE IF NOT EXISTS expense.recurringexpenses
+(
+    recurringexpenseid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    categoryid uuid NOT NULL,
+    title character varying(150) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default",
+    amount numeric(12,2) NOT NULL,
+    rotation character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    dayofmonth character varying(20) COLLATE pg_catalog."default",
+    status character varying(30) COLLATE pg_catalog."default" NOT NULL DEFAULT 'Pending'::character varying,
+    approvedby uuid,
+    paymentmethod character varying(50) COLLATE pg_catalog."default",
+    merchant character varying(150) COLLATE pg_catalog."default",
+    receipturl text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT recurringexpenses_pkey PRIMARY KEY (recurringexpenseid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS expense.recurringexpenses
+    OWNER to postgres;
