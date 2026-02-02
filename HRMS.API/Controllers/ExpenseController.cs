@@ -229,7 +229,7 @@ public class ExpenseController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var expenses = await _expenseService.GetExpensesAsync(organizationId, employeeId, status);
+            var expenses = await _expenseService.GetExpensesAsync(organizationId, employeeId=null, status=null);
             return Ok(new ServiceResponse<List<ExpenseDto>>
             {
                 Success = true,
@@ -457,7 +457,7 @@ public class ExpenseController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var list = await _expenseService.GetRecurringExpensesAsync(organizationId, employeeId, status);
+            var list = await _expenseService.GetRecurringExpensesAsync(organizationId, employeeId=null, status = null);
             return Ok(new ServiceResponse<List<RecurringExpenseDto>>
             {
                 Success = true,

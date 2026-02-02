@@ -62,12 +62,16 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
     {
         var sql = @"
             SELECT e.expenseid AS ExpenseId, e.organizationid AS OrganizationId, e.employeeid AS EmployeeId,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
                    e.categoryid AS CategoryId, c.name AS CategoryName, e.title AS Title, e.description AS Description,
                    e.amount AS Amount, e.billdate AS BillDate, e.paymentmethod AS PaymentMethod, e.merchant AS Merchant,
                    e.receipturl AS ReceiptUrl, e.status AS Status, e.approvedby AS ApprovedBy,
+                   CONCAT(approver.firstname, ' ', approver.lastname) AS ApprovedName,
                    e.createdat AS CreatedAt, e.updatedat AS UpdatedAt
             FROM expense.expenses e
             LEFT JOIN expense.expensecategories c ON e.categoryid = c.categoryid
+            INNER JOIN employee.employees emp ON e.employeeid = emp.employeeid
+            LEFT JOIN employee.employees approver ON e.approvedby = approver.employeeid
             WHERE e.organizationid = @organizationId
               AND (@employeeId IS NULL OR e.employeeid = @employeeId)
               AND (@status IS NULL OR e.status = @status)
@@ -80,12 +84,16 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
     {
         var sql = @"
             SELECT e.expenseid AS ExpenseId, e.organizationid AS OrganizationId, e.employeeid AS EmployeeId,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
                    e.categoryid AS CategoryId, c.name AS CategoryName, e.title AS Title, e.description AS Description,
                    e.amount AS Amount, e.billdate AS BillDate, e.paymentmethod AS PaymentMethod, e.merchant AS Merchant,
                    e.receipturl AS ReceiptUrl, e.status AS Status, e.approvedby AS ApprovedBy,
+                   CONCAT(approver.firstname, ' ', approver.lastname) AS ApprovedName,
                    e.createdat AS CreatedAt, e.updatedat AS UpdatedAt
             FROM expense.expenses e
             LEFT JOIN expense.expensecategories c ON e.categoryid = c.categoryid
+            INNER JOIN employee.employees emp ON e.employeeid = emp.employeeid
+            LEFT JOIN employee.employees approver ON e.approvedby = approver.employeeid
             WHERE e.expenseid = @expenseId";
         return await QuerySingleOrDefaultAsync<ExpenseDto>(sql, new { expenseId });
     }
@@ -152,12 +160,16 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
     {
         var sql = @"
             SELECT r.recurringexpenseid AS RecurringExpenseId, r.organizationid AS OrganizationId, r.employeeid AS EmployeeId,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
                    r.categoryid AS CategoryId, c.name AS CategoryName, r.title AS Title, r.description AS Description,
                    r.amount AS Amount, r.rotation AS Rotation, r.dayofmonth AS DayOfMonth, r.status AS Status,
-                   r.approvedby AS ApprovedBy, r.paymentmethod AS PaymentMethod, r.merchant AS Merchant, r.receipturl AS ReceiptUrl,
+                   r.approvedby AS ApprovedBy, CONCAT(approver.firstname, ' ', approver.lastname) AS ApprovedByName,
+                   r.paymentmethod AS PaymentMethod, r.merchant AS Merchant, r.receipturl AS ReceiptUrl,
                    r.createdat AS CreatedAt, r.updatedat AS UpdatedAt
             FROM expense.recurringexpenses r
             LEFT JOIN expense.expensecategories c ON r.categoryid = c.categoryid
+            INNER JOIN employee.employees emp ON r.employeeid = emp.employeeid
+            LEFT JOIN employee.employees approver ON r.approvedby = approver.employeeid
             WHERE r.organizationid = @organizationId
               AND (@employeeId IS NULL OR r.employeeid = @employeeId)
               AND (@status IS NULL OR r.status = @status)
@@ -170,12 +182,16 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
     {
         var sql = @"
             SELECT r.recurringexpenseid AS RecurringExpenseId, r.organizationid AS OrganizationId, r.employeeid AS EmployeeId,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
                    r.categoryid AS CategoryId, c.name AS CategoryName, r.title AS Title, r.description AS Description,
                    r.amount AS Amount, r.rotation AS Rotation, r.dayofmonth AS DayOfMonth, r.status AS Status,
-                   r.approvedby AS ApprovedBy, r.paymentmethod AS PaymentMethod, r.merchant AS Merchant, r.receipturl AS ReceiptUrl,
+                   r.approvedby AS ApprovedBy, CONCAT(approver.firstname, ' ', approver.lastname) AS ApprovedByName,
+                   r.paymentmethod AS PaymentMethod, r.merchant AS Merchant, r.receipturl AS ReceiptUrl,
                    r.createdat AS CreatedAt, r.updatedat AS UpdatedAt
             FROM expense.recurringexpenses r
             LEFT JOIN expense.expensecategories c ON r.categoryid = c.categoryid
+            INNER JOIN employee.employees emp ON r.employeeid = emp.employeeid
+            LEFT JOIN employee.employees approver ON r.approvedby = approver.employeeid
             WHERE r.recurringexpenseid = @recurringExpenseId";
         return await QuerySingleOrDefaultAsync<RecurringExpenseDto>(sql, new { recurringExpenseId });
     }
