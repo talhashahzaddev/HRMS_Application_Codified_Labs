@@ -6,6 +6,8 @@ namespace HRMS.API.Repositories.Interfaces;
 public interface ILeaveRepository
 {
     //adding gthe method  here
+    Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days);
+    Task<LeaveEntitlementDto> EditingLeaveElementalsForAdding(Guid empId, Guid leaveTypeid,decimal Days);
     Task<bool> SubstractLeaveDayAsync(Guid leaveTypeId, Guid employeeId, int totalLeaveDays);
     Task<Guid> GetEmpId(Guid? employeeId);
     Task<LeaveRequest> CreateLeaveRequestAsync(Guid employeeId, Guid leaveTypeId, DateTime startDate, DateTime endDate, string? reason = null);
