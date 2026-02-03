@@ -8,25 +8,29 @@ namespace HRMS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Super Admin,HR Manager")]
+[Authorize]
 public class ExpenseController : ControllerBase
 {
     private readonly IExpenseService _expenseService;
     private readonly IAttendanceService _attendanceService;
+    private readonly ICloudinaryService _cloudinaryService;
     private readonly ILogger<ExpenseController> _logger;
 
     public ExpenseController(
         IExpenseService expenseService,
         IAttendanceService attendanceService,
+        ICloudinaryService cloudinaryService,
         ILogger<ExpenseController> logger)
     {
         _expenseService = expenseService;
         _attendanceService = attendanceService;
+        _cloudinaryService = cloudinaryService;
         _logger = logger;
     }
 
     // ==================== Expense Categories ====================
     [HttpGet("categories")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<List<ExpenseCategoryDto>>>> GetExpenseCategories()
     {
         try
@@ -60,6 +64,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("categories/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<ExpenseCategoryDto>>> GetExpenseCategoryById(Guid id)
     {
         try
@@ -91,6 +96,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPost("categories")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ExpenseCategoryDto>>> CreateExpenseCategory([FromBody] CreateExpenseCategoryRequest request)
     {
         try
@@ -140,6 +146,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPut("categories/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ExpenseCategoryDto>>> UpdateExpenseCategory(Guid id, [FromBody] UpdateExpenseCategoryRequest request)
     {
         try
@@ -191,6 +198,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpDelete("categories/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteExpenseCategory(Guid id)
     {
         try
@@ -222,7 +230,7 @@ public class ExpenseController : ControllerBase
         }
     }
 
-    // ==================== Expenses ====================
+     //==================== Expenses ====================
     [HttpGet("expenses")]
     public async Task<ActionResult<ServiceResponse<List<ExpenseDto>>>> GetExpenses([FromQuery] Guid? employeeId, [FromQuery] string? status)
     {
@@ -312,6 +320,45 @@ public class ExpenseController : ControllerBase
                 Success = false,
                 Message = "An error occurred while retrieving the expense"
             });
+        }
+    }
+
+    [HttpPost("upload-receipt")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [RequestSizeLimit(5 * 1024 * 1024)]
+    public async Task<ActionResult<ServiceResponse<string>>> UploadReceipt(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest(new ServiceResponse<string> { Success = false, Message = "No file provided." });
+        }
+        var allowedTypes = new[] { "application/pdf", "image/jpeg", "image/jpg", "image/png", "image/gif" };
+        if (!allowedTypes.Contains(file.ContentType?.ToLowerInvariant()))
+        {
+            return BadRequest(new ServiceResponse<string> { Success = false, Message = "Allowed formats: PDF, JPG, PNG, GIF." });
+        }
+        if (file.Length > 5 * 1024 * 1024)
+        {
+            return BadRequest(new ServiceResponse<string> { Success = false, Message = "File size must be 5 MB or less." });
+        }
+        try
+        {
+            var url = await _cloudinaryService.UploadReceiptAsync(file);
+            if (string.IsNullOrEmpty(url))
+            {
+                return StatusCode(500, new ServiceResponse<string> { Success = false, Message = "Upload failed." });
+            }
+            return Ok(new ServiceResponse<string> { Success = true, Data = url });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Validation error uploading receipt");
+            return BadRequest(new ServiceResponse<string> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading receipt");
+            return StatusCode(500, new ServiceResponse<string> { Success = false, Message = "An error occurred while uploading the receipt." });
         }
     }
 
