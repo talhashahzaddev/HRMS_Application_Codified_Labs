@@ -18,6 +18,9 @@ public class AttendanceDto
     public string? Notes { get; set; }
     public Guid? ShiftId { get; set; }
     public string? Location { get; set; }
+    public string? checkinip { get; set; }
+    public string? checkoutip { get; set; }
+
     public string ipAddress { get; set; }
 
 }
@@ -74,6 +77,9 @@ public class AttendanceSessionWithInfoDto
     public DateTime? CheckOutTime { get; set; }
     public string? Location { get; set; }
     public string ipAddress { get; set; }
+    public string? checkinip { get; set; }
+    public string? checkoutip { get; set; }
+
     public string EmployeeName { get; set; } = string.Empty;
     public DateTime WorkDate { get; set; }
 }
