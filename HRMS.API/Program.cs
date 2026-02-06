@@ -130,9 +130,11 @@ builder.Services.AddAuthentication(options =>
 
 // -------------------- CLOUDINARY --------------------
 builder.Services.Configure<CloudinarySettings>(
-    builder.Configuration.GetSection("CloudinarySettings"));
+    builder.Configuration.GetSection("Cloudinary"));
 
-builder.Services.AddScoped<ICloudinaryService, CloudinaryService>();
+builder.Services.AddScoped<CloudinaryService>();
+builder.Services.AddScoped<ICloudinaryService>(sp => sp.GetRequiredService<CloudinaryService>());
+builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<CloudinaryService>());
 
 // -------------------- CORS --------------------
 builder.Services.AddCors(options =>
