@@ -4,6 +4,7 @@ using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Dapper;
 using Npgsql;
+using DocumentFormat.OpenXml.Bibliography;
 
 namespace HRMS.API.Repositories;
 
@@ -501,6 +502,104 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
         }
     }
 
+
+    //EdiT Elementals for edit leave request
+
+    public async Task<LeaveEntitlementDto> EditingLeaveElementalsForAdding(Guid empId, Guid leaveTypeid, decimal Days)
+    {
+        try
+        {
+            int Year = DateTime.UtcNow.Year;
+
+
+            var selectSql = @"
+SELECT 
+    entitlementid AS EntitlementId,
+    totaldays AS TotalDays,
+    useddays AS UsedDays,
+    remainingdays AS RemainingDays,
+    leavetypeid AS LeaveTypeId,
+    employeeid AS EmployeeId,
+    year AS Year,
+    carryforwarddays AS CarryForwardDays
+FROM attendance.leaveentitlements
+WHERE employeeid=@empId AND leavetypeid=@leaveTypeid AND year=@year;
+";
+
+            var result = await QuerySingleOrDefaultAsync<LeaveEntitlementDto>(
+                selectSql, new { empId, leaveTypeid, Year });
+
+            if (result == null) return null;
+
+            var updateSql = @"
+UPDATE attendance.leaveentitlements
+SET remainingdays = remainingdays - @Days,
+useddays=useddays+@Days
+WHERE entitlementid = @EntitlementId;
+";
+
+            await ExecuteAsync(updateSql, new { Days, result.EntitlementId });
+
+            //result.RemainingDays += days;
+            return result;
+
+
+        }
+        catch (Exception ex)
+        {
+            return null;
+
+        }
+    }
+
+
+
+    public async Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days)
+    {
+        try
+        {
+            int Year = DateTime.UtcNow.Year;
+
+
+            var selectSql = @"
+SELECT 
+    entitlementid AS EntitlementId,
+    totaldays AS TotalDays,
+    useddays AS UsedDays,
+    remainingdays AS RemainingDays,
+    leavetypeid AS LeaveTypeId,
+    employeeid AS EmployeeId,
+    year AS Year,
+    carryforwarddays AS CarryForwardDays
+FROM attendance.leaveentitlements
+WHERE employeeid=@empId AND leavetypeid=@leaveTypeid AND year=@year;
+";
+
+            var result = await QuerySingleOrDefaultAsync<LeaveEntitlementDto>(
+                selectSql, new { empId, leaveTypeid, Year });
+
+            if (result == null) return null;
+
+            var updateSql = @"
+UPDATE attendance.leaveentitlements
+SET remainingdays = remainingdays + @Days,
+useddays=useddays-@Days
+WHERE entitlementid = @EntitlementId;
+";
+
+            await ExecuteAsync(updateSql, new { Days, result.EntitlementId });
+
+            //result.RemainingDays += days;
+            return result;
+
+
+        }
+        catch (Exception ex)
+        {
+            return null;
+
+        }
+    }
     public async Task<bool> CancelLeaveRequestAsync(Guid requestId)
     {
         try
