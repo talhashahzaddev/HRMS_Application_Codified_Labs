@@ -1463,26 +1463,25 @@ public class AttendanceService : IAttendanceService
         {
             var start = new DateTime(snapshot.Year, snapshot.Month, 1);
             var end = start.AddMonths(1).AddDays(-1);
-
-            var records = await _attendanceRepository.GetConsolidatedAttendanceAsync(
+            var allRosterData = await _attendanceRepository.GetConsolidatedAttendanceAsync(
                 organizationId, start, end,
                 isAdminOrHR ? null : currentEmployeeId);
 
-            if (records.Any())
+            if (allRosterData.Any())
             {
-                snapshot.TotalHoursWorked = records.Sum(r => r.TotalHours);
-                snapshot.TotalPresentDays = records.Count(r => r.Status?.ToLower() == "present");
-                snapshot.TotalAbsentDays = records.Count(r => r.Status?.ToLower() == "absent");
-                snapshot.TotalLateDays = records.Count(r => r.Status?.ToLower() == "late");
-
-                decimal totalExpectedDays = snapshot.TotalPresentDays + snapshot.TotalAbsentDays;
-                snapshot.AttendancePercentage = totalExpectedDays > 0
-                    ? (snapshot.TotalPresentDays / totalExpectedDays) * 100
+                snapshot.TotalHoursWorked = allRosterData.Sum(r => r.TotalHours);
+                snapshot.TotalPresentDays = allRosterData.Count(r => r.Status?.ToLower() == "present");
+                snapshot.TotalAbsentDays = allRosterData.Count(r => r.Status?.ToLower() == "absent");
+                snapshot.TotalLateDays = allRosterData.Count(r => r.Status?.ToLower() == "late");
+                int daysInMonth = DateTime.DaysInMonth(snapshot.Year, snapshot.Month);
+                decimal totalExpectedManDays = snapshot.TotalEmployees * daysInMonth;
+                snapshot.AttendancePercentage = totalExpectedManDays > 0
+                    ? (snapshot.TotalPresentDays / totalExpectedManDays) * 100
                     : 0;
-
                 if (!isAdminOrHR) snapshot.TotalEmployees = 1;
             }
         }
+
         return new ServiceResponse<List<MonthlyTimesheetSummary>> { Data = snapshots, Success = true };
     }
     public async Task<ServiceResponse<IEnumerable<Attendance>>> GetManualAttendanceAsync(ManualAttendanceSearchDto searchDto, Guid currentUserEmployeeId, string currentUserRole, Guid organizationId)
@@ -1595,7 +1594,7 @@ public class AttendanceService : IAttendanceService
         var startDate = new DateTime(snapshot.Year, snapshot.Month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
 
-        int updatedCount = await _attendanceRepository.SubmitBatchForApprovalAsync(employeeId, organizationId, startDate, endDate);
+        int updatedCount = await _attendanceRepository.SubmitBatchForApprovalAsync(employeeId, organizationId,timesheetId, startDate, endDate);
 
         return new ServiceResponse<int>
         {
@@ -1641,43 +1640,88 @@ public class AttendanceService : IAttendanceService
             Success = true
         };
     }
-    public async Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(Guid timesheetId, Guid organizationId, Guid managerId)
+    public async Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(
+    Guid timesheetId,
+    Guid organizationId,
+    Guid currentUserId,
+    Guid? targetEmployeeId = null)
     {
-        // 1. Get the month range
+
+        bool isGlobalViewer = await _attendanceRepository.IsAdminOrHRAsync(currentUserId, organizationId);
+
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
+        if (snapshot == null) return new ServiceResponse<List<EmployeeReviewPackage>> { Success = false, Message = "Timesheet period not found" };
+
         var start = new DateTime(snapshot.Year, snapshot.Month, 1);
         var end = start.AddMonths(1).AddDays(-1);
 
-        // 2. Fetch all raw logs and all pending requests for the team
-        var rawLogs = await _attendanceRepository.GetConsolidatedAttendanceAsync(organizationId, start, end, null, managerId);
-        var pendingReqs = await _attendanceRepository.GetAllPendingRequestsAsync(organizationId, managerId);
+        Guid? filterManagerId = isGlobalViewer ? null : currentUserId;
 
-        // 3. Merge them into a single view
+        var rawLogs = await _attendanceRepository.GetConsolidatedAttendanceAsync(organizationId, start, end, targetEmployeeId, filterManagerId);
+        var pendingReqs = await _attendanceRepository.GetAllPendingRequestsAsync(organizationId, filterManagerId);
+
         var grouped = rawLogs.GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode, r.DepartmentName })
             .Select(g => new EmployeeReviewPackage
             {
                 EmployeeId = g.Key.EmployeeId,
                 EmployeeName = g.Key.EmployeeName,
                 EmployeeCode = g.Key.EmployeeCode,
-                Department = g.Key.DepartmentName,
-                FullMonthRecords = g.Select(log => {
-                    var req = pendingReqs.FirstOrDefault(r => r.AttendanceId == log.AttendanceId);
-                    return new ReviewAttendanceRecord
-                    {
-                        AttendanceId = log.AttendanceId,
-                        Date = log.WorkDate,
-                        CheckInTime = log.CheckInTime,
-                        CheckOutTime = log.CheckOutTime,
-                        Status = log.Status,
-                        RequestedCheckIn = req?.RequestedCheckIn,
-                        RequestedCheckOut = req?.RequestedCheckOut,
-                        RequestedStatus = req?.RequestedStatus,
-                        RequestStatus = req?.Status ?? "none",
-                        ReasonForEdit = req?.ReasonForEdit
-                    };
-                }).OrderBy(r => r.Date).ToList()
+                Department = g.Key.DepartmentName ?? "Unassigned",
+                FullMonthRecords = Enumerable.Range(0, (end - start).Days + 1)
+    .Select(offset => {
+        var currentDay = start.AddDays(offset);
+        var log = g.FirstOrDefault(x => x.AttendanceId.HasValue && x.WorkDate.Date == currentDay.Date);
+        var req = pendingReqs?.FirstOrDefault(r => r.AttendanceId == log?.AttendanceId);
+        return new ReviewAttendanceRecord
+        {
+            AttendanceId = log?.AttendanceId,
+            Date = currentDay, 
+            CheckInTime = log?.CheckInTime,
+            CheckOutTime = log?.CheckOutTime,
+            Status = log?.Status ?? "Absent",
+            RequestStatus = req?.Status ?? "none",
+            RequestedCheckIn = req?.RequestedCheckIn,
+            RequestedCheckOut = req?.RequestedCheckOut,
+            RequestedStatus = req?.RequestedStatus,
+            ReasonForEdit = req?.ReasonForEdit
+        };
+    }).ToList()
             }).ToList();
 
         return new ServiceResponse<List<EmployeeReviewPackage>> { Data = grouped, Success = true };
+    }
+    public async Task<ServiceResponse<OrgSubmissionProgressDto>> GetOrgSubmissionProgressAsync(Guid organizationId, int month, int year)
+    {
+        try
+        {
+            // 1. Fetch the aggregate counts from the repository
+            var progress = await _attendanceRepository.GetOrgSubmissionProgressAsync(organizationId, month, year);
+
+            if (progress == null)
+            {
+                return new ServiceResponse<OrgSubmissionProgressDto>
+                {
+                    Success = false,
+                    Message = "Unable to calculate organizational progress for the selected period."
+                };
+            }
+
+            // 2. The DTO itself handles the calculation of the Compliance Rate
+            return new ServiceResponse<OrgSubmissionProgressDto>
+            {
+                Data = progress,
+                Success = true,
+                Message = "Organizational progress retrieved successfully."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating Org Progress for Org: {OrgId}, Period: {M}/{Y}", organizationId, month, year);
+            return new ServiceResponse<OrgSubmissionProgressDto>
+            {
+                Success = false,
+                Message = "An internal error occurred while calculating compliance statistics."
+            };
+        }
     }
 }

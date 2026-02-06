@@ -285,7 +285,16 @@ public class MonthlyTimesheetCreateDto
     public int Month { get; set; }
     public int Year { get; set; }
 }
-
+public class OrgSubmissionProgressDto
+{
+    public int TotalEmployees { get; set; }
+    public int FinalizedCount { get; set; }
+    public int SubmittedCount { get; set; }
+    public int InProgressCount { get; set; }
+    public decimal SubmissionRate => TotalEmployees > 0
+        ? ((decimal)(FinalizedCount + SubmittedCount) / TotalEmployees) * 100
+        : 0;
+}
 public class AttendanceUpdateRequestDto
 {
     public Guid AttendanceId { get; set; }
@@ -361,19 +370,16 @@ public class EmployeeReviewPackage
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeCode { get; set; } = string.Empty;
     public string Department { get; set; } = string.Empty;
-
-    // Every single day of the month, including both raw and edited data
     public List<ReviewAttendanceRecord> FullMonthRecords { get; set; } = new();
 }
 
 public class ReviewAttendanceRecord : DailyAttendanceRecord
 {
-    // These hold the "Proposed" values from the employee
     public DateTime? RequestedCheckIn { get; set; }
     public DateTime? RequestedCheckOut { get; set; }
     public string? RequestedStatus { get; set; }
     public string? ReasonForEdit { get; set; }
-    public string RequestStatus { get; set; } = "none"; // none, draft, pending, approved
+    public string RequestStatus { get; set; } = "none"; 
 }
 public class ManualAttendanceRequest
 {

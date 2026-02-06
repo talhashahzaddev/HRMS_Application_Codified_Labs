@@ -1731,16 +1731,6 @@ public class AttendanceController : ControllerBase
         }
     }
 
-    //[HttpGet("pending-requests")]
-    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    //public async Task<ActionResult<ServiceResponse<List<PendingAttendanceRequest>>>> GetPendingRequests()
-    //{
-    //    var orgId = GetCurrentOrganizationId();
-    //    var empId = await GetCurrentEmployeeId();
-    //    var result = await _attendanceService.GetPendingRequestsAsync(orgId, empId);
-    //    return Ok(result);
-    //}
-
     [HttpPost("request-update")]
     public async Task<IActionResult> RequestUpdate([FromBody] AttendanceUpdateRequestDto dto)
     {
@@ -1880,27 +1870,30 @@ public class AttendanceController : ControllerBase
     }
     [HttpGet("timesheet/review-dashboard")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard([FromQuery] Guid timesheetId)
+    public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard(
+    [FromQuery] Guid timesheetId,
+    [FromQuery] Guid? employeeId = null) 
     {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            var managerId = await GetCurrentEmployeeId();
+        if (timesheetId == Guid.Empty)
+            return BadRequest(new { Message = "A valid Timesheet ID is required." });
 
-            // The service will merge raw logs and pending requests into a single comparative view
-            var result = await _attendanceService.GetManagerReviewDashboardAsync(timesheetId, organizationId, managerId);
+        var organizationId = GetCurrentOrganizationId();
+        var managerId = await GetCurrentEmployeeId();
 
-            return Ok(result);
-        }
-        catch (Exception ex)
+        var result = await _attendanceService.GetManagerReviewDashboardAsync(timesheetId, organizationId, managerId, employeeId);
+        return Ok(result);
+    }
+    [HttpGet("timesheet/org-progress")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<OrgSubmissionProgressDto>>> GetOrgProgress([FromQuery] int month, [FromQuery] int year)
+    {
+        var orgId = GetCurrentOrganizationId();
+        var result = await _attendanceService.GetOrgSubmissionProgressAsync(orgId, month, year);
+        if (!result.Success)
         {
-            _logger.LogError(ex, "Error fetching manager review dashboard for Timesheet: {Id}", timesheetId);
-            return StatusCode(500, new ServiceResponse<List<EmployeeReviewPackage>>
-            {
-                Success = false,
-                Message = "Internal server error while building review dashboard"
-            });
+            return BadRequest(result);
         }
+        return Ok(result);
     }
     private async Task<Guid> GetCurrentEmployeeId()
     {

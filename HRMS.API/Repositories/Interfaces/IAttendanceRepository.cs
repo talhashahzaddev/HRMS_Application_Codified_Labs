@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+﻿﻿using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 
 namespace HRMS.API.Repositories.Interfaces;
@@ -70,6 +70,7 @@ public interface IAttendanceRepository
     Task<IEnumerable<AttendanceDto>> GetConsolidatedAttendanceAsync(
           Guid organizationId, DateTime startDate, DateTime endDate, Guid? employeeId, Guid? managerId = null);
     Task<MonthlyTimesheetSummary?> GetSnapshotByIdAsync(Guid timesheetId);
-    Task<int> SubmitBatchForApprovalAsync(Guid employeeId, Guid organizationId, DateTime startDate, DateTime endDate);
+    Task<int> SubmitBatchForApprovalAsync(Guid employeeId, Guid organizationId, Guid timesheetId, DateTime startDate, DateTime endDate);
     Task<int> ApproveAllBatchAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid organizationId);
+    Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(Guid organizationId, int month, int year);
 }

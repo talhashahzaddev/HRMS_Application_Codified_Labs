@@ -208,9 +208,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
     public async Task<IEnumerable<MonthlyTimesheetSummary>> GetMonthlySnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
     {
-        try
-        {
-            var sql = @"
+        var sql = @"
         SELECT 
             t.timesheet_id AS TimesheetId,
             t.timesheet_name AS TimesheetName,
@@ -218,12 +216,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             t.year AS Year,
             t.status AS Status,
             t.created_at AS CreatedAt,
-            (SELECT COUNT(DISTINCT a.employeeid) 
-             FROM attendance.attendance a
-             JOIN employee.employees e ON a.employeeid = e.employeeid
-             WHERE e.organizationid = @organizationId 
-               AND EXTRACT(MONTH FROM a.workdate) = t.month 
-               AND EXTRACT(YEAR FROM a.workdate) = t.year
+            (SELECT COUNT(*) FROM employee.employees e 
+             WHERE e.organizationid = @organizationId
             ) AS TotalEmployees
         FROM attendance.monthly_timesheets t
         WHERE t.organization_id = @organizationId
@@ -231,49 +225,68 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
           AND (@endDate::timestamp IS NULL OR t.created_at <= @endDate::timestamp)
         ORDER BY t.year DESC, t.month DESC";
 
-            return await QueryAsync<MonthlyTimesheetSummary>(sql, new { organizationId, startDate, endDate });
-        }
-        catch(Exception ex) {
-            return null; 
-        }
+        return await QueryAsync<MonthlyTimesheetSummary>(sql, new { organizationId, startDate, endDate });
     }
     public async Task<IEnumerable<AttendanceDto>> GetConsolidatedAttendanceAsync(
-      Guid organizationId, DateTime startDate, DateTime endDate, Guid? employeeId, Guid? managerId = null)
+    Guid organizationId, DateTime startDate, DateTime endDate, Guid? employeeId, Guid? managerId = null)
     {
+        bool isGlobalView = managerId == null || managerId == Guid.Empty;
+
         var sql = @"
-        SELECT v.* FROM attendance.vw_employee_timesheet_details v
-        -- Join employment details to filter by Manager if user is not Super Admin
-        LEFT JOIN employee.employmentdetails ed ON v.employeeid = ed.employeeid AND ed.iscurrent = true
-        WHERE v.organizationid = @organizationId 
-          AND v.workdate BETWEEN @startDate AND @endDate
-          AND (@employeeId IS NULL OR v.employeeid = @employeeId)
-          AND (@managerId IS NULL OR ed.reportingmanagerid = @managerId)
-        ORDER BY v.workdate ASC";
+    SELECT 
+        e.employeeid,
+        (e.firstname || ' ' || e.lastname) AS employeename,
+        e.employeecode,
+        d.departmentname,
+        v.workdate,
+        v.checkintime,
+        v.checkouttime,
+        v.status,
+        v.totalhours,
+        v.is_finalized,
+        v.has_pending_request,
+        v.has_draft_request
+    FROM employee.employees e
+    LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+    LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+    LEFT JOIN attendance.vw_employee_timesheet_details v ON e.employeeid = v.employeeid 
+        -- ✅ Use String Parsing to avoid DateTime Midnight issues
+        AND v.workdate >= @startStr::DATE 
+        AND v.workdate <= @endStr::DATE
+    WHERE e.organizationid = @orgStr::UUID 
+      AND (@empStr IS NULL OR e.employeeid = @empStr::UUID)
+      AND (@isGlobalView = TRUE OR ed.reportingmanagerid = @mgrStr::UUID)
+    ORDER BY e.firstname, v.workdate ASC";
 
-        return await QueryAsync<AttendanceDto>(sql, new
+        var result = await QueryAsync<AttendanceDto>(sql, new
         {
-            organizationId,
-            startDate,
-            endDate,
-            employeeId,
-            managerId
+            startStr = startDate.ToString("yyyy-MM-dd"), 
+            endStr = endDate.ToString("yyyy-MM-dd"),  
+            orgStr = organizationId.ToString(),
+            empStr = employeeId?.ToString(),
+            mgrStr = managerId?.ToString(),
+            isGlobalView
         });
-    }
 
+        _logger.LogWarning("REPO DEBUG: Found {Count} rows for Org {Org} (Global: {Global})",
+            result.Count(), organizationId, isGlobalView);
+        return result;
+    }
     public async Task<MonthlyTimesheetSummary?> GetSnapshotByIdAsync(Guid timesheetId)
     {
         var sql = @"SELECT timesheet_id as TimesheetId, month, year, timesheet_name as TimesheetName 
                 FROM attendance.monthly_timesheets WHERE timesheet_id = @timesheetId";
         return await QuerySingleOrDefaultAsync<MonthlyTimesheetSummary>(sql, new { timesheetId });
     }
-    public async Task<int> SubmitBatchForApprovalAsync(Guid employeeId, Guid organizationId, DateTime startDate, DateTime endDate)
+    public async Task<int> SubmitBatchForApprovalAsync(Guid employeeId, Guid organizationId, Guid timesheetId, DateTime startDate, DateTime endDate)
     {
-        var sql = "SELECT attendance.fn_submit_period_for_approval(@employeeId, @organizationId, @startDate, @endDate)";
+        var sql = "SELECT attendance.fn_submit_period_for_approval(@employeeId, @organizationId, @timesheetId, @startDate, @endDate)";
 
         return await ExecuteScalarAsync<int>(sql, new
         {
             employeeId,
             organizationId,
+            timesheetId,
             startDate = startDate.Date,
             endDate = endDate.Date
         });
@@ -302,6 +315,35 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             _logger.LogError(ex, "Error batch approving requests for Timesheet {TimesheetId}", timesheetId);
             throw;
         }
+    }
+    public async Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(Guid organizationId, int month, int year)
+    {
+        var sql = @"
+        SELECT 
+            COUNT(e.employeeid) AS TotalEmployees,
+            COUNT(DISTINCT f.employee_id) AS FinalizedCount,
+            (SELECT COUNT(DISTINCT r.employee_id) 
+             FROM attendance.attendance_update_requests r
+             JOIN attendance.monthly_timesheets t ON r.timesheet_id = t.timesheet_id
+             WHERE t.organization_id = @organizationId 
+               AND t.month = @month AND t.year = @year
+               AND r.status = 'pending'
+            ) AS SubmittedCount,
+            (SELECT COUNT(DISTINCT r.employee_id) 
+             FROM attendance.attendance_update_requests r
+             JOIN attendance.monthly_timesheets t ON r.timesheet_id = t.timesheet_id
+             WHERE t.organization_id = @organizationId 
+               AND t.month = @month AND t.year = @year
+               AND r.status = 'draft'
+            ) AS InProgressCount
+        FROM employee.employees e
+        LEFT JOIN attendance.finalized_timesheet_records f ON e.employeeid = f.employee_id
+            AND f.timesheet_id = (SELECT timesheet_id FROM attendance.monthly_timesheets 
+                                  WHERE organization_id = @organizationId 
+                                  AND month = @month AND year = @year LIMIT 1)
+        WHERE e.organizationid = @organizationId";
+
+        return await QuerySingleOrDefaultAsync<OrgSubmissionProgressDto>(sql, new { organizationId, month, year });
     }
     public async Task<bool> ClockInOutAsync(Guid employeeId, string action, DateTime timestamp, Dictionary<string, object>? location = null, string? notes = null)
     {
@@ -553,61 +595,6 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
-
-    //Chnages
-
-    //public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId)
-    //{
-    //    try
-    //    {
-    //        var sql = @"
-    //        SELECT attendanceid
-    //        FROM attendance.attendance
-    //        WHERE employeeid = @employeeId
-    //          AND workdate =(NOW() AT TIME ZONE 'UTC')::date
-    //        LIMIT 1;
-    //    ";
-
-    //        return await QuerySingleOrDefaultAsync<Guid?>(sql, new { employeeId });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex,
-    //            "Error getting today's attendance id for employee {EmployeeId}", employeeId);
-    //        throw;
-    //    }
-    //}
-
-
-    //public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId, DateTime? date = null)
-    //{
-    //    try
-    //    {
-    //        // Use provided date or default to today (UTC)
-    //        var targetDate = date?.Date ?? DateTime.UtcNow.Date;
-
-    //        var sql = @"
-    //    SELECT attendanceid
-    //    FROM attendance.attendance
-    //    WHERE employeeid = @employeeId
-    //      AND workdate::date = @workDate
-    //    LIMIT 1;
-    //    ";
-
-    //        return await QuerySingleOrDefaultAsync<Guid?>(sql, new
-    //        {
-    //            employeeId,
-    //            workDate = targetDate
-    //        });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex,
-    //            "Error getting attendance id for employee {EmployeeId} on date {Date}", employeeId, date);
-    //        throw;
-    //    }
-    //}
-
 
     public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId, DateTime? date = null)
     {
@@ -887,45 +874,6 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
-
-
-    //Chnages here
-
-    //public async Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request)
-    //{
-    //    try
-    //    {
-    //        var createdAt = DateTime.Now;
-    //        var sql = @"
-    //        INSERT INTO attendance.shifts
-    //            (organizationid, shiftname, starttime, endtime, breakduration, daysofweek, timezone,createdat)
-    //        VALUES
-    //            (@OrganizationId, @ShiftName, @StartTime, @EndTime, @BreakDuration, @DaysofWeek, @Timezone,@createdAt);
-    //    ";
-
-    //        var parameters = new
-    //        {
-    //            createdAt = createdAt,
-    //            OrganizationId = organizationId,
-    //            ShiftName = request.ShiftName,
-    //            StartTime = request.StartTime,
-    //            EndTime = request.EndTime,
-    //            BreakDuration = request.BreakDuration ?? 0,
-    //            DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
-    //            Timezone = request.Timezone ?? "UTC"
-    //        };
-
-    //        var rowsAffected = await ExecuteAsync(sql, parameters);
-    //        return rowsAffected > 0;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error creating shift for organization {OrganizationId}", organizationId);
-    //        throw;
-    //    }
-    //}
-
-
     public async Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request)
     {
         try
@@ -972,7 +920,6 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         }
     }
 
-    // Get Shift Details (Name, StartTime, EndTime)
     public async Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId)
     {
         var sql = @"

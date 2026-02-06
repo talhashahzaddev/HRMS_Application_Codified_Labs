@@ -62,5 +62,6 @@ public interface IAttendanceService
     Task<ServiceResponse<int>> SubmitTimesheetBatchAsync(Guid timesheetId, Guid employeeId, Guid organizationId);
     Task<ServiceResponse<int>> ApproveAllPendingAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid orgId);
     Task<ServiceResponse<List<EmployeeSubmissionPackage>>> GetGroupedPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId);
-    Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(Guid timesheetId, Guid organizationId, Guid managerId);
+    Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(Guid timesheetId,Guid organizationId,Guid currentUserId,Guid? targetEmployeeId = null);
+    Task<ServiceResponse<OrgSubmissionProgressDto>> GetOrgSubmissionProgressAsync(Guid organizationId, int month, int year);
 }
