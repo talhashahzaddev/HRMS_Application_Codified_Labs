@@ -249,6 +249,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 OvertimeHours = r.overtimehours,
                 Status = r.status,
                 Location = r.location,
+                checkinip = r.checkinip,
+                checkoutip = r.checkoutip,
                 ShiftId = r.shiftid,
                 Notes = r.notes
             }).ToList();
@@ -461,12 +463,14 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         var offset = (pageNumber - 1) * pageSize;
 
         // ? Paginated sessions (existing query)
-        var sql = @"
+        var sql = @"        
       SELECT 
           s.sessionid AS SessionId,
           s.attendanceid AS AttendanceId,
           s.checkintime AS CheckInTime,
           s.checkouttime AS CheckOutTime,
+          s.checkinip,
+          s.checkoutip,
           s.location AS Location,
           (e.firstname || ' ' || e.lastname) AS EmployeeName,
           a.workdate AS WorkDate
