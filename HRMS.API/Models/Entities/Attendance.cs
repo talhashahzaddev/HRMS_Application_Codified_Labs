@@ -70,4 +70,18 @@ public class Attendance : BaseEntity
     
     [NotMapped]
     public Employee? Approver { get; set; }
+
+    [NotMapped]
+    public string ipAddress
+    {
+        get
+        {
+            if (Location != null && Location.TryGetValue("ip", out var ipObj))
+            {
+                return ipObj?.ToString() ?? "N/A";
+            }
+            return "N/A";
+        }
+    }
+
 }

@@ -45,11 +45,13 @@ namespace HRMS.API.Controllers
                 Guid empid = await _leaveRepository.GetEmpId(currentUserId);
                 string? roleName = await _leaveRepository.GetUserRoleNameAsync(currentUserId);
                 var response = await _chatService.HandleChatAsync(request,roleName);
+                var ipAddress = GetClientIp(); // add this method in ChatController
+
 
                 // If intent is neither Guidance nor Greeting, delegate to ChatBoardStatsService for further handling
                 if (response.Intent != ChatIntent.Guidance && response.Intent != ChatIntent.Greeting && response.Intent != ChatIntent.LeaveApplicationDetails)
                 {
-                    response = await _chatBoardStatsService.HandleNonGuidanceIntentAsync(response.Intent, response.Module, empid, currentUserId, organizationId);
+                    response = await _chatBoardStatsService.HandleNonGuidanceIntentAsync(response.Intent, response.Module, empid, currentUserId,organizationId, ipAddress);
                 }
 
                 if (response.Intent == ChatIntent.EmployeeInfo)
@@ -130,6 +132,16 @@ namespace HRMS.API.Controllers
 
             return organizationId;
         }
+        private string GetClientIp()
+        {
+            var forwardedFor = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+            if (!string.IsNullOrEmpty(forwardedFor))
+            {
+                return forwardedFor.Split(',')[0];
+            }
+            return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "UNKNOWN";
+        }
+
     }
 
 }

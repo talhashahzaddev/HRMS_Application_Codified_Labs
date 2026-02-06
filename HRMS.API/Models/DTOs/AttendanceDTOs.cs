@@ -1,4 +1,4 @@
-namespace HRMS.API.Models.DTOs;
+﻿namespace HRMS.API.Models.DTOs;
 
 public class AttendanceDto
 {
@@ -17,6 +17,9 @@ public class AttendanceDto
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public Guid? ShiftId { get; set; }
+    public string? Location { get; set; }
+    public string ipAddress { get; set; }
+
 }
 public class ClockInOutResponse
 {
@@ -70,6 +73,7 @@ public class AttendanceSessionWithInfoDto
     public DateTime CheckInTime { get; set; }
     public DateTime? CheckOutTime { get; set; }
     public string? Location { get; set; }
+    public string ipAddress { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
     public DateTime WorkDate { get; set; }
 }
@@ -102,7 +106,8 @@ public class CreateShiftDto
     public string ShiftName { get; set; }                 // Name of the shift e.g., "Morning", "Evening"
     public TimeSpan? StartTime { get; set; }              // Start time of the shift
     public TimeSpan? EndTime { get; set; }                // End time of the shift
-    public int marginHours { get; set; }                    
+    public int marginHours { get; set; }
+    public bool ApplyMarginhours { get; set; } = false;
 
     public int? BreakDuration { get; set; } = 0;          // Break duration in minutes
     public TimeSpan? BreakStartTime { get; set; }         // Added: Break start time
@@ -124,7 +129,7 @@ public class UpdateShiftDto
     public TimeSpan? StartTime { get; set; }               // Start time of the shift
     public TimeSpan? EndTime { get; set; }                 // End time of the shift
     public int marginHours { get; set; }
-
+    public bool ApplyMarginhours { get; set; } = false;
     public TimeSpan? BreakStartTime { get; set; }          // Optional: Break start time
     public TimeSpan? BreakEndTime { get; set; }            // Optional: Break end time
     public TimeSpan? OvertimeStartTime { get; set; }       // Optional: Overtime start time
@@ -165,6 +170,8 @@ public class ShiftDto
     public TimeSpan StartTime { get; set; }
     public TimeSpan EndTime { get; set; }
     public int marginHours { get; set; }
+
+    public bool ApplyMarginhours { get; set; } = false;
 
     public TimeSpan? BreakStartTime { get; set; }      // optional
     public TimeSpan? BreakEndTime { get; set; }        // optional

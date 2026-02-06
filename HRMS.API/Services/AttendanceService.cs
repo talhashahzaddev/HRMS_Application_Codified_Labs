@@ -44,7 +44,7 @@ public class AttendanceService : IAttendanceService
         _logger = logger;
     }
 
-    public async Task<ClockInOutResponse> ClockInAsync(Guid employeeId, ClockInOutRequest request)
+    public async Task<ClockInOutResponse> ClockInAsync(Guid employeeId, ClockInOutRequest request, string ipAddress)
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty");
@@ -59,19 +59,18 @@ public class AttendanceService : IAttendanceService
         var now = TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.UtcNow,
             TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
-
         var shiftStartDateTime = now.Date + shift.StartTime;
         var shiftStart = shiftStartDateTime.AddHours(+shift.marginHours);
         var allowedFrom = shiftStartDateTime.AddHours(-shift.marginHours);
 
-        // ❌ Outside margin
-        if (now < allowedFrom)
-            throw new InvalidOperationException("Clock-in outside allowed margin hours");
-
+        if (shift.ApplyMarginhours)
+        {
+            if (now < allowedFrom)
+                throw new InvalidOperationException("Clock-in outside allowed margin hours");
+        }
         // Already clocked in?
         if (await _attendanceRepository.CheckAlreadyClockInAsync(employeeId))
             throw new InvalidOperationException("Already clocked in");
-
         var todayAttendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
 
         string message = "Clocked in successfully";
@@ -82,12 +81,16 @@ public class AttendanceService : IAttendanceService
             var lateBy = now - shiftStartDateTime;
             message = $"Clocked in successfully, but you are late by {lateBy.Hours}h {lateBy.Minutes}m";
         }
+        var location = new Dictionary<string, object?>
+                {
+                    { "ip", ipAddress }
+                };
 
         await _attendanceRepository.ClockInOutAsync(
             employeeId,
             "in",
             DateTime.UtcNow,
-            request.Location,
+            location,
             request.Notes);
 
         await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
@@ -103,7 +106,7 @@ public class AttendanceService : IAttendanceService
     }
 
 
-    public async Task<ClockInOutResponse> ClockOutAsync(Guid employeeId, ClockInOutRequest request)
+    public async Task<ClockInOutResponse> ClockOutAsync(Guid employeeId, ClockInOutRequest request, string ipAddress)
     {
         _logger.LogInformation("Clocking out employee: {EmployeeId}", employeeId);
         if (employeeId == Guid.Empty)
@@ -154,8 +157,12 @@ public class AttendanceService : IAttendanceService
             {
                 message = "Clocked out successfully";
             }
+            var location = new Dictionary<string, object?>
+                {
+                    { "ip", ipAddress }
+                };
 
-            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location,request.Notes);
+        var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow,location,request.Notes);
             await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
             await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
         
@@ -851,7 +858,6 @@ public class AttendanceService : IAttendanceService
         }
     }
 
-
     public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)
     {
         return await _attendanceRepository.UpdateShiftAsync(organizationId, shiftId, request);
@@ -861,10 +867,6 @@ public class AttendanceService : IAttendanceService
     {
         return await _attendanceRepository.DeleteShiftAsync(organizationId, shiftId);
     }
-
-
-
-
 
 
     public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10)

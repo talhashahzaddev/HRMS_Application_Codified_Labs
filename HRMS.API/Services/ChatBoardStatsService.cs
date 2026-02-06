@@ -33,7 +33,7 @@ namespace HRMS.API.Services
             _logger = logger;
         }
 
-        public async Task<ChatResponseDto> HandleNonGuidanceIntentAsync(ChatIntent intent, string module, Guid employeeId, Guid currentUserId, Guid organizationId)
+        public async Task<ChatResponseDto> HandleNonGuidanceIntentAsync(ChatIntent intent, string module, Guid employeeId, Guid currentUserId, Guid organizationId, string ipAddress)
         {
             switch (intent)
             {
@@ -54,9 +54,9 @@ namespace HRMS.API.Services
                 case ChatIntent.GetMySkills:
                     return await HandleGetMySkills(employeeId, organizationId);
                 case ChatIntent.ClockIn:
-                    return await HandleClockIn(employeeId, organizationId);
+                    return await HandleClockIn(employeeId, organizationId,ipAddress);
                 case ChatIntent.ClockOut:
-                    return await HandleClockOut(employeeId, organizationId);
+                    return await HandleClockOut(employeeId, organizationId, ipAddress);
                 case ChatIntent.Unknown:
                     _logger.LogWarning("Received Unknown intent for employee {EmployeeId}", employeeId);
                     return new ChatResponseDto
@@ -506,7 +506,7 @@ namespace HRMS.API.Services
             }
         }
 
-        private async Task<ChatResponseDto> HandleClockIn(Guid employeeId, Guid organizationId)
+        private async Task<ChatResponseDto> HandleClockIn(Guid employeeId, Guid organizationId, string ipAddress)
         {
             _logger.LogInformation("Processing clock-in request for employee {EmployeeId}", employeeId);
 
@@ -518,7 +518,7 @@ namespace HRMS.API.Services
                     Location = null 
                 };
 
-                var result = await _attendanceService.ClockInAsync(employeeId, request);
+                var result = await _attendanceService.ClockInAsync(employeeId, request,ipAddress);
 
                 if (result.Success)
                 {
@@ -550,7 +550,7 @@ namespace HRMS.API.Services
             }
         }
 
-        private async Task<ChatResponseDto> HandleClockOut(Guid employeeId, Guid organizationId)
+        private async Task<ChatResponseDto> HandleClockOut(Guid employeeId, Guid organizationId, string ipAddress)
         {
             _logger.LogInformation("Processing clock-out request for employee {EmployeeId}", employeeId);
 
@@ -562,7 +562,7 @@ namespace HRMS.API.Services
                     Location = null 
                 };
 
-                var result = await _attendanceService.ClockOutAsync(employeeId, request);
+                var result = await _attendanceService.ClockOutAsync(employeeId, request, ipAddress);
 
                 if (result.Success)
                 {
@@ -593,7 +593,7 @@ namespace HRMS.API.Services
                 };
             }
         }
-
+        
 
 
     }

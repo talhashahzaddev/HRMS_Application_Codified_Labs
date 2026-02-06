@@ -248,6 +248,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 SessionsCount = r.sessionscount,
                 OvertimeHours = r.overtimehours,
                 Status = r.status,
+                Location = r.location,
                 ShiftId = r.shiftid,
                 Notes = r.notes
             }).ToList();
@@ -649,10 +650,10 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 
             var sql = @"
         INSERT INTO attendance.shifts
-        (organizationid, shiftname, starttime, endtime,marginhours, breakduration, breakstarttime, breakendtime,
+        (organizationid, shiftname, starttime, endtime, applymarginhours, marginhours, breakduration, breakstarttime, breakendtime,
          overtimestarttime, maxovertimeinminutes, daysofweek, timezone, createdat)
         VALUES
-        (@OrganizationId, @ShiftName, @StartTime, @EndTime,@marginHours, @BreakDuration, @BreakStartTime, @BreakEndTime,
+        (@OrganizationId, @ShiftName, @StartTime, @EndTime,@ApplyMarginhours,@marginHours, @BreakDuration, @BreakStartTime, @BreakEndTime,
          @OvertimeStartTime, @MaxOvertimeInMinutes, @DaysofWeek, @Timezone, @CreatedAt);
     ";
 
@@ -662,6 +663,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 ShiftName = request.ShiftName,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
+                ApplyMarginhours = request.ApplyMarginhours,
                 marginHours = request.marginHours,
 
                 BreakDuration = request.BreakDuration ?? 0,
@@ -1047,6 +1049,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     s.shiftname AS ""ShiftName"",
     s.starttime AS ""StartTime"",
     s.endtime AS ""EndTime"",
+    s.applymarginhours AS ""ApplyMarginhours"",
     s.marginhours AS ""marginHours"",
     s.breakduration AS ""BreakDuration"",
     s.daysofweek AS ""DaysOfWeek""
@@ -1162,6 +1165,7 @@ WHERE ed.employeeid = @EmployeeId
             shiftname AS ShiftName,
             starttime AS StartTime,
             endtime AS EndTime,
+            applymarginhours AS ApplyMarginhours,
             marginhours AS marginHours,
             breakstarttime AS BreakStartTime,
             breakendtime AS BreakEndTime,
@@ -1243,6 +1247,7 @@ WHERE ed.employeeid = @EmployeeId
             starttime = @StartTime,
             endtime = @EndTime,
             marginhours = @marginHours,
+            applymarginhours = @ApplyMarginhours,
             breakstarttime = @BreakStartTime,
             breakendtime = @BreakEndTime,
             overtimestarttime = @OvertimeStartTime,
@@ -1261,6 +1266,7 @@ WHERE ed.employeeid = @EmployeeId
                 ShiftName = request.ShiftName,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
+                ApplyMarginhours = request.ApplyMarginhours,
                 MarginHours = request.marginHours,
                 BreakStartTime = request.BreakStartTime,
                 BreakEndTime = request.BreakEndTime,
