@@ -17,7 +17,292 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         _logger = logger;
     }
+ public async Task<IEnumerable<Attendance>> GetManualAttendanceRecordsAsync(Guid organizationId, Guid? managerId, Guid? employeeId, DateTime startDate, DateTime endDate)
+    {
+        var sql = @"
+            SELECT a.*
+            FROM attendance.attendance a
+            JOIN employee.employees e ON a.employeeid = e.employeeid
+            WHERE e.organizationid = @organizationId
+            AND a.workdate BETWEEN @startDate AND @endDate
+            AND (@employeeId IS NULL OR a.employeeid = @employeeId)
+            AND (@managerId IS NULL OR e.employeeid = @managerId)";
+            
+        return await QueryAsync<Attendance>(sql, new { organizationId, managerId, employeeId, startDate, endDate });
+    }
 
+    public async Task<bool> UpdateManualAttendanceAsync(Attendance attendance, AttendanceAudit audit)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var updateSql = @"
+                UPDATE attendance.attendance
+                SET checkintime = @CheckInTime,
+                    checkouttime = @CheckOutTime,
+                    status = @Status,
+                    notes = @Notes,
+                    updatedat = NOW() AT TIME ZONE 'UTC'
+                WHERE attendanceid = @AttendanceId";
+
+            await connection.ExecuteAsync(updateSql, attendance, transaction);
+
+            var auditSql = @"
+                INSERT INTO attendance.attendance_audit (
+                    audit_id, attendance_id, employee_id, modified_by, modified_at, 
+                    change_type, old_values, new_values, ip_address
+                ) VALUES (
+                    @AuditId, @AttendanceId, @EmployeeId, @ModifiedBy, @ModifiedAt,
+                    @ChangeType, @OldValues::jsonb, @NewValues::jsonb, @IpAddress
+                )";
+
+            await connection.ExecuteAsync(auditSql, audit, transaction);
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<bool> HasPermissionToEditAsync(Guid editorId, Guid targetEmployeeId, Guid organizationId)
+    {
+        if (editorId == targetEmployeeId) return true;
+
+        var sql = @"
+            SELECT COUNT(1)
+            FROM employee.employees
+            WHERE employeeid = @targetEmployeeId
+            AND employeeid = @editorId
+            AND organizationid = @organizationId";
+
+        var count = await ExecuteScalarAsync<int>(sql, new { editorId, targetEmployeeId, organizationId });
+        return count > 0;
+    }
+
+    public async Task<bool> CreateMonthlySnapshotAsync(Guid organizationId, Guid generatedBy, MonthlyTimesheetCreateDto dto)
+    {
+        var sql = @"
+        INSERT INTO attendance.monthly_timesheets (organization_id, timesheet_name, month, year, generated_by)
+        VALUES (@organizationId, @TimesheetName, @Month, @Year, @generatedBy)
+        ON CONFLICT ON CONSTRAINT uq_org_month_year_name DO NOTHING;";
+
+        var rows = await ExecuteAsync(sql, new
+        {
+            organizationId,
+            dto.TimesheetName,
+            dto.Month,
+            dto.Year,
+            generatedBy
+        });
+        return rows > 0;
+    }
+    public async Task<IEnumerable<PendingAttendanceRequest>> GetAllPendingRequestsAsync(Guid organizationId, Guid? managerId = null)
+    {
+        try {
+            var sql = @"
+        SELECT 
+            r.request_id AS RequestId,
+            r.attendance_id AS AttendanceId,
+            r.employee_id AS EmployeeId,
+            (e.firstname || ' ' || e.lastname) AS EmployeeName,
+            e.employeecode AS EmployeeCode,
+            a.workdate AS WorkDate,
+            a.checkintime AS OriginalCheckIn,
+            a.checkouttime AS OriginalCheckOut,
+            a.status AS OriginalStatus,
+            r.requested_checkin AS RequestedCheckIn,
+            r.requested_checkout AS RequestedCheckOut,
+            r.requested_status AS RequestedStatus,
+            r.reason_for_edit AS ReasonForEdit,
+            r.submitted_at AS submittedat,
+            r.status AS Status
+        FROM attendance.attendance_update_requests r
+        JOIN employee.employees e ON r.employee_id = e.employeeid
+        JOIN attendance.attendance a ON r.attendance_id = a.attendanceid
+        LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        WHERE e.organizationid = @organizationId 
+          AND r.status = 'pending'
+          AND (@managerId IS NULL OR ed.reportingmanagerid = @managerId)
+        ORDER BY r.submitted_at DESC";
+
+            return await QueryAsync<PendingAttendanceRequest>(sql, new { organizationId, managerId });
+        }
+        catch (Exception ex) 
+        { return null; }
+    }
+    public async Task<Guid> SubmitUpdateRequestAsync(Guid employeeId, Guid organizationId, AttendanceUpdateRequestDto dto)
+    {
+        // We call the PostgreSQL function we created earlier
+        var sql = "SELECT attendance.fn_submit_attendance_request(@employeeId, @organizationId, @AttendanceId, @RequestedCheckIn, @RequestedCheckOut, @RequestedStatus, @ReasonForEdit, @RequestedNotes)";
+
+        return await ExecuteScalarAsync<Guid>(sql, new
+        {
+            employeeId,
+            organizationId,
+            dto.AttendanceId,
+            dto.RequestedCheckIn,
+            dto.RequestedCheckOut,
+            dto.RequestedStatus,
+            dto.ReasonForEdit,
+            dto.RequestedNotes
+        });
+    }
+
+    public async Task<bool> ProcessUpdateRequestAsync(Guid requestId, Guid actionedBy, bool isApproved, string? rejectionReason)
+    {
+        var sql = "SELECT attendance.fn_finalize_attendance_record(@requestId, @actionedBy, @isApproved, @rejectionReason)";
+        return await ExecuteScalarAsync<bool>(sql, new { requestId, actionedBy, isApproved, rejectionReason });
+    }
+    public async Task<AttendanceUpdateRequestDto?> GetAttendanceUpdateRequestDetailsAsync(Guid requestId)
+    {
+        const string sql = @"
+        SELECT 
+            request_id AS RequestId,
+            attendance_id AS AttendanceId,
+            employee_id AS EmployeeId,
+            requested_checkin AS RequestedCheckIn,
+            requested_checkout AS RequestedCheckOut,
+            requested_status AS RequestedStatus,
+            requested_notes AS RequestedNotes,
+            reason_for_edit AS ReasonForEdit
+        FROM attendance.attendance_update_requests
+        WHERE request_id = @requestId";
+
+        return await QuerySingleOrDefaultAsync<AttendanceUpdateRequestDto>(sql, new { requestId });
+    }
+    public async Task<int> BatchFinalizeMonthAsync(Guid timesheetId, Guid organizationId, Guid actionedBy)
+    {
+        // Calling the PG function we created for batch processing
+        const string sql = "SELECT attendance.fn_batch_finalize_month(@timesheetId, @organizationId, @actionedBy)";
+
+        return await ExecuteScalarAsync<int>(sql, new
+        {
+            timesheetId,
+            organizationId,
+            actionedBy
+        });
+    }
+    public async Task<IEnumerable<FinalizedTimesheetRecordDto>> GetFinalizedRecordsAsync(Guid timesheetId, Guid? employeeId = null)
+    {
+        const string sql = @"
+        SELECT 
+            f.record_id AS RecordId, f.timesheet_id AS TimesheetId, f.employee_id AS EmployeeId, 
+            f.work_date AS WorkDate, f.final_checkin AS FinalCheckIn, f.final_checkout AS FinalCheckOut, 
+            f.final_total_hours AS FinalTotalHours, f.final_status AS FinalStatus,
+            e.firstname || ' ' || e.lastname AS EmployeeName
+        FROM attendance.finalized_timesheet_records f
+        JOIN employee.employees e ON f.employee_id = e.employeeid
+        WHERE f.timesheet_id = @timesheetId
+        AND (@employeeId IS NULL OR f.employee_id = @employeeId)
+        ORDER BY f.work_date DESC, EmployeeName ASC";
+
+        return await QueryAsync<FinalizedTimesheetRecordDto>(sql, new { timesheetId, employeeId });
+    }
+
+    public async Task<IEnumerable<MonthlyTimesheetSummary>> GetMonthlySnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
+    {
+        try
+        {
+            var sql = @"
+        SELECT 
+            t.timesheet_id AS TimesheetId,
+            t.timesheet_name AS TimesheetName,
+            t.month AS Month,
+            t.year AS Year,
+            t.status AS Status,
+            t.created_at AS CreatedAt,
+            (SELECT COUNT(DISTINCT a.employeeid) 
+             FROM attendance.attendance a
+             JOIN employee.employees e ON a.employeeid = e.employeeid
+             WHERE e.organizationid = @organizationId 
+               AND EXTRACT(MONTH FROM a.workdate) = t.month 
+               AND EXTRACT(YEAR FROM a.workdate) = t.year
+            ) AS TotalEmployees
+        FROM attendance.monthly_timesheets t
+        WHERE t.organization_id = @organizationId
+          AND (@startDate::timestamp IS NULL OR t.created_at >= @startDate::timestamp)
+          AND (@endDate::timestamp IS NULL OR t.created_at <= @endDate::timestamp)
+        ORDER BY t.year DESC, t.month DESC";
+
+            return await QueryAsync<MonthlyTimesheetSummary>(sql, new { organizationId, startDate, endDate });
+        }
+        catch(Exception ex) {
+            return null; 
+        }
+    }
+    public async Task<IEnumerable<AttendanceDto>> GetConsolidatedAttendanceAsync(
+      Guid organizationId, DateTime startDate, DateTime endDate, Guid? employeeId, Guid? managerId = null)
+    {
+        var sql = @"
+        SELECT v.* FROM attendance.vw_employee_timesheet_details v
+        -- Join employment details to filter by Manager if user is not Super Admin
+        LEFT JOIN employee.employmentdetails ed ON v.employeeid = ed.employeeid AND ed.iscurrent = true
+        WHERE v.organizationid = @organizationId 
+          AND v.workdate BETWEEN @startDate AND @endDate
+          AND (@employeeId IS NULL OR v.employeeid = @employeeId)
+          AND (@managerId IS NULL OR ed.reportingmanagerid = @managerId)
+        ORDER BY v.workdate ASC";
+
+        return await QueryAsync<AttendanceDto>(sql, new
+        {
+            organizationId,
+            startDate,
+            endDate,
+            employeeId,
+            managerId
+        });
+    }
+
+    public async Task<MonthlyTimesheetSummary?> GetSnapshotByIdAsync(Guid timesheetId)
+    {
+        var sql = @"SELECT timesheet_id as TimesheetId, month, year, timesheet_name as TimesheetName 
+                FROM attendance.monthly_timesheets WHERE timesheet_id = @timesheetId";
+        return await QuerySingleOrDefaultAsync<MonthlyTimesheetSummary>(sql, new { timesheetId });
+    }
+    public async Task<int> SubmitBatchForApprovalAsync(Guid employeeId, Guid organizationId, DateTime startDate, DateTime endDate)
+    {
+        var sql = "SELECT attendance.fn_submit_period_for_approval(@employeeId, @organizationId, @startDate, @endDate)";
+
+        return await ExecuteScalarAsync<int>(sql, new
+        {
+            employeeId,
+            organizationId,
+            startDate = startDate.Date,
+            endDate = endDate.Date
+        });
+    }
+    public async Task<int> ApproveAllBatchAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid organizationId)
+    {
+        var sql = @"
+        SELECT attendance.fn_approve_all_pending_requests(
+            @managerId, 
+            @organizationId, 
+            @timesheetId, 
+            @targetEmployeeId
+        )";
+        try
+        {
+            return await ExecuteScalarAsync<int>(sql, new
+            {
+                managerId,
+                organizationId,
+                timesheetId,
+                targetEmployeeId 
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error batch approving requests for Timesheet {TimesheetId}", timesheetId);
+            throw;
+        }
+    }
     public async Task<bool> ClockInOutAsync(Guid employeeId, string action, DateTime timestamp, Dictionary<string, object>? location = null, string? notes = null)
     {
         try
@@ -218,7 +503,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(
         Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null,
-        DateTime? endDate = null, int page = 1, int pageSize = 10, Guid? departmentId = null, string Status = null)
+        DateTime? endDate = null, int page = 1, int pageSize = 10, Guid? departmentId = null, string? Status = null)
     {
         try
         {

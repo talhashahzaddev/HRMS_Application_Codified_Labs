@@ -1686,6 +1686,222 @@ public class AttendanceController : ControllerBase
         }
     }
 
+    [HttpPost("timesheet/finalize-batch")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> FinalizeBatch([FromBody] FinalizeBatchRequestDto request)
+    {
+        var orgId = GetCurrentOrganizationId();
+        var managerId = await GetCurrentEmployeeId();
+        return Ok(await _attendanceService.FinalizeTimesheetBatchAsync(request.TimesheetId, orgId, managerId));
+    }
+
+    [HttpGet("timesheet/finalized/{timesheetId}")]
+    public async Task<IActionResult> GetFinalizedTimesheet(Guid timesheetId)
+    {
+        var empId = await GetCurrentEmployeeId();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        return Ok(await _attendanceService.GetApprovedTimesheetAsync(timesheetId, empId, role));
+    }
+
+    [HttpPost("timesheet/snapshot")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> CreateSnapshot([FromBody] MonthlyTimesheetCreateDto dto)
+    {
+        var orgId = GetCurrentOrganizationId();
+        var empId = await GetCurrentEmployeeId();
+        return Ok(await _attendanceService.CreateTimesheetSnapshotAsync(orgId, empId, dto));
+    }
+
+    [HttpGet("timesheet/details")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeTimesheetDto>>>> GetTimesheetDetails([FromQuery] Guid timesheetId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetTimesheetDetailsByIdAsync(timesheetId, organizationId, currentEmployeeId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching timesheet details for ID: {Id}", timesheetId);
+            return StatusCode(500, new ServiceResponse<List<EmployeeTimesheetDto>> { Success = false, Message = "Internal server error" });
+        }
+    }
+
+    //[HttpGet("pending-requests")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    //public async Task<ActionResult<ServiceResponse<List<PendingAttendanceRequest>>>> GetPendingRequests()
+    //{
+    //    var orgId = GetCurrentOrganizationId();
+    //    var empId = await GetCurrentEmployeeId();
+    //    var result = await _attendanceService.GetPendingRequestsAsync(orgId, empId);
+    //    return Ok(result);
+    //}
+
+    [HttpPost("request-update")]
+    public async Task<IActionResult> RequestUpdate([FromBody] AttendanceUpdateRequestDto dto)
+    {
+        var empId = await GetCurrentEmployeeId();
+        var orgId = GetCurrentOrganizationId();
+        return Ok(await _attendanceService.RequestAttendanceUpdateAsync(empId, orgId, dto));
+    }
+
+    [HttpPost("process-request")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> ProcessUpdate([FromBody] ProcessAttendanceRequestDto dto)
+    {
+        var actionedBy = await GetCurrentEmployeeId();
+        var orgId = GetCurrentOrganizationId();
+
+        // This variable 'result' is already of type ServiceResponse<bool>
+        var response = await _attendanceService.ProcessAttendanceUpdateRequestAsync(dto, actionedBy, orgId);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("timesheet")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<List<MonthlyTimesheetSummary>>>> GetCreatedTimesheets(
+    [FromQuery] DateTime? startDate = null,
+    [FromQuery] DateTime? endDate = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            // The Service will now handle the logic of "Admin View" vs "Personal View"
+            var result = await _attendanceService.GetMonthlyTimesheetSnapshotsAsync(
+                organizationId,
+                startDate,
+                endDate,
+                currentEmployeeId);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving timesheet dashboard data");
+            return StatusCode(500, new ServiceResponse<List<MonthlyTimesheetSummary>>
+            {
+                Success = false,
+                Message = "Internal server error while fetching timesheets"
+            });
+        }
+    }
+
+    [HttpGet("manual")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<Attendance>>>> GetManualAttendance([FromQuery] ManualAttendanceSearchDto searchDto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
+
+            var result = await _attendanceService.GetManualAttendanceAsync(searchDto, currentEmployeeId, currentUserRole, organizationId);
+            
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving manual attendance");
+            return StatusCode(500, new ServiceResponse<IEnumerable<Attendance>> { Success = false, Message = "Internal Server Error" });
+        }
+    }
+
+    [HttpPut("manual")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateManualAttendance([FromBody] ManualAttendanceUpdateDto updateDto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            var result = await _attendanceService.UpdateManualAttendanceAsync(updateDto, currentEmployeeId, currentUserRole, organizationId, ipAddress);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating manual attendance");
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Internal Server Error" });
+        }
+    }
+
+    [HttpPost("timesheet/submit-approvals")]
+    [Authorize(Roles = "Employee")]
+    public async Task<IActionResult> SubmitApprovals([FromBody] Guid timesheetId)
+    {
+        var orgId = GetCurrentOrganizationId();
+        var empId = await GetCurrentEmployeeId();
+
+        var response = await _attendanceService.SubmitTimesheetBatchAsync(timesheetId, empId, orgId);
+        return Ok(response);
+    }
+    [HttpPost("timesheet/approve-all")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> ApproveAllRequests([FromBody] ApproveAllRequestDto dto)
+    {
+        var managerId = await GetCurrentEmployeeId();
+        var orgId = GetCurrentOrganizationId();
+
+        var result = await _attendanceService.ApproveAllPendingAsync(dto.TimesheetId, dto.EmployeeId, managerId, orgId);
+        return Ok(result);
+    }
+    [HttpGet("pending-requests")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeSubmissionPackage>>>> GetPendingRequests()
+    {
+        var orgId = GetCurrentOrganizationId();
+        var empId = await GetCurrentEmployeeId();
+        var result = await _attendanceService.GetGroupedPendingRequestsAsync(orgId, empId);
+        return Ok(result);
+    }
+    [HttpGet("timesheet/review-dashboard")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard([FromQuery] Guid timesheetId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var managerId = await GetCurrentEmployeeId();
+
+            // The service will merge raw logs and pending requests into a single comparative view
+            var result = await _attendanceService.GetManagerReviewDashboardAsync(timesheetId, organizationId, managerId);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching manager review dashboard for Timesheet: {Id}", timesheetId);
+            return StatusCode(500, new ServiceResponse<List<EmployeeReviewPackage>>
+            {
+                Success = false,
+                Message = "Internal server error while building review dashboard"
+            });
+        }
+    }
     private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
