@@ -220,6 +220,48 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         return results;
     }
 
+    public async Task<PagedResult<RecurringExpenseDto>> GetRecurringExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+        var offset = (pageNumber - 1) * pageSize;
+
+        var countSql = @"
+            SELECT COUNT(*)
+            FROM expense.recurringexpenses r
+            WHERE r.organizationid = @organizationId
+              AND (@employeeId IS NULL OR r.employeeid = @employeeId)
+              AND (@status IS NULL OR r.status = @status)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, employeeId, status });
+
+        var dataSql = @"
+            SELECT r.recurringexpenseid AS RecurringExpenseId, r.organizationid AS OrganizationId, r.employeeid AS EmployeeId,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
+                   r.categoryid AS CategoryId, c.name AS CategoryName, r.title AS Title, r.description AS Description,
+                   r.amount AS Amount, r.rotation AS Rotation, r.dayofmonth AS DayOfMonth, r.status AS Status,
+                   r.approvedby AS ApprovedBy, CONCAT(approver.firstname, ' ', approver.lastname) AS ApprovedByName,
+                   r.paymentmethod AS PaymentMethod, r.merchant AS Merchant, r.receipturl AS ReceiptUrl,
+                   r.createdat AS CreatedAt, r.updatedat AS UpdatedAt
+            FROM expense.recurringexpenses r
+            LEFT JOIN expense.expensecategories c ON r.categoryid = c.categoryid
+            INNER JOIN employee.employees emp ON r.employeeid = emp.employeeid
+            LEFT JOIN employee.employees approver ON r.approvedby = approver.employeeid
+            WHERE r.organizationid = @organizationId
+              AND (@employeeId IS NULL OR r.employeeid = @employeeId)
+              AND (@status IS NULL OR r.status = @status)
+            ORDER BY r.createdat DESC
+            LIMIT @pageSize OFFSET @offset";
+        var data = await QueryAsync<RecurringExpenseDto>(dataSql, new { organizationId, employeeId, status, pageSize, offset });
+        return new PagedResult<RecurringExpenseDto>
+        {
+            Data = data?.ToList() ?? new List<RecurringExpenseDto>(),
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<RecurringExpenseDto?> GetRecurringExpenseByIdAsync(Guid recurringExpenseId)
     {
         var sql = @"

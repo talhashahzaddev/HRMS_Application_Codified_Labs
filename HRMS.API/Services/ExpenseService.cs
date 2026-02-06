@@ -159,6 +159,13 @@ public class ExpenseService : IExpenseService
         return await _expenseRepository.GetRecurringExpensesAsync(organizationId, employeeId, status);
     }
 
+    public async Task<PagedResult<RecurringExpenseDto>> GetRecurringExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        return await _expenseRepository.GetRecurringExpensesPagedAsync(organizationId, employeeId, status, pageNumber, pageSize);
+    }
+
     public async Task<RecurringExpenseDto?> GetRecurringExpenseByIdAsync(Guid recurringExpenseId)
     {
         return await _expenseRepository.GetRecurringExpenseByIdAsync(recurringExpenseId);

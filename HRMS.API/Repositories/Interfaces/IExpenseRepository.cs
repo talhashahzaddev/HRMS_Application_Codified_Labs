@@ -22,6 +22,7 @@ public interface IExpenseRepository
 
     // RecurringExpenses
     Task<IEnumerable<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
+    Task<PagedResult<RecurringExpenseDto>> GetRecurringExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize);
     Task<RecurringExpenseDto?> GetRecurringExpenseByIdAsync(Guid recurringExpenseId);
     Task<Guid> CreateRecurringExpenseAsync(RecurringExpense entity);
     Task<bool> UpdateRecurringExpenseAsync(RecurringExpense entity);
