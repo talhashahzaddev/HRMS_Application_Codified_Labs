@@ -80,6 +80,48 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         return results;
     }
 
+    public async Task<PagedResult<ExpenseDto>> GetExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+        var offset = (pageNumber - 1) * pageSize;
+
+        var countSql = @"
+            SELECT COUNT(*)
+            FROM expense.expenses e
+            WHERE e.organizationid = @organizationId
+              AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+              AND (@status IS NULL OR e.status = @status)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, employeeId, status });
+
+        var dataSql = @"
+            SELECT e.expenseid AS ExpenseId, e.organizationid AS OrganizationId, e.employeeid AS EmployeeId,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
+                   e.categoryid AS CategoryId, c.name AS CategoryName, e.title AS Title, e.description AS Description,
+                   e.amount AS Amount, e.billdate AS BillDate, e.paymentmethod AS PaymentMethod, e.merchant AS Merchant,
+                   e.receipturl AS ReceiptUrl, e.status AS Status, e.approvedby AS ApprovedBy,
+                   CONCAT(approver.firstname, ' ', approver.lastname) AS ApprovedName,
+                   e.createdat AS CreatedAt, e.updatedat AS UpdatedAt
+            FROM expense.expenses e
+            LEFT JOIN expense.expensecategories c ON e.categoryid = c.categoryid
+            INNER JOIN employee.employees emp ON e.employeeid = emp.employeeid
+            LEFT JOIN employee.employees approver ON e.approvedby = approver.employeeid
+            WHERE e.organizationid = @organizationId
+              AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+              AND (@status IS NULL OR e.status = @status)
+            ORDER BY e.createdat DESC
+            LIMIT @pageSize OFFSET @offset";
+        var data = await QueryAsync<ExpenseDto>(dataSql, new { organizationId, employeeId, status, pageSize, offset });
+        return new PagedResult<ExpenseDto>
+        {
+            Data = data?.ToList() ?? new List<ExpenseDto>(),
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<ExpenseDto?> GetExpenseByIdAsync(Guid expenseId)
     {
         var sql = @"

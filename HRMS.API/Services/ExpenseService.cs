@@ -65,6 +65,13 @@ public class ExpenseService : IExpenseService
         return await _expenseRepository.GetExpensesAsync(organizationId, employeeId, status);
     }
 
+    public async Task<PagedResult<ExpenseDto>> GetExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        return await _expenseRepository.GetExpensesPagedAsync(organizationId, employeeId, status, pageNumber, pageSize);
+    }
+
     public async Task<ExpenseDto?> GetExpenseByIdAsync(Guid expenseId)
     {
         return await _expenseRepository.GetExpenseByIdAsync(expenseId);
