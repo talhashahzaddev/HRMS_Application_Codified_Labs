@@ -252,4 +252,49 @@ public class ExpenseService : IExpenseService
     {
         return await _expenseRepository.DeleteRecurringExpenseAsync(recurringExpenseId);
     }
+
+    public async Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+        Guid organizationId,
+        DateTime? fromDate,
+        DateTime? toDate,
+        bool expense,
+        bool recurring)
+    {
+        var from = fromDate?.Date ?? new DateTime(DateTime.UtcNow.Year, 1, 1);
+        var to = toDate?.Date ?? new DateTime(DateTime.UtcNow.Year, 12, 31);
+        if (from > to)
+        {
+            var swap = from;
+            from = to;
+            to = swap;
+        }
+
+        bool includeExpense = expense || (!expense && !recurring);
+        bool includeRecurring = recurring || (!expense && !recurring);
+
+        return await _expenseRepository.GetExpensePieReportAsync(organizationId, from, to, includeExpense, includeRecurring);
+    }
+
+    public async Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+        Guid organizationId,
+        int year,
+        bool expense,
+        bool recurring)
+    {
+        bool includeExpense = expense || (!expense && !recurring);
+        bool includeRecurring = recurring || (!expense && !recurring);
+        return await _expenseRepository.GetExpenseLineChartAsync(organizationId, year, includeExpense, includeRecurring);
+    }
+
+    public async Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+        Guid organizationId,
+        int fromYear,
+        int toYear,
+        bool expense,
+        bool recurring)
+    {
+        bool includeExpense = expense || (!expense && !recurring);
+        bool includeRecurring = recurring || (!expense && !recurring);
+        return await _expenseRepository.GetExpenseBarChartAsync(organizationId, fromYear, toYear, includeExpense, includeRecurring);
+    }
 }

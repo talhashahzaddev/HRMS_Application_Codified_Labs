@@ -27,4 +27,33 @@ public interface IExpenseRepository
     Task<Guid> CreateRecurringExpenseAsync(RecurringExpense entity);
     Task<bool> UpdateRecurringExpenseAsync(RecurringExpense entity);
     Task<bool> DeleteRecurringExpenseAsync(Guid recurringExpenseId);
+
+    /// <summary>
+    /// Gets category-wise cost for pie report: Approved expenses/recurring in date range, by organization.
+    /// </summary>
+    Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+        Guid organizationId,
+        DateTime fromDate,
+        DateTime toDate,
+        bool includeExpense,
+        bool includeRecurring);
+
+    /// <summary>
+    /// Gets cost per month for a given year (line chart): Approved only, by organization.
+    /// </summary>
+    Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+        Guid organizationId,
+        int year,
+        bool includeExpense,
+        bool includeRecurring);
+
+    /// <summary>
+    /// Gets cost per year for a year range (bar chart): Approved only, by organization.
+    /// </summary>
+    Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+        Guid organizationId,
+        int fromYear,
+        int toYear,
+        bool includeExpense,
+        bool includeRecurring);
 }

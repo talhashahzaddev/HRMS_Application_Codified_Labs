@@ -830,6 +830,130 @@ public class ExpenseController : ControllerBase
         }
     }
 
+    [HttpGet("pie-report")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<List<ExpensePieReportItemDto>>>> GetExpensePieReport(
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] bool expense,
+        [FromQuery] bool recurring)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var data = await _expenseService.GetExpensePieReportAsync(organizationId, fromDate, toDate, expense, recurring);
+            return Ok(new ServiceResponse<List<ExpensePieReportItemDto>>
+            {
+                Success = true,
+                Data = data?.ToList() ?? new List<ExpensePieReportItemDto>()
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting expense pie report");
+            return Unauthorized(new ServiceResponse<List<ExpensePieReportItemDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving expense pie report");
+            return StatusCode(500, new ServiceResponse<List<ExpensePieReportItemDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the expense pie report"
+            });
+        }
+    }
+
+    [HttpGet("line-chart")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<List<ExpenseLineChartItemDto>>>> GetExpenseLineChart(
+        [FromQuery] int? year,
+        [FromQuery] bool expense,
+        [FromQuery] bool recurring)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var y = year ?? DateTime.UtcNow.Year;
+            var data = await _expenseService.GetExpenseLineChartAsync(organizationId, y, expense, recurring);
+            return Ok(new ServiceResponse<List<ExpenseLineChartItemDto>>
+            {
+                Success = true,
+                Data = data?.ToList() ?? new List<ExpenseLineChartItemDto>()
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting expense line chart");
+            return Unauthorized(new ServiceResponse<List<ExpenseLineChartItemDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving expense line chart");
+            return StatusCode(500, new ServiceResponse<List<ExpenseLineChartItemDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the expense line chart"
+            });
+        }
+    }
+
+    [HttpGet("bar-chart")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<List<ExpenseBarChartItemDto>>>> GetExpenseBarChart(
+        [FromQuery] int? years,
+        [FromQuery] bool expense,
+        [FromQuery] bool recurring)
+    {
+        try
+        {
+            var yearsCount = years ?? 5;
+            if (yearsCount < 1 || yearsCount > 20)
+            {
+                return BadRequest(new ServiceResponse<List<ExpenseBarChartItemDto>>
+                {
+                    Success = false,
+                    Message = "Years must be between 1 and 20"
+                });
+            }
+            var organizationId = GetCurrentOrganizationId();
+            var toYear = DateTime.UtcNow.Year;
+            var fromYear = toYear - yearsCount + 1;
+            var data = await _expenseService.GetExpenseBarChartAsync(organizationId, fromYear, toYear, expense, recurring);
+            return Ok(new ServiceResponse<List<ExpenseBarChartItemDto>>
+            {
+                Success = true,
+                Data = data?.ToList() ?? new List<ExpenseBarChartItemDto>()
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting expense bar chart");
+            return Unauthorized(new ServiceResponse<List<ExpenseBarChartItemDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving expense bar chart");
+            return StatusCode(500, new ServiceResponse<List<ExpenseBarChartItemDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the expense bar chart"
+            });
+        }
+    }
+
     [HttpDelete("recurring/{id}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteRecurringExpense(Guid id)
