@@ -338,4 +338,90 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         var rows = await ExecuteAsync(sql, new { recurringExpenseId });
         return rows > 0;
     }
+
+    public async Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+        Guid organizationId,
+        DateTime fromDate,
+        DateTime toDate,
+        bool includeExpense,
+        bool includeRecurring)
+    {
+        var categories = (await GetExpenseCategoriesAsync(organizationId)).ToList();
+        var result = new Dictionary<Guid, ExpensePieReportItemDto>();
+
+        foreach (var cat in categories)
+        {
+            result[cat.CategoryId] = new ExpensePieReportItemDto
+            {
+                CategoryId = cat.CategoryId,
+                CategoryName = cat.Name,
+                TotalCost = 0
+            };
+        }
+
+        if (includeExpense)
+        {
+            var expenseSql = @"
+                SELECT e.categoryid AS CategoryId, COALESCE(SUM(e.amount), 0) AS TotalCost
+                FROM expense.expenses e
+                WHERE e.organizationid = @organizationId
+                  AND e.status = 'Approved'
+                  AND e.createdat::date >= @fromDate
+                  AND e.createdat::date <= @toDate
+                  AND e.categoryid IS NOT NULL
+                GROUP BY e.categoryid";
+            var expenseTotals = await QueryAsync<CategoryTotalRow>(expenseSql, new { organizationId, fromDate = fromDate.Date, toDate = toDate.Date });
+            foreach (var row in expenseTotals)
+            {
+                if (result.TryGetValue(row.CategoryId, out var item))
+                    item.TotalCost += row.TotalCost;
+                else
+                {
+                    var cat = categories.FirstOrDefault(c => c.CategoryId == row.CategoryId);
+                    result[row.CategoryId] = new ExpensePieReportItemDto
+                    {
+                        CategoryId = row.CategoryId,
+                        CategoryName = cat?.Name ?? string.Empty,
+                        TotalCost = row.TotalCost
+                    };
+                }
+            }
+        }
+
+        if (includeRecurring)
+        {
+            var recurringSql = @"
+                SELECT r.categoryid AS CategoryId, COALESCE(SUM(r.amount), 0) AS TotalCost
+                FROM expense.recurringexpenses r
+                WHERE r.organizationid = @organizationId
+                  AND r.status = 'Approved'
+                  AND r.createdat::date >= @fromDate
+                  AND r.createdat::date <= @toDate
+                GROUP BY r.categoryid";
+            var recurringTotals = await QueryAsync<CategoryTotalRow>(recurringSql, new { organizationId, fromDate = fromDate.Date, toDate = toDate.Date });
+            foreach (var row in recurringTotals)
+            {
+                if (result.TryGetValue(row.CategoryId, out var item))
+                    item.TotalCost += row.TotalCost;
+                else
+                {
+                    var cat = categories.FirstOrDefault(c => c.CategoryId == row.CategoryId);
+                    result[row.CategoryId] = new ExpensePieReportItemDto
+                    {
+                        CategoryId = row.CategoryId,
+                        CategoryName = cat?.Name ?? string.Empty,
+                        TotalCost = row.TotalCost
+                    };
+                }
+            }
+        }
+
+        return result.Values.OrderBy(x => x.CategoryName).ToList();
+    }
+
+    private sealed class CategoryTotalRow
+    {
+        public Guid CategoryId { get; set; }
+        public decimal TotalCost { get; set; }
+    }
 }

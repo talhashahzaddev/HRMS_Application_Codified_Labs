@@ -189,3 +189,13 @@ public class UpdateRecurringExpenseRequest
 
     public string? ReceiptUrl { get; set; }
 }
+
+/// <summary>
+/// Item for expense pie report: cost per category (categoryid, categoryname, total_cost).
+/// </summary>
+public class ExpensePieReportItemDto
+{
+    public Guid CategoryId { get; set; }
+    public string CategoryName { get; set; } = string.Empty;
+    public decimal TotalCost { get; set; }
+}

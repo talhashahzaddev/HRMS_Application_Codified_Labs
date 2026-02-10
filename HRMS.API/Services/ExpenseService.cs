@@ -252,4 +252,26 @@ public class ExpenseService : IExpenseService
     {
         return await _expenseRepository.DeleteRecurringExpenseAsync(recurringExpenseId);
     }
+
+    public async Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+        Guid organizationId,
+        DateTime? fromDate,
+        DateTime? toDate,
+        bool expense,
+        bool recurring)
+    {
+        var from = fromDate?.Date ?? new DateTime(DateTime.UtcNow.Year, 1, 1);
+        var to = toDate?.Date ?? new DateTime(DateTime.UtcNow.Year, 12, 31);
+        if (from > to)
+        {
+            var swap = from;
+            from = to;
+            to = swap;
+        }
+
+        bool includeExpense = expense;
+        bool includeRecurring = expense;
+
+        return await _expenseRepository.GetExpensePieReportAsync(organizationId, from, to, includeExpense, includeRecurring);
+    }
 }

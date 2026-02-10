@@ -830,6 +830,44 @@ public class ExpenseController : ControllerBase
         }
     }
 
+    [HttpGet("pie-report")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<List<ExpensePieReportItemDto>>>> GetExpensePieReport(
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        [FromQuery] bool expense,
+        [FromQuery] bool recurring)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var data = await _expenseService.GetExpensePieReportAsync(organizationId, fromDate, toDate, expense, recurring);
+            return Ok(new ServiceResponse<List<ExpensePieReportItemDto>>
+            {
+                Success = true,
+                Data = data?.ToList() ?? new List<ExpensePieReportItemDto>()
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting expense pie report");
+            return Unauthorized(new ServiceResponse<List<ExpensePieReportItemDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving expense pie report");
+            return StatusCode(500, new ServiceResponse<List<ExpensePieReportItemDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the expense pie report"
+            });
+        }
+    }
+
     [HttpDelete("recurring/{id}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteRecurringExpense(Guid id)
