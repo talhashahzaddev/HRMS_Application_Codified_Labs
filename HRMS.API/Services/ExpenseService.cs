@@ -269,9 +269,32 @@ public class ExpenseService : IExpenseService
             to = swap;
         }
 
-        bool includeExpense = expense;
-        bool includeRecurring = expense;
+        bool includeExpense = expense || (!expense && !recurring);
+        bool includeRecurring = recurring || (!expense && !recurring);
 
         return await _expenseRepository.GetExpensePieReportAsync(organizationId, from, to, includeExpense, includeRecurring);
+    }
+
+    public async Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+        Guid organizationId,
+        int year,
+        bool expense,
+        bool recurring)
+    {
+        bool includeExpense = expense || (!expense && !recurring);
+        bool includeRecurring = recurring || (!expense && !recurring);
+        return await _expenseRepository.GetExpenseLineChartAsync(organizationId, year, includeExpense, includeRecurring);
+    }
+
+    public async Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+        Guid organizationId,
+        int fromYear,
+        int toYear,
+        bool expense,
+        bool recurring)
+    {
+        bool includeExpense = expense || (!expense && !recurring);
+        bool includeRecurring = recurring || (!expense && !recurring);
+        return await _expenseRepository.GetExpenseBarChartAsync(organizationId, fromYear, toYear, includeExpense, includeRecurring);
     }
 }

@@ -199,3 +199,22 @@ public class ExpensePieReportItemDto
     public string CategoryName { get; set; } = string.Empty;
     public decimal TotalCost { get; set; }
 }
+
+/// <summary>
+/// Item for expense line chart: cost per month of a year (month 1-12).
+/// </summary>
+public class ExpenseLineChartItemDto
+{
+    public int Month { get; set; }
+    public string MonthName { get; set; } = string.Empty;
+    public decimal Cost { get; set; }
+}
+
+/// <summary>
+/// Item for expense bar chart: total cost per year.
+/// </summary>
+public class ExpenseBarChartItemDto
+{
+    public int Year { get; set; }
+    public decimal Cost { get; set; }
+}

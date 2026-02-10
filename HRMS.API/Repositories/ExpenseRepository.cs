@@ -419,9 +419,126 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         return result.Values.OrderBy(x => x.CategoryName).ToList();
     }
 
+    public async Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+        Guid organizationId,
+        int year,
+        bool includeExpense,
+        bool includeRecurring)
+    {
+        var yearStart = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var yearEnd = yearStart.AddYears(1);
+        var monthNames = new[] { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+        var result = Enumerable.Range(1, 12).Select(m => new ExpenseLineChartItemDto
+        {
+            Month = m,
+            MonthName = monthNames[m - 1],
+            Cost = 0
+        }).ToDictionary(x => x.Month, x => x);
+
+        if (includeExpense)
+        {
+            var expenseSql = @"
+                SELECT (EXTRACT(MONTH FROM e.createdat))::int AS Month, COALESCE(SUM(e.amount), 0) AS Cost
+                FROM expense.expenses e
+                WHERE e.organizationid = @organizationId
+                  AND e.status = 'Approved'
+                  AND e.createdat >= @yearStart
+                  AND e.createdat < @yearEnd
+                GROUP BY EXTRACT(MONTH FROM e.createdat)";
+            var rows = await QueryAsync<MonthTotalRow>(expenseSql, new { organizationId, yearStart, yearEnd });
+            foreach (var row in rows)
+            {
+                if (result.TryGetValue(row.Month, out var item))
+                    item.Cost += row.Cost;
+            }
+        }
+
+        if (includeRecurring)
+        {
+            var recurringSql = @"
+                SELECT (EXTRACT(MONTH FROM r.createdat))::int AS Month, COALESCE(SUM(r.amount), 0) AS Cost
+                FROM expense.recurringexpenses r
+                WHERE r.organizationid = @organizationId
+                  AND r.status = 'Approved'
+                  AND r.createdat >= @yearStart
+                  AND r.createdat < @yearEnd
+                GROUP BY EXTRACT(MONTH FROM r.createdat)";
+            var rows = await QueryAsync<MonthTotalRow>(recurringSql, new { organizationId, yearStart, yearEnd });
+            foreach (var row in rows)
+            {
+                if (result.TryGetValue(row.Month, out var item))
+                    item.Cost += row.Cost;
+            }
+        }
+
+        return result.Values.OrderBy(x => x.Month).ToList();
+    }
+
+    public async Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+        Guid organizationId,
+        int fromYear,
+        int toYear,
+        bool includeExpense,
+        bool includeRecurring)
+    {
+        var yearCosts = new Dictionary<int, decimal>();
+        for (var y = fromYear; y <= toYear; y++)
+            yearCosts[y] = 0;
+
+        if (includeExpense)
+        {
+            var expenseSql = @"
+                SELECT (EXTRACT(YEAR FROM e.createdat))::int AS Year, COALESCE(SUM(e.amount), 0) AS Cost
+                FROM expense.expenses e
+                WHERE e.organizationid = @organizationId
+                  AND e.status = 'Approved'
+                  AND (EXTRACT(YEAR FROM e.createdat))::int >= @fromYear
+                  AND (EXTRACT(YEAR FROM e.createdat))::int <= @toYear
+                GROUP BY EXTRACT(YEAR FROM e.createdat)";
+            var rows = await QueryAsync<YearTotalRow>(expenseSql, new { organizationId, fromYear, toYear });
+            foreach (var row in rows)
+            {
+                if (yearCosts.TryGetValue(row.Year, out _))
+                    yearCosts[row.Year] += row.Cost;
+            }
+        }
+
+        if (includeRecurring)
+        {
+            var recurringSql = @"
+                SELECT (EXTRACT(YEAR FROM r.createdat))::int AS Year, COALESCE(SUM(r.amount), 0) AS Cost
+                FROM expense.recurringexpenses r
+                WHERE r.organizationid = @organizationId
+                  AND r.status = 'Approved'
+                  AND (EXTRACT(YEAR FROM r.createdat))::int >= @fromYear
+                  AND (EXTRACT(YEAR FROM r.createdat))::int <= @toYear
+                GROUP BY EXTRACT(YEAR FROM r.createdat)";
+            var rows = await QueryAsync<YearTotalRow>(recurringSql, new { organizationId, fromYear, toYear });
+            foreach (var row in rows)
+            {
+                if (yearCosts.TryGetValue(row.Year, out _))
+                    yearCosts[row.Year] += row.Cost;
+            }
+        }
+
+        return yearCosts.OrderBy(x => x.Key).Select(x => new ExpenseBarChartItemDto { Year = x.Key, Cost = x.Value }).ToList();
+    }
+
     private sealed class CategoryTotalRow
     {
         public Guid CategoryId { get; set; }
         public decimal TotalCost { get; set; }
+    }
+
+    private sealed class MonthTotalRow
+    {
+        public int Month { get; set; }
+        public decimal Cost { get; set; }
+    }
+
+    private sealed class YearTotalRow
+    {
+        public int Year { get; set; }
+        public decimal Cost { get; set; }
     }
 }
