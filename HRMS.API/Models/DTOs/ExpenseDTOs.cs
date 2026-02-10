@@ -99,6 +99,13 @@ public class UpdateExpenseRequest
     public string? Status { get; set; }
 }
 
+public class ExpenseRequestActionRequest
+{
+    [Required]
+    [RegularExpression("^(approve|reject)$", ErrorMessage = "Action must be 'approve' or 'reject'")]
+    public string Action { get; set; } = string.Empty;
+}
+
 public class RecurringExpenseDto
 {
     public Guid RecurringExpenseId { get; set; }

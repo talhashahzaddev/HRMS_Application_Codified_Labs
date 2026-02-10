@@ -13,6 +13,7 @@ public interface IExpenseService
 
     // Expenses
     Task<IEnumerable<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
+    Task<PagedResult<ExpenseDto>> GetExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize);
     Task<ExpenseDto?> GetExpenseByIdAsync(Guid expenseId);
     Task<ExpenseDto> CreateExpenseAsync(CreateExpenseRequest request, Guid organizationId, Guid employeeId, bool isSuperAdmin, Guid? approvedByEmployeeId);
     Task<ExpenseDto?> UpdateExpenseAsync(Guid expenseId, UpdateExpenseRequest request, Guid? approvedByEmployeeId);
@@ -20,6 +21,7 @@ public interface IExpenseService
 
     // RecurringExpenses
     Task<IEnumerable<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
+    Task<PagedResult<RecurringExpenseDto>> GetRecurringExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize);
     Task<RecurringExpenseDto?> GetRecurringExpenseByIdAsync(Guid recurringExpenseId);
     Task<RecurringExpenseDto> CreateRecurringExpenseAsync(CreateRecurringExpenseRequest request, Guid organizationId, Guid employeeId, bool isSuperAdmin, Guid? approvedByEmployeeId);
     Task<RecurringExpenseDto?> UpdateRecurringExpenseAsync(Guid recurringExpenseId, UpdateRecurringExpenseRequest request, Guid? approvedByEmployeeId);

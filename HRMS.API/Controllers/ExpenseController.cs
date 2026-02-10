@@ -232,27 +232,34 @@ public class ExpenseController : ControllerBase
 
      //==================== Expenses ====================
     [HttpGet("expenses")]
-    public async Task<ActionResult<ServiceResponse<List<ExpenseDto>>>> GetExpenses([FromQuery] Guid? employeeId, [FromQuery] string? status)
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<ExpenseDto>>>> GetExpenses(
+        [FromQuery] Guid? employeeId,
+        [FromQuery] string? status,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
         try
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
             var organizationId = GetCurrentOrganizationId();
-            var expenses = await _expenseService.GetExpensesAsync(organizationId, employeeId=null, status=null);
-            return Ok(new ServiceResponse<List<ExpenseDto>>
+            var result = await _expenseService.GetExpensesPagedAsync(organizationId, employeeId, status, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<ExpenseDto>>
             {
                 Success = true,
-                Data = expenses?.ToList() ?? new List<ExpenseDto>()
+                Data = result
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting expenses");
-            return Unauthorized(new ServiceResponse<List<ExpenseDto>> { Success = false, Message = ex.Message });
+            return Unauthorized(new ServiceResponse<PagedResult<ExpenseDto>> { Success = false, Message = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving expenses");
-            return StatusCode(500, new ServiceResponse<List<ExpenseDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<ExpenseDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving expenses"
@@ -262,28 +269,32 @@ public class ExpenseController : ControllerBase
 
     [HttpGet("expenses/me")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
-    public async Task<ActionResult<ServiceResponse<List<ExpenseDto>>>> GetAllExpensesByEmployeeId()
+    public async Task<ActionResult<ServiceResponse<PagedResult<ExpenseDto>>>> GetAllExpensesByEmployeeId(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
         try
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
-            var expenses = await _expenseService.GetExpensesAsync(organizationId, employeeId, null);
-            return Ok(new ServiceResponse<List<ExpenseDto>>
+            var result = await _expenseService.GetExpensesPagedAsync(organizationId, employeeId, null, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<ExpenseDto>>
             {
                 Success = true,
-                Data = expenses?.ToList() ?? new List<ExpenseDto>()
+                Data = result
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting expenses by employee");
-            return Unauthorized(new ServiceResponse<List<ExpenseDto>> { Success = false, Message = ex.Message });
+            return Unauthorized(new ServiceResponse<PagedResult<ExpenseDto>> { Success = false, Message = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving expenses by employee");
-            return StatusCode(500, new ServiceResponse<List<ExpenseDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<ExpenseDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving expenses"
@@ -464,6 +475,64 @@ public class ExpenseController : ControllerBase
         }
     }
 
+    [HttpPut("expenses/{id}/request-action")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<ExpenseDto>>> ExpenseRequestAction(Guid id, [FromBody] ExpenseRequestActionRequest request)
+    {
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Action))
+            {
+                return BadRequest(new ServiceResponse<ExpenseDto>
+                {
+                    Success = false,
+                    Message = "Action is required (approve or reject)"
+                });
+            }
+            var action = request.Action.Trim().ToLowerInvariant();
+            if (action != "approve" && action != "reject")
+            {
+                return BadRequest(new ServiceResponse<ExpenseDto>
+                {
+                    Success = false,
+                    Message = "Action must be 'approve' or 'reject'"
+                });
+            }
+            var approvedByEmployeeId = action == "approve" ? await GetCurrentEmployeeId() : (Guid?)null;
+            var status = action == "approve" ? "Approved" : "Rejected";
+            var updateRequest = new UpdateExpenseRequest { Status = status };
+            var expense = await _expenseService.UpdateExpenseAsync(id, updateRequest, approvedByEmployeeId);
+            if (expense == null)
+            {
+                return NotFound(new ServiceResponse<ExpenseDto>
+                {
+                    Success = false,
+                    Message = "Expense not found"
+                });
+            }
+            return Ok(new ServiceResponse<ExpenseDto>
+            {
+                Success = true,
+                Message = action == "approve" ? "Claim approved successfully" : "Claim rejected",
+                Data = expense
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access for expense request action");
+            return Unauthorized(new ServiceResponse<ExpenseDto> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing request action for expense {ExpenseId}", id);
+            return StatusCode(500, new ServiceResponse<ExpenseDto>
+            {
+                Success = false,
+                Message = "An error occurred while processing the request"
+            });
+        }
+    }
+
     [HttpDelete("expenses/{id}")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteExpense(Guid id)
@@ -499,27 +568,34 @@ public class ExpenseController : ControllerBase
 
     // ==================== Recurring Expenses ====================
     [HttpGet("recurring")]
-    public async Task<ActionResult<ServiceResponse<List<RecurringExpenseDto>>>> GetRecurringExpenses([FromQuery] Guid? employeeId, [FromQuery] string? status)
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<RecurringExpenseDto>>>> GetRecurringExpenses(
+        [FromQuery] Guid? employeeId,
+        [FromQuery] string? status,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
         try
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
             var organizationId = GetCurrentOrganizationId();
-            var list = await _expenseService.GetRecurringExpensesAsync(organizationId, employeeId=null, status = null);
-            return Ok(new ServiceResponse<List<RecurringExpenseDto>>
+            var result = await _expenseService.GetRecurringExpensesPagedAsync(organizationId, employeeId, status, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<RecurringExpenseDto>>
             {
                 Success = true,
-                Data = list?.ToList() ?? new List<RecurringExpenseDto>()
+                Data = result
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting recurring expenses");
-            return Unauthorized(new ServiceResponse<List<RecurringExpenseDto>> { Success = false, Message = ex.Message });
+            return Unauthorized(new ServiceResponse<PagedResult<RecurringExpenseDto>> { Success = false, Message = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving recurring expenses");
-            return StatusCode(500, new ServiceResponse<List<RecurringExpenseDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<RecurringExpenseDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving recurring expenses"
@@ -528,28 +604,33 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("recurring/me")]
-    public async Task<ActionResult<ServiceResponse<List<RecurringExpenseDto>>>> GetRecurringByEmployeeId()
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<RecurringExpenseDto>>>> GetRecurringByEmployeeId(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
         try
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
-            var list = await _expenseService.GetRecurringExpensesAsync(organizationId, employeeId, null);
-            return Ok(new ServiceResponse<List<RecurringExpenseDto>>
+            var result = await _expenseService.GetRecurringExpensesPagedAsync(organizationId, employeeId, null, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<RecurringExpenseDto>>
             {
                 Success = true,
-                Data = list?.ToList() ?? new List<RecurringExpenseDto>()
+                Data = result
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting recurring expenses by employee");
-            return Unauthorized(new ServiceResponse<List<RecurringExpenseDto>> { Success = false, Message = ex.Message });
+            return Unauthorized(new ServiceResponse<PagedResult<RecurringExpenseDto>> { Success = false, Message = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving recurring expenses by employee");
-            return StatusCode(500, new ServiceResponse<List<RecurringExpenseDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<RecurringExpenseDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving recurring expenses"
@@ -558,6 +639,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("recurring/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> GetRecurringExpenseById(Guid id)
     {
         try
@@ -589,6 +671,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPost("recurring")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> CreateRecurringExpense([FromBody] CreateRecurringExpenseRequest request)
     {
         try
@@ -642,6 +725,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPut("recurring/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> UpdateRecurringExpense(Guid id, [FromBody] UpdateRecurringExpenseRequest request)
     {
         try
@@ -688,7 +772,66 @@ public class ExpenseController : ControllerBase
         }
     }
 
+    [HttpPut("recurring/{id}/request-action")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> RecurringRequestAction(Guid id, [FromBody] ExpenseRequestActionRequest request)
+    {
+        try
+        {
+            if (request == null || string.IsNullOrWhiteSpace(request.Action))
+            {
+                return BadRequest(new ServiceResponse<RecurringExpenseDto>
+                {
+                    Success = false,
+                    Message = "Action is required (approve or reject)"
+                });
+            }
+            var action = request.Action.Trim().ToLowerInvariant();
+            if (action != "approve" && action != "reject")
+            {
+                return BadRequest(new ServiceResponse<RecurringExpenseDto>
+                {
+                    Success = false,
+                    Message = "Action must be 'approve' or 'reject'"
+                });
+            }
+            var approvedByEmployeeId = action == "approve" ? await GetCurrentEmployeeId() : (Guid?)null;
+            var status = action == "approve" ? "Approved" : "Rejected";
+            var updateRequest = new UpdateRecurringExpenseRequest { Status = status };
+            var item = await _expenseService.UpdateRecurringExpenseAsync(id, updateRequest, approvedByEmployeeId);
+            if (item == null)
+            {
+                return NotFound(new ServiceResponse<RecurringExpenseDto>
+                {
+                    Success = false,
+                    Message = "Recurring expense not found"
+                });
+            }
+            return Ok(new ServiceResponse<RecurringExpenseDto>
+            {
+                Success = true,
+                Message = action == "approve" ? "Recurring expense approved successfully" : "Recurring expense rejected",
+                Data = item
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access for recurring request action");
+            return Unauthorized(new ServiceResponse<RecurringExpenseDto> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing recurring request action {Id}", id);
+            return StatusCode(500, new ServiceResponse<RecurringExpenseDto>
+            {
+                Success = false,
+                Message = "An error occurred while processing the request"
+            });
+        }
+    }
+
     [HttpDelete("recurring/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteRecurringExpense(Guid id)
     {
         try

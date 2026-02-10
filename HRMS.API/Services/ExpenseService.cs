@@ -65,6 +65,13 @@ public class ExpenseService : IExpenseService
         return await _expenseRepository.GetExpensesAsync(organizationId, employeeId, status);
     }
 
+    public async Task<PagedResult<ExpenseDto>> GetExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        return await _expenseRepository.GetExpensesPagedAsync(organizationId, employeeId, status, pageNumber, pageSize);
+    }
+
     public async Task<ExpenseDto?> GetExpenseByIdAsync(Guid expenseId)
     {
         return await _expenseRepository.GetExpenseByIdAsync(expenseId);
@@ -150,6 +157,13 @@ public class ExpenseService : IExpenseService
     public async Task<IEnumerable<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
     {
         return await _expenseRepository.GetRecurringExpensesAsync(organizationId, employeeId, status);
+    }
+
+    public async Task<PagedResult<RecurringExpenseDto>> GetRecurringExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        return await _expenseRepository.GetRecurringExpensesPagedAsync(organizationId, employeeId, status, pageNumber, pageSize);
     }
 
     public async Task<RecurringExpenseDto?> GetRecurringExpenseByIdAsync(Guid recurringExpenseId)
