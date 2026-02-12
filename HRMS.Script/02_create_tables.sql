@@ -871,3 +871,116 @@ TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS expense.recurringexpenses
     OWNER to postgres;
+
+
+-- ==============================
+-- JOBS SCHEMA
+-- ==============================
+-- Table: jobs.stagemaster
+
+-- DROP TABLE IF EXISTS jobs.stagemaster;
+
+CREATE TABLE IF NOT EXISTS jobs.stagemaster
+(
+    stageid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    stagename character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    stageorder integer,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT stagemaster_pkey PRIMARY KEY (stageid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.stagemaster
+    OWNER to postgres;
+
+    -- Table: jobs.jobopenings
+
+-- DROP TABLE IF EXISTS jobs.jobopenings;
+
+CREATE TABLE IF NOT EXISTS jobs.jobopenings
+(
+    jobid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    jobrolename character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    departmentid uuid,
+    experiencemin integer,
+    experiencemax integer,
+    ctcmin numeric(12,2),
+    ctcmax numeric(12,2),
+    currency character varying(10) COLLATE pg_catalog."default",
+    vacancies integer NOT NULL DEFAULT 1,
+    location character varying(200) COLLATE pg_catalog."default",
+    workmode character varying(50) COLLATE pg_catalog."default",
+    employmenttype character varying(50) COLLATE pg_catalog."default",
+    jobintroduction text COLLATE pg_catalog."default",
+    responsibilities text COLLATE pg_catalog."default",
+    skillset text COLLATE pg_catalog."default",
+    lastdate date,
+    posteddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    postedas character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    externallink text COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Open'::character varying,
+    createdby uuid,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone,
+    CONSTRAINT jobopenings_pkey PRIMARY KEY (jobid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.jobopenings
+    OWNER to postgres;
+
+    -- Table: jobs.jobapplications
+
+-- DROP TABLE IF EXISTS jobs.jobapplications;
+
+CREATE TABLE IF NOT EXISTS jobs.jobapplications
+(
+    jobapplyid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobid uuid NOT NULL,
+    organizationid uuid NOT NULL,
+    employeeid uuid,
+    candidateid uuid DEFAULT uuid_generate_v4(),
+    candidatename character varying(200) COLLATE pg_catalog."default",
+    candidateemail character varying(200) COLLATE pg_catalog."default",
+    linkedinurl text COLLATE pg_catalog."default",
+    resumeurl text COLLATE pg_catalog."default",
+    phone character varying(50) COLLATE pg_catalog."default",
+    coverletter text COLLATE pg_catalog."default",
+    currentstageid uuid,
+    applicationsource character varying(100) COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Applied'::character varying,
+    createddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updateddate timestamp with time zone,
+    CONSTRAINT jobapplications_pkey PRIMARY KEY (jobapplyid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.jobapplications
+    OWNER to postgres;
+
+    -- Table: jobs.applicationstages
+
+-- DROP TABLE IF EXISTS jobs.applicationstages;
+
+CREATE TABLE IF NOT EXISTS jobs.applicationstages
+(
+    applicationstageid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobapplyid uuid NOT NULL,
+    stageid uuid NOT NULL,
+    notes text COLLATE pg_catalog."default",
+    interviewers text COLLATE pg_catalog."default",
+    type character varying(50) COLLATE pg_catalog."default",
+    updatedon timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedby uuid,
+    CONSTRAINT applicationstages_pkey PRIMARY KEY (applicationstageid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.applicationstages
+    OWNER to postgres;
