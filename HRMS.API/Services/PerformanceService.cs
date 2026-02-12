@@ -824,7 +824,7 @@ public class PerformanceService : IPerformanceService
                         
                         var notification = new NotificationCreateDto
                         {
-                            Receiveruserid = reportingManagerEmployeeId, // Reporting manager
+                            Receiveruserid = new List<Guid> { reportingManagerEmployeeId }, // Reporting manager
                             Senderuserid = request.EmployeeId, // Employee who created self-assessment
                             Title = "Self-Assessment Created",
                             Notificationtype = "Performance",

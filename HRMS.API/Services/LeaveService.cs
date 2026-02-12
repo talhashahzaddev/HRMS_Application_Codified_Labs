@@ -85,7 +85,7 @@ public class LeaveService : ILeaveService
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = reportingmangerid,
+                    Receiveruserid = new List<Guid> { reportingmangerid },
                     Senderuserid = employee.EmployeeId,
                     Title = "Leave Request",
                     RequestId = leaveRequest.RequestId,
@@ -240,8 +240,8 @@ public class LeaveService : ILeaveService
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = Originalnotification.SenderUserId,
-                    Senderuserid = Originalnotification.ReceiverUserId,
+                    Receiveruserid = new List<Guid> { Originalnotification.SenderUserId.Value },
+                    Senderuserid = Originalnotification.ReceiverUserIds.FirstOrDefault(),
                     Title = "Leave Request",
                     RequestId = Originalnotification.requestid,
                     Message = message,
@@ -260,7 +260,7 @@ public class LeaveService : ILeaveService
                     {
                         var notification = new NotificationCreateDto
                         {
-                            Receiveruserid = employeeInfo.Value.userId,
+                            Receiveruserid = new List<Guid> { employeeInfo.Value.userId },
                             Senderuserid = empId,
                             Title = "Leave Request",
                             RequestId = requestId,

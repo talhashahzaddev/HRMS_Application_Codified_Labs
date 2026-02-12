@@ -352,37 +352,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                     offset = (page - 1) * pageSize
                 });
 
-            //var employees = results.Select(r => new EmployeeListItemDto
-            //{
-            //    EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
-            //    EmployeeCode = r.employeecode,
-            //    FullName = $"{(string?)r.firstname ?? ""} {(string?)r.lastname ?? ""}".Trim(),
-            //    FirstName = r.firstname,
-            //    LastName = r.lastname,
-            //    Email = r.email,
-            //    Phone = r.phone,
-            //    HireDate = r.hiredate,
-            //    employmentType = r.employmenttype ?? "full_time",
-            //    Status = r.status,
-            //    ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
-            //    DepartmentName = r.departmentname,
-            //    PositionTitle = r.positiontitle,
-            //    PayType = r.paytype,
-            //    BasicSalary = r.basicsalary,
-            //    ReportingManagerId = r.reportingmanagerid,
-            //    ReportingManagerName = r.reportingmanagername,
-            //    Gender = r.gender,
-            //    Nationality = r.nationality,
-            //    MaritalStatus = r.maritalstatus,
-            //    DateOfBirth = r.dateofbirth,
-            //    Address = r.address != null
-            //              ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.address.ToString())
-            //              : null,
-            //    EmergencyContact = r.emergencycontact != null
-            //              ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.emergencycontact.ToString())
-            //              : null
-            //}).ToList();
-
             var employees = results.Select(r => new EmployeeListItemDto
             {
                 EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
