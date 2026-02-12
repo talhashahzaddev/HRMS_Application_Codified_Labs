@@ -659,7 +659,7 @@ public class AttendanceService : IAttendanceService
         {
             var notification = new NotificationCreateDto
             {
-                Receiveruserid = request.EmployeeId,
+                Receiveruserid = new List<Guid> { request.EmployeeId },
                 Senderuserid = currentEmpid,
                 Title = "Shift Assign",
                 //RequestId = leaveRequest.RequestId,
@@ -739,7 +739,8 @@ public class AttendanceService : IAttendanceService
         {
             var notification = new NotificationCreateDto
             {
-                Receiveruserid = reportingmangerid,
+                //Receiveruserid = reportingmangerid,
+                Receiveruserid = new List<Guid> { reportingmangerid},
                 Senderuserid = employee.EmployeeId,
                 Title = "Swap Request",
                 Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
@@ -774,7 +775,7 @@ public class AttendanceService : IAttendanceService
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Receiveruserid = new List<Guid> { shiftrequestDetails.EmployeeId },
                     Senderuserid = dto.ApprovedBy,
                     Title = "Shift Swap Request",
                     Message = $"Your shift swap request is Rejected {dto.RejectionReason} ",
@@ -796,7 +797,7 @@ public class AttendanceService : IAttendanceService
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Receiveruserid = new List<Guid> { shiftrequestDetails.EmployeeId },
                     Senderuserid = dto.ApprovedBy,
                     Title = "Shift Swap Request",
                     Message = $"Your shift swap request is Accepted ",
