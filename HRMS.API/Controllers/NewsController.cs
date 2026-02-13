@@ -24,7 +24,8 @@ namespace HRMS.API.Controllers
 
 
         [HttpPost("createNews")]
-        [Authorize(Roles = "SuperAdmin,Hr Manager")]
+        [Authorize(Roles = "Super Admin,HR Manager")]
+
         public async Task<ActionResult<ServiceResponse<NewsDto>>> CreateNews([FromBody] NewsRequest request)
         {
             try
