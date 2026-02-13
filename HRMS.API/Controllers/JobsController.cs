@@ -690,6 +690,237 @@ public class JobsController : ControllerBase
         }
     }
 
+    // ==================== Application Stages ====================
+    [HttpGet("application-stages")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetAllApplicationStages()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var stages = await _jobsService.GetAllApplicationStagesAsync(organizationId);
+            return Ok(new ServiceResponse<List<ApplicationStageDto>>
+            {
+                Success = true,
+                Data = stages?.ToList() ?? new List<ApplicationStageDto>()
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting application stages");
+            return Unauthorized(new ServiceResponse<List<ApplicationStageDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving application stages");
+            return StatusCode(500, new ServiceResponse<List<ApplicationStageDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving application stages"
+            });
+        }
+    }
+
+    [HttpGet("application-stages/by-application/{jobApplyId}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
+    {
+        try
+        {
+            var stages = await _jobsService.GetApplicationStagesByJobApplyIdAsync(jobApplyId);
+            return Ok(new ServiceResponse<List<ApplicationStageDto>>
+            {
+                Success = true,
+                Data = stages?.ToList() ?? new List<ApplicationStageDto>()
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting application stages by job apply");
+            return Unauthorized(new ServiceResponse<List<ApplicationStageDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving application stages for job apply {JobApplyId}", jobApplyId);
+            return StatusCode(500, new ServiceResponse<List<ApplicationStageDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving application stages"
+            });
+        }
+    }
+
+    [HttpGet("application-stages/{id}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> GetApplicationStageById(Guid id)
+    {
+        try
+        {
+            var stage = await _jobsService.GetApplicationStageByIdAsync(id);
+            if (stage == null)
+            {
+                return NotFound(new ServiceResponse<ApplicationStageDto>
+                {
+                    Success = false,
+                    Message = "Application stage not found"
+                });
+            }
+            return Ok(new ServiceResponse<ApplicationStageDto>
+            {
+                Success = true,
+                Data = stage
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving application stage {ApplicationStageId}", id);
+            return StatusCode(500, new ServiceResponse<ApplicationStageDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the application stage"
+            });
+        }
+    }
+
+    [HttpPost("application-stages")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> CreateApplicationStage([FromBody] CreateApplicationStageRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<ApplicationStageDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+            var updatedBy = await GetCurrentEmployeeId();
+            var stage = await _jobsService.CreateApplicationStageAsync(updatedBy, request);
+            return CreatedAtAction(nameof(GetApplicationStageById), new { id = stage.ApplicationStageId }, new ServiceResponse<ApplicationStageDto>
+            {
+                Success = true,
+                Message = "Application stage created successfully. Job application status updated to stage name.",
+                Data = stage
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access creating application stage");
+            return Unauthorized(new ServiceResponse<ApplicationStageDto> { Success = false, Message = ex.Message });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating application stage");
+            return BadRequest(new ServiceResponse<ApplicationStageDto> { Success = false, Message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating application stage");
+            return BadRequest(new ServiceResponse<ApplicationStageDto> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating application stage");
+            return StatusCode(500, new ServiceResponse<ApplicationStageDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating application stage"
+            });
+        }
+    }
+
+    [HttpPut("application-stages/{id}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> UpdateApplicationStage(Guid id, [FromBody] UpdateApplicationStageRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<ApplicationStageDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+            var updatedBy = await GetCurrentEmployeeId();
+            var stage = await _jobsService.UpdateApplicationStageAsync(id, updatedBy, request);
+            if (stage == null)
+            {
+                return NotFound(new ServiceResponse<ApplicationStageDto>
+                {
+                    Success = false,
+                    Message = "Application stage not found"
+                });
+            }
+            return Ok(new ServiceResponse<ApplicationStageDto>
+            {
+                Success = true,
+                Message = "Application stage updated successfully",
+                Data = stage
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for updating application stage");
+            return BadRequest(new ServiceResponse<ApplicationStageDto> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating application stage {ApplicationStageId}", id);
+            return StatusCode(500, new ServiceResponse<ApplicationStageDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating application stage"
+            });
+        }
+    }
+
+    [HttpDelete("application-stages/{id}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteApplicationStage(Guid id)
+    {
+        try
+        {
+            var deleted = await _jobsService.DeleteApplicationStageAsync(id);
+            if (!deleted)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Application stage not found"
+                });
+            }
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Application stage deleted successfully",
+                Data = true
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting application stage {ApplicationStageId}", id);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting application stage"
+            });
+        }
+    }
+
     private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

@@ -27,4 +27,13 @@ public interface IJobsRepository
     Task<Guid> CreateJobApplicationAsync(JobApplication entity);
     Task<bool> UpdateJobApplicationAsync(JobApplication entity);
     Task<bool> DeleteJobApplicationAsync(Guid jobApplyId);
+
+    // ApplicationStages
+    Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId);
+    Task<ApplicationStageDto?> GetApplicationStageByIdAsync(Guid applicationStageId);
+    Task<IEnumerable<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId);
+    Task<Guid> CreateApplicationStageAsync(ApplicationStage entity);
+    Task<bool> UpdateApplicationStageAsync(ApplicationStage entity);
+    Task<bool> DeleteApplicationStageAsync(Guid applicationStageId);
+    Task<IEnumerable<InterviewerInfoDto>> GetInterviewerDetailsAsync(IEnumerable<Guid> employeeIds);
 }

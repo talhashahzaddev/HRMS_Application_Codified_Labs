@@ -192,6 +192,60 @@ public class CreateJobApplicationRequest
     public string? Status { get; set; }
 }
 
+// ==================== Application Stages (interviewer info for GET) ====================
+public class InterviewerInfoDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? PositionTitle { get; set; }
+}
+
+public class ApplicationStageDto
+{
+    public Guid ApplicationStageId { get; set; }
+    public Guid JobApplyId { get; set; }
+    public Guid? JobId { get; set; }
+    public string? JobRoleName { get; set; }
+    public string? CandidateName { get; set; }
+    public Guid StageId { get; set; }
+    public string? StageName { get; set; }
+    public string? Notes { get; set; }
+    public List<Guid> InterviewerIds { get; set; } = new();
+    public List<InterviewerInfoDto> Interviewers { get; set; } = new();
+    public string? Type { get; set; }
+    public DateTime? UpdatedOn { get; set; }
+    public Guid? UpdatedBy { get; set; }
+    public string? UpdatedByName { get; set; }
+}
+
+public class CreateApplicationStageRequest
+{
+    [Required]
+    public Guid JobApplyId { get; set; }
+
+    [Required]
+    public Guid StageId { get; set; }
+
+    public string? Notes { get; set; }
+
+    /// <summary>One or more employee IDs (interviewers).</summary>
+    public List<Guid>? InterviewerIds { get; set; }
+
+    [MaxLength(50)]
+    public string? Type { get; set; }
+}
+
+public class UpdateApplicationStageRequest
+{
+    public string? Notes { get; set; }
+
+    /// <summary>One or more employee IDs (interviewers).</summary>
+    public List<Guid>? InterviewerIds { get; set; }
+
+    [MaxLength(50)]
+    public string? Type { get; set; }
+}
+
 public class UpdateJobApplicationRequest
 {
     [MaxLength(200)]

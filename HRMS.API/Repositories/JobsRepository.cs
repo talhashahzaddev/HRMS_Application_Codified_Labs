@@ -281,4 +281,183 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var rows = await ExecuteAsync(sql, new { jobApplyId });
         return rows > 0;
     }
+
+    // ==================== ApplicationStages ====================
+    private const string ApplicationStageSelectSql = @"
+            SELECT ast.applicationstageid AS ApplicationStageId, ast.jobapplyid AS JobApplyId, a.jobid AS JobId,
+                   j.jobrolename AS JobRoleName, a.candidatename AS CandidateName,
+                   ast.stageid AS StageId, s.stagename AS StageName,
+                   ast.notes AS Notes, ast.interviewers AS InterviewersText, ast.type AS Type,
+                   ast.updatedon AS UpdatedOn, ast.updatedby AS UpdatedBy,
+                   CONCAT(upd.firstname, ' ', upd.lastname) AS UpdatedByName
+            FROM jobs.applicationstages ast
+            INNER JOIN jobs.jobapplications a ON ast.jobapplyid = a.jobapplyid
+            LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
+            LEFT JOIN jobs.stagemaster s ON ast.stageid = s.stageid
+            LEFT JOIN employee.employees upd ON ast.updatedby = upd.employeeid";
+
+    private static List<Guid> ParseInterviewerIds(string? interviewersText)
+    {
+        if (string.IsNullOrWhiteSpace(interviewersText)) return new List<Guid>();
+        return interviewersText
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(s => Guid.TryParse(s, out var g) ? g : Guid.Empty)
+            .Where(g => g != Guid.Empty)
+            .Distinct()
+            .ToList();
+    }
+
+    private static string ToInterviewersText(IEnumerable<Guid>? ids)
+    {
+        if (ids == null || !ids.Any()) return string.Empty;
+        return string.Join(",", ids.Where(g => g != Guid.Empty).Distinct());
+    }
+
+    public async Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId)
+    {
+        var sql = ApplicationStageSelectSql + @"
+            WHERE a.organizationid = @organizationId
+            ORDER BY ast.updatedon DESC NULLS LAST";
+        var rows = await QueryAsync<ApplicationStageRow>(sql, new { organizationId });
+        return await BuildApplicationStageDtosAsync(rows);
+    }
+
+    public async Task<ApplicationStageDto?> GetApplicationStageByIdAsync(Guid applicationStageId)
+    {
+        var sql = ApplicationStageSelectSql + @"
+            WHERE ast.applicationstageid = @applicationStageId";
+        var row = await QuerySingleOrDefaultAsync<ApplicationStageRow>(sql, new { applicationStageId });
+        if (row == null) return null;
+        var list = await BuildApplicationStageDtosAsync(new[] { row });
+        return list.FirstOrDefault();
+    }
+
+    public async Task<IEnumerable<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId)
+    {
+        var sql = ApplicationStageSelectSql + @"
+            WHERE ast.jobapplyid = @jobApplyId
+            ORDER BY ast.updatedon DESC NULLS LAST";
+        var rows = await QueryAsync<ApplicationStageRow>(sql, new { jobApplyId });
+        return await BuildApplicationStageDtosAsync(rows);
+    }
+
+    private async Task<IEnumerable<ApplicationStageDto>> BuildApplicationStageDtosAsync(IEnumerable<ApplicationStageRow> rows)
+    {
+        var rowList = rows?.ToList() ?? new List<ApplicationStageRow>();
+        if (!rowList.Any()) return rowList.Select(r => RowToDto(r, new List<InterviewerInfoDto>()));
+
+        var allIds = rowList.SelectMany(r => ParseInterviewerIds(r.InterviewersText)).Distinct().ToList();
+        var details = allIds.Any() ? (await GetInterviewerDetailsAsync(allIds)).ToList() : new List<InterviewerInfoDto>();
+        var lookup = details.ToLookup(d => d.EmployeeId);
+
+        return rowList.Select(r =>
+        {
+            var ids = ParseInterviewerIds(r.InterviewersText);
+            var interviewers = ids.SelectMany(id => lookup[id]).ToList();
+            return RowToDto(r, interviewers);
+        });
+    }
+
+    private static ApplicationStageDto RowToDto(ApplicationStageRow r, List<InterviewerInfoDto> interviewers)
+    {
+        return new ApplicationStageDto
+        {
+            ApplicationStageId = r.ApplicationStageId,
+            JobApplyId = r.JobApplyId,
+            JobId = r.JobId,
+            JobRoleName = r.JobRoleName,
+            CandidateName = r.CandidateName,
+            StageId = r.StageId,
+            StageName = r.StageName,
+            Notes = r.Notes,
+            InterviewerIds = ParseInterviewerIds(r.InterviewersText),
+            Interviewers = interviewers,
+            Type = r.Type,
+            UpdatedOn = r.UpdatedOn,
+            UpdatedBy = r.UpdatedBy,
+            UpdatedByName = r.UpdatedByName
+        };
+    }
+
+    public async Task<IEnumerable<InterviewerInfoDto>> GetInterviewerDetailsAsync(IEnumerable<Guid> employeeIds)
+    {
+        var ids = employeeIds?.Where(g => g != Guid.Empty).Distinct().ToList() ?? new List<Guid>();
+        if (!ids.Any()) return new List<InterviewerInfoDto>();
+
+        var sql = @"
+            SELECT e.employeeid AS EmployeeId,
+                   CONCAT(e.firstname, ' ', e.lastname) AS EmployeeName,
+                   p.positiontitle AS PositionTitle
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.positions p ON ed.positionid = p.positionid
+            WHERE e.employeeid = ANY(@ids)";
+        return await QueryAsync<InterviewerInfoDto>(sql, new { ids = ids.ToArray() });
+    }
+
+    public async Task<Guid> CreateApplicationStageAsync(ApplicationStage entity)
+    {
+        var sql = @"
+            INSERT INTO jobs.applicationstages (jobapplyid, stageid, notes, interviewers, type, updatedby)
+            VALUES (@JobApplyId, @StageId, @Notes, @Interviewers, @Type, @UpdatedBy)
+            RETURNING applicationstageid";
+        var id = await ExecuteScalarAsync<Guid>(sql, new
+        {
+            entity.JobApplyId,
+            entity.StageId,
+            entity.Notes,
+            entity.Interviewers,
+            entity.Type,
+            entity.UpdatedBy
+        });
+
+        var updateJobAppSql = @"
+            UPDATE jobs.jobapplications
+            SET currentstageid = @stageId, status = (SELECT stagename FROM jobs.stagemaster WHERE stageid = @stageId), updateddate = CURRENT_TIMESTAMP
+            WHERE jobapplyid = @jobApplyId";
+        await ExecuteAsync(updateJobAppSql, new { entity.StageId, entity.JobApplyId });
+
+        return id;
+    }
+
+    public async Task<bool> UpdateApplicationStageAsync(ApplicationStage entity)
+    {
+        var sql = @"
+            UPDATE jobs.applicationstages
+            SET notes = @Notes, interviewers = @Interviewers, type = @Type, updatedon = CURRENT_TIMESTAMP, updatedby = @UpdatedBy
+            WHERE applicationstageid = @ApplicationStageId";
+        var rows = await ExecuteAsync(sql, new
+        {
+            entity.ApplicationStageId,
+            entity.Notes,
+            entity.Interviewers,
+            entity.Type,
+            entity.UpdatedBy
+        });
+        return rows > 0;
+    }
+
+    public async Task<bool> DeleteApplicationStageAsync(Guid applicationStageId)
+    {
+        var sql = "DELETE FROM jobs.applicationstages WHERE applicationstageid = @applicationStageId";
+        var rows = await ExecuteAsync(sql, new { applicationStageId });
+        return rows > 0;
+    }
+
+    private sealed class ApplicationStageRow
+    {
+        public Guid ApplicationStageId { get; set; }
+        public Guid JobApplyId { get; set; }
+        public Guid? JobId { get; set; }
+        public string? JobRoleName { get; set; }
+        public string? CandidateName { get; set; }
+        public Guid StageId { get; set; }
+        public string? StageName { get; set; }
+        public string? Notes { get; set; }
+        public string? InterviewersText { get; set; }
+        public string? Type { get; set; }
+        public DateTime? UpdatedOn { get; set; }
+        public Guid? UpdatedBy { get; set; }
+        public string? UpdatedByName { get; set; }
+    }
 }

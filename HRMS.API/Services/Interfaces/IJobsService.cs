@@ -26,4 +26,12 @@ public interface IJobsService
     Task<JobApplicationDto> CreateJobApplicationAsync(Guid organizationId, Guid employeeId, CreateJobApplicationRequest request);
     Task<JobApplicationDto?> UpdateJobApplicationAsync(Guid jobApplyId, UpdateJobApplicationRequest request);
     Task<bool> DeleteJobApplicationAsync(Guid jobApplyId);
+
+    // ApplicationStages
+    Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId);
+    Task<ApplicationStageDto?> GetApplicationStageByIdAsync(Guid applicationStageId);
+    Task<IEnumerable<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId);
+    Task<ApplicationStageDto> CreateApplicationStageAsync(Guid updatedByEmployeeId, CreateApplicationStageRequest request);
+    Task<ApplicationStageDto?> UpdateApplicationStageAsync(Guid applicationStageId, Guid updatedByEmployeeId, UpdateApplicationStageRequest request);
+    Task<bool> DeleteApplicationStageAsync(Guid applicationStageId);
 }

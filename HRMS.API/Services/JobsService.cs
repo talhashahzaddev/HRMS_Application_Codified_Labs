@@ -244,4 +244,81 @@ public class JobsService : IJobsService
     {
         return await _jobsRepository.DeleteJobApplicationAsync(jobApplyId);
     }
+
+    // ==================== ApplicationStages ====================
+    public async Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId)
+    {
+        return await _jobsRepository.GetAllApplicationStagesAsync(organizationId);
+    }
+
+    public async Task<ApplicationStageDto?> GetApplicationStageByIdAsync(Guid applicationStageId)
+    {
+        return await _jobsRepository.GetApplicationStageByIdAsync(applicationStageId);
+    }
+
+    public async Task<IEnumerable<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId)
+    {
+        return await _jobsRepository.GetApplicationStagesByJobApplyIdAsync(jobApplyId);
+    }
+
+    public async Task<ApplicationStageDto> CreateApplicationStageAsync(Guid updatedByEmployeeId, CreateApplicationStageRequest request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+        if (request.JobApplyId == Guid.Empty)
+            throw new ArgumentException("Job apply ID is required", nameof(request));
+        if (request.StageId == Guid.Empty)
+            throw new ArgumentException("Stage ID is required", nameof(request));
+
+        var interviewerIds = request.InterviewerIds ?? new List<Guid>();
+        var interviewersText = interviewerIds.Any() ? string.Join(",", interviewerIds.Where(g => g != Guid.Empty).Distinct()) : string.Empty;
+
+        var entity = new ApplicationStage
+        {
+            JobApplyId = request.JobApplyId,
+            StageId = request.StageId,
+            Notes = request.Notes?.Trim(),
+            Interviewers = interviewersText,
+            Type = request.Type?.Trim(),
+            UpdatedBy = updatedByEmployeeId
+        };
+
+        var applicationStageId = await _jobsRepository.CreateApplicationStageAsync(entity);
+        var created = await _jobsRepository.GetApplicationStageByIdAsync(applicationStageId);
+        if (created == null)
+            throw new InvalidOperationException("Failed to retrieve created application stage");
+        return created;
+    }
+
+    public async Task<ApplicationStageDto?> UpdateApplicationStageAsync(Guid applicationStageId, Guid updatedByEmployeeId, UpdateApplicationStageRequest request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        var existing = await _jobsRepository.GetApplicationStageByIdAsync(applicationStageId);
+        if (existing == null)
+            return null;
+
+        var interviewerIds = request.InterviewerIds ?? existing.InterviewerIds;
+        var interviewersText = interviewerIds.Any() ? string.Join(",", interviewerIds.Where(g => g != Guid.Empty).Distinct()) : string.Empty;
+
+        var entity = new ApplicationStage
+        {
+            ApplicationStageId = applicationStageId,
+            Notes = request.Notes ?? existing.Notes,
+            Interviewers = interviewersText,
+            Type = request.Type ?? existing.Type,
+            UpdatedBy = updatedByEmployeeId
+        };
+
+        var updated = await _jobsRepository.UpdateApplicationStageAsync(entity);
+        if (!updated)
+            return null;
+        return await _jobsRepository.GetApplicationStageByIdAsync(applicationStageId);
+    }
+
+    public async Task<bool> DeleteApplicationStageAsync(Guid applicationStageId)
+    {
+        return await _jobsRepository.DeleteApplicationStageAsync(applicationStageId);
+    }
 }
