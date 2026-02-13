@@ -20,6 +20,8 @@ public class AttendanceDto
     public string? Location { get; set; }
     public string? checkinip { get; set; }
     public string? checkoutip { get; set; }
+    public string? checkinLocationType { get; set; }
+    public string? checkoutLocationType { get; set; }
 
     public string ipAddress { get; set; }
 
@@ -30,6 +32,13 @@ public class ClockInOutResponse
     public string Message { get; set; } = string.Empty;
 }
 
+public class IpAddress
+{
+    public Guid Id { get; set; }
+    public string IpAddressValue { get; set; }
+    public string Name { get; set; }      // Example: "Main Office", "Branch 1"
+    public DateTime CreatedAt { get; set; }
+}
 public class CreateAttendanceRequest
 {
     public Guid EmployeeId { get; set; }
