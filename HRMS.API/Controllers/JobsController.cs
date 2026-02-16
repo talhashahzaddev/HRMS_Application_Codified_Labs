@@ -230,22 +230,33 @@ public class JobsController : ControllerBase
     // ==================== Job Openings ====================
     [HttpGet("openings")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
-    public async Task<ActionResult<ServiceResponse<List<JobOpeningDto>>>> GetAllJobOpenings()
+    public async Task<ActionResult<ServiceResponse<PagedResult<JobOpeningDto>>>> GetAllJobOpenings(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] string? lastDateFrom,
+        [FromQuery] string? lastDateTo,
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10)
     {
         try
         {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1 || pageSize > 100) pageSize = 10;
+            // Normalize empty/invalid date params to null so repository skips those filters
+            DateTime? from = DateTime.TryParse(lastDateFrom, out var parsedFrom) ? parsedFrom : null;
+            DateTime? to = DateTime.TryParse(lastDateTo, out var parsedTo) ? parsedTo : null;
             var organizationId = GetCurrentOrganizationId();
-            var openings = await _jobsService.GetAllJobOpeningsAsync(organizationId);
-            return Ok(new ServiceResponse<List<JobOpeningDto>>
+            var result = await _jobsService.GetJobOpeningsPagedAsync(organizationId, search, status, from, to, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<JobOpeningDto>>
             {
                 Success = true,
-                Data = openings?.ToList() ?? new List<JobOpeningDto>()
+                Data = result
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting job openings");
-            return Unauthorized(new ServiceResponse<List<JobOpeningDto>>
+            return Unauthorized(new ServiceResponse<PagedResult<JobOpeningDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -254,7 +265,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving job openings");
-            return StatusCode(500, new ServiceResponse<List<JobOpeningDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<JobOpeningDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving job openings"
@@ -295,7 +306,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("openings")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> CreateJobOpening([FromBody] CreateJobOpeningRequest request)
     {
         try
@@ -346,7 +357,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("openings/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> UpdateJobOpening(Guid id, [FromBody] UpdateJobOpeningRequest request)
     {
         try
