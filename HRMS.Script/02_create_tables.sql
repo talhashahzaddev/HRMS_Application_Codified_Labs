@@ -966,6 +966,30 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS expense.recurringexpenses
     OWNER to postgres;
 
+-- ============================
+-- News
+-- ============================
+-- Table: News
+
+ -- DROP TABLE IF EXISTS news.news;
+
+CREATE TABLE IF NOT EXISTS news.news
+(
+    newsid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    title character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default" NOT NULL,
+    createdby uuid NOT NULL,
+    category character varying(50) COLLATE pg_catalog."default" DEFAULT 'Other'::character varying,
+    imageurl character varying(255) COLLATE pg_catalog."default",
+    publishedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'Draft'::character varying,
+    views integer DEFAULT 0,
+    visibleto character varying(20) COLLATE pg_catalog."default" DEFAULT 'Everyone'::character varying,
+    selectedemployees uuid[] DEFAULT '{}'::uuid[],
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT news_pkey PRIMARY KEY (newsid)
 
 -- ==============================
 -- JOBS SCHEMA
@@ -986,6 +1010,17 @@ CREATE TABLE IF NOT EXISTS jobs.stagemaster
 
 TABLESPACE pg_default;
 
+-- DROP TABLE IF EXISTS news.news_reads_count;
+
+CREATE TABLE IF NOT EXISTS news.news_reads_count
+(
+    newsid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    readat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_news_reads PRIMARY KEY (newsid, employeeid)
+)
+
+TABLESPACE pg_default;
 ALTER TABLE IF EXISTS jobs.stagemaster
     OWNER to postgres;
 

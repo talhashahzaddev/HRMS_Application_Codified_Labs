@@ -31,6 +31,7 @@ namespace HRMS.API.Models.DTOs
             public DateTime? CreatedAt { get; set; }             // created_at
             public DateTime? UpdatedAt { get; set; }             // updated_at
             public bool IsRead { get; set; }
+            public string AuthorName { get; set; }
         }
         public class NewsSearchViewModel
         {

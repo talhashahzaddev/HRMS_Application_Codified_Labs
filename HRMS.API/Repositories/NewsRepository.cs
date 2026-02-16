@@ -100,8 +100,10 @@ namespace HRMS.API.Repositories
                   Views = r.Views,                 // <-- add Views
                   IsRead = r.IsRead,
                   CreatedAt = r.CreatedAt ?? null,
-                  Description = r.Description
-                  }).ToList();
+                  Description = r.Description,
+                  OrganizationId=r.OrganizationId,
+             AuthorName = r.AuthorName
+         }).ToList();
          var totalCount = news.Count;
                 return new PagedResult<NewsDto>
                 {
@@ -142,7 +144,9 @@ namespace HRMS.API.Repositories
                   Views = r.Views,                 // <-- add Views
                   IsRead = r.IsRead,
                   CreatedAt = r.CreatedAt ?? null,
-                  Description = r.Description
+                  Description = r.Description,
+                  OrganizationId=r.OrganizationId,
+                  AuthorName=r.AuthorName
                   }).ToList();
          var totalCount = news.Count;
                 return new PagedResult<NewsDto>
