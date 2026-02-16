@@ -17,6 +17,7 @@ create SCHEMA IF NOT EXISTS Notification;
 create SCHEMA IF NOT EXISTS payment;
 create SCHEMA IF NOT EXISTS chatboard;
 CREATE SCHEMA IF NOT EXISTS expense;
+CREATE SCHEMA IF NOT EXISTS jobs;
 create SCHEMA IF NOT EXISTS asset;
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
