@@ -397,7 +397,7 @@ public class AuthService : IAuthService
         return true;
     }
 
-    public async Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, IFormFile? profileurl)
+    public async Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
     {
         if (userId == Guid.Empty) throw new ArgumentException("User ID is required", nameof(userId));
         if (request == null) throw new ArgumentNullException(nameof(request));
@@ -411,19 +411,6 @@ public class AuthService : IAuthService
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {userId} not found");
 
-        // 1️⃣ Upload Profile Picture if provided
-        string? profileUrl = employee.ProfilePictureUrl;
-
-        if (profileurl != null)
-        {
-            // Upload to Cloudinary
-            var uploadedUrl = await _cloudinaryService.UploadProfilePictureAsync(profileurl);
-
-            if (!string.IsNullOrEmpty(uploadedUrl))
-            {
-                profileUrl = uploadedUrl; // Use Cloudinary URL
-            }
-        }
         // Phone number validation
         if (!string.IsNullOrWhiteSpace(request.Phone))
         {
@@ -463,7 +450,7 @@ public class AuthService : IAuthService
         }
         //_mapper.Map(request, employee);
         //Update Employee table
-        var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request, profileUrl);
+        var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request);
 
         //Update Employee Details table
 

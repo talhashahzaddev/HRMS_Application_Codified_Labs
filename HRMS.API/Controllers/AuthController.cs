@@ -448,7 +448,7 @@ public class AuthController : ControllerBase
 
     [HttpPut("profile")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<bool>>> UpdateProfile([FromForm] UpdateProfileRequest request,IFormFile? profileurl)
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateProfile([FromForm] UpdateProfileRequest request)
     {
         try
         {
@@ -463,7 +463,7 @@ public class AuthController : ControllerBase
 
 
             var userId = GetCurrentUserId();
-            var user = await _authService.UpdateProfileAsync(userId, request,profileurl);
+            var user = await _authService.UpdateProfileAsync(userId, request);
             
             return Ok(new ServiceResponse<bool>
             {

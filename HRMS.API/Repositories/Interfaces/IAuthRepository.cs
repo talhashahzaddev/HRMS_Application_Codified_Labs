@@ -20,14 +20,10 @@ public interface IAuthRepository
     // Adding changes For Profile now
     Task<Employee?> GetEmployeeByIdAsync(Guid userId);
 
-    Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request,string? profileUrl);
+    Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request);
     Task<bool> UpdateProfile_EmployeeDetailsAsync(Guid employeeId, UpdateProfileRequest request);
 
     Task<bool> UpdateProfile_UserAsync(Guid userId, UpdateProfileRequest request);
-
-
-
-
     Task<User?> AuthenticateAsync(string email, string passwordHash);
     Task<User?> GetUserByIdAsync(Guid? userId);
     Task<User?> GetUserByEmailAsync(string email);
