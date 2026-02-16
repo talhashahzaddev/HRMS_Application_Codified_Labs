@@ -17,8 +17,9 @@ create SCHEMA IF NOT EXISTS Notification;
 create SCHEMA IF NOT EXISTS payment;
 create SCHEMA IF NOT EXISTS chatboard;
 CREATE SCHEMA IF NOT EXISTS expense;
+create SCHEMA IF NOT EXISTS asset;
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- Set search path
-SET search_path TO public, auth, employee, payroll, attendance, performance, admin;
+SET search_path TO public, auth, employee, payroll, attendance, performance, admin, asset;

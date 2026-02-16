@@ -168,6 +168,100 @@ CREATE TABLE employee.Documents (
 );
 
 -- ==============================
+-- ASSET SCHEMA
+-- ==============================
+CREATE TABLE IF NOT EXISTS assets.asset_types
+(
+    asset_type_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organization_id uuid NOT NULL,
+    name character varying(120) NOT NULL,
+    description character varying(500),
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    created_by uuid,
+    is_deleted boolean DEFAULT false,
+    CONSTRAINT asset_types_pkey PRIMARY KEY (asset_type_id),
+    CONSTRAINT uq_asset_types_name UNIQUE (organization_id, name)
+);
+
+DROP TABLE IF EXISTS asset.assets CASCADE;
+
+CREATE TABLE asset.assets
+(
+    asset_id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    organization_id uuid NOT NULL,
+    asset_type_id uuid NOT NULL,
+
+    asset_tag varchar(50) NOT NULL CHECK (trim(asset_tag) <> ''),
+    name varchar(200) NOT NULL CHECK (trim(name) <> ''),
+
+    description text,
+    serial_number varchar(120),
+
+    -- CHANGED: DATE ? TIMESTAMPTZ (matches C# DateTime)
+    purchase_date timestamp with time zone,
+
+    purchase_cost numeric(12,2),
+
+    status varchar(30) NOT NULL DEFAULT 'Available',
+
+    created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    created_by uuid,
+    is_deleted boolean NOT NULL DEFAULT false,
+
+    CONSTRAINT fk_assets_asset_type
+        FOREIGN KEY (asset_type_id)
+        REFERENCES asset.asset_types(asset_type_id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_assets_tag
+        UNIQUE (organization_id, asset_tag)
+);
+
+
+CREATE TABLE IF NOT EXISTS asset.asset_assignments
+(
+    assignment_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organization_id uuid NOT NULL,
+    asset_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    assigned_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    due_date timestamp with time zone,
+    returned_at timestamp with time zone,
+    status character varying(30) DEFAULT 'Active',
+    notes character varying(500),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    created_by uuid,
+    is_deleted boolean DEFAULT false,
+    CONSTRAINT asset_assignments_pkey PRIMARY KEY (assignment_id),
+    CONSTRAINT fk_asset_assignments_asset FOREIGN KEY (asset_id)
+        REFERENCES asset.assets (asset_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_asset_assignments_employee FOREIGN KEY (employee_id)
+        REFERENCES employee.employees (employeeid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_asset_types_org ON asset.asset_types (organization_id);
+CREATE INDEX IF NOT EXISTS idx_assets_org ON asset.assets (organization_id);
+CREATE INDEX IF NOT EXISTS idx_assets_type ON asset.assets (asset_type_id);
+CREATE INDEX IF NOT EXISTS idx_assets_status ON asset.assets (status);
+CREATE INDEX IF NOT EXISTS idx_asset_assignments_org ON asset.asset_assignments (organization_id);
+CREATE INDEX IF NOT EXISTS idx_asset_assignments_asset ON asset.asset_assignments (asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_assignments_employee ON asset.asset_assignments (employee_id);
+CREATE INDEX IF NOT EXISTS idx_asset_assignments_status ON asset.asset_assignments (status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_assignments_active
+    ON asset.asset_assignments (asset_id)
+    WHERE status = 'Active' AND is_deleted = false;
+
+-- ==============================
 -- ATTENDANCE SCHEMA
 -- ==============================
 -- Table: attendance.attendance

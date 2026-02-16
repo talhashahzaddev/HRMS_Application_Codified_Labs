@@ -187,6 +187,7 @@ builder.Services.AddScoped<IIntentRecognitionService, IntentRecognitionService>(
 builder.Services.AddScoped<IGuidanceAIService, GuidanceAIService>();
 builder.Services.AddScoped<IChatBoardAiService, ChatBoardAiService>();
 builder.Services.AddScoped<IPaymentService, PaymentService>();
+builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 
@@ -202,6 +203,7 @@ builder.Services.AddScoped<IPerformanceRepository, PerformanceRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
+builder.Services.AddScoped<IAssetRepository, AssetRepository>();
 builder.Services.AddScoped<IChatBoardAiRepository, ChatBoardAiRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
