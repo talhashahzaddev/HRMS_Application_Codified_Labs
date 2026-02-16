@@ -57,3 +57,9 @@ public class PayrollSearchViewModel
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;
 }
+
+public class AssetSearchViewModel
+{
+    public Guid? AssetTypeId { get; set; }
+    public string? Status { get; set; }
+}

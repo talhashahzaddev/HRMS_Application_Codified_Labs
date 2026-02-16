@@ -708,6 +708,42 @@ BEGIN
 END;
 $$;
 
+-- =====================================================================
+-- COMMON FUNCTIONS
+-- =====================================================================
+
+CREATE OR REPLACE FUNCTION public.fn_set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+-- =====================================================================
+-- ASSET TRIGGERS
+-- =====================================================================
+
+DROP TRIGGER IF EXISTS trg_asset_types_updated_at ON asset.asset_types;
+CREATE TRIGGER trg_asset_types_updated_at
+BEFORE UPDATE ON asset.asset_types
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_assets_updated_at ON asset.assets;
+CREATE TRIGGER trg_assets_updated_at
+BEFORE UPDATE ON asset.assets
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_asset_assignments_updated_at ON asset.asset_assignments;
+CREATE TRIGGER trg_asset_assignments_updated_at
+BEFORE UPDATE ON asset.asset_assignments
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_set_updated_at();
+
 ALTER FUNCTION payroll.fn_create_payroll_period(uuid, character varying, date, date, date)
     OWNER TO postgres;
 
