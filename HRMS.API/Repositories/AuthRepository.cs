@@ -246,7 +246,7 @@ WHERE token = @token;
 
 
     //Adding update method for Updating Employee all information
-    public async Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request,string? profileUrl)
+    public async Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request)
     {
 
         var sql = @"UPDATE employee.employees SET 
@@ -272,7 +272,7 @@ WHERE token = @token;
             EmergencyContact = System.Text.Json.JsonSerializer.Serialize(request.EmergencyContact),
             HireDate = request.HireDate,
             EmployeeId = employeeId,
-            profileUrl=profileUrl
+            profileUrl=request.profileurl
         });
 
         return affected > 0;
