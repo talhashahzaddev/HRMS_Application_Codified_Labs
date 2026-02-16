@@ -27,6 +27,7 @@ public class AttendanceService : IAttendanceService
     private readonly ILeaveRepository _leaveRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<AttendanceService> _logger;
+    private readonly IIpAddressRepository _ipAddressRepository;
 
     public AttendanceService(
         IAttendanceRepository attendanceRepository,
@@ -34,23 +35,31 @@ public class AttendanceService : IAttendanceService
         INotificationRepository notificationRepository,
         IEmployeeRepository employeeRepository,
         ILeaveRepository leaveRepository,
+        IIpAddressRepository ipAddressRepository,
         ILogger<AttendanceService> logger)
     {
         _attendanceRepository = attendanceRepository;
         _notificationRepository = notificationRepository;
         _employeeRepository = employeeRepository;
         _leaveRepository = leaveRepository;
+        _ipAddressRepository = ipAddressRepository; 
         _mapper = mapper;
         _logger = logger;
     }
-
-    public async Task<ClockInOutResponse> ClockInAsync(Guid employeeId, ClockInOutRequest request, string ipAddress)
+ 
+    public async Task<ClockInOutResponse> ClockInAsync(
+    Guid employeeId,
+    ClockInOutRequest request,
+    string ipAddress)
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty");
 
         if (request == null)
             throw new ArgumentNullException(nameof(request));
+
+        var allowedIp = await _ipAddressRepository.GetByIpAsync(ipAddress);
+        string locationType = allowedIp != null ? "Office" : "Outside";
 
         var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
         if (shift == null)
@@ -68,23 +77,23 @@ public class AttendanceService : IAttendanceService
             if (now < allowedFrom)
                 throw new InvalidOperationException("Clock-in outside allowed margin hours");
         }
-        // Already clocked in?
         if (await _attendanceRepository.CheckAlreadyClockInAsync(employeeId))
             throw new InvalidOperationException("Already clocked in");
         var todayAttendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
 
         string message = "Clocked in successfully";
 
-        // FIRST clock-in & LATE
         if (todayAttendance == null && now > shiftStart)
         {
             var lateBy = now - shiftStartDateTime;
-            message = $"Clocked in successfully, but you are late by {lateBy.Hours}h {lateBy.Minutes}m";
+            message =
+                $"Clocked in successfully, but you are late by {lateBy.Hours}h {lateBy.Minutes}m";
         }
         var location = new Dictionary<string, object?>
-                {
-                    { "ip", ipAddress }
-                };
+    {
+        { "ip", ipAddress },
+        { "locationType", locationType }
+    };
 
         await _attendanceRepository.ClockInOutAsync(
             employeeId,
@@ -96,7 +105,11 @@ public class AttendanceService : IAttendanceService
         await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
         await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
 
-        _logger.LogInformation(message);
+        _logger.LogInformation(
+            "Employee {EmployeeId} clocked in from {IP} as {LocationType}",
+            employeeId,
+            ipAddress,
+            locationType);
 
         return new ClockInOutResponse
         {
@@ -105,76 +118,89 @@ public class AttendanceService : IAttendanceService
         };
     }
 
-
-    public async Task<ClockInOutResponse> ClockOutAsync(Guid employeeId, ClockInOutRequest request, string ipAddress)
+    public async Task<ClockInOutResponse> ClockOutAsync(
+    Guid employeeId,
+    ClockInOutRequest request,
+    string ipAddress)
     {
         _logger.LogInformation("Clocking out employee: {EmployeeId}", employeeId);
         if (employeeId == Guid.Empty)
-        {
-            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
-        }
+            throw new ArgumentException("Employee ID cannot be empty");
+
         if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        // ✅ 1️⃣ Check allowed IP
+        var allowedIp = await _ipAddressRepository.GetByIpAsync(ipAddress);
+        string locationType = allowedIp != null ? "Office" : "Outside";
+
+        // ✅ 2️⃣ Get shift
+        var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+        if (shift == null)
+            throw new InvalidOperationException("No shift assigned");
+
+        var isClockedIn =
+            await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
+
+        if (!isClockedIn)
+            throw new InvalidOperationException("Not clocked in");
+
+        var margin = TimeSpan.FromHours(shift.marginHours);
+
+        var nowDateTime = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+        var now = nowDateTime.TimeOfDay;
+
+        var allowedFrom = shift.EndTime - margin;
+        var allowedTo = shift.EndTime + margin;
+        string message;
+        if (now < allowedFrom)
         {
-            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+            var earlyBy = shift.EndTime - now;
+            message =
+                $"Clocked out successfully, but you left early by {earlyBy.Hours}h {earlyBy.Minutes}m";
         }
-       
-            var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
-            _logger.LogInformation("Fetched shift: {@shift}", shift);
+        else if (now > allowedTo)
+        {
+            var lateBy = now - shift.EndTime;
+            message =
+                $"Clocked out successfully, but you left late by {lateBy.Hours}h {lateBy.Minutes}m";
+        }
+        else
+        {
+            message = "Clocked out successfully";
+        }
+        // ✅ Store IP + LocationType
+        var location = new Dictionary<string, object?>
+    {
+        { "ip", ipAddress },
+        { "locationType", locationType }
+    };
 
-            if (shift == null)
-            {
-                throw new InvalidOperationException("No shift assigned");
-            }
-            var isClockedIn = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
-            if (!isClockedIn)
-            {
-                throw new InvalidOperationException("Not clocked in");
-            }
+        await _attendanceRepository.ClockInOutAsync(
+            employeeId,
+            "out",
+            DateTime.UtcNow,
+            location,
+            request.Notes);
+        await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+        await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
 
-
-            // 3️⃣ APPLY MARGIN LOGIC
-            var margin = TimeSpan.FromHours(shift.marginHours);
-
-            var now = TimeZoneInfo
-                .ConvertTimeFromUtc(DateTime.UtcNow,
-                    TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"))
-                .TimeOfDay;
-
-            var allowedFrom = shift.EndTime - margin;
-            var allowedTo = shift.EndTime + margin;
-            string message;
-            if (now < allowedFrom)
-            {
-                var earlyBy = shift.EndTime - now;
-                message = $"Clocked out successfully, but you left early by {earlyBy.Hours}h {earlyBy.Minutes}m";
-            }
-            else if (now > allowedTo)
-            {
-                var lateBy = now - shift.EndTime;
-                message = $"Clocked out successfully, but you left late by {lateBy.Hours}h {lateBy.Minutes}m";
-            }
-            else
-            {
-                message = "Clocked out successfully";
-            }
-            var location = new Dictionary<string, object?>
-                {
-                    { "ip", ipAddress }
-                };
-
-        var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow,location,request.Notes);
-            await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
-            await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
-        
-        _logger.LogInformation(message);
+        _logger.LogInformation(
+            "Employee {EmployeeId} clocked out from {IP} as {LocationType}",
+            employeeId,
+            ipAddress,
+            locationType);
 
         return new ClockInOutResponse
         {
             Success = true,
             Message = message
         };
-     
-    }   
+    }
+
 
     public async Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId)
     {
@@ -206,81 +232,50 @@ public class AttendanceService : IAttendanceService
     }
 
 
-
-    public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(AttendanceSearchViewModel searchModel, Guid organizationId, Guid currentEmployeeId)
+    public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(
+        AttendanceSearchViewModel searchModel,
+        Guid organizationId,
+        Guid currentEmployeeId)
     {
         if (searchModel == null)
-        {
-            throw new ArgumentNullException(nameof(searchModel), "Search model cannot be null");
-        }
+            throw new ArgumentNullException(nameof(searchModel));
+
         if (searchModel.Page <= 0)
-        {
-            throw new ArgumentException("Page must be greater than zero", nameof(searchModel.Page));
-        }
+            throw new ArgumentException("Page must be greater than zero");
+
         if (searchModel.PageSize <= 0)
-        {
-            throw new ArgumentException("Page size must be greater than zero", nameof(searchModel.PageSize));
-        }
+            throw new ArgumentException("Page size must be greater than zero");
+
         if (searchModel.EndDate < searchModel.StartDate)
-        {
-            throw new ArgumentException("End date cannot be earlier than start date", nameof(searchModel.EndDate));
-        }
-        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
-        
+            throw new ArgumentException("End date cannot be earlier than start date");
+
+        var isAdminOrHR =
+            await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+
+        PagedResult<AttendanceDto> result;
+
         if (isAdminOrHR)
         {
-            // Super Admin or HR Manager: Get all employees' attendance
-            _logger.LogInformation("User is Super Admin or HR Manager - returning all employees attendance");
-            return await _attendanceRepository.GetAttendanceAsync(
-                searchModel.EmployeeId, // Allow filtering by specific employee if provided
+            // ✅ Admin / HR
+            result = await _attendanceRepository.GetAttendanceAsync(
+                searchModel.EmployeeId,
                 organizationId,
                 searchModel.StartDate,
                 searchModel.EndDate,
                 searchModel.Page,
-                searchModel.PageSize, searchModel?.departmentid, searchModel?.Status);
-
+                searchModel.PageSize,
+                searchModel?.departmentid,
+                searchModel?.Status);
         }
         else
         {
-            // Manager: Get only their team's attendance (employees whose reporting manager is this manager)
-            _logger.LogInformation("User is Manager - returning team employees attendance for manager: {EmployeeId}", currentEmployeeId);
-            
-            // Get team employee IDs
-            var teamEmployeeIds = await _attendanceRepository.GetTeamEmployeeIdsAsync(currentEmployeeId, organizationId);
-            
-            // If user specified a specific employee ID, check if it's in their team
-            if (searchModel.EmployeeId.HasValue)
+            // ✅ Manager
+            var teamEmployeeIds =
+                await _attendanceRepository.GetTeamEmployeeIdsAsync(currentEmployeeId, organizationId);
+
+            if (searchModel.EmployeeId.HasValue &&
+                !teamEmployeeIds.Contains(searchModel.EmployeeId.Value))
             {
-                if (!teamEmployeeIds.Contains(searchModel.EmployeeId.Value))
-                {
-                    // Employee not in manager's team, return empty result
-                    return new PagedResult<AttendanceDto>
-                    {
-                        Data = new List<AttendanceDto>(),
-                        TotalCount = 0,
-                        Page = searchModel.Page,
-                        PageSize = searchModel.PageSize
-                    };
-                }
-                // Employee is in team, proceed with the specific employee filter
-                return await _attendanceRepository.GetAttendanceAsync(
-                    searchModel.EmployeeId,
-                    organizationId,
-                    searchModel.StartDate,
-                    searchModel.EndDate,
-                    searchModel.Page,
-                    searchModel.PageSize);
-            }
-            
-            // No specific employee filter, get attendance for all team members
-            // Since the repository uses a database function that doesn't support filtering by multiple employee IDs,
-            // we need to get all attendance and filter by team IDs in memory
-            // Note: For better performance with large datasets, consider creating a repository method
-            // that accepts a list of employee IDs or modifies the database function
-            
-            if (teamEmployeeIds.Count == 0)
-            {
-                // Manager has no team members, return empty result
                 return new PagedResult<AttendanceDto>
                 {
                     Data = new List<AttendanceDto>(),
@@ -289,40 +284,82 @@ public class AttendanceService : IAttendanceService
                     PageSize = searchModel.PageSize
                 };
             }
-            
-            // Get all attendance for the organization (with a large page size to get all records)
-            // Then filter by team IDs and apply pagination
-            var allAttendance = await _attendanceRepository.GetAttendanceAsync(
-                null, // Get all
-                organizationId,
-                searchModel.StartDate,
-                searchModel.EndDate,
-                1, // Start from page 1
-                100000,searchModel?.departmentid, searchModel?.Status); // Large page size to get all records (adjust based on expected data size)
-            
-            // Filter by team employee IDs
-            var filteredAttendance = allAttendance.Data
-                .Where(a => teamEmployeeIds.Contains(a.EmployeeId))
-                .ToList();
-            
-            // Apply pagination to filtered results
-            var totalCount = filteredAttendance.Count;
-            var page = searchModel.Page;
-            var pageSize = searchModel.PageSize;
-            var skip = (page - 1) * pageSize;
-            var pagedData = filteredAttendance
-                .Skip(skip)
-                .Take(pageSize)
-                .ToList();
-            
-            return new PagedResult<AttendanceDto>
+            if (searchModel.EmployeeId.HasValue)
             {
-                Data = pagedData,
-                TotalCount = totalCount,
-                Page = page,
-                PageSize = pageSize
-            };
+                result = await _attendanceRepository.GetAttendanceAsync(
+                    searchModel.EmployeeId,
+                    organizationId,
+                    searchModel.StartDate,
+                    searchModel.EndDate,
+                    searchModel.Page,
+                    searchModel.PageSize);
+            }
+            else
+            {
+                if (teamEmployeeIds.Count == 0)
+                {
+                    return new PagedResult<AttendanceDto>
+                    {
+                        Data = new List<AttendanceDto>(),
+                        TotalCount = 0,
+                        Page = searchModel.Page,
+                        PageSize = searchModel.PageSize
+                    };
+                }
+
+                var allAttendance =
+                    await _attendanceRepository.GetAttendanceAsync(
+                        null,
+                        organizationId,
+                        searchModel.StartDate,
+                        searchModel.EndDate,
+                        1,
+                        100000,
+                        searchModel?.departmentid,
+                        searchModel?.Status);
+
+                var filteredAttendance = allAttendance.Data
+                    .Where(a => teamEmployeeIds.Contains(a.EmployeeId))
+                    .ToList();
+
+                var totalCount = filteredAttendance.Count;
+                var skip = (searchModel.Page - 1) * searchModel.PageSize;
+
+                var pagedData = filteredAttendance
+                    .Skip(skip)
+                    .Take(searchModel.PageSize)
+                    .ToList();
+
+                result = new PagedResult<AttendanceDto>
+                {
+                    Data = pagedData,
+                    TotalCount = totalCount,
+                    Page = searchModel.Page,
+                    PageSize = searchModel.PageSize
+                };
+            }
         }
+        var allowedIps = await _ipAddressRepository.GetAllAsync();
+        var allowedIpStrings = allowedIps
+            .Select(ip => ip.IpAddressValue)
+            .ToHashSet();
+
+        foreach (var attendance in result.Data)
+        {
+            attendance.checkinLocationType =
+                attendance.checkinip != null &&
+                allowedIpStrings.Contains(attendance.checkinip)
+                    ? "Office"
+                    : "Outside";
+
+            attendance.checkoutLocationType =
+                attendance.checkoutip != null &&
+                allowedIpStrings.Contains(attendance.checkoutip)
+                    ? "Office"
+                    : "Outside";
+        }
+
+        return result;
     }
 
     public async Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate)
@@ -659,7 +696,7 @@ public class AttendanceService : IAttendanceService
         {
             var notification = new NotificationCreateDto
             {
-                Receiveruserid = request.EmployeeId,
+                Receiveruserid = new List<Guid> { request.EmployeeId },
                 Senderuserid = currentEmpid,
                 Title = "Shift Assign",
                 //RequestId = leaveRequest.RequestId,
@@ -739,7 +776,8 @@ public class AttendanceService : IAttendanceService
         {
             var notification = new NotificationCreateDto
             {
-                Receiveruserid = reportingmangerid,
+                //Receiveruserid = reportingmangerid,
+                Receiveruserid = new List<Guid> { reportingmangerid},
                 Senderuserid = employee.EmployeeId,
                 Title = "Swap Request",
                 Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
@@ -774,7 +812,7 @@ public class AttendanceService : IAttendanceService
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Receiveruserid = new List<Guid> { shiftrequestDetails.EmployeeId },
                     Senderuserid = dto.ApprovedBy,
                     Title = "Shift Swap Request",
                     Message = $"Your shift swap request is Rejected {dto.RejectionReason} ",
@@ -796,7 +834,7 @@ public class AttendanceService : IAttendanceService
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Receiveruserid = new List<Guid> { shiftrequestDetails.EmployeeId },
                     Senderuserid = dto.ApprovedBy,
                     Title = "Shift Swap Request",
                     Message = $"Your shift swap request is Accepted ",

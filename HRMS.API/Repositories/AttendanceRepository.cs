@@ -272,60 +272,6 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         }
     }
 
-    //Chnages
-
-    //public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId)
-    //{
-    //    try
-    //    {
-    //        var sql = @"
-    //        SELECT attendanceid
-    //        FROM attendance.attendance
-    //        WHERE employeeid = @employeeId
-    //          AND workdate =(NOW() AT TIME ZONE 'UTC')::date
-    //        LIMIT 1;
-    //    ";
-
-    //        return await QuerySingleOrDefaultAsync<Guid?>(sql, new { employeeId });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex,
-    //            "Error getting today's attendance id for employee {EmployeeId}", employeeId);
-    //        throw;
-    //    }
-    //}
-
-
-    //public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId, DateTime? date = null)
-    //{
-    //    try
-    //    {
-    //        // Use provided date or default to today (UTC)
-    //        var targetDate = date?.Date ?? DateTime.UtcNow.Date;
-
-    //        var sql = @"
-    //    SELECT attendanceid
-    //    FROM attendance.attendance
-    //    WHERE employeeid = @employeeId
-    //      AND workdate::date = @workDate
-    //    LIMIT 1;
-    //    ";
-
-    //        return await QuerySingleOrDefaultAsync<Guid?>(sql, new
-    //        {
-    //            employeeId,
-    //            workDate = targetDate
-    //        });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex,
-    //            "Error getting attendance id for employee {EmployeeId} on date {Date}", employeeId, date);
-    //        throw;
-    //    }
-    //}
-
 
     public async Task<Guid?> GetAttendanceIdAsync(Guid employeeId, DateTime? date = null)
     {
@@ -607,44 +553,6 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
-
-
-    //Chnages here
-
-    //public async Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request)
-    //{
-    //    try
-    //    {
-    //        var createdAt = DateTime.Now;
-    //        var sql = @"
-    //        INSERT INTO attendance.shifts
-    //            (organizationid, shiftname, starttime, endtime, breakduration, daysofweek, timezone,createdat)
-    //        VALUES
-    //            (@OrganizationId, @ShiftName, @StartTime, @EndTime, @BreakDuration, @DaysofWeek, @Timezone,@createdAt);
-    //    ";
-
-    //        var parameters = new
-    //        {
-    //            createdAt = createdAt,
-    //            OrganizationId = organizationId,
-    //            ShiftName = request.ShiftName,
-    //            StartTime = request.StartTime,
-    //            EndTime = request.EndTime,
-    //            BreakDuration = request.BreakDuration ?? 0,
-    //            DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
-    //            Timezone = request.Timezone ?? "UTC"
-    //        };
-
-    //        var rowsAffected = await ExecuteAsync(sql, parameters);
-    //        return rowsAffected > 0;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error creating shift for organization {OrganizationId}", organizationId);
-    //        throw;
-    //    }
-    //}
-
 
     public async Task<bool> CreateShiftAsync(Guid organizationId, CreateShiftDto request)
     {
@@ -1118,46 +1026,6 @@ WHERE ed.employeeid = @EmployeeId
     }
 
 
-
-
-
-
-
-
-
-    //public async Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
-    //{
-    //    try
-    //    {
-    //        var sql = @"
-    //        SELECT 
-    //            shiftid AS ShiftId,
-    //            organizationid AS OrganizationId,
-    //            shiftname AS ShiftName,
-    //            starttime AS StartTime,
-    //            endtime AS EndTime,
-    //            breakduration AS BreakDuration,
-    //            daysofweek AS DaysOfWeek,
-    //            timezone AS Timezone,
-    //            isactive AS IsActive,
-    //            createdat AS CreatedAt
-    //        FROM attendance.shifts
-    //        WHERE organizationid = @OrganizationId
-    //        ORDER BY createdat DESC;
-    //    ";
-
-    //        var parameters = new { OrganizationId = organizationId };
-    //        var result = await QueryAsync<ShiftDto>(sql, parameters);
-    //        return result.ToList();
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error fetching shifts for organization {OrganizationId}", organizationId);
-    //        throw;
-    //    }
-    //}
-
-
     public async Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
     {
         try
@@ -1195,50 +1063,6 @@ WHERE ed.employeeid = @EmployeeId
             throw;
         }
     }
-
-
-
-    //public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)
-    //{
-    //    try
-    //    {
-
-    //        var sql = @"
-    //        UPDATE attendance.shifts
-    //        SET
-    //            shiftname = @ShiftName,
-    //            starttime = @StartTime,
-    //            endtime = @EndTime,
-    //            breakduration = @BreakDuration,
-    //            daysofweek = @DaysofWeek,
-    //            timezone = @Timezone,
-
-    //        WHERE
-    //            organizationid = @OrganizationId AND shiftid = @ShiftId;
-    //    ";
-
-    //        var parameters = new
-    //        {
-    //            OrganizationId = organizationId,
-    //            ShiftId = shiftId,
-    //            ShiftName = request.ShiftName,
-    //            StartTime = request.StartTime,
-    //            EndTime = request.EndTime,
-    //            BreakDuration = request.BreakDuration ?? 0,
-    //            DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
-    //            Timezone = request.Timezone ?? "UTC",
-
-    //        };
-
-    //        var rowsAffected = await ExecuteAsync(sql, parameters);
-    //        return rowsAffected > 0;
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error updating shift {ShiftId} for organization {OrganizationId}", shiftId, organizationId);
-    //        throw;
-    //    }
-    //}
 
     public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)
     {
@@ -1747,49 +1571,6 @@ WHERE ed.employeeid = @EmployeeId
         };
     }
 
-
-    //public async Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(
-    //Guid organizationId,
-    //Guid? departmentId)
-    //{
-    //    try
-    //    {
-    //        var sql = @"
-    //        SELECT 
-    //            e.employeeid AS EmployeeId,
-    //            e.firstname AS FirstName,
-    //            e.lastname AS LastName
-    //        FROM employee.employees e
-    //        INNER JOIN employee.employmentdetails d
-    //            ON e.employeeid = d.employeeid
-    //        WHERE e.organizationid = @OrganizationId
-    //          AND e.status = 'active'
-    //          AND d.iscurrent = true
-    //          AND (@DepartmentId IS NULL OR d.departmentid = @DepartmentId)
-    //        ORDER BY e.firstname, e.lastname;
-    //    ";
-
-    //        var parameters = new
-    //        {
-    //            OrganizationId = organizationId,
-    //            DepartmentId = departmentId
-    //        };
-
-    //        // ?? EXACT same repository pattern you use everywhere
-    //        var result = await QueryAsync<EmployeeSimpleDto>(sql, parameters);
-
-    //        return result.ToList();
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex,
-    //            "Error retrieving employee list for Admin in Organization {OrganizationId}",
-    //            organizationId);
-
-    //        throw;
-    //    }
-    //}
-
     public async Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(
     Guid organizationId,
     Guid? departmentId)
@@ -2067,33 +1848,6 @@ SELECT
             throw new Exception($"Error retrieving employee ID for user {Userid}", ex);
         }
     }
-//    Task<bool> IsHRManagerAsync(Guid employeeId, Guid organizationId)
-//    {
-//        try
-//        {
-//            var sql = @"SELECT 
-//    CASE 
-//        WHEN r.rolename = 'HR Manager' THEN TRUE
-//        ELSE FALSE
-//    END AS is_hr_manager
-//FROM employee.employee e
-//JOIN auth.users u ON u.userid = e.userid
-//JOIN auth.roles r ON r.roleid = u.roleid
-//WHERE e.employeeid = @employeeid and u.organizationId=@organizationId;
-//";
-//            var parameters = new
-//            {
-//                employeeId,
-//                organizationId
-//            };
-//            var isHRManager = QuerySingleAsync<bool>(sql, parameters);
-//            return isHRManager;
-//        }
-//        catch (Exception ex)
-//        {
-//            throw new Exception($"Error checking HR manager status for employee {employeeId} in organization {organizationId}", ex);
-//        }
-//    }
 
     async Task<bool> IAttendanceRepository.IsHRManagerAsync(Guid employeeId, Guid organizationId)
     {
