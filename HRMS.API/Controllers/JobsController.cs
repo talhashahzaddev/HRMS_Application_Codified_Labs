@@ -471,6 +471,46 @@ public class JobsController : ControllerBase
         }
     }
 
+    [HttpGet("applications/received")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetReceivedJobApplications(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] DateTime? applyDateFrom = null,
+        [FromQuery] DateTime? applyDateTo = null,
+        [FromQuery] Guid? stageId = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _jobsService.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting received job applications");
+            return Unauthorized(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving received job applications");
+            return StatusCode(500, new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving received job applications"
+            });
+        }
+    }
+
     [HttpGet("applications/by-job/{jobId}")]
     [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
@@ -626,7 +666,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("applications/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> UpdateJobApplication(Guid id, [FromBody] UpdateJobApplicationRequest request)
     {
         try
@@ -673,7 +713,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("applications/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobApplication(Guid id)
     {
         try
