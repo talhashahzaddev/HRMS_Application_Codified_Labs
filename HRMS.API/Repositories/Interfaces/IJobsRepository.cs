@@ -24,6 +24,7 @@ public interface IJobsRepository
     Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);
     Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId);
     Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId);
+    Task<PagedResult<JobApplicationDto>> GetJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, Guid? stageId, string? status, int pageNumber, int pageSize);
     Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId);
     Task<Guid> CreateJobApplicationAsync(JobApplication entity);
     Task<bool> UpdateJobApplicationAsync(JobApplication entity);

@@ -506,22 +506,26 @@ public class JobsController : ControllerBase
 
     [HttpGet("applications/me")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
-    public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetMyJobApplications()
+    public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMyJobApplications(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] Guid? stageId = null,
+        [FromQuery] string? status = null)
     {
         try
         {
             var employeeId = await GetCurrentEmployeeId();
-            var applications = await _jobsService.GetJobApplicationsByEmployeeIdAsync(employeeId);
-            return Ok(new ServiceResponse<List<JobApplicationDto>>
+            var result = await _jobsService.GetMyJobApplicationsPagedAsync(employeeId, stageId, status, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = true,
-                Data = applications?.ToList() ?? new List<JobApplicationDto>()
+                Data = result
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting my job applications");
-            return Unauthorized(new ServiceResponse<List<JobApplicationDto>>
+            return Unauthorized(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -530,7 +534,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving my job applications");
-            return StatusCode(500, new ServiceResponse<List<JobApplicationDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving job applications"

@@ -285,6 +285,37 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await QueryAsync<JobApplicationDto>(sql, new { employeeId });
     }
 
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, Guid? stageId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+        var offset = (pageNumber - 1) * pageSize;
+
+        var countSql = @"
+            SELECT COUNT(*)
+            FROM jobs.jobapplications a
+            WHERE a.employeeid = @employeeId
+              AND (@stageId IS NULL OR a.currentstageid = @stageId)
+              AND (@status IS NULL OR a.status = @status)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, stageId, status });
+
+        var dataSql = JobApplicationSelectSql + @"
+            WHERE a.employeeid = @employeeId
+              AND (@stageId IS NULL OR a.currentstageid = @stageId)
+              AND (@status IS NULL OR a.status = @status)
+            ORDER BY a.createddate DESC NULLS LAST
+            LIMIT @pageSize OFFSET @offset";
+        var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, stageId, status, pageSize, offset });
+        return new PagedResult<JobApplicationDto>
+        {
+            Data = data?.ToList() ?? new List<JobApplicationDto>(),
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
     {
         var sql = JobApplicationSelectSql + @"

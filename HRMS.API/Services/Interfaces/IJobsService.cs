@@ -23,6 +23,7 @@ public interface IJobsService
     Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);
     Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId);
     Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId);
+    Task<PagedResult<JobApplicationDto>> GetMyJobApplicationsPagedAsync(Guid employeeId, Guid? stageId, string? status, int pageNumber, int pageSize);
     Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId);
     Task<JobApplicationDto> CreateJobApplicationAsync(Guid organizationId, Guid employeeId, CreateJobApplicationRequest request);
     Task<JobApplicationDto?> UpdateJobApplicationAsync(Guid jobApplyId, UpdateJobApplicationRequest request);

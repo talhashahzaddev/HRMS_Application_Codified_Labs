@@ -179,6 +179,11 @@ public class JobsService : IJobsService
         return await _jobsRepository.GetJobApplicationsByEmployeeIdAsync(employeeId);
     }
 
+    public async Task<PagedResult<JobApplicationDto>> GetMyJobApplicationsPagedAsync(Guid employeeId, Guid? stageId, string? status, int pageNumber, int pageSize)
+    {
+        return await _jobsRepository.GetJobApplicationsByEmployeeIdPagedAsync(employeeId, stageId, status, pageNumber, pageSize);
+    }
+
     public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
     {
         return await _jobsRepository.GetJobApplicationsByJobIdAsync(jobId);
