@@ -270,6 +270,51 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await QueryAsync<JobApplicationDto>(sql, new { organizationId });
     }
 
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+        var offset = (pageNumber - 1) * pageSize;
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
+        var fromDate = applyDateFrom ?? new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var toDate = applyDateTo ?? new DateTime(9999, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+
+        var countSql = @"
+            SELECT COUNT(*)
+            FROM jobs.jobapplications a
+            LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
+            WHERE a.organizationid = @organizationId
+              AND (@searchPattern IS NULL OR (
+                  a.candidatename ILIKE @searchPattern OR
+                  a.candidateemail ILIKE @searchPattern OR
+                  j.jobrolename ILIKE @searchPattern))
+              AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
+              AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
+              AND (@stageId IS NULL OR a.currentstageid = @stageId)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, fromDate, toDate, stageId });
+
+        var dataSql = JobApplicationSelectSql + @"
+            WHERE a.organizationid = @organizationId
+              AND (@searchPattern IS NULL OR (
+                  a.candidatename ILIKE @searchPattern OR
+                  a.candidateemail ILIKE @searchPattern OR
+                  j.jobrolename ILIKE @searchPattern))
+              AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
+              AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
+              AND (@stageId IS NULL OR a.currentstageid = @stageId)
+            ORDER BY a.createddate DESC NULLS LAST
+            LIMIT @pageSize OFFSET @offset";
+        var data = await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, stageId, pageSize, offset });
+        return new PagedResult<JobApplicationDto>
+        {
+            Data = data?.ToList() ?? new List<JobApplicationDto>(),
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId)
     {
         var sql = JobApplicationSelectSql + @"
@@ -283,6 +328,37 @@ public class JobsRepository : BaseRepository, IJobsRepository
             WHERE a.employeeid = @employeeId
             ORDER BY a.createddate DESC NULLS LAST";
         return await QueryAsync<JobApplicationDto>(sql, new { employeeId });
+    }
+
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, Guid? stageId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+        var offset = (pageNumber - 1) * pageSize;
+
+        var countSql = @"
+            SELECT COUNT(*)
+            FROM jobs.jobapplications a
+            WHERE a.employeeid = @employeeId
+              AND (@stageId IS NULL OR a.currentstageid = @stageId)
+              AND (@status IS NULL OR a.status = @status)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, stageId, status });
+
+        var dataSql = JobApplicationSelectSql + @"
+            WHERE a.employeeid = @employeeId
+              AND (@stageId IS NULL OR a.currentstageid = @stageId)
+              AND (@status IS NULL OR a.status = @status)
+            ORDER BY a.createddate DESC NULLS LAST
+            LIMIT @pageSize OFFSET @offset";
+        var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, stageId, status, pageSize, offset });
+        return new PagedResult<JobApplicationDto>
+        {
+            Data = data?.ToList() ?? new List<JobApplicationDto>(),
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
     }
 
     public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
