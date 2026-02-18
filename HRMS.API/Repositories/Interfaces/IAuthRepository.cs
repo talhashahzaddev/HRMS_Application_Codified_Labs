@@ -8,6 +8,7 @@ public interface IAuthRepository
 {
 
     ////adding this line here
+    Task<string?> GetDomainByOrganizationIdAsync(Guid organizationId);
     Task<Guid> AdminIntoEmployeeDetailsAsync( Guid positionId, Guid employeeId);
     Task<Guid> GetEmployeeIdByEmailAsync(string email);
     Task<Guid> GetPositionByEmailAsync(string email);

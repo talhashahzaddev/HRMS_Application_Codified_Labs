@@ -497,6 +497,19 @@ WHERE token = @token;
         var affected = await ExecuteAsync(sql, new { userId, refreshToken, expiresAt });
         return affected > 0;
     }
+    //Get Domain
+    public async Task<string?> GetDomainByOrganizationIdAsync(Guid organizationId)
+    {
+        
+            var sql = @"select  
+                        domain
+                    from auth.organizations
+                    where organizationid = @organizationId";
+
+            var result = await QuerySingleOrDefaultAsync<string>(sql, new { organizationId });
+        return result;
+    }
+
     public async Task<string> GetHashedPassword(string email)
     {
         var sql = "SELECT passwordhash FROM auth.users WHERE email = @Email";
