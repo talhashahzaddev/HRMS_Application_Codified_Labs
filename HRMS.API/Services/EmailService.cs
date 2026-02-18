@@ -300,7 +300,7 @@ public class EmailService : IEmailService
     .Replace("https://", "")
     .Replace(".com", "");
 
-        var dashboardUrl = $"http://{domain}.briskpeople.com/news/view-news/{newsid}";
+        var dashboardUrl = $"http://{cleanDomain}.briskpeople.com/news/view-news/{newsid}";
         // Use full description
         // Clean & limit description to first 25 words (remove HTML if present)
         var fullDescription = string.IsNullOrWhiteSpace(request.Description)
