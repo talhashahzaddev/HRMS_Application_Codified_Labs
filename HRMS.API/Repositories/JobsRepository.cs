@@ -330,28 +330,32 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await QueryAsync<JobApplicationDto>(sql, new { employeeId });
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, Guid? stageId, string? status, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize)
     {
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize < 1) pageSize = 10;
         if (pageSize > 100) pageSize = 100;
         var offset = (pageNumber - 1) * pageSize;
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
 
         var countSql = @"
             SELECT COUNT(*)
             FROM jobs.jobapplications a
+            LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             WHERE a.employeeid = @employeeId
+              AND (@searchPattern IS NULL OR j.jobrolename ILIKE @searchPattern)
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
               AND (@status IS NULL OR a.status = @status)";
-        var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, stageId, status });
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, searchPattern, stageId, status });
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.employeeid = @employeeId
+              AND (@searchPattern IS NULL OR j.jobrolename ILIKE @searchPattern)
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
               AND (@status IS NULL OR a.status = @status)
             ORDER BY a.createddate DESC NULLS LAST
             LIMIT @pageSize OFFSET @offset";
-        var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, stageId, status, pageSize, offset });
+        var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, searchPattern, stageId, status, pageSize, offset });
         return new PagedResult<JobApplicationDto>
         {
             Data = data?.ToList() ?? new List<JobApplicationDto>(),

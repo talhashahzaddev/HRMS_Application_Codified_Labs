@@ -549,13 +549,14 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMyJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
         [FromQuery] Guid? stageId = null,
         [FromQuery] string? status = null)
     {
         try
         {
             var employeeId = await GetCurrentEmployeeId();
-            var result = await _jobsService.GetMyJobApplicationsPagedAsync(employeeId, stageId, status, pageNumber, pageSize);
+            var result = await _jobsService.GetMyJobApplicationsPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
             return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = true,
