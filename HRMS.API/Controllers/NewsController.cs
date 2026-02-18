@@ -16,6 +16,7 @@ namespace HRMS.API.Controllers
         private readonly ILogger<NewsController> _logger;
         private readonly INewsService _newsService;
 
+
         public NewsController(ILogger<NewsController> logger, INewsService newsService)
         {
             _logger = logger;
@@ -254,7 +255,7 @@ namespace HRMS.API.Controllers
             }
         }
 
-        [HttpGet("{newsId}")]
+        [HttpGet("getNewsById/{newsId}")]
         public async Task<ActionResult<ServiceResponse<NewsDto>>> GetNewsByNewsId(Guid newsId)
         {
             try

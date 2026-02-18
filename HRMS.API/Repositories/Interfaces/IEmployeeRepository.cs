@@ -20,6 +20,7 @@ public interface IEmployeeRepository
     Task<Employee> CreateEmployeeAsync(Employee employee);
     Task<Employee?> GetEmployeeByIdAsync(Guid? employeeId);
     Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode);
+    Task<List<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds);
     Task<Employee?> GetEmployeeByEmailAsync(Guid organizationId, string email);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
     Guid? organizationId = null, string? searchTerm = null, Guid? departmentId = null,Guid? positionId=null,string? employmentType=null,

@@ -20,8 +20,9 @@ namespace HRMS.API.Services
         private readonly ICloudinaryService _cloudinaryService;
         private readonly IEmployeeRepository _employeeRepository;
         private readonly INotificationRepository _notificationRepository;
+        private readonly IEmailService _emailService;
         public NewsService(ILogger<NewsService> logger, INewsRepository newsRepository, IAttendanceRepository attendanceRepository, ICloudinaryService cloudinaryService,
-            IEmployeeRepository employeeRepository, INotificationRepository notificationRepository)
+            IEmployeeRepository employeeRepository, INotificationRepository notificationRepository, IEmailService emailService)
         {
             _logger = logger;
             _newsRepository = newsRepository;
@@ -29,6 +30,7 @@ namespace HRMS.API.Services
             _cloudinaryService = cloudinaryService;
             _employeeRepository = employeeRepository;
             _notificationRepository = notificationRepository;
+            _emailService = emailService;
         }
 
         public async Task<NewsDto> CreateNewsAsync(Guid employeeId, Guid organizationId, NewsRequest request)
@@ -70,12 +72,30 @@ namespace HRMS.API.Services
                         moduletype = "News",
                         Redirecturl = "/news/dashboard",
                         organizationId = organizationId,
-                        RequestId=createdNews.NewsId
-                     
-
+                        RequestId = createdNews.NewsId
                     };
-
                     await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+                }
+            }
+            //Implemennting Email in news creation
+            var ReciverEmails = new List<string>();
+            if(createdNews!=null && request.Status.Equals("Published", StringComparison.OrdinalIgnoreCase)) 
+            {
+                if (request.VisibleTo == "Everyone")
+                {
+                    var allEmployees = await _employeeRepository.GetEmployeesAsync(organizationId);
+                    ReciverEmails = allEmployees.Data.Where(e => e.Email != null).Select(e => e.Email).ToList();
+                    await _emailService.SendNewsEmailAsync(ReciverEmails,request,organizationId,createdNews.NewsId);
+
+                }
+                else if (request.VisibleTo == "Selected")
+                {
+                    List<Guid> selectedEmployeeIds = request.SelectedEmployees?.ToList() ?? new List<Guid>();
+
+                    var selectedEmployees = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(selectedEmployeeIds);
+                    ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
+                    await _emailService.SendNewsEmailAsync(ReciverEmails, request,organizationId,createdNews.NewsId);
+
                 }
             }
             return createdNews;

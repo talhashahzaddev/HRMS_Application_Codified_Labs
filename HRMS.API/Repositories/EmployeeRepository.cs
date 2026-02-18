@@ -289,9 +289,46 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
         }
     }
+    public async Task<List<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds)
+    {
+        try
+        {
+            var sql = @"
+        SELECT 
+            e.employeeid, e.organizationid, e.userid, e.employeecode AS EmployeeNumber,
+            e.firstname, e.lastname, e.email, e.phone, e.address, 
+            e.profilepictureurl AS ProfilePictureUrl,
+            e.dateofbirth, e.gender, e.nationality, e.maritalstatus,
+            e.emergencycontact AS EmergencyContact, 
+            e.hiredate, e.terminationdate, e.status,
+            e.createdat, e.updatedat,
+            ed.worklocation, ed.basicsalary AS BasicSalary, 
+            ed.departmentid, ed.positionid,
+            ed.reportingmanagerid AS reporting_manager_id,
+            CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
+            p.positiontitle, d.departmentname
+        FROM employee.employees AS e
+        LEFT JOIN employee.employmentdetails AS ed 
+            ON e.employeeid = ed.employeeid
+        LEFT JOIN employee.positions AS p 
+            ON ed.positionid = p.positionid
+        LEFT JOIN employee.departments AS d 
+            ON ed.departmentid = d.departmentid
+        LEFT JOIN employee.employees AS mgr 
+            ON ed.reportingmanagerid = mgr.employeeid
+        WHERE e.employeeid = ANY(@employeeIds);
+        ";
 
-
-
+            return (await QueryAsync<Employee>(
+                sql,
+                new { employeeIds }
+            )).ToList();
+        }
+        catch (Exception)
+        {
+            return new List<Employee>();
+        }
+    }
     public async Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode)
     {
         var sql = @"
@@ -513,18 +550,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
         return affected > 0;
     }
-
-    //public async Task<bool> DeleteEmployeeAsync(Guid employeeId,string status)
-    //{
-    //    var sql = @"
-    //        UPDATE employee.employees 
-    //        SET status = 'deleted', updatedat = CURRENT_TIMESTAMP 
-    //        WHERE employeeid = @employeeId";
-
-    //    var affected = await ExecuteAsync(sql, new { employeeId });
-    //    return affected > 0;
-    //}
-
     public async Task<bool> DeleteEmployeeAsync(Guid employeeId, string status)
     {
         var sql = @"

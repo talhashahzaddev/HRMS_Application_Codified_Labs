@@ -204,32 +204,43 @@ namespace HRMS.API.Repositories
                 throw;
             }
         }
+      
         public async Task<NewsDto> GetNewsByNewsIdAsync(Guid newsId)
         {
-         try
+            try
             {
-            var sql = @"select  
-            newsid as NewsId,
-            organizationid as OrganizationId,
-            title as Title,
-            description as Description,
-            createdby as CreatedBy,
-            category as Category,
-            imageurl as ImageUrl,
-            publishedat as PublishedAt,
-            status as Status,
-            visibleto as VisibleTo,
-            selectedemployees as SelectedEmployees,
-            createdat as CreatedAt  
-            from news.news 
-            where  newsid=@newsId ";
-            var result = await QuerySingleAsync<NewsDto>(sql, new { newsId });
-            return result;
+                var sql = @"select  
+            n.newsid            as NewsId,
+            n.organizationid   as OrganizationId,
+            n.title             as Title,
+            n.description       as Description,
+            n.createdby         as CreatedBy,
+            n.category          as Category,
+            n.imageurl          as ImageUrl,
+            n.publishedat       as PublishedAt,
+            n.status            as Status,
+            n.visibleto         as VisibleTo,
+            n.selectedemployees as SelectedEmployees,
+            n.createdat         as CreatedAt,
+            concat(e.firstname, ' ', e.lastname) as AuthorName
+        from news.news n
+        left join employee.employees e 
+            on e.employeeid = n.createdby
+        where n.newsid = @newsId";
+
+                var result = await QuerySingleAsync<NewsDto>(sql, new { newsId });
+                return result;
             }
-         catch (Exception ex)
+            catch (Exception ex)
             {
-            _logger.LogError(ex,"Error updating news {NewsId} by employee {EmployeeId} in organization {OrganizationId}",newsId); throw;}
+                _logger.LogError(ex,
+                    "Error getting news {NewsId}",
+                    newsId);
+
+                throw;
+            }
         }
+
         public async Task<bool> DeleteNewsAsync(Guid newsId)
         {
          try
