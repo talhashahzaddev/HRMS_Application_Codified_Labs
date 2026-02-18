@@ -471,8 +471,48 @@ public class JobsController : ControllerBase
         }
     }
 
-    [HttpGet("applications/received")]
+    [HttpGet("applications/posted-by-me")]
     [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetJobApplicationsPostedByMe(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] DateTime? applyDateFrom = null,
+        [FromQuery] DateTime? applyDateTo = null,
+        [FromQuery] Guid? stageId = null)
+    {
+        try
+        {
+            var employeeId = await GetCurrentEmployeeId();
+            var result = await _jobsService.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting job applications posted by me");
+            return Unauthorized(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving job applications posted by me");
+            return StatusCode(500, new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving job applications posted by you"
+            });
+        }
+    }
+
+    [HttpGet("applications/received")]
+    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetReceivedJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -549,13 +589,14 @@ public class JobsController : ControllerBase
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMyJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
         [FromQuery] Guid? stageId = null,
         [FromQuery] string? status = null)
     {
         try
         {
             var employeeId = await GetCurrentEmployeeId();
-            var result = await _jobsService.GetMyJobApplicationsPagedAsync(employeeId, stageId, status, pageNumber, pageSize);
+            var result = await _jobsService.GetMyJobApplicationsPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
             return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = true,
