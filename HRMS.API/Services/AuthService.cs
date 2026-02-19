@@ -25,6 +25,8 @@ public class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly IEmailService _emailService;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly IJobsRepository _jobsRepository;
+
     public AuthService(
         IAuthRepository authRepository,
         IOrganizationService organizationService,
@@ -32,7 +34,8 @@ public class AuthService : IAuthService
         IMapper mapper,
         ILogger<AuthService> logger,
         ICloudinaryService cloudinaryService,
-         IEmailService emailService)
+        IEmailService emailService,
+        IJobsRepository jobsRepository)
     {
         _authRepository = authRepository;
         _organizationService = organizationService;
@@ -41,7 +44,7 @@ public class AuthService : IAuthService
         _logger = logger;
         _emailService = emailService;
         _cloudinaryService = cloudinaryService;
-
+        _jobsRepository = jobsRepository;
     }
 
     public async Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request)
@@ -233,6 +236,14 @@ public class AuthService : IAuthService
 
         var organizationId = orgResponse.Data.OrganizationId;
         _logger.LogInformation("Organization {OrganizationId} created successfully", organizationId);
+
+        // Create default job application stages for the new organization
+        var defaultStages = new[] { ("Initial", 1), ("Short List", 2), ("Interviewed", 3), ("Selected", 4), ("Rejected", 5) };
+        foreach (var (stageName, stageOrder) in defaultStages)
+        {
+            await _jobsRepository.CreateStageMasterAsync(organizationId, stageName, stageOrder);
+        }
+        _logger.LogInformation("Default stages created for organization {OrganizationId}", organizationId);
 
         // Step 2: Create SuperAdmin user for the organization
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
