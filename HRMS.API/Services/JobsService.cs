@@ -196,6 +196,11 @@ public class JobsService : IJobsService
         return await _jobsRepository.GetJobApplicationsByEmployeeIdPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
     }
 
+    public async Task<PagedResult<JobApplicationDto>> GetMySelfJobApplicationsPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize)
+    {
+        return await _jobsRepository.GetMySelfJobApplicationsByEmployeeIdPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
+    }
+
     public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
     {
         return await _jobsRepository.GetJobApplicationsByJobIdAsync(jobId);

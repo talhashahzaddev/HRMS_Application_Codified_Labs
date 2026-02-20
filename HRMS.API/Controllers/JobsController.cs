@@ -623,6 +623,45 @@ public class JobsController : ControllerBase
         }
     }
 
+    [HttpGet("applications/me/self")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMySelfJobApplications(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] Guid? stageId = null,
+        [FromQuery] string? status = null)
+    {
+        try
+        {
+            var employeeId = await GetCurrentEmployeeId();
+            var result = await _jobsService.GetMySelfJobApplicationsPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting my self job applications");
+            return Unauthorized(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my self job applications");
+            return StatusCode(500, new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving job applications"
+            });
+        }
+    }
+
     [HttpGet("applications/{id}")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> GetJobApplicationById(Guid id)
