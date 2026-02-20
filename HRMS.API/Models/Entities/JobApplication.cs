@@ -52,4 +52,6 @@ public class JobApplication
 
     [Column("updateddate")]
     public DateTime? UpdatedDate { get; set; }
+    [Column("isself")]
+    public bool? IsSelf { get; set; }
 }
