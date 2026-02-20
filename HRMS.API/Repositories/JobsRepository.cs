@@ -388,6 +388,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             FROM jobs.jobapplications a
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             WHERE a.employeeid = @employeeId
+              AND (a.isself = false OR a.isself IS NULL)
               AND (@searchPattern IS NULL OR j.jobrolename ILIKE @searchPattern)
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
               AND (@status IS NULL OR a.status = @status)";
@@ -395,6 +396,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.employeeid = @employeeId
+              AND (a.isself = false OR a.isself IS NULL)
               AND (@searchPattern IS NULL OR j.jobrolename ILIKE @searchPattern)
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
               AND (@status IS NULL OR a.status = @status)
@@ -422,9 +424,9 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = @"
             INSERT INTO jobs.jobapplications (jobid, organizationid, employeeid, candidatename, candidateemail,
-                linkedinurl, resumeurl, phone, coverletter, currentstageid, applicationsource, status)
+                linkedinurl, resumeurl, phone, coverletter, currentstageid, applicationsource, status,isself)
             VALUES (@JobId, @OrganizationId, @EmployeeId, @CandidateName, @CandidateEmail,
-                @LinkedInUrl, @ResumeUrl, @Phone, @CoverLetter, @CurrentStageId, @ApplicationSource, @Status)
+                @LinkedInUrl, @ResumeUrl, @Phone, @CoverLetter, @CurrentStageId, @ApplicationSource, @Status,@IsSelf)
             RETURNING jobapplyid";
         return await ExecuteScalarAsync<Guid>(sql, new
         {
@@ -439,7 +441,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
             entity.CoverLetter,
             entity.CurrentStageId,
             entity.ApplicationSource,
-            entity.Status
+            entity.Status,
+            entity.IsSelf
         });
     }
 

@@ -672,6 +672,7 @@ public class JobsController : ControllerBase
             }
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
+            request.IsSelf = false;
             var application = await _jobsService.CreateJobApplicationAsync(organizationId, employeeId, request);
             return CreatedAtAction(nameof(GetJobApplicationById), new { id = application.JobApplyId }, new ServiceResponse<JobApplicationDto>
             {
@@ -702,6 +703,57 @@ public class JobsController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while creating job application"
+            });
+        }
+    }
+
+    [HttpPost("applications/apply-for-myself")]
+    [Authorize(Roles = "Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> ApplyForMySelf([FromBody] ApplyForMySelfRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<JobApplicationDto>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var application = await _jobsService.ApplyForMySelfAsync(organizationId, employeeId, request);
+            return CreatedAtAction(nameof(GetJobApplicationById), new { id = application.JobApplyId }, new ServiceResponse<JobApplicationDto>
+            {
+                Success = true,
+                Message = "Job application submitted successfully",
+                Data = application
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access applying for job");
+            return Unauthorized(new ServiceResponse<JobApplicationDto> { Success = false, Message = ex.Message });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for apply for myself");
+            return BadRequest(new ServiceResponse<JobApplicationDto> { Success = false, Message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for apply for myself");
+            return BadRequest(new ServiceResponse<JobApplicationDto> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error applying for job");
+            return StatusCode(500, new ServiceResponse<JobApplicationDto>
+            {
+                Success = false,
+                Message = "An error occurred while submitting your application"
             });
         }
     }

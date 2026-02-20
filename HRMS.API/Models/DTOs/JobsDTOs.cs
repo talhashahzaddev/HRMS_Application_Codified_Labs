@@ -190,6 +190,26 @@ public class CreateJobApplicationRequest
 
     [MaxLength(50)]
     public string? Status { get; set; }
+    public bool? IsSelf { get; set; }
+}
+
+/// <summary>
+/// Request for applying to a job as the current employee (self). Candidate name, email, and phone are taken from the employee record.
+/// </summary>
+public class ApplyForMySelfRequest
+{
+    [Required]
+    public Guid JobId { get; set; }
+
+    public string? LinkedInUrl { get; set; }
+
+    [Required]
+    public string? ResumeUrl { get; set; }
+
+    public string? CoverLetter { get; set; }
+
+    [MaxLength(100)]
+    public string? ApplicationSource { get; set; }
 }
 
 // ==================== Application Stages (interviewer info for GET) ====================

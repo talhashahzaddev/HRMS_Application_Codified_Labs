@@ -172,12 +172,21 @@ public class EmployeeService : IEmployeeService
     public async Task<EmployeeDto?> GetEmployeeByIdAsync(Guid userId)
     {
         if (userId == Guid.Empty)
-            throw new ArgumentException("Employee ID cannot be empty", nameof(userId));
+            throw new ArgumentException("User ID cannot be empty", nameof(userId));
 
         var empid = await _employeeRepository.getemployeeid(userId);
 
         var employee = await _employeeRepository.GetEmployeeByIdAsync(empid);
 
+        return employee != null ? _mapper.Map<EmployeeDto>(employee) : null;
+    }
+
+    public async Task<EmployeeDto?> GetEmployeeByEmployeeIdAsync(Guid employeeId)
+    {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
         return employee != null ? _mapper.Map<EmployeeDto>(employee) : null;
     }
 

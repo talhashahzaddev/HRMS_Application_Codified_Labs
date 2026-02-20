@@ -8,11 +8,13 @@ namespace HRMS.API.Services;
 public class JobsService : IJobsService
 {
     private readonly IJobsRepository _jobsRepository;
+    private readonly IEmployeeService _employeeService;
     private readonly ILogger<JobsService> _logger;
 
-    public JobsService(IJobsRepository jobsRepository, ILogger<JobsService> logger)
+    public JobsService(IJobsRepository jobsRepository, IEmployeeService employeeService, ILogger<JobsService> logger)
     {
         _jobsRepository = jobsRepository;
+        _employeeService = employeeService;
         _logger = logger;
     }
 
@@ -221,7 +223,8 @@ public class JobsService : IJobsService
             CoverLetter = request.CoverLetter?.Trim(),
             CurrentStageId = request.CurrentStageId,
             ApplicationSource = request.ApplicationSource?.Trim(),
-            Status = string.IsNullOrWhiteSpace(request.Status) ? "Applied" : request.Status.Trim()
+            Status = string.IsNullOrWhiteSpace(request.Status) ? "Applied" : request.Status.Trim(),
+            IsSelf=request.IsSelf
         };
 
         var jobApplyId = await _jobsRepository.CreateJobApplicationAsync(entity);
@@ -229,6 +232,40 @@ public class JobsService : IJobsService
         if (created == null)
             throw new InvalidOperationException("Failed to retrieve created job application");
         return created;
+    }
+
+    public async Task<JobApplicationDto> ApplyForMySelfAsync(Guid organizationId, Guid employeeId, ApplyForMySelfRequest request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID is required", nameof(organizationId));
+        if (request.JobId == Guid.Empty)
+            throw new ArgumentException("Job ID is required", nameof(request));
+
+        var employee = await _employeeService.GetEmployeeByEmployeeIdAsync(employeeId);
+        if (employee == null)
+            throw new UnauthorizedAccessException("Current employee record not found. You must be an employee to apply for yourself.");
+
+        var candidateName = $"{employee.FirstName?.Trim() ?? ""} {employee.LastName?.Trim() ?? ""}".Trim();
+        if (string.IsNullOrWhiteSpace(candidateName))
+            candidateName = employee.FullName?.Trim();
+
+        var createRequest = new CreateJobApplicationRequest
+        {
+            JobId = request.JobId,
+            CandidateName = candidateName,
+            CandidateEmail = employee.Email?.Trim(),
+            Phone = employee.Phone?.Trim(),
+            LinkedInUrl = request.LinkedInUrl?.Trim(),
+            ResumeUrl = request.ResumeUrl?.Trim(),
+            CoverLetter = request.CoverLetter?.Trim(),
+            ApplicationSource = request.ApplicationSource?.Trim() ?? "Internal",
+            Status = "Applied",
+            IsSelf =true,
+        };
+
+        return await CreateJobApplicationAsync(organizationId, employeeId, createRequest);
     }
 
     public async Task<JobApplicationDto?> UpdateJobApplicationAsync(Guid jobApplyId, UpdateJobApplicationRequest request)
