@@ -1066,7 +1066,7 @@ public class AttendanceController : ControllerBase
 
     [HttpPost("shiftswap/approve")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveShiftSwapRequest([FromBody] ApproveShiftSwapRequestDto dto)
-    {
+    {  
         try
         {
             if (!ModelState.IsValid)
@@ -1692,7 +1692,8 @@ public class AttendanceController : ControllerBase
     {
         var orgId = GetCurrentOrganizationId();
         var managerId = await GetCurrentEmployeeId();
-        return Ok(await _attendanceService.FinalizeTimesheetBatchAsync(request.TimesheetId, orgId, managerId));
+        return Ok(await _attendanceService.FinalizeTimesheetBatchAsync(
+            request.TimesheetId, orgId, managerId, request.EmployeeId));
     }
 
     [HttpGet("timesheet/finalized/{timesheetId}")]
@@ -1746,7 +1747,6 @@ public class AttendanceController : ControllerBase
         var actionedBy = await GetCurrentEmployeeId();
         var orgId = GetCurrentOrganizationId();
 
-        // This variable 'result' is already of type ServiceResponse<bool>
         var response = await _attendanceService.ProcessAttendanceUpdateRequestAsync(dto, actionedBy, orgId);
 
         if (!response.Success)
@@ -1768,7 +1768,6 @@ public class AttendanceController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var currentEmployeeId = await GetCurrentEmployeeId();
 
-            // The Service will now handle the logic of "Admin View" vs "Personal View"
             var result = await _attendanceService.GetMonthlyTimesheetSnapshotsAsync(
                 organizationId,
                 startDate,
@@ -1840,13 +1839,14 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("timesheet/submit-approvals")]
-    [Authorize(Roles = "Employee")]
-    public async Task<IActionResult> SubmitApprovals([FromBody] Guid timesheetId)
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<IActionResult> SubmitApprovals([FromBody] FinalizeBatchRequestDto request) 
     {
         var orgId = GetCurrentOrganizationId();
-        var empId = await GetCurrentEmployeeId();
-
-        var response = await _attendanceService.SubmitTimesheetBatchAsync(timesheetId, empId, orgId);
+        var empId = request.EmployeeId != Guid.Empty
+            ? request.EmployeeId
+            : await GetCurrentEmployeeId();
+        var response = await _attendanceService.SubmitTimesheetBatchAsync(request.TimesheetId, empId, orgId);
         return Ok(response);
     }
     [HttpPost("timesheet/approve-all")]
@@ -1873,7 +1873,7 @@ public class AttendanceController : ControllerBase
     public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard(
     [FromQuery] Guid timesheetId,
     [FromQuery] Guid? employeeId = null) 
-    {
+     {
         if (timesheetId == Guid.Empty)
             return BadRequest(new { Message = "A valid Timesheet ID is required." });
 
@@ -1883,17 +1883,52 @@ public class AttendanceController : ControllerBase
         var result = await _attendanceService.GetManagerReviewDashboardAsync(timesheetId, organizationId, managerId, employeeId);
         return Ok(result);
     }
+    [HttpPost("admin-override")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> AdminOverride([FromBody] ManualAttendanceUpdateDto dto)
+    {
+        try
+        {
+            var managerId = await GetCurrentEmployeeId();
+            var orgId = GetCurrentOrganizationId();
+
+            var result = await _attendanceService.AdminOverrideAttendanceAsync(dto, managerId, orgId);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = result,
+                Message = result ? "Record finalized by administrative override." : "Failed to override record.",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during admin override for employee {EmployeeId}", dto.EmployeeId);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Internal server error" });
+        }
+    }
+
     [HttpGet("timesheet/org-progress")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<OrgSubmissionProgressDto>>> GetOrgProgress([FromQuery] int month, [FromQuery] int year)
+    public async Task<IActionResult> GetOrgSubmissionProgress(
+    [FromQuery] int month,
+    [FromQuery] int year)
     {
-        var orgId = GetCurrentOrganizationId();
-        var result = await _attendanceService.GetOrgSubmissionProgressAsync(orgId, month, year);
-        if (!result.Success)
+        if (month < 1 || month > 12)
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Month must be between 1 and 12." });
+        if (year < 2000 || year > 2100)
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Year is out of a valid range." });
+
+        var organizationId = GetCurrentOrganizationId(); // your existing helper to pull org from JWT
+
+        var progress = await _attendanceService.GetOrgSubmissionProgressAsync(
+            organizationId, month, year);
+
+        return Ok(new ServiceResponse<OrgSubmissionProgressDto>
         {
-            return BadRequest(result);
-        }
-        return Ok(result);
+            Success = true,
+            Data = progress
+        });
     }
     private async Task<Guid> GetCurrentEmployeeId()
     {

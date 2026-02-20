@@ -1287,21 +1287,22 @@ public class AttendanceService : IAttendanceService
 
         var startDate = new DateTime(snapshot.Year, snapshot.Month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
+        var today = DateTime.Today;
 
         var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
 
         var records = await _attendanceRepository.GetConsolidatedAttendanceAsync(
-     organizationId,
-     startDate,
-     endDate,
-     isAdminOrHR ? null : currentEmployeeId); 
+            organizationId,
+            startDate,
+            endDate,
+            isAdminOrHR ? null : currentEmployeeId);
 
         var groupedTimesheet = records
             .GroupBy(r => new {
                 r.EmployeeId,
                 r.EmployeeName,
-                r.EmployeeCode,   
-                r.DepartmentName  
+                r.EmployeeCode,
+                r.DepartmentName
             })
             .Select(g => new EmployeeTimesheetDto
             {
@@ -1309,20 +1310,49 @@ public class AttendanceService : IAttendanceService
                 EmployeeName = g.Key.EmployeeName,
                 EmployeeCode = g.Key.EmployeeCode,
                 Department = g.Key.DepartmentName,
-                DailyRecords = g.Select(r => new DailyAttendanceRecord
+                DailyRecords = g.Select(r =>
                 {
-                    AttendanceId = r.AttendanceId,
-                    Date = r.WorkDate,
-                    CheckInTime = r.CheckInTime,
-                    CheckOutTime = r.CheckOutTime,
-                    Status = r.Status,
-                    TotalHours = r.TotalHours,
-                    IsFinalized = r.IsFinalized,
-                    HasPendingRequest = r.HasPendingRequest
+                    string calculatedStatus;
+                    if (!string.IsNullOrEmpty(r.Status))
+                    {
+                        calculatedStatus = r.Status;
+                    }
+                    else if (r.WorkDate.Date > today)
+                    {
+                        calculatedStatus = "no_record";
+                    }
+                    else if (r.WorkDate.DayOfWeek == DayOfWeek.Saturday || r.WorkDate.DayOfWeek == DayOfWeek.Sunday)
+                    {
+                        calculatedStatus = "weekend";
+                    }
+                    else
+                    {
+                        calculatedStatus = "absent";
+                    }
+
+                    return new DailyAttendanceRecord
+                    {
+                        AttendanceId = r.AttendanceId,
+                        Date = r.WorkDate,
+                        CheckInTime = r.CheckInTime,
+                        CheckOutTime = r.CheckOutTime,
+                        Status = calculatedStatus,
+                        TotalHours = r.TotalHours,
+                        IsFinalized = r.IsFinalized,
+                        HasPendingRequest = r.HasPendingRequest,
+                        HasDraftRequest = r.HasDraftRequest
+                    };
                 }).OrderBy(d => d.Date).ToList(),
                 TotalHoursWorked = g.Sum(r => r.TotalHours),
                 PresentDays = g.Count(r => r.Status?.ToLower() == "present"),
-                AbsentDays = g.Count(r => r.Status?.ToLower() == "absent")
+                AbsentDays = g.Count(r => r.Status?.ToLower() == "absent"),
+                LateDays = g.Count(r => r.Status?.ToLower() == "late"),
+                AttendancePercentage = g.Any()
+                    ? Math.Round(
+                        (decimal)g.Count(r => r.Status?.ToLower() == "present" || r.Status?.ToLower() == "late" || r.Status?.ToLower() == "half_day")
+                        / g.Count(r => r.WorkDate.DayOfWeek != DayOfWeek.Saturday && r.WorkDate.DayOfWeek != DayOfWeek.Sunday && r.WorkDate.Date <= today)
+                        * 100, 1)
+                    : 0
             }).ToList();
 
         return new ServiceResponse<List<EmployeeTimesheetDto>> { Data = groupedTimesheet, Success = true };
@@ -1374,22 +1404,44 @@ public class AttendanceService : IAttendanceService
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred while processing the request." };
         }
     }
-    public async Task<ServiceResponse<int>> FinalizeTimesheetBatchAsync(Guid timesheetId, Guid organizationId, Guid managerEmployeeId)
+    public async Task<ServiceResponse<int>> FinalizeTimesheetBatchAsync(Guid timesheetId, Guid organizationId, Guid managerEmployeeId, Guid? employeeId = null)
     {
         try
         {
-            int count = await _attendanceRepository.BatchFinalizeMonthAsync(timesheetId, organizationId, managerEmployeeId);
+            int count;
 
-            return new ServiceResponse<int>
+            if (employeeId.HasValue && employeeId.Value != Guid.Empty)
             {
-                Success = true,
-                Message = $"Successfully finalized {count} attendance records for this period.",
-                Data = count
-            };
+                var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
+                if (snapshot == null)
+                    return new ServiceResponse<int> { Success = false, Message = "Timesheet snapshot not found." };
+
+                count = await _attendanceRepository.BatchFinalizeForEmployeeAsync(
+                    timesheetId, employeeId.Value, organizationId,
+                    snapshot.Month, snapshot.Year, managerEmployeeId);
+
+                return new ServiceResponse<int>
+                {
+                    Success = true,
+                    Message = $"Successfully finalized {count} attendance record(s) for the employee.",
+                    Data = count
+                };
+            }
+            else
+            {
+                count = await _attendanceRepository.BatchFinalizeMonthAsync(timesheetId, organizationId, managerEmployeeId);
+
+                return new ServiceResponse<int>
+                {
+                    Success = true,
+                    Message = $"Successfully finalized {count} attendance records for this period.",
+                    Data = count
+                };
+            }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Batch finalization failed for Timesheet {TimesheetId}", timesheetId);
+            _logger.LogError(ex, "Batch finalization failed for Timesheet {TimesheetId} Employee {EmployeeId}", timesheetId, employeeId);
             return new ServiceResponse<int> { Success = false, Message = "An error occurred during batch finalization." };
         }
     }
@@ -1449,7 +1501,7 @@ public class AttendanceService : IAttendanceService
 
             return new ServiceResponse<Guid> { Success = true, Data = requestId };
         }
-        catch (Npgsql.PostgresException ex) when (ex.SqlState == "23505") // Unique violation from our partial index
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "23505") 
         {
             return new ServiceResponse<Guid> { Success = false, Message = "A pending request already exists for this date." };
         }
@@ -1527,7 +1579,12 @@ public class AttendanceService : IAttendanceService
                 return new ServiceResponse<bool> { Success = false, Message = "Permission denied" };
             }
             var timeLimitDays = await _settingsRepository.GetManualEntryTimeLimitAsync(organizationId);
-            var attendanceRecord = await _attendanceRepository.GetAttendanceByIdAsync(updateDto.AttendanceId);
+            if (!updateDto.AttendanceId.HasValue)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "AttendanceId is required" };
+            }
+
+            var attendanceRecord = await _attendanceRepository.GetAttendanceByIdAsync(updateDto.AttendanceId.Value);
             if (attendanceRecord == null)
             {
                  return new ServiceResponse<bool> { Success = false, Message = "Attendance record not found" };
@@ -1591,29 +1648,51 @@ public class AttendanceService : IAttendanceService
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
         if (snapshot == null) return new ServiceResponse<int> { Success = false, Message = "Timesheet not found" };
 
-        var startDate = new DateTime(snapshot.Year, snapshot.Month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        // 1. Flip all 'draft' requests for this employee and period to 'pending'
+        int updatedCount = await _attendanceRepository.FlipDraftsToPendingAsync(employeeId, snapshot.Month, snapshot.Year);
 
-        int updatedCount = await _attendanceRepository.SubmitBatchForApprovalAsync(employeeId, organizationId,timesheetId, startDate, endDate);
+        if (updatedCount > 0)
+        {
+            // 2. Notify the manager ONLY NOW that a batch is ready for review
+            var managerId = await _notificationRepository.GetReciveridAsync(employeeId);
+            await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
+            {
+                Receiveruserid = managerId,
+                Senderuserid = employeeId,
+                Title = "Timesheet Submitted",
+                Message = $"Employee has submitted {updatedCount} changes for {snapshot.TimesheetName}.",
+                Notificationtype = "Request",
+                moduletype = "attendance",
+                organizationId = organizationId
+            });
+        }
 
         return new ServiceResponse<int>
         {
             Success = true,
             Data = updatedCount,
-            Message = updatedCount > 0
-                ? $"Successfully submitted {updatedCount} changes for approval."
-                : "No draft changes found to submit."
+            Message = $"Successfully submitted {updatedCount} changes for approval."
         };
     }
     public async Task<ServiceResponse<int>> ApproveAllPendingAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid orgId)
     {
         int count = await _attendanceRepository.ApproveAllBatchAsync(timesheetId, targetEmployeeId, managerId, orgId);
 
+        if (count == 0)
+        {
+            return new ServiceResponse<int>
+            {
+                Success = true,
+                Data = 0,
+                Message = "No pending requests were found to approve for this employee."
+            };
+        }
+
         return new ServiceResponse<int>
         {
             Success = true,
             Data = count,
-            Message = $"Successfully approved {count} attendance requests."
+            Message = $"Successfully approved {count} requests."
         };
     }
     public async Task<ServiceResponse<List<EmployeeSubmissionPackage>>> GetGroupedPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId)
@@ -1622,7 +1701,7 @@ public class AttendanceService : IAttendanceService
         var rawRequests = await _attendanceRepository.GetAllPendingRequestsAsync(
             organizationId,
             isAdminOrHR ? null : currentEmployeeId
-        );
+        ) ?? Enumerable.Empty<PendingAttendanceRequest>(); 
         var grouped = rawRequests
             .GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode })
             .Select(g => new EmployeeSubmissionPackage
@@ -1648,6 +1727,7 @@ public class AttendanceService : IAttendanceService
     {
 
         bool isGlobalViewer = await _attendanceRepository.IsAdminOrHRAsync(currentUserId, organizationId);
+        var today = DateTime.Today;
 
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
         if (snapshot == null) return new ServiceResponse<List<EmployeeReviewPackage>> { Success = false, Message = "Timesheet period not found" };
@@ -1656,72 +1736,121 @@ public class AttendanceService : IAttendanceService
         var end = start.AddMonths(1).AddDays(-1);
 
         Guid? filterManagerId = isGlobalViewer ? null : currentUserId;
-
         var rawLogs = await _attendanceRepository.GetConsolidatedAttendanceAsync(organizationId, start, end, targetEmployeeId, filterManagerId);
         var pendingReqs = await _attendanceRepository.GetAllPendingRequestsAsync(organizationId, filterManagerId);
-
         var grouped = rawLogs.GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode, r.DepartmentName })
             .Select(g => new EmployeeReviewPackage
             {
                 EmployeeId = g.Key.EmployeeId,
                 EmployeeName = g.Key.EmployeeName,
                 EmployeeCode = g.Key.EmployeeCode,
+                Month = snapshot.Month,
+                Year = snapshot.Year,
+                TimesheetId = timesheetId,
                 Department = g.Key.DepartmentName ?? "Unassigned",
                 FullMonthRecords = Enumerable.Range(0, (end - start).Days + 1)
     .Select(offset => {
         var currentDay = start.AddDays(offset);
-        var log = g.FirstOrDefault(x => x.AttendanceId.HasValue && x.WorkDate.Date == currentDay.Date);
-        var req = pendingReqs?.FirstOrDefault(r => r.AttendanceId == log?.AttendanceId);
+        var log = g.FirstOrDefault(x => x.WorkDate.Date == currentDay.Date);
+        var req = pendingReqs?.FirstOrDefault(r => r.WorkDate.Date == currentDay.Date &&
+                        r.EmployeeId == g.Key.EmployeeId);
+        string calculatedStatus;
+        if (log != null)
+        {
+            calculatedStatus = log.Status; 
+        }
+        else if (currentDay.Date > today)
+        {
+            calculatedStatus = "no_record"; 
+        }
+        else if (currentDay.DayOfWeek == DayOfWeek.Saturday || currentDay.DayOfWeek == DayOfWeek.Sunday)
+        {
+            calculatedStatus = "weekend"; 
+        }
+        else
+        {
+            calculatedStatus = "absent"; 
+        }
         return new ReviewAttendanceRecord
         {
             AttendanceId = log?.AttendanceId,
-            Date = currentDay, 
+            RequestId = req?.RequestId,
+            Date = currentDay,
             CheckInTime = log?.CheckInTime,
             CheckOutTime = log?.CheckOutTime,
-            Status = log?.Status ?? "Absent",
+            Status = calculatedStatus,
+            TotalHours = log?.TotalHours ?? 0,
             RequestStatus = req?.Status ?? "none",
             RequestedCheckIn = req?.RequestedCheckIn,
             RequestedCheckOut = req?.RequestedCheckOut,
             RequestedStatus = req?.RequestedStatus,
-            ReasonForEdit = req?.ReasonForEdit
+            ReasonForEdit = req?.ReasonForEdit,
+            IsFinalized = log?.IsFinalized ?? false,
+            HasPendingRequest = (req != null && req.Status == "pending")
+                    || (log?.HasPendingRequest ?? false),
+            HasDraftRequest = (req != null && req.Status == "Draft")
+                    || (log?.HasDraftRequest ?? false)
         };
     }).ToList()
             }).ToList();
+        foreach (var pkg in grouped)
+        {
+            var records = pkg.FullMonthRecords;
+
+            var workingDayRecords = records.Where(r =>
+            {
+                var s = (r.Status ?? "").ToLowerInvariant().Replace("_", "");
+                return s != "weekend" && s != "norecord";
+            }).ToList();
+
+            var attendanceRecords = records.Where(r => r.AttendanceId.HasValue).ToList();
+
+            pkg.TotalRecords = workingDayRecords.Count;
+            pkg.FinalizedCount = attendanceRecords.Count(r => r.IsFinalized);  
+            pkg.PendingRequestCount = records.Count(r => r.HasPendingRequest);
+            pkg.ApprovedCount = records.Count(r =>
+                string.Equals(r.RequestStatus, "approved", StringComparison.OrdinalIgnoreCase));
+            pkg.RejectedCount = records.Count(r =>
+                string.Equals(r.RequestStatus, "rejected", StringComparison.OrdinalIgnoreCase));
+
+            pkg.IsFinalized = attendanceRecords.Count > 0
+                              && attendanceRecords.All(r => r.IsFinalized);
+        }
 
         return new ServiceResponse<List<EmployeeReviewPackage>> { Data = grouped, Success = true };
     }
-    public async Task<ServiceResponse<OrgSubmissionProgressDto>> GetOrgSubmissionProgressAsync(Guid organizationId, int month, int year)
+    public async Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(
+    Guid organizationId, int month, int year)
     {
-        try
-        {
-            // 1. Fetch the aggregate counts from the repository
-            var progress = await _attendanceRepository.GetOrgSubmissionProgressAsync(organizationId, month, year);
+        if (month < 1 || month > 12)
+            throw new ArgumentOutOfRangeException(nameof(month), "Month must be 1–12.");
+        if (year < 2000 || year > 2100)
+            throw new ArgumentOutOfRangeException(nameof(year), "Year is out of range.");
 
-            if (progress == null)
-            {
-                return new ServiceResponse<OrgSubmissionProgressDto>
-                {
-                    Success = false,
-                    Message = "Unable to calculate organizational progress for the selected period."
-                };
-            }
+        return await _attendanceRepository.GetOrgSubmissionProgressAsync(
+            organizationId, month, year);
+    }
+    public async Task<bool> AdminOverrideAttendanceAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId)
+    {
+        _logger.LogInformation("Admin Override initiated by {ManagerId} for Employee {EmployeeId} on {Date}",
+            managerId, dto.EmployeeId, dto.AttendanceId);
 
-            // 2. The DTO itself handles the calculation of the Compliance Rate
-            return new ServiceResponse<OrgSubmissionProgressDto>
-            {
-                Data = progress,
-                Success = true,
-                Message = "Organizational progress retrieved successfully."
-            };
-        }
-        catch (Exception ex)
+        var result = await _attendanceRepository.AdminFinalizeRecordAsync(dto, managerId, orgId);
+
+        if (result)
         {
-            _logger.LogError(ex, "Error calculating Org Progress for Org: {OrgId}, Period: {M}/{Y}", organizationId, month, year);
-            return new ServiceResponse<OrgSubmissionProgressDto>
+            await _notificationRepository.CreateNotificationAsync(orgId, new NotificationCreateDto
             {
-                Success = false,
-                Message = "An internal error occurred while calculating compliance statistics."
-            };
+                Receiveruserid = dto.EmployeeId,
+                Senderuserid = managerId,
+                Title = "Attendance Finalized",
+                Message = $"A manager has administratively finalized your attendance for this date.",
+                Notificationtype = "Message",
+                moduletype = "attendance",
+                organizationId = orgId
+            });
         }
+
+        return result;
     }
 }

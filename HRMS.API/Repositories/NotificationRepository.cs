@@ -46,11 +46,10 @@ namespace HRMS.API.Repositories
 
                 var results = await QueryAsync<Guid>(sql, new { EmployeeId = employeeId });
 
-                return results.FirstOrDefault(); // returns Guid.Empty if no manager found
+                return results.FirstOrDefault(); 
             }
             catch (Exception ex)
             {
-                // Log the exception if needed
                 Console.WriteLine($"Error fetching reporting manager: {ex.Message}");
                 return Guid.Empty;
             }

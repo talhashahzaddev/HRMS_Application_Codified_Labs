@@ -8,7 +8,7 @@ public class Attendance : BaseEntity
 {
     [Key]
     [Column("attendance_id")]
-    public Guid AttendanceId { get; set; }
+    public Guid? AttendanceId { get; set; }
     
     [Column("employee_id")]
     public Guid EmployeeId { get; set; }
