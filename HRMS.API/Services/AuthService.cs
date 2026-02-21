@@ -25,6 +25,8 @@ public class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly IEmailService _emailService;
     private readonly ICloudinaryService _cloudinaryService;
+    private readonly IJobsRepository _jobsRepository;
+
     public AuthService(
         IAuthRepository authRepository,
         IOrganizationService organizationService,
@@ -32,7 +34,8 @@ public class AuthService : IAuthService
         IMapper mapper,
         ILogger<AuthService> logger,
         ICloudinaryService cloudinaryService,
-         IEmailService emailService)
+        IEmailService emailService,
+        IJobsRepository jobsRepository)
     {
         _authRepository = authRepository;
         _organizationService = organizationService;
@@ -41,7 +44,7 @@ public class AuthService : IAuthService
         _logger = logger;
         _emailService = emailService;
         _cloudinaryService = cloudinaryService;
-
+        _jobsRepository = jobsRepository;
     }
 
     public async Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request)
@@ -234,6 +237,14 @@ public class AuthService : IAuthService
         var organizationId = orgResponse.Data.OrganizationId;
         _logger.LogInformation("Organization {OrganizationId} created successfully", organizationId);
 
+        // Create default job application stages for the new organization
+        var defaultStages = new[] { ("Initial", 1), ("Short List", 2), ("Interviewed", 3), ("Selected", 4), ("Rejected", 5) };
+        foreach (var (stageName, stageOrder) in defaultStages)
+        {
+            await _jobsRepository.CreateStageMasterAsync(organizationId, stageName, stageOrder);
+        }
+        _logger.LogInformation("Default stages created for organization {OrganizationId}", organizationId);
+
         // Step 2: Create SuperAdmin user for the organization
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         var emailVerificationToken = Guid.NewGuid().ToString("N");
@@ -397,7 +408,7 @@ public class AuthService : IAuthService
         return true;
     }
 
-    public async Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, IFormFile? profileurl)
+    public async Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request)
     {
         if (userId == Guid.Empty) throw new ArgumentException("User ID is required", nameof(userId));
         if (request == null) throw new ArgumentNullException(nameof(request));
@@ -411,19 +422,6 @@ public class AuthService : IAuthService
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {userId} not found");
 
-        // 1️⃣ Upload Profile Picture if provided
-        string? profileUrl = employee.ProfilePictureUrl;
-
-        if (profileurl != null)
-        {
-            // Upload to Cloudinary
-            var uploadedUrl = await _cloudinaryService.UploadProfilePictureAsync(profileurl);
-
-            if (!string.IsNullOrEmpty(uploadedUrl))
-            {
-                profileUrl = uploadedUrl; // Use Cloudinary URL
-            }
-        }
         // Phone number validation
         if (!string.IsNullOrWhiteSpace(request.Phone))
         {
@@ -463,7 +461,7 @@ public class AuthService : IAuthService
         }
         //_mapper.Map(request, employee);
         //Update Employee table
-        var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request, profileUrl);
+        var updateEmployeetable = await _authRepository.UpdateProfile_EmployeeAsync(employee.EmployeeId, request);
 
         //Update Employee Details table
 

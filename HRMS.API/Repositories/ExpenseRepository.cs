@@ -80,6 +80,48 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         return results;
     }
 
+    public async Task<PagedResult<ExpenseDto>> GetExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+        var offset = (pageNumber - 1) * pageSize;
+
+        var countSql = @"
+            SELECT COUNT(*)
+            FROM expense.expenses e
+            WHERE e.organizationid = @organizationId
+              AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+              AND (@status IS NULL OR e.status = @status)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, employeeId, status });
+
+        var dataSql = @"
+            SELECT e.expenseid AS ExpenseId, e.organizationid AS OrganizationId, e.employeeid AS EmployeeId,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
+                   e.categoryid AS CategoryId, c.name AS CategoryName, e.title AS Title, e.description AS Description,
+                   e.amount AS Amount, e.billdate AS BillDate, e.paymentmethod AS PaymentMethod, e.merchant AS Merchant,
+                   e.receipturl AS ReceiptUrl, e.status AS Status, e.approvedby AS ApprovedBy,
+                   CONCAT(approver.firstname, ' ', approver.lastname) AS ApprovedName,
+                   e.createdat AS CreatedAt, e.updatedat AS UpdatedAt
+            FROM expense.expenses e
+            LEFT JOIN expense.expensecategories c ON e.categoryid = c.categoryid
+            INNER JOIN employee.employees emp ON e.employeeid = emp.employeeid
+            LEFT JOIN employee.employees approver ON e.approvedby = approver.employeeid
+            WHERE e.organizationid = @organizationId
+              AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+              AND (@status IS NULL OR e.status = @status)
+            ORDER BY e.createdat DESC
+            LIMIT @pageSize OFFSET @offset";
+        var data = await QueryAsync<ExpenseDto>(dataSql, new { organizationId, employeeId, status, pageSize, offset });
+        return new PagedResult<ExpenseDto>
+        {
+            Data = data?.ToList() ?? new List<ExpenseDto>(),
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<ExpenseDto?> GetExpenseByIdAsync(Guid expenseId)
     {
         var sql = @"
@@ -178,6 +220,48 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         return results;
     }
 
+    public async Task<PagedResult<RecurringExpenseDto>> GetRecurringExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+        var offset = (pageNumber - 1) * pageSize;
+
+        var countSql = @"
+            SELECT COUNT(*)
+            FROM expense.recurringexpenses r
+            WHERE r.organizationid = @organizationId
+              AND (@employeeId IS NULL OR r.employeeid = @employeeId)
+              AND (@status IS NULL OR r.status = @status)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, employeeId, status });
+
+        var dataSql = @"
+            SELECT r.recurringexpenseid AS RecurringExpenseId, r.organizationid AS OrganizationId, r.employeeid AS EmployeeId,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
+                   r.categoryid AS CategoryId, c.name AS CategoryName, r.title AS Title, r.description AS Description,
+                   r.amount AS Amount, r.rotation AS Rotation, r.dayofmonth AS DayOfMonth, r.status AS Status,
+                   r.approvedby AS ApprovedBy, CONCAT(approver.firstname, ' ', approver.lastname) AS ApprovedByName,
+                   r.paymentmethod AS PaymentMethod, r.merchant AS Merchant, r.receipturl AS ReceiptUrl,
+                   r.createdat AS CreatedAt, r.updatedat AS UpdatedAt
+            FROM expense.recurringexpenses r
+            LEFT JOIN expense.expensecategories c ON r.categoryid = c.categoryid
+            INNER JOIN employee.employees emp ON r.employeeid = emp.employeeid
+            LEFT JOIN employee.employees approver ON r.approvedby = approver.employeeid
+            WHERE r.organizationid = @organizationId
+              AND (@employeeId IS NULL OR r.employeeid = @employeeId)
+              AND (@status IS NULL OR r.status = @status)
+            ORDER BY r.createdat DESC
+            LIMIT @pageSize OFFSET @offset";
+        var data = await QueryAsync<RecurringExpenseDto>(dataSql, new { organizationId, employeeId, status, pageSize, offset });
+        return new PagedResult<RecurringExpenseDto>
+        {
+            Data = data?.ToList() ?? new List<RecurringExpenseDto>(),
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<RecurringExpenseDto?> GetRecurringExpenseByIdAsync(Guid recurringExpenseId)
     {
         var sql = @"
@@ -253,5 +337,208 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         var sql = "DELETE FROM expense.recurringexpenses WHERE recurringexpenseid = @recurringExpenseId";
         var rows = await ExecuteAsync(sql, new { recurringExpenseId });
         return rows > 0;
+    }
+
+    public async Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+        Guid organizationId,
+        DateTime fromDate,
+        DateTime toDate,
+        bool includeExpense,
+        bool includeRecurring)
+    {
+        var categories = (await GetExpenseCategoriesAsync(organizationId)).ToList();
+        var result = new Dictionary<Guid, ExpensePieReportItemDto>();
+
+        foreach (var cat in categories)
+        {
+            result[cat.CategoryId] = new ExpensePieReportItemDto
+            {
+                CategoryId = cat.CategoryId,
+                CategoryName = cat.Name,
+                TotalCost = 0
+            };
+        }
+
+        if (includeExpense)
+        {
+            var expenseSql = @"
+                SELECT e.categoryid AS CategoryId, COALESCE(SUM(e.amount), 0) AS TotalCost
+                FROM expense.expenses e
+                WHERE e.organizationid = @organizationId
+                  AND e.status = 'Approved'
+                  AND e.createdat::date >= @fromDate
+                  AND e.createdat::date <= @toDate
+                  AND e.categoryid IS NOT NULL
+                GROUP BY e.categoryid";
+            var expenseTotals = await QueryAsync<CategoryTotalRow>(expenseSql, new { organizationId, fromDate = fromDate.Date, toDate = toDate.Date });
+            foreach (var row in expenseTotals)
+            {
+                if (result.TryGetValue(row.CategoryId, out var item))
+                    item.TotalCost += row.TotalCost;
+                else
+                {
+                    var cat = categories.FirstOrDefault(c => c.CategoryId == row.CategoryId);
+                    result[row.CategoryId] = new ExpensePieReportItemDto
+                    {
+                        CategoryId = row.CategoryId,
+                        CategoryName = cat?.Name ?? string.Empty,
+                        TotalCost = row.TotalCost
+                    };
+                }
+            }
+        }
+
+        if (includeRecurring)
+        {
+            var recurringSql = @"
+                SELECT r.categoryid AS CategoryId, COALESCE(SUM(r.amount), 0) AS TotalCost
+                FROM expense.recurringexpenses r
+                WHERE r.organizationid = @organizationId
+                  AND r.status = 'Approved'
+                  AND r.createdat::date >= @fromDate
+                  AND r.createdat::date <= @toDate
+                GROUP BY r.categoryid";
+            var recurringTotals = await QueryAsync<CategoryTotalRow>(recurringSql, new { organizationId, fromDate = fromDate.Date, toDate = toDate.Date });
+            foreach (var row in recurringTotals)
+            {
+                if (result.TryGetValue(row.CategoryId, out var item))
+                    item.TotalCost += row.TotalCost;
+                else
+                {
+                    var cat = categories.FirstOrDefault(c => c.CategoryId == row.CategoryId);
+                    result[row.CategoryId] = new ExpensePieReportItemDto
+                    {
+                        CategoryId = row.CategoryId,
+                        CategoryName = cat?.Name ?? string.Empty,
+                        TotalCost = row.TotalCost
+                    };
+                }
+            }
+        }
+
+        return result.Values.OrderBy(x => x.CategoryName).ToList();
+    }
+
+    public async Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+        Guid organizationId,
+        int year,
+        bool includeExpense,
+        bool includeRecurring)
+    {
+        var yearStart = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var yearEnd = yearStart.AddYears(1);
+        var monthNames = new[] { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
+        var result = Enumerable.Range(1, 12).Select(m => new ExpenseLineChartItemDto
+        {
+            Month = m,
+            MonthName = monthNames[m - 1],
+            Cost = 0
+        }).ToDictionary(x => x.Month, x => x);
+
+        if (includeExpense)
+        {
+            var expenseSql = @"
+                SELECT (EXTRACT(MONTH FROM e.createdat))::int AS Month, COALESCE(SUM(e.amount), 0) AS Cost
+                FROM expense.expenses e
+                WHERE e.organizationid = @organizationId
+                  AND e.status = 'Approved'
+                  AND e.createdat >= @yearStart
+                  AND e.createdat < @yearEnd
+                GROUP BY EXTRACT(MONTH FROM e.createdat)";
+            var rows = await QueryAsync<MonthTotalRow>(expenseSql, new { organizationId, yearStart, yearEnd });
+            foreach (var row in rows)
+            {
+                if (result.TryGetValue(row.Month, out var item))
+                    item.Cost += row.Cost;
+            }
+        }
+
+        if (includeRecurring)
+        {
+            var recurringSql = @"
+                SELECT (EXTRACT(MONTH FROM r.createdat))::int AS Month, COALESCE(SUM(r.amount), 0) AS Cost
+                FROM expense.recurringexpenses r
+                WHERE r.organizationid = @organizationId
+                  AND r.status = 'Approved'
+                  AND r.createdat >= @yearStart
+                  AND r.createdat < @yearEnd
+                GROUP BY EXTRACT(MONTH FROM r.createdat)";
+            var rows = await QueryAsync<MonthTotalRow>(recurringSql, new { organizationId, yearStart, yearEnd });
+            foreach (var row in rows)
+            {
+                if (result.TryGetValue(row.Month, out var item))
+                    item.Cost += row.Cost;
+            }
+        }
+
+        return result.Values.OrderBy(x => x.Month).ToList();
+    }
+
+    public async Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+        Guid organizationId,
+        int fromYear,
+        int toYear,
+        bool includeExpense,
+        bool includeRecurring)
+    {
+        var yearCosts = new Dictionary<int, decimal>();
+        for (var y = fromYear; y <= toYear; y++)
+            yearCosts[y] = 0;
+
+        if (includeExpense)
+        {
+            var expenseSql = @"
+                SELECT (EXTRACT(YEAR FROM e.createdat))::int AS Year, COALESCE(SUM(e.amount), 0) AS Cost
+                FROM expense.expenses e
+                WHERE e.organizationid = @organizationId
+                  AND e.status = 'Approved'
+                  AND (EXTRACT(YEAR FROM e.createdat))::int >= @fromYear
+                  AND (EXTRACT(YEAR FROM e.createdat))::int <= @toYear
+                GROUP BY EXTRACT(YEAR FROM e.createdat)";
+            var rows = await QueryAsync<YearTotalRow>(expenseSql, new { organizationId, fromYear, toYear });
+            foreach (var row in rows)
+            {
+                if (yearCosts.TryGetValue(row.Year, out _))
+                    yearCosts[row.Year] += row.Cost;
+            }
+        }
+
+        if (includeRecurring)
+        {
+            var recurringSql = @"
+                SELECT (EXTRACT(YEAR FROM r.createdat))::int AS Year, COALESCE(SUM(r.amount), 0) AS Cost
+                FROM expense.recurringexpenses r
+                WHERE r.organizationid = @organizationId
+                  AND r.status = 'Approved'
+                  AND (EXTRACT(YEAR FROM r.createdat))::int >= @fromYear
+                  AND (EXTRACT(YEAR FROM r.createdat))::int <= @toYear
+                GROUP BY EXTRACT(YEAR FROM r.createdat)";
+            var rows = await QueryAsync<YearTotalRow>(recurringSql, new { organizationId, fromYear, toYear });
+            foreach (var row in rows)
+            {
+                if (yearCosts.TryGetValue(row.Year, out _))
+                    yearCosts[row.Year] += row.Cost;
+            }
+        }
+
+        return yearCosts.OrderBy(x => x.Key).Select(x => new ExpenseBarChartItemDto { Year = x.Key, Cost = x.Value }).ToList();
+    }
+
+    private sealed class CategoryTotalRow
+    {
+        public Guid CategoryId { get; set; }
+        public decimal TotalCost { get; set; }
+    }
+
+    private sealed class MonthTotalRow
+    {
+        public int Month { get; set; }
+        public decimal Cost { get; set; }
+    }
+
+    private sealed class YearTotalRow
+    {
+        public int Year { get; set; }
+        public decimal Cost { get; set; }
     }
 }

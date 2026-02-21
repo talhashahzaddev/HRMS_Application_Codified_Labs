@@ -52,27 +52,40 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
         var results = await QueryAsync<dynamic>(sql);
         return results.Select(MapToSubscriptionPlanDto);
     }
-
     public async Task<IEnumerable<SubscriptionPlanDto>> GetActiveSubscriptionPlansAsync()
     {
         var sql = @"
-            SELECT 
-                planid,
-                name,
-                monthlyprice,
-                annualprice,
-                maxusers,
-                features,
-                iscustom,
-                isactive
-            FROM payment.subscriptionplans
-            WHERE isactive = true
-            ORDER BY name";
-
+        SELECT planid, name, monthlyprice, annualprice, maxusers, features, iscustom, isactive
+        FROM payment.subscriptionplans
+        WHERE isactive = true
+        ORDER BY monthlyprice ASC";
         var results = await QueryAsync<dynamic>(sql);
-        return results.Select(MapToSubscriptionPlanDto);
+        return results.Select(record =>
+        {
+            Dictionary<string, object>? featuresDict = null;
+            if (record.features != null)
+            {
+                var featuresList = JsonSerializer.Deserialize<List<string>>(record.features.ToString());
+                if (featuresList != null)
+                {
+                 featuresDict = new Dictionary<string, object>();
+                 for (int i = 0; i < featuresList.Count; i++)
+                 featuresDict.Add($"Feature{i + 1}", featuresList[i]);
+                }
+            }
+            return new SubscriptionPlanDto
+            {
+                PlanId = record.planid,
+                Name = record.name,
+                MonthlyPrice = record.monthlyprice,
+                AnnualPrice = record.annualprice,
+                MaxUsers = record.maxusers,
+                Features = featuresDict,
+                IsCustom = record.iscustom,
+                IsActive = record.isactive
+            };
+        });
     }
-
     public async Task<Guid> CreateSubscriptionPlanAsync(CreateSubscriptionPlanRequest request)
     {
         var sql = @"

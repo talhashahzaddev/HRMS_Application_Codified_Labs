@@ -168,6 +168,100 @@ CREATE TABLE employee.Documents (
 );
 
 -- ==============================
+-- ASSET SCHEMA
+-- ==============================
+CREATE TABLE IF NOT EXISTS assets.asset_types
+(
+    asset_type_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organization_id uuid NOT NULL,
+    name character varying(120) NOT NULL,
+    description character varying(500),
+    is_active boolean DEFAULT true,
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    created_by uuid,
+    is_deleted boolean DEFAULT false,
+    CONSTRAINT asset_types_pkey PRIMARY KEY (asset_type_id),
+    CONSTRAINT uq_asset_types_name UNIQUE (organization_id, name)
+);
+
+DROP TABLE IF EXISTS asset.assets CASCADE;
+
+CREATE TABLE asset.assets
+(
+    asset_id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+
+    organization_id uuid NOT NULL,
+    asset_type_id uuid NOT NULL,
+
+    asset_tag varchar(50) NOT NULL CHECK (trim(asset_tag) <> ''),
+    name varchar(200) NOT NULL CHECK (trim(name) <> ''),
+
+    description text,
+    serial_number varchar(120),
+
+    -- CHANGED: DATE ? TIMESTAMPTZ (matches C# DateTime)
+    purchase_date timestamp with time zone,
+
+    purchase_cost numeric(12,2),
+
+    status varchar(30) NOT NULL DEFAULT 'Available',
+
+    created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    created_by uuid,
+    is_deleted boolean NOT NULL DEFAULT false,
+
+    CONSTRAINT fk_assets_asset_type
+        FOREIGN KEY (asset_type_id)
+        REFERENCES asset.asset_types(asset_type_id)
+        ON DELETE RESTRICT,
+
+    CONSTRAINT uq_assets_tag
+        UNIQUE (organization_id, asset_tag)
+);
+
+
+CREATE TABLE IF NOT EXISTS asset.asset_assignments
+(
+    assignment_id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organization_id uuid NOT NULL,
+    asset_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    assigned_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    due_date timestamp with time zone,
+    returned_at timestamp with time zone,
+    status character varying(30) DEFAULT 'Active',
+    notes character varying(500),
+    created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    created_by uuid,
+    is_deleted boolean DEFAULT false,
+    CONSTRAINT asset_assignments_pkey PRIMARY KEY (assignment_id),
+    CONSTRAINT fk_asset_assignments_asset FOREIGN KEY (asset_id)
+        REFERENCES asset.assets (asset_id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT,
+    CONSTRAINT fk_asset_assignments_employee FOREIGN KEY (employee_id)
+        REFERENCES employee.employees (employeeid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_asset_types_org ON asset.asset_types (organization_id);
+CREATE INDEX IF NOT EXISTS idx_assets_org ON asset.assets (organization_id);
+CREATE INDEX IF NOT EXISTS idx_assets_type ON asset.assets (asset_type_id);
+CREATE INDEX IF NOT EXISTS idx_assets_status ON asset.assets (status);
+CREATE INDEX IF NOT EXISTS idx_asset_assignments_org ON asset.asset_assignments (organization_id);
+CREATE INDEX IF NOT EXISTS idx_asset_assignments_asset ON asset.asset_assignments (asset_id);
+CREATE INDEX IF NOT EXISTS idx_asset_assignments_employee ON asset.asset_assignments (employee_id);
+CREATE INDEX IF NOT EXISTS idx_asset_assignments_status ON asset.asset_assignments (status);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_asset_assignments_active
+    ON asset.asset_assignments (asset_id)
+    WHERE status = 'Active' AND is_deleted = false;
+
+-- ==============================
 -- ATTENDANCE SCHEMA
 -- ==============================
 -- Table: attendance.attendance
@@ -870,4 +964,152 @@ CREATE TABLE IF NOT EXISTS expense.recurringexpenses
 TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS expense.recurringexpenses
+    OWNER to postgres;
+
+-- ============================
+-- News
+-- ============================
+-- Table: News
+
+ -- DROP TABLE IF EXISTS news.news;
+
+CREATE TABLE IF NOT EXISTS news.news
+(
+    newsid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    title character varying(255) COLLATE pg_catalog."default" NOT NULL,
+    description text COLLATE pg_catalog."default" NOT NULL,
+    createdby uuid NOT NULL,
+    category character varying(50) COLLATE pg_catalog."default" DEFAULT 'Other'::character varying,
+    imageurl character varying(255) COLLATE pg_catalog."default",
+    publishedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'Draft'::character varying,
+    views integer DEFAULT 0,
+    visibleto character varying(20) COLLATE pg_catalog."default" DEFAULT 'Everyone'::character varying,
+    selectedemployees uuid[] DEFAULT '{}'::uuid[],
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT news_pkey PRIMARY KEY (newsid)
+
+-- ==============================
+-- JOBS SCHEMA
+-- ==============================
+-- Table: jobs.stagemaster
+
+-- DROP TABLE IF EXISTS jobs.stagemaster;
+
+CREATE TABLE IF NOT EXISTS jobs.stagemaster
+(
+    stageid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    stagename character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    stageorder integer,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT stagemaster_pkey PRIMARY KEY (stageid)
+)
+
+TABLESPACE pg_default;
+
+-- DROP TABLE IF EXISTS news.news_reads_count;
+
+CREATE TABLE IF NOT EXISTS news.news_reads_count
+(
+    newsid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    readat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT pk_news_reads PRIMARY KEY (newsid, employeeid)
+)
+
+TABLESPACE pg_default;
+ALTER TABLE IF EXISTS jobs.stagemaster
+    OWNER to postgres;
+
+    -- Table: jobs.jobopenings
+
+-- DROP TABLE IF EXISTS jobs.jobopenings;
+
+CREATE TABLE IF NOT EXISTS jobs.jobopenings
+(
+    jobid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    jobrolename character varying(200) COLLATE pg_catalog."default" NOT NULL,
+    departmentid uuid,
+    experiencemin integer,
+    experiencemax integer,
+    ctcmin numeric(12,2),
+    ctcmax numeric(12,2),
+    currency character varying(10) COLLATE pg_catalog."default",
+    vacancies integer NOT NULL DEFAULT 1,
+    location character varying(200) COLLATE pg_catalog."default",
+    workmode character varying(50) COLLATE pg_catalog."default",
+    employmenttype character varying(50) COLLATE pg_catalog."default",
+    jobintroduction text COLLATE pg_catalog."default",
+    responsibilities text COLLATE pg_catalog."default",
+    skillset text COLLATE pg_catalog."default",
+    lastdate date,
+    posteddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    postedas character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    externallink text COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Open'::character varying,
+    createdby uuid,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone,
+    CONSTRAINT jobopenings_pkey PRIMARY KEY (jobid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.jobopenings
+    OWNER to postgres;
+
+    -- Table: jobs.jobapplications
+
+-- DROP TABLE IF EXISTS jobs.jobapplications;
+
+CREATE TABLE IF NOT EXISTS jobs.jobapplications
+(
+    jobapplyid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobid uuid NOT NULL,
+    organizationid uuid NOT NULL,
+    employeeid uuid,
+    candidateid uuid DEFAULT uuid_generate_v4(),
+    candidatename character varying(200) COLLATE pg_catalog."default",
+    candidateemail character varying(200) COLLATE pg_catalog."default",
+    linkedinurl text COLLATE pg_catalog."default",
+    resumeurl text COLLATE pg_catalog."default",
+    phone character varying(50) COLLATE pg_catalog."default",
+    coverletter text COLLATE pg_catalog."default",
+    currentstageid uuid,
+    applicationsource character varying(100) COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Applied'::character varying,
+    createddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updateddate timestamp with time zone,
+    CONSTRAINT jobapplications_pkey PRIMARY KEY (jobapplyid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.jobapplications
+    OWNER to postgres;
+
+    -- Table: jobs.applicationstages
+
+-- DROP TABLE IF EXISTS jobs.applicationstages;
+
+CREATE TABLE IF NOT EXISTS jobs.applicationstages
+(
+    applicationstageid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobapplyid uuid NOT NULL,
+    stageid uuid NOT NULL,
+    notes text COLLATE pg_catalog."default",
+    interviewers text COLLATE pg_catalog."default",
+    type character varying(50) COLLATE pg_catalog."default",
+    updatedon timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedby uuid,
+    CONSTRAINT applicationstages_pkey PRIMARY KEY (applicationstageid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.applicationstages
     OWNER to postgres;

@@ -1,4 +1,4 @@
-using DocumentFormat.OpenXml.Bibliography;
+﻿using DocumentFormat.OpenXml.Bibliography;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -41,7 +41,9 @@ public class AttendanceController : ControllerBase
                 });
             }
             var employeeId = await GetCurrentEmployeeId(); // This would need to be implemented
-            var result = await _attendanceService.ClockInAsync(employeeId, request);
+            var ipAddress = GetClientIp();
+
+            var result = await _attendanceService.ClockInAsync(employeeId, request,ipAddress);
 
             return Ok(new ServiceResponse<ClockInOutResponse>
             {
@@ -103,7 +105,9 @@ public class AttendanceController : ControllerBase
                 });
             }
             var employeeId = await GetCurrentEmployeeId();
-            var result = await _attendanceService.ClockOutAsync(employeeId, request);
+            var ipAddress = GetClientIp();
+
+            var result = await _attendanceService.ClockOutAsync(employeeId, request, ipAddress);
 
             return Ok(new ServiceResponse<ClockInOutResponse>
             {
@@ -1967,4 +1971,24 @@ public class AttendanceController : ControllerBase
         
         return organizationId;
     }
+
+    private string GetClientIp()
+    {
+        var deviceIp = HttpContext.Request.Headers["X-Device-IP"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(deviceIp))
+            return deviceIp;
+        var forwardedFor = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        string ip = !string.IsNullOrEmpty(forwardedFor)
+            ? forwardedFor.Split(',')[0].Trim()
+            : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "UNKNOWN";
+        if (ip == "::1")
+            ip = "127.0.0.1";
+        if (ip.StartsWith("::ffff:"))
+            ip = ip.Substring("::ffff:".Length);
+
+        return ip;
+    }
+
+
+
 }

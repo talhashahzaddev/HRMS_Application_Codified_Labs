@@ -1,4 +1,4 @@
-namespace HRMS.API.Models.DTOs;
+﻿namespace HRMS.API.Models.DTOs;
 
 public class AttendanceDto
 {
@@ -22,6 +22,14 @@ public class AttendanceDto
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }
     public Guid? ShiftId { get; set; }
+    public string? Location { get; set; }
+    public string? checkinip { get; set; }
+    public string? checkoutip { get; set; }
+    public string? checkinLocationType { get; set; }
+    public string? checkoutLocationType { get; set; }
+
+    public string ipAddress { get; set; }
+
 }
 public class ClockInOutResponse
 {
@@ -29,6 +37,13 @@ public class ClockInOutResponse
     public string Message { get; set; } = string.Empty;
 }
 
+public class IpAddress
+{
+    public Guid Id { get; set; }
+    public string IpAddressValue { get; set; }
+    public string Name { get; set; }      // Example: "Main Office", "Branch 1"
+    public DateTime CreatedAt { get; set; }
+}
 public class CreateAttendanceRequest
 {
     public Guid EmployeeId { get; set; }
@@ -75,6 +90,10 @@ public class AttendanceSessionWithInfoDto
     public DateTime CheckInTime { get; set; }
     public DateTime? CheckOutTime { get; set; }
     public string? Location { get; set; }
+    public string ipAddress { get; set; }
+    public string? checkinip { get; set; }
+    public string? checkoutip { get; set; }
+
     public string EmployeeName { get; set; } = string.Empty;
     public DateTime WorkDate { get; set; }
 }
@@ -108,6 +127,7 @@ public class CreateShiftDto
     public TimeSpan? StartTime { get; set; }              // Start time of the shift
     public TimeSpan? EndTime { get; set; }                // End time of the shift
     public int marginHours { get; set; }
+    public bool ApplyMarginhours { get; set; } = false;
 
     public int? BreakDuration { get; set; } = 0;          // Break duration in minutes
     public TimeSpan? BreakStartTime { get; set; }         // Added: Break start time
@@ -129,7 +149,7 @@ public class UpdateShiftDto
     public TimeSpan? StartTime { get; set; }               // Start time of the shift
     public TimeSpan? EndTime { get; set; }                 // End time of the shift
     public int marginHours { get; set; }
-
+    public bool ApplyMarginhours { get; set; } = false;
     public TimeSpan? BreakStartTime { get; set; }          // Optional: Break start time
     public TimeSpan? BreakEndTime { get; set; }            // Optional: Break end time
     public TimeSpan? OvertimeStartTime { get; set; }       // Optional: Overtime start time
@@ -170,6 +190,8 @@ public class ShiftDto
     public TimeSpan StartTime { get; set; }
     public TimeSpan EndTime { get; set; }
     public int marginHours { get; set; }
+
+    public bool ApplyMarginhours { get; set; } = false;
 
     public TimeSpan? BreakStartTime { get; set; }      // optional
     public TimeSpan? BreakEndTime { get; set; }        // optional
@@ -285,7 +307,7 @@ public class EmployeeTimesheetDto
     public int AbsentDays { get; set; }
     /// <summary>Count of days where status = 'late'.</summary>
     public int LateDays { get; set; }
-    /// <summary>Present days (including late) divided by total working days � 100.</summary>
+    /// <summary>Present days (including late) divided by total working days × 100.</summary>
     public decimal AttendancePercentage { get; set; }
 }
 public class MonthlyTimesheetCreateDto

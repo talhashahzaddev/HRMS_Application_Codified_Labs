@@ -114,12 +114,12 @@ namespace HRMS.API.Repositories
         {
             var userid = await GetEmpId(userId);
             var sql = @"
-            SELECT *
-            FROM notification.notifications
-            WHERE receiveruserid = @UserId
-            AND organizationid = @OrganizationId
-            ORDER BY createdat DESC
-        ";
+        SELECT *
+        FROM notification.notifications
+        WHERE @UserId = ANY(receiveruserid)
+        AND organizationid = @OrganizationId
+        ORDER BY createdat DESC
+    ";
 
             // Execute query and map results to Notification objects
             var notifications = await QueryAsync<Notification>(sql, new { UserId = userid, OrganizationId = organizationId });
@@ -128,23 +128,51 @@ namespace HRMS.API.Repositories
 
         //Get notifcation details From request id 
 
+        //public async Task<Notification> getnotificationdetailAsync(Guid requestId)
+        //{
+
+        //    var sql = @"
+        //    SELECT *
+        //    FROM notification.notifications
+        //    WHERE requestid = @requestId
+        //    ORDER BY createdat DESC
+        //    LIMIT 1
+        //";
+
+        //    // Execute query and map results to Notification objects
+        //    var notifications = await QueryAsync<Notification>(sql, new { requestId = requestId });
+
+        //    return notifications.FirstOrDefault();
+
+        //}
+
+
+
         public async Task<Notification> getnotificationdetailAsync(Guid requestId)
         {
-
             var sql = @"
-            SELECT *
-            FROM notification.notifications
-            WHERE requestid = @requestId
-            ORDER BY createdat DESC
-            LIMIT 1
-        ";
+      SELECT notificationid,
+             receiveruserid AS ""ReceiverUserIds"",
+             senderuserid AS ""SenderUserId"",
+             organizationid AS ""organizationId"",
+             title,
+             notificationtype AS ""NotificationType"",
+             requestid,
+             message AS ""Message"",
+             redirecturl AS ""RedirectUrl"",
+             moduletype AS ""moduletype"",
+             isread AS ""IsRead"",
+             createdat AS ""CreatedAt""
+      FROM notification.notifications
+      WHERE requestid = @requestId
+      ORDER BY createdat DESC
+      LIMIT 1
+  ";
 
-            // Execute query and map results to Notification objects
-            var notifications = await QueryAsync<Notification>(sql, new { requestId = requestId });
-
+            var notifications = await QueryAsync<Notification>(sql, new { requestId });
             return notifications.FirstOrDefault();
-
         }
+
 
         //Delete Noitfication
 

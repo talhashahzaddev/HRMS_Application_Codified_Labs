@@ -246,7 +246,7 @@ WHERE token = @token;
 
 
     //Adding update method for Updating Employee all information
-    public async Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request,string? profileUrl)
+    public async Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request)
     {
 
         var sql = @"UPDATE employee.employees SET 
@@ -272,7 +272,7 @@ WHERE token = @token;
             EmergencyContact = System.Text.Json.JsonSerializer.Serialize(request.EmergencyContact),
             HireDate = request.HireDate,
             EmployeeId = employeeId,
-            profileUrl=profileUrl
+            profileUrl=request.profileurl
         });
 
         return affected > 0;
@@ -497,6 +497,19 @@ WHERE token = @token;
         var affected = await ExecuteAsync(sql, new { userId, refreshToken, expiresAt });
         return affected > 0;
     }
+    //Get Domain
+    public async Task<string?> GetDomainByOrganizationIdAsync(Guid organizationId)
+    {
+        
+            var sql = @"select  
+                        domain
+                    from auth.organizations
+                    where organizationid = @organizationId";
+
+            var result = await QuerySingleOrDefaultAsync<string>(sql, new { organizationId });
+        return result;
+    }
+
     public async Task<string> GetHashedPassword(string email)
     {
         var sql = "SELECT passwordhash FROM auth.users WHERE email = @Email";

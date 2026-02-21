@@ -1,7 +1,10 @@
-﻿using HRMS.API.Services.Interfaces;
+﻿using DocumentFormat.OpenXml.Wordprocessing;
+using HRMS.API.Repositories.Interfaces;
+using HRMS.API.Services.Interfaces;
 using Mailjet.Client;
 using Mailjet.Client.Resources;
 using Newtonsoft.Json.Linq;
+using static HRMS.API.Models.DTOs.NewsDTOs;
 
 namespace HRMS.API.Services;
 
@@ -9,11 +12,13 @@ public class EmailService : IEmailService
 {
     private readonly ILogger<EmailService> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IAuthRepository _authRepository;
 
-    public EmailService(ILogger<EmailService> logger, IConfiguration configuration)
+    public EmailService(ILogger<EmailService> logger, IConfiguration configuration,IAuthRepository authRepository)
     {
         _logger = logger;
         _configuration = configuration;
+        _authRepository = authRepository;
     }
 
     private async Task<bool> SendEmailAsync(string to, string subject, string body)
@@ -36,7 +41,7 @@ public class EmailService : IEmailService
             var request = new MailjetRequest
             {
                 Resource = SendV31.Resource
-                }
+            }
             .Property(Send.Messages, new JArray {
                 new JObject {
                 { "From", new JObject {
@@ -221,9 +226,9 @@ public class EmailService : IEmailService
         </html>";
         return await SendEmailAsync(email, subject, body);
     }
-    public async Task<bool> SendVerificationEmailAsync(string email,string adminName,string verificationToken)
+    public async Task<bool> SendVerificationEmailAsync(string email, string adminName, string verificationToken)
     {
-        var verifyLink =$"{_configuration["EmployeePortal:PortalUrl"]}verify-email?token={verificationToken}";
+        var verifyLink = $"{_configuration["EmployeePortal:PortalUrl"]}verify-email?token={verificationToken}";
 
         var subject = "Verify Your Organization Email | BriskPeople";
 
@@ -274,4 +279,139 @@ public class EmailService : IEmailService
 
         return await SendEmailAsync(email, subject, body);
     }
+
+    public async Task<bool> SendNewsEmailAsync(List<string> receiverEmails, NewsRequest request,Guid organizationId,Guid? newsid)
+    {
+        //Getting domain for the user 
+        var domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationId);
+        if (receiverEmails == null || !receiverEmails.Any())
+            return false; // no recipients
+
+        var subject = $"News Update: {request.Title} | BriskPeople";
+        // Fallback image if no image provided
+        var newsImage = string.IsNullOrWhiteSpace(request.ImageUrl)
+            ? "https://via.placeholder.com/650x300?text=BriskPeople+News"
+            : request.ImageUrl;
+
+        var cleanDomain = domain
+    .Trim()
+    .ToLower()
+    .Replace("http://", "")
+    .Replace("https://", "")
+    .Replace(".com", "");
+
+        var dashboardUrl = $"http://{cleanDomain}.briskpeople.com/news/view-news/{newsid}";
+        // Use full description
+        // Clean & limit description to first 25 words (remove HTML if present)
+        var fullDescription = string.IsNullOrWhiteSpace(request.Description)
+            ? ""
+            : System.Text.RegularExpressions.Regex.Replace(request.Description, "<.*?>", ""); // remove HTML tags
+
+        var words = fullDescription
+            .Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+
+        var description = string.Join(" ", words.Take(25));
+
+        if (words.Length > 25)
+        {
+            description += "...";
+        }
+        var body = $@"<!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset='UTF-8'>
+        </head>
+        <body style='margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif;'>
+        <table width='100%' cellpadding='0' cellspacing='0' style='padding:30px 0;'>
+        <tr>
+        <td align='center'>
+        <table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff; border-radius:8px; overflow:hidden;'>
+    <!-- Header -->
+        <tr>
+        <td align='center' style='padding:30px; background:#ffffff;'>
+            <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
+                <tr>
+                    <td style='vertical-align:middle; padding-right:10px;'>
+                        <img src='https://www.briskpeople.com/hub.png' 
+                             alt='BriskPeople' 
+                             style='height:40px; display:block;' />
+                    </td>
+                    <td style='vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;'>
+                        BriskPeople
+                    </td>
+                </tr>
+            </table>
+        </td>
+        </tr>
+
+    <!-- Content -->
+        <tr>
+        <td style='padding:30px; color:#333333; font-size:14px; line-height:1.7;'>
+
+            <p style='margin-top:0;'>Hi,</p>
+
+            <p>
+                A new {request.Title} has been published on <strong>BriskPeople</strong>:
+            </p>
+
+            <h3 style='margin:15px 0; color:#1f4fd8;'>
+                {request.Title}
+            </h3>
+
+            <p>
+                {fullDescription}
+            </p>
+
+            <!-- Image (Only if exists) -->
+            {(string.IsNullOrWhiteSpace(request.ImageUrl) ? "" : $@"
+            <div style='text-align:center; margin:20px 0;'>
+                <img src='{request.ImageUrl}' 
+                     alt='News Image' 
+                     style='max-width:350px; width:100%; height:auto; border-radius:8px; display:block; margin:0 auto;' />
+            </div>
+            ")}
+
+            <!-- Button -->
+            <p style='text-align:center; margin:25px 0;'>
+                <a href='{dashboardUrl}'
+                   style='background:#1f4fd8; 
+                          color:#ffffff; 
+                          padding:14px 28px; 
+                          text-decoration:none; 
+                          border-radius:6px; 
+                          font-size:14px; 
+                          font-weight:bold; 
+                          display:inline-block;'>
+                    Read More
+                </a>
+            </p>
+
+            <p style='margin-bottom:0;'>
+                Best regards,<br/>
+                <strong>BriskPeople Team</strong>
+            </p>
+
+        </td>
+        </tr>
+    <!-- Footer -->
+        <tr>
+        <td align='center' style='padding:20px; background:#f4f6f8; font-size:12px; color:#777777;'>
+            © {DateTime.UtcNow.Year} BriskPeople. All rights reserved.
+        </td>
+        </tr>
+        </table>
+        </td>
+        </tr>
+        </table>
+        </body>
+        </html>";
+        // Send email to all recipients individually (or use BCC if preferred)
+        foreach (var email in receiverEmails)
+        {
+            await SendEmailAsync(email, subject, body);
+        }
+
+        return true;
+    }
+
 }

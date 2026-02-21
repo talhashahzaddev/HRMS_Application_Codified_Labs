@@ -1,19 +1,20 @@
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
+using static HRMS.API.Models.DTOs.NewsDTOs;
 
 namespace HRMS.API.Services.Interfaces;
 
 public interface IEmployeeService
 {
     Task<PositionEmployeesMainDto> GetEmployeesByPositionAsync(Guid organizationId, Guid positionId);
-
-
     Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequestDTo request, IFormFile? profileFile);
     Task<bool> UpdateDepartmentStatusAsync(Guid organizationId, Guid departmentId, bool isActive);
     Task<bool> UpdatePositionStatusAsync(Guid organizationId,Guid positionId,bool isActive);
     Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId);
-    Task<EmployeeDto?> GetEmployeeByIdAsync(Guid employeeId);
+    Task<EmployeeDto?> GetEmployeeByIdAsync(Guid userId);
+    /// <summary>Gets employee by employee ID (no userId lookup). Use when you already have the employee ID.</summary>
+    Task<EmployeeDto?> GetEmployeeByEmployeeIdAsync(Guid employeeId);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(EmployeeSearchViewModel searchModel, Guid organizationId);
     Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequest request);
     Task<bool> DeleteEmployeeAsync(Guid employeeId,string status);

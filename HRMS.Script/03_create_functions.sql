@@ -708,6 +708,42 @@ BEGIN
 END;
 $$;
 
+-- =====================================================================
+-- COMMON FUNCTIONS
+-- =====================================================================
+
+CREATE OR REPLACE FUNCTION public.fn_set_updated_at()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$;
+
+-- =====================================================================
+-- ASSET TRIGGERS
+-- =====================================================================
+
+DROP TRIGGER IF EXISTS trg_asset_types_updated_at ON asset.asset_types;
+CREATE TRIGGER trg_asset_types_updated_at
+BEFORE UPDATE ON asset.asset_types
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_assets_updated_at ON asset.assets;
+CREATE TRIGGER trg_assets_updated_at
+BEFORE UPDATE ON asset.assets
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_set_updated_at();
+
+DROP TRIGGER IF EXISTS trg_asset_assignments_updated_at ON asset.asset_assignments;
+CREATE TRIGGER trg_asset_assignments_updated_at
+BEFORE UPDATE ON asset.asset_assignments
+FOR EACH ROW
+EXECUTE FUNCTION public.fn_set_updated_at();
+
 ALTER FUNCTION payroll.fn_create_payroll_period(uuid, character varying, date, date, date)
     OWNER TO postgres;
 
@@ -1011,3 +1047,120 @@ BEGIN
 END;
 $$;
 
+
+
+
+
+-- DROP FUNCTION IF EXISTS news.fn_get_news_employee(uuid, uuid, character varying, character varying, integer, integer);
+
+CREATE OR REPLACE FUNCTION news.fn_get_news_employee(
+	p_employee_id uuid,
+	p_organization_id uuid DEFAULT NULL::uuid,
+	p_search_term character varying DEFAULT NULL::character varying,
+	p_status character varying DEFAULT NULL::character varying,
+	p_limit integer DEFAULT 50,
+	p_offset integer DEFAULT 0)
+    RETURNS TABLE(newsid uuid, title character varying, description text, createdby uuid, category character varying, imageurl character varying, publishedat timestamp with time zone, status character varying, visibleto character varying, selectedemployees uuid[], isread boolean, authorname character varying) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
+AS $BODY$
+BEGIN
+    RETURN QUERY
+    SELECT
+        n.newsid,
+        n.title,
+        n.description,
+        n.createdby,
+        n.category,
+        n.imageurl,
+        n.publishedat,
+        n.status,
+        n.visibleto,
+        n.selectedemployees,
+       (nr.employeeid IS NOT NULL) AS isread,
+	   (concat(e.firstname,'',e.lastname))::varchar as authorname
+    FROM news.news n
+	Left join employee.employees e on
+		e.employeeid=n.createdby
+    LEFT JOIN news.news_reads_count nr
+        ON n.newsid = nr.newsid
+        AND nr.employeeid = p_employee_id
+    WHERE
+        (p_organization_id IS NULL OR n.organizationid = p_organization_id)
+        AND (p_status IS NULL OR n.status = p_status)
+        AND (p_search_term IS NULL OR LOWER(n.title || ' ' || n.description) LIKE LOWER('%' || p_search_term || '%'))
+        AND (
+            COALESCE(n.visibleto, 'Everyone') = 'Everyone'
+            OR (
+                n.visibleto = 'Selected'
+                AND n.selectedemployees IS NOT NULL
+                AND p_employee_id = ANY(n.selectedemployees)
+            )
+        )
+    ORDER BY n.publishedat DESC
+    LIMIT p_limit OFFSET p_offset;
+END;
+$BODY$;
+
+
+
+
+-- DROP FUNCTION IF EXISTS news.fn_get_news_admin(uuid, uuid, character varying, character varying, integer, integer);
+
+CREATE OR REPLACE FUNCTION news.fn_get_news_admin(
+	p_employee_id uuid,
+	p_organization_id uuid DEFAULT NULL::uuid,
+	p_search_term character varying DEFAULT NULL::character varying,
+	p_status character varying DEFAULT NULL::character varying,
+	p_limit integer DEFAULT 50,
+	p_offset integer DEFAULT 0)
+    RETURNS TABLE(newsid uuid, title character varying, description text, createdby uuid, authorname character varying, category character varying, imageurl character varying, publishedat timestamp with time zone, status character varying, visibleto character varying, selectedemployees uuid[], createdat date, updatedat date, organizationid uuid, isread boolean, views integer) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
+AS $BODY$
+BEGIN
+    RETURN QUERY
+    SELECT
+        n.newsid,
+        n.title,
+        n.description,
+        n.createdby,
+        (CONCAT(e.firstname, ' ', e.lastname))::varchar As authorname,  -- ? JOINED NAME
+        n.category,
+        n.imageurl,
+        n.publishedat,
+        n.status,
+        n.visibleto,
+        n.selectedemployees::uuid[],
+        n.createdat::date,
+        n.updatedat::date,
+        n.organizationid,
+        (nr.employeeid IS NOT NULL) AS isread,
+        n.views
+    FROM news.news n
+
+    -- ? JOIN WITH EMPLOYEE TABLE
+    LEFT JOIN employee.employees e
+        ON e.employeeid = n.createdby
+
+    LEFT JOIN news.news_reads_count nr
+        ON n.newsid = nr.newsid
+        AND nr.employeeid = p_employee_id
+
+    WHERE
+        (p_organization_id IS NULL OR n.organizationid = p_organization_id)
+        AND (p_status IS NULL OR n.status = p_status)
+        AND (p_search_term IS NULL 
+            OR LOWER(n.title || ' ' || n.description) 
+               LIKE LOWER('%' || p_search_term || '%'))
+
+    ORDER BY n.publishedat DESC
+    LIMIT p_limit OFFSET p_offset;
+END;
+$BODY$;

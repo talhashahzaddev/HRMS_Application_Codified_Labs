@@ -99,6 +99,13 @@ public class UpdateExpenseRequest
     public string? Status { get; set; }
 }
 
+public class ExpenseRequestActionRequest
+{
+    [Required]
+    [RegularExpression("^(approve|reject)$", ErrorMessage = "Action must be 'approve' or 'reject'")]
+    public string Action { get; set; } = string.Empty;
+}
+
 public class RecurringExpenseDto
 {
     public Guid RecurringExpenseId { get; set; }
@@ -181,4 +188,33 @@ public class UpdateRecurringExpenseRequest
     public string? Merchant { get; set; }
 
     public string? ReceiptUrl { get; set; }
+}
+
+/// <summary>
+/// Item for expense pie report: cost per category (categoryid, categoryname, total_cost).
+/// </summary>
+public class ExpensePieReportItemDto
+{
+    public Guid CategoryId { get; set; }
+    public string CategoryName { get; set; } = string.Empty;
+    public decimal TotalCost { get; set; }
+}
+
+/// <summary>
+/// Item for expense line chart: cost per month of a year (month 1-12).
+/// </summary>
+public class ExpenseLineChartItemDto
+{
+    public int Month { get; set; }
+    public string MonthName { get; set; } = string.Empty;
+    public decimal Cost { get; set; }
+}
+
+/// <summary>
+/// Item for expense bar chart: total cost per year.
+/// </summary>
+public class ExpenseBarChartItemDto
+{
+    public int Year { get; set; }
+    public decimal Cost { get; set; }
 }
