@@ -1,4 +1,4 @@
-using HRMS.API.Models.DTOs;
+﻿﻿using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 
 namespace HRMS.API.Repositories.Interfaces;
@@ -11,7 +11,6 @@ public interface IAttendanceRepository
     Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId);
     Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber = 1,int pageSize = 10);
     Task<List<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId);
-    //Task<List<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber = 1,int pageSize = 10);
     Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(Guid organizationId, Guid? departmentId);
     Task<List<EmployeeSimpleDto>> GetManagerEmployeeAsync(Guid managerId,Guid organizationId, Guid? departmentId);
     Task<Attendance?> UpdateOvertimeHoursAsync(Guid employeeId);
@@ -34,13 +33,12 @@ public interface IAttendanceRepository
 
     Task<bool> ClockInOutAsync(Guid employeeId, string action, DateTime timestamp, Dictionary<string, object>? location = null, string? notes = null);
     Task<Attendance?> GetTodayAttendanceAsync(Guid employeeId);
-    Task<PagedResult<AttendanceDto>> GetAttendanceAsync(Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 100, Guid? departmentId=null, string Status=null);
+    Task<PagedResult<AttendanceDto>> GetAttendanceAsync(Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 100, Guid? departmentId=null, string? Status=null);
     Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<bool> UpdateAttendanceAsync(Guid attendanceId, Attendance attendance);
     Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date);
     
-    // New missing methods
-    Task<Attendance?> GetAttendanceByIdAsync(Guid attendanceId);
+    Task<Attendance?> GetAttendanceByIdAsync(Guid? attendanceId);
     Task<Attendance> CreateAttendanceAsync(Attendance attendance);
     Task<bool> DeleteAttendanceAsync(Guid attendanceId);
     Task<List<Attendance>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate);
@@ -55,4 +53,25 @@ public interface IAttendanceRepository
     Task<bool> IsAdminOrHRAsync(Guid employeeId, Guid organizationId);
     Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsForManagerAsync(Guid employeeId, Guid organizationId, DateTime date);
     Task<List<Guid>> GetTeamEmployeeIdsAsync(Guid managerEmployeeId, Guid organizationId);
+    Task<bool> CreateMonthlySnapshotAsync(Guid organizationId, Guid generatedBy, MonthlyTimesheetCreateDto dto);
+    Task<IEnumerable<PendingAttendanceRequest>> GetAllPendingRequestsAsync(Guid organizationId, Guid? managerId = null);
+    Task<Guid> SubmitUpdateRequestAsync(Guid employeeId, Guid organizationId, AttendanceUpdateRequestDto dto);
+    Task<bool> ProcessUpdateRequestAsync(Guid requestId, Guid actionedBy, bool isApproved, string? rejectionReason);
+    Task<AttendanceUpdateRequestDto?> GetAttendanceUpdateRequestDetailsAsync(Guid requestId);
+    Task<IEnumerable<Attendance>> GetManualAttendanceRecordsAsync(Guid organizationId, Guid? managerId, Guid? employeeId, DateTime startDate, DateTime endDate);
+    Task<bool> UpdateManualAttendanceAsync(Attendance attendance, AttendanceAudit audit);
+    Task<bool> HasPermissionToEditAsync(Guid editorId, Guid targetEmployeeId, Guid organizationId);
+    Task<int> BatchFinalizeMonthAsync(Guid timesheetId, Guid organizationId, Guid actionedBy);
+    Task<int> BatchFinalizeForEmployeeAsync(
+      Guid timesheetId, Guid employeeId, Guid organizationId, int month, int year, Guid actionedBy);
+    Task<IEnumerable<FinalizedTimesheetRecordDto>> GetFinalizedRecordsAsync(Guid timesheetId, Guid? employeeId = null);
+    Task<IEnumerable<MonthlyTimesheetSummary>> GetMonthlySnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate);
+    Task<IEnumerable<AttendanceDto>> GetConsolidatedAttendanceAsync(
+          Guid organizationId, DateTime startDate, DateTime endDate, Guid? employeeId, Guid? managerId = null);
+    Task<MonthlyTimesheetSummary?> GetSnapshotByIdAsync(Guid timesheetId);
+    Task<int> SubmitBatchForApprovalAsync(Guid employeeId, Guid organizationId, Guid timesheetId, DateTime startDate, DateTime endDate);
+    Task<int> ApproveAllBatchAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid organizationId);
+    Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(Guid organizationId, int month, int year);
+    Task<bool> AdminFinalizeRecordAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId);
+    Task<int> FlipDraftsToPendingAsync(Guid employeeId, int month, int year);
 }

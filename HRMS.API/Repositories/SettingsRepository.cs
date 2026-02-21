@@ -9,6 +9,12 @@ public class SettingsRepository : BaseRepository, ISettingsRepository
 {
     public SettingsRepository(IDatabaseConnectionFactory connectionFactory) : base(connectionFactory) { }
 
+    public async Task<int> GetManualEntryTimeLimitAsync(Guid organizationId)
+    {
+        var sql = "SELECT COALESCE((settings->>'manual_entry_time_limit_days')::int, 30) FROM auth.organizations WHERE organizationid = @organizationId";
+        return await ExecuteScalarAsync<int>(sql, new { organizationId });
+    }
+
     public async Task<string?> GetCurrencyAsync(Guid organizationId)
     {
         var sql = "SELECT currency FROM auth.organizations WHERE organizationid = @organizationId";

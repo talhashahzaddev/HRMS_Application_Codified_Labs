@@ -4,6 +4,7 @@ public interface ISettingsRepository
 {
     Task<string?> GetCurrencyAsync(Guid organizationId);
     Task<bool> UpdateCurrencyAsync(Guid organizationId, string currency);
+    Task<int> GetManualEntryTimeLimitAsync(Guid organizationId);
 }
 
 

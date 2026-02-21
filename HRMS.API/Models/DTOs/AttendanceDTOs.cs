@@ -5,6 +5,8 @@ public class AttendanceDto
     public Guid? AttendanceId { get; set; }
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; }
+    public string DepartmentName { get; set; }
     public DateTime WorkDate { get; set; }
     public DateTime Date { get; set; }
     public DateTime? CheckInTime { get; set; }
@@ -16,6 +18,9 @@ public class AttendanceDto
     public decimal OvertimeHours { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    public bool IsFinalized { get; set; }
+    public bool HasPendingRequest { get; set; }
+    public bool HasDraftRequest { get; set; }
     public Guid? ShiftId { get; set; }
     public string? Location { get; set; }
     public string? checkinip { get; set; }
@@ -113,7 +118,7 @@ public class AttendanceSessionDto
     public Guid AttendanceId { get; set; }
     public DateTime CheckInTime { get; set; }
     public DateTime? CheckOutTime { get; set; }
- 
+
 }
 
 public class CreateShiftDto
@@ -267,8 +272,170 @@ public class ShiftSwapRequestDto
 
     public Guid? ReportingManagerId { get; set; }
 }
+public class FinalizeBatchRequestDto
+{
+    public Guid TimesheetId { get; set; }
+    /// <summary>
+    /// Optional. When provided, finalization is scoped to a single employee.
+    /// When null, the entire timesheet (all employees) is finalized.
+    /// </summary>
+    public Guid EmployeeId { get; set; }
+}
 
+public class FinalizedTimesheetRecordDto
+{
+    public Guid RecordId { get; set; }
+    public Guid TimesheetId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public DateTime WorkDate { get; set; }
+    public DateTime? FinalCheckIn { get; set; }
+    public DateTime? FinalCheckOut { get; set; }
+    public decimal FinalTotalHours { get; set; }
+    public string FinalStatus { get; set; }
+    public string EmployeeName { get; set; }
+}
 
+public class EmployeeTimesheetDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; }
+    public string? EmployeeCode { get; set; }
+    public string? Department { get; set; }
+    public List<DailyAttendanceRecord> DailyRecords { get; set; } = new();
+    public decimal TotalHoursWorked { get; set; }
+    public int PresentDays { get; set; }
+    public int AbsentDays { get; set; }
+    /// <summary>Count of days where status = 'late'.</summary>
+    public int LateDays { get; set; }
+    /// <summary>Present days (including late) divided by total working days × 100.</summary>
+    public decimal AttendancePercentage { get; set; }
+}
+public class MonthlyTimesheetCreateDto
+{
+    public string TimesheetName { get; set; }
+    public int Month { get; set; }
+    public int Year { get; set; }
+}
+public class OrgSubmissionProgressDto
+{
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int TotalEmployees { get; set; }
+    public int FinalizedCount { get; set; }
+    public int SubmittedCount { get; set; }
+    public int PendingReviewCount { get; set; }
+    public int InProgressCount { get; set; }
+    public int UntouchedCount { get; set; }
+    public decimal SubmissionRate => TotalEmployees > 0
+        ? Math.Round(((decimal)(FinalizedCount + SubmittedCount) / TotalEmployees) * 100, 1)
+        : 0;
+    public decimal ComplianceRate => TotalEmployees > 0
+       ? Math.Round(((decimal)FinalizedCount / TotalEmployees) * 100, 1)
+       : 0;
+}
+public class AttendanceUpdateRequestDto
+{
+    public Guid? AttendanceId { get; set; }
+    public Guid? EmployeeId { get; set; }
+    public DateTime WorkDate { get; set; }
+    public DateTime? RequestedCheckIn { get; set; }
+    public DateTime? RequestedCheckOut { get; set; }
+    public string RequestedStatus { get; set; }
+    public string ReasonForEdit { get; set; }
+    public string? RequestedNotes { get; set; }
+}
+
+public class ProcessAttendanceRequestDto
+{
+    public Guid RequestId { get; set; }
+    public bool IsApproved { get; set; }
+    public string? RejectionReason { get; set; }
+}
+public class MonthlyTimesheetSummary
+{
+    public Guid TimesheetId { get; set; }
+    public string TimesheetName { get; set; } = string.Empty;
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public string Status { get; set; } = "Draft";
+    public DateTime CreatedAt { get; set; }
+    public int TotalEmployees { get; set; }
+    public decimal TotalHoursWorked { get; set; }
+    public int TotalPresentDays { get; set; }
+    public int TotalAbsentDays { get; set; }
+    public int TotalLateDays { get; set; }
+    public decimal AttendancePercentage { get; set; }
+    public string MonthName => System.Globalization.CultureInfo.CurrentCulture
+        .DateTimeFormat.GetMonthName(Month);
+}
+public class PendingAttendanceRequest
+{
+    public Guid RequestId { get; set; }
+    public Guid? AttendanceId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public DateTime WorkDate { get; set; }
+    public DateTime? OriginalCheckIn { get; set; }
+    public DateTime? OriginalCheckOut { get; set; }
+    public string OriginalStatus { get; set; } = string.Empty;
+    public DateTime? RequestedCheckIn { get; set; }
+    public DateTime? RequestedCheckOut { get; set; }
+    public string RequestedStatus { get; set; } = string.Empty;
+    public string ReasonForEdit { get; set; } = string.Empty;
+    public string? RequestedNotes { get; set; }
+    public DateTime Submittedat { get; set; }
+    public string Status { get; set; } = "pending";
+}
+public class ApproveAllRequestDto
+{
+    public Guid TimesheetId { get; set; }
+    public Guid? EmployeeId { get; set; }
+}
+
+public class EmployeeSubmissionPackage
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public Guid TimesheetId { get; set; }
+    public string TimesheetName { get; set; } = string.Empty;
+    public DateTime SubmittedAt { get; set; }
+    public List<PendingAttendanceRequest> Corrections { get; set; } = new();
+}
+public class EmployeeReviewPackage
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string Department { get; set; } = string.Empty;
+    public Guid TimesheetId { get; set; }
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public List<ReviewAttendanceRecord> FullMonthRecords { get; set; } = new();
+    public int PendingRequestCount { get; set; }
+    public int ApprovedCount { get; set; }
+    public int RejectedCount { get; set; }
+    public int FinalizedCount { get; set; }
+    public int TotalRecords { get; set; }
+    public bool IsFinalized { get; set; }
+    public bool HasPendingRequest => PendingRequestCount > 0;
+    public bool HasDraftRequest => FullMonthRecords.Any(r => r.HasDraftRequest);
+}
+
+public class ReviewAttendanceRecord : DailyAttendanceRecord
+{
+    public Guid? RequestId { get; set; }
+    public DateTime? OriginalCheckIn => CheckInTime;
+    public DateTime? OriginalCheckOut => CheckOutTime;
+    public string OriginalStatus => Status;
+    public decimal OriginalTotalHours => TotalHours;
+    public DateTime? RequestedCheckIn { get; set; }
+    public DateTime? RequestedCheckOut { get; set; }
+    public string? RequestedStatus { get; set; }
+    public string? ReasonForEdit { get; set; }
+    public string RequestStatus { get; set; } = "none";
+}
 public class ManualAttendanceRequest
 {
     public Guid EmployeeId { get; set; }
@@ -308,6 +475,19 @@ public class DailyAttendanceStatsDto
     public TimeSpan? AverageCheckOutTime { get; set; }
 }
 
+public class DailyAttendanceRecord
+{
+    public Guid? AttendanceId { get; set; }
+    public DateTime Date { get; set; }
+    public DateTime? CheckInTime { get; set; }
+    public DateTime? CheckOutTime { get; set; }
+    public string Status { get; set; }
+    public decimal TotalHours { get; set; }
+    public string? Notes { get; set; }
+    public bool IsFinalized { get; set; }
+    public bool HasPendingRequest { get; set; }
+    public bool HasDraftRequest { get; set; }
+}
 public class AttendanceReportDto
 {
     public DateTime StartDate { get; set; }
@@ -337,6 +517,26 @@ public class BulkAttendanceRejectRequest
     public string? Reason { get; set; }
 }
 
+public class ManualAttendanceSearchDto
+{
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public Guid? EmployeeId { get; set; }
+}
+
+public class ManualAttendanceUpdateDto
+{
+    public Guid? AttendanceId { get; set; }
+    public Guid TimesheetId { get; set; }
+    public DateTime? CheckInTime { get; set; }
+    public DateTime? CheckOutTime { get; set; }
+    public DateTime WorkDate { get; set; }
+    public string Status { get; set; }
+    public string? Notes { get; set; }
+    public string? Reason { get; set; }
+    public Guid EmployeeId { get; set; }
+}
+
 public class DepartmentAttendanceStatsDto
 {
     public Guid DepartmentId { get; set; }
@@ -346,4 +546,3 @@ public class DepartmentAttendanceStatsDto
     public int AbsentEmployees { get; set; }
     public decimal AttendanceRate { get; set; }
 }
-
