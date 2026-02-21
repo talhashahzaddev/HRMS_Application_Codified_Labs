@@ -1412,14 +1412,14 @@ public class AttendanceService : IAttendanceService
             // 2. Execute the repository method (which calls the DB function fn_finalize_attendance_record)
             var result = await _attendanceRepository.ProcessUpdateRequestAsync(dto.RequestId, actionedBy, dto.IsApproved, dto.RejectionReason);
 
-            if (result)
+            if (result && requestDetails.EmployeeId.HasValue)
             {
                 string statusText = dto.IsApproved ? "Approved" : "Rejected";
 
                 // 3. Notify the Employee about the decision
                 await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
                 {
-                    Receiveruserid = requestDetails.EmployeeId,
+                    Receiveruserid = new List<Guid> { requestDetails.EmployeeId.Value },
                     Senderuserid = actionedBy,
                     Title = "Attendance Correction " + statusText,
                     Message = $"Your request for {requestDetails.RequestedStatus} on {requestDetails.RequestedCheckIn:yyyy-MM-dd} has been {statusText.ToLower()}.",
@@ -1530,7 +1530,7 @@ public class AttendanceService : IAttendanceService
             var managerId = await _notificationRepository.GetReciveridAsync(employeeId);
             await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
             {
-                Receiveruserid = managerId,
+                Receiveruserid = new List<Guid> { managerId },
                 Senderuserid = employeeId,
                 Title = "Attendance Edit Request",
                 Message = $"An employee has requested a change for {dto.RequestedStatus}",
@@ -1697,7 +1697,7 @@ public class AttendanceService : IAttendanceService
             var managerId = await _notificationRepository.GetReciveridAsync(employeeId);
             await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
             {
-                Receiveruserid = managerId,
+                Receiveruserid = new List<Guid> { managerId },
                 Senderuserid = employeeId,
                 Title = "Timesheet Submitted",
                 Message = $"Employee has submitted {updatedCount} changes for {snapshot.TimesheetName}.",
@@ -1881,7 +1881,7 @@ public class AttendanceService : IAttendanceService
         {
             await _notificationRepository.CreateNotificationAsync(orgId, new NotificationCreateDto
             {
-                Receiveruserid = dto.EmployeeId,
+                Receiveruserid = new List<Guid> { dto.EmployeeId },
                 Senderuserid = managerId,
                 Title = "Attendance Finalized",
                 Message = $"A manager has administratively finalized your attendance for this date.",
