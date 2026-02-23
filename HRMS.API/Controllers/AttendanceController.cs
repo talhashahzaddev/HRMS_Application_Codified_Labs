@@ -1901,7 +1901,7 @@ public class AttendanceController : ControllerBase
             return Ok(new ServiceResponse<bool>
             {
                 Success = result,
-                Message = result ? "Record finalized by administrative override." : "Failed to override record.",
+                Message = result ? "Attendance record overridden successfully." : "Failed to override record.",
                 Data = result
             });
         }

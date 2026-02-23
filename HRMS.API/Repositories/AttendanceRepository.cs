@@ -151,7 +151,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 @RequestedCheckOut::timestamptz, 
                 @RequestedStatus::varchar, 
                 @ReasonForEdit::text, 
-                @RequestedNotes::text
+                @RequestedNotes::text,
+                @TimesheetId::uuid 
             )";
 
             return await ExecuteScalarAsync<Guid>(sql, new
@@ -164,7 +165,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 dto.RequestedCheckOut,
                 dto.RequestedStatus,
                 dto.ReasonForEdit,
-                dto.RequestedNotes
+                dto.RequestedNotes,
+                dto.TimesheetId
             });
         }
         catch (Exception ex)
@@ -185,6 +187,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             request_id AS RequestId,
             attendance_id AS AttendanceId,
             employee_id AS EmployeeId,
+            workdate    AS WorkDate, 
             requested_checkin AS RequestedCheckIn,
             requested_checkout AS RequestedCheckOut,
             requested_status AS RequestedStatus,
@@ -207,66 +210,111 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             actionedBy
         });
     }
-    public async Task<int> BatchFinalizeForEmployeeAsync(
-      Guid timesheetId, Guid employeeId, Guid organizationId, int month, int year, Guid actionedBy)
+    public async Task<int> BatchFinalizeForEmployeeAsync(Guid employeeId, Guid timesheetId)
     {
-        const string upsertSql = @"
-        INSERT INTO attendance.finalized_timesheet_records (
-            record_id,
-            timesheet_id,
-            employee_id,
-            organization_id,
-            work_date,
-            final_checkin,
-            final_checkout,
-            final_status,
-            approved_by,
-            approved_at,
-            attendance_id,
-            override_reason
-        )
-        SELECT
-            uuid_generate_v4(),
-            @timesheetId,
-            a.employeeid,
-            e.organizationid,
-            a.workdate,
-            a.checkintime,
-            a.checkouttime,
-            a.status,
-            @actionedBy,
-            CURRENT_TIMESTAMP,
-            a.attendanceid,
-            'Manager batch finalization'
-        FROM attendance.attendance a
-        INNER JOIN employee.employees e ON e.employeeid = a.employeeid
-        WHERE a.employeeid   = @employeeId
-          AND e.organizationid = @organizationId
-          AND EXTRACT(MONTH FROM a.workdate) = @month
-          AND EXTRACT(YEAR  FROM a.workdate) = @year
-        ON CONFLICT (employee_id, work_date)
-        DO UPDATE SET
-            final_checkin    = EXCLUDED.final_checkin,
-            final_checkout   = EXCLUDED.final_checkout,
-            final_status     = EXCLUDED.final_status,
-            approved_by      = EXCLUDED.approved_by,
-            approved_at      = CURRENT_TIMESTAMP,
-            attendance_id    = EXCLUDED.attendance_id;";
-
         using var connection = CreateConnection();
-        await connection.ExecuteAsync(upsertSql, new { timesheetId, employeeId, organizationId, month, year, actionedBy });
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
 
-        const string markSql = @"
-        UPDATE attendance.attendance a
-        SET    is_finalized = TRUE
-        FROM   employee.employees e
-        WHERE  e.employeeid      = a.employeeid
-          AND  a.employeeid      = @employeeId
-          AND  e.organizationid  = @organizationId
-          AND  EXTRACT(MONTH FROM a.workdate) = @month
-          AND  EXTRACT(YEAR  FROM a.workdate) = @year;";
+        try
+        {
+            // Fetch month, year AND organization_id from the timesheet
+            var snapshot = await connection.QuerySingleOrDefaultAsync<(int Month, int Year, string OrgId)>(
+                @"SELECT month, year, organization_id::text
+              FROM attendance.monthly_timesheets
+              WHERE timesheet_id = @timesheetId::uuid",
+                new { timesheetId = timesheetId.ToString() },
+                transaction);
 
-        return await connection.ExecuteAsync(markSql, new { employeeId, organizationId, month, year });
+            if (snapshot == default)
+                return 0;
+
+            var startDate = new DateTime(snapshot.Year, snapshot.Month, 1);
+            var endDate = startDate.AddMonths(1).AddDays(-1);
+            var orgId = snapshot.OrgId;
+
+            var attendanceSql = @"
+    INSERT INTO attendance.finalized_timesheet_records
+        (record_id, timesheet_id, organization_id, employee_id, attendance_id, work_date, record_status, approved_at)
+    SELECT DISTINCT ON (a.attendanceid)
+        gen_random_uuid(),
+        @timesheetId::uuid,
+        @orgId::uuid,
+        @employeeId::uuid,
+        a.attendanceid,
+        a.workdate,
+        'finalized',
+        NOW()
+    FROM attendance.attendance a
+    WHERE a.employeeid = @employeeId::uuid
+      AND a.workdate >= @startDate::date
+      AND a.workdate <= @endDate::date
+    ORDER BY a.attendanceid
+    ON CONFLICT (attendance_id) WHERE attendance_id IS NOT NULL
+    DO UPDATE SET record_status = 'finalized', approved_at = NOW()";
+
+
+            await connection.ExecuteAsync(attendanceSql,
+                new
+                {
+                    timesheetId = timesheetId.ToString(),
+                    orgId,
+                    employeeId = employeeId.ToString(),
+                    startDate = startDate.ToString("yyyy-MM-dd"),
+                    endDate = endDate.ToString("yyyy-MM-dd")
+                },
+                transaction);
+
+            var absenceSql = @"
+    INSERT INTO attendance.finalized_timesheet_records
+        (record_id, timesheet_id, organization_id, employee_id, attendance_id, work_date, record_status, approved_at)
+    SELECT DISTINCT ON (r.workdate)
+        gen_random_uuid(),
+        @timesheetId::uuid,
+        @orgId::uuid,
+        @employeeId::uuid,
+        NULL::uuid,
+        r.workdate,
+        'finalized',
+        NOW()
+    FROM attendance.attendance_update_requests r
+    WHERE r.employee_id = @employeeId::uuid
+      AND r.status = 'approved'
+      AND r.attendance_id IS NULL
+      AND r.workdate >= @startDate::date
+      AND r.workdate <= @endDate::date
+    ORDER BY r.workdate, r.submitted_at DESC
+    ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
+    DO UPDATE SET record_status = 'finalized', approved_at = NOW()";
+
+            await connection.ExecuteAsync(absenceSql,
+                new
+                {
+                    timesheetId = timesheetId.ToString(),
+                    orgId,
+                    employeeId = employeeId.ToString(),
+                    startDate = startDate.ToString("yyyy-MM-dd"),
+                    endDate = endDate.ToString("yyyy-MM-dd")
+                },
+                transaction);
+
+            var updateStatusSql = @"
+            UPDATE attendance.monthly_timesheets
+            SET status = 'Finalized'
+            WHERE timesheet_id = @timesheetId::uuid";
+
+            await connection.ExecuteAsync(updateStatusSql,
+                new { timesheetId = timesheetId.ToString() },
+                transaction);
+
+            transaction.Commit();
+            return 1;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
     public async Task<IEnumerable<FinalizedTimesheetRecordDto>> GetFinalizedRecordsAsync(Guid timesheetId, Guid? employeeId = null)
     {
@@ -326,7 +374,11 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         v.totalhours, 
         v.is_finalized        AS ""IsFinalized"",
         v.has_pending_request AS ""HasPendingRequest"",
-        v.has_draft_request   AS ""HasDraftRequest""
+        v.has_draft_request   AS ""HasDraftRequest"",
+        v.has_approved_request AS ""HasApprovedRequest"",
+        v.requested_checkin  AS ""RequestedCheckIn"",
+        v.requested_checkout AS ""RequestedCheckOut"",
+        v.requested_status   AS ""RequestedStatus""
     FROM employee.employees e
     LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
     LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
@@ -488,73 +540,82 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         try
         {
             const string sql = @"
-        INSERT INTO attendance.finalized_timesheet_records (
-            record_id,
-            timesheet_id, 
-            employee_id, 
-            organization_id, 
-            work_date, 
-            final_checkin, 
-            final_checkout, 
-            final_status, 
-            approved_by, 
-            approved_at,
-            attendance_id,
-            override_reason
-        ) 
-        VALUES (
-            uuid_generate_v4(),
-            @TimesheetId, 
-            @EmployeeId, 
-            @orgId, 
-            @WorkDate, 
-            @CheckInTime, 
-            @CheckOutTime, 
-            @Status, 
-            @managerId, 
-            CURRENT_TIMESTAMP,
-            @AttendanceId,
-            @Reason
-        )
-        ON CONFLICT (employee_id, work_date) 
-        DO UPDATE SET 
-            final_checkin = EXCLUDED.final_checkin,
-            final_checkout = EXCLUDED.final_checkout,
-            final_status = EXCLUDED.final_status,
-            approved_by = EXCLUDED.approved_by,
-            approved_at = CURRENT_TIMESTAMP,
-            attendance_id = EXCLUDED.attendance_id,
-            override_reason = EXCLUDED.override_reason;";
+            INSERT INTO attendance.finalized_timesheet_records (
+                record_id,
+                timesheet_id,
+                employee_id,
+                organization_id,
+                work_date,
+                final_checkin,
+                final_checkout,
+                final_status,
+                approved_by,
+                approved_at,
+                attendance_id,
+                override_reason,
+                record_status
+            )
+            VALUES (
+                uuid_generate_v4(),
+                @TimesheetId,
+                @EmployeeId,
+                @OrgId,
+                @WorkDate,
+                @CheckInTime,
+                @CheckOutTime,
+                @Status,
+                @ManagerId,
+                NOW(),
+                @AttendanceId,
+                @Reason,
+                'overridden'
+            )
+            ON CONFLICT (employee_id, work_date)
+            DO UPDATE SET
+                final_checkin   = EXCLUDED.final_checkin,
+                final_checkout  = EXCLUDED.final_checkout,
+                final_status    = EXCLUDED.final_status,
+                approved_by     = EXCLUDED.approved_by,
+                approved_at     = NOW(),
+                attendance_id   = EXCLUDED.attendance_id,
+                override_reason = EXCLUDED.override_reason,
+                record_status   = 'overridden';";
 
             using var connection = CreateConnection();
-            var timesheetId = dto.TimesheetId == Guid.Empty ? null : (Guid?)dto.TimesheetId;
-            var attendanceId = dto.AttendanceId == Guid.Empty ? null : (Guid?)dto.AttendanceId;
+
+            if (dto.TimesheetId == Guid.Empty)
+                throw new ArgumentException("TimesheetId is required for admin override.");
+
+            var attendanceId = dto.AttendanceId == Guid.Empty ? (Guid?)null : dto.AttendanceId;
+
             return await connection.ExecuteAsync(sql, new
             {
                 dto.EmployeeId,
-                dto.AttendanceId,
-                TimesheetId = timesheetId,
+                OrgId = orgId,
+                ManagerId = managerId,
+                TimesheetId = dto.TimesheetId,
+                AttendanceId = attendanceId,
                 WorkDate = dto.WorkDate.Date,
                 dto.CheckInTime,
                 dto.CheckOutTime,
                 dto.Status,
-                Reason = dto.Notes,
-                managerId,
-                orgId
+                Reason = dto.Notes
             }) > 0;
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error applying admin override for employee {EmployeeId} on {Date}", dto.EmployeeId, dto.WorkDate);
             throw;
         }
     }
-    public async Task<int> FlipDraftsToPendingAsync(Guid employeeId, int month, int year)
+    public async Task<int> FlipDraftsToPendingAsync(Guid employeeId, int month, int year, Guid timesheetId)
     {
         try
         {
             var sql = @"
         UPDATE attendance.attendance_update_requests
-        SET status = 'pending',
+        SET status       = 'pending',
+            timesheet_id = @timesheetId,  
             submitted_at = NOW()
         WHERE employee_id = @employeeId 
           AND status = 'draft'
@@ -565,7 +626,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             if (connection == null)
                 throw new Exception("❌ Database connection could not be established.");
 
-            return await connection.ExecuteAsync(sql, new { employeeId, month, year });
+            return await connection.ExecuteAsync(sql, new { employeeId, timesheetId, month, year });
         }
         catch (Exception ex)
         {
@@ -2426,7 +2487,39 @@ WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
             throw new Exception($"Error checking HR manager status for employee {employeeId} in organization {organizationId}", ex);
         }
     }
+    public async Task<IEnumerable<PendingAttendanceRequest>> GetAllReviewableRequestsAsync(
+    Guid organizationId, Guid? managerId = null)
+    {
+        var sql = @"
+    SELECT 
+        r.request_id        AS RequestId,
+        r.attendance_id     AS AttendanceId,
+        r.employee_id       AS EmployeeId,
+        (e.firstname || ' ' || e.lastname) AS EmployeeName,
+        e.employeecode      AS EmployeeCode,
+        COALESCE(a.workdate, r.workdate) AS WorkDate,
+        a.checkintime       AS OriginalCheckIn,
+        a.checkouttime      AS OriginalCheckOut,
+        a.status            AS OriginalStatus,
+        r.requested_checkin  AS RequestedCheckIn,
+        r.requested_checkout AS RequestedCheckOut,
+        r.requested_status   AS RequestedStatus,
+        r.reason_for_edit    AS ReasonForEdit,
+        r.requested_notes    AS RequestedNotes,
+        r.rejection_reason   AS RejectionReason,
+        r.submitted_at       AS Submittedat,
+        r.status             AS Status
+    FROM attendance.attendance_update_requests r
+    JOIN employee.employees e ON r.employee_id = e.employeeid
+    LEFT JOIN attendance.attendance a ON r.attendance_id = a.attendanceid
+    LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+    WHERE e.organizationid = @organizationId
+      AND r.status IN ('pending', 'approved', 'rejected')   -- all actionable states
+      AND (@managerId IS NULL OR ed.reportingmanagerid = @managerId)
+    ORDER BY r.submitted_at DESC";
 
+        return await QueryAsync<PendingAttendanceRequest>(sql, new { organizationId, managerId });
+    }
     async Task<bool> IAttendanceRepository.IsAdminOrHRAsync(Guid employeeId, Guid organizationId)
     {
         try

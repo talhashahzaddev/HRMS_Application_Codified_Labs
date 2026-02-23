@@ -702,7 +702,6 @@ public class AttendanceService : IAttendanceService
                 Receiveruserid = new List<Guid> { request.EmployeeId },
                 Senderuserid = currentEmpid,
                 Title = "Shift Assign",
-                //RequestId = leaveRequest.RequestId,
                 Message = $"{currentEmp.FirstName} {currentEmp.LastName}, assign you shift of {shiftDetails.ShiftName} ",
                 Notificationtype = "Message",
                 Createdby = currentEmpid,
@@ -1320,10 +1319,12 @@ public class AttendanceService : IAttendanceService
         _logger.LogInformation("Getting Employee Id against User id: {EmployeeId}", Userid);
         return await _attendanceRepository.GetEmployeeFromTable(Userid);
     }
-    public async Task<ServiceResponse<List<EmployeeTimesheetDto>>> GetTimesheetDetailsByIdAsync(Guid timesheetId, Guid organizationId, Guid currentEmployeeId)
+    public async Task<ServiceResponse<List<EmployeeTimesheetDto>>> GetTimesheetDetailsByIdAsync(
+    Guid timesheetId, Guid organizationId, Guid currentEmployeeId)
     {
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
-        if (snapshot == null) return new ServiceResponse<List<EmployeeTimesheetDto>> { Success = false, Message = "Snapshot not found" };
+        if (snapshot == null)
+            return new ServiceResponse<List<EmployeeTimesheetDto>> { Success = false, Message = "Snapshot not found" };
 
         var startDate = new DateTime(snapshot.Year, snapshot.Month, 1);
         var endDate = startDate.AddMonths(1).AddDays(-1);
@@ -1380,17 +1381,30 @@ public class AttendanceService : IAttendanceService
                         TotalHours = r.TotalHours,
                         IsFinalized = r.IsFinalized,
                         HasPendingRequest = r.HasPendingRequest,
-                        HasDraftRequest = r.HasDraftRequest
+                        HasDraftRequest = r.HasDraftRequest,
+                        RequestedCheckIn = r.RequestedCheckIn,
+                        RequestedCheckOut = r.RequestedCheckOut,
+                        RequestedStatus = r.RequestedStatus
                     };
                 }).OrderBy(d => d.Date).ToList(),
+
+                IsFinalized = g.Where(r => r.AttendanceId != Guid.Empty).Any()
+                           && g.Where(r => r.AttendanceId != Guid.Empty).All(r => r.IsFinalized),
+
                 TotalHoursWorked = g.Sum(r => r.TotalHours),
                 PresentDays = g.Count(r => r.Status?.ToLower() == "present"),
                 AbsentDays = g.Count(r => r.Status?.ToLower() == "absent"),
                 LateDays = g.Count(r => r.Status?.ToLower() == "late"),
                 AttendancePercentage = g.Any()
                     ? Math.Round(
-                        (decimal)g.Count(r => r.Status?.ToLower() == "present" || r.Status?.ToLower() == "late" || r.Status?.ToLower() == "half_day")
-                        / g.Count(r => r.WorkDate.DayOfWeek != DayOfWeek.Saturday && r.WorkDate.DayOfWeek != DayOfWeek.Sunday && r.WorkDate.Date <= today)
+                        (decimal)g.Count(r =>
+                            r.Status?.ToLower() == "present" ||
+                            r.Status?.ToLower() == "late" ||
+                            r.Status?.ToLower() == "half_day")
+                        / g.Count(r =>
+                            r.WorkDate.DayOfWeek != DayOfWeek.Saturday &&
+                            r.WorkDate.DayOfWeek != DayOfWeek.Sunday &&
+                            r.WorkDate.Date <= today)
                         * 100, 1)
                     : 0
             }).ToList();
@@ -1401,7 +1415,6 @@ public class AttendanceService : IAttendanceService
     {
         try
         {
-            // 1. Fetch request details FIRST to know who to notify later
             var requestDetails = await _attendanceRepository.GetAttendanceUpdateRequestDetailsAsync(dto.RequestId);
 
             if (requestDetails == null)
@@ -1409,21 +1422,18 @@ public class AttendanceService : IAttendanceService
                 return new ServiceResponse<bool> { Success = false, Message = "Update request not found." };
             }
 
-            // 2. Execute the repository method (which calls the DB function fn_finalize_attendance_record)
             var result = await _attendanceRepository.ProcessUpdateRequestAsync(dto.RequestId, actionedBy, dto.IsApproved, dto.RejectionReason);
 
             if (result && requestDetails.EmployeeId.HasValue)
             {
                 string statusText = dto.IsApproved ? "Approved" : "Rejected";
 
-                // 3. Notify the Employee about the decision
                 await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
                 {
                     Receiveruserid = new List<Guid> { requestDetails.EmployeeId.Value },
                     Senderuserid = actionedBy,
                     Title = "Attendance Correction " + statusText,
-                    Message = $"Your request for {requestDetails.RequestedStatus} on {requestDetails.RequestedCheckIn:yyyy-MM-dd} has been {statusText.ToLower()}.",
-                    Notificationtype = "Message",
+                    Message = $"Your request for {requestDetails.RequestedStatus} on {requestDetails.WorkDate:yyyy-MM-dd} has been {statusText.ToLower()}.",                    Notificationtype = "Message",
                     moduletype = "attendance",
                     Redirecturl = "/attendance/dashboard",
                     RequestId = dto.RequestId,
@@ -1457,8 +1467,7 @@ public class AttendanceService : IAttendanceService
                     return new ServiceResponse<int> { Success = false, Message = "Timesheet snapshot not found." };
 
                 count = await _attendanceRepository.BatchFinalizeForEmployeeAsync(
-                    timesheetId, employeeId.Value, organizationId,
-                    snapshot.Month, snapshot.Year, managerEmployeeId);
+                     employeeId.Value, timesheetId);
 
                 return new ServiceResponse<int>
                 {
@@ -1526,7 +1535,6 @@ public class AttendanceService : IAttendanceService
         {
             var requestId = await _attendanceRepository.SubmitUpdateRequestAsync(employeeId, organizationId, dto);
 
-            // Notify Manager (Reuse your existing notification logic)
             var managerId = await _notificationRepository.GetReciveridAsync(employeeId);
             await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
             {
@@ -1544,6 +1552,14 @@ public class AttendanceService : IAttendanceService
         catch (Npgsql.PostgresException ex) when (ex.SqlState == "23505") 
         {
             return new ServiceResponse<Guid> { Success = false, Message = "A pending request already exists for this date." };
+        }
+        catch (Npgsql.PostgresException ex) when (ex.Message.Contains("SUBMISSION_LOCKED"))
+        {
+            return new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = "Cannot add new corrections while your previous submission is awaiting manager review."
+            };
         }
     }
     public async Task<ServiceResponse<List<MonthlyTimesheetSummary>>> GetMonthlyTimesheetSnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate, Guid currentEmployeeId)
@@ -1689,7 +1705,7 @@ public class AttendanceService : IAttendanceService
         if (snapshot == null) return new ServiceResponse<int> { Success = false, Message = "Timesheet not found" };
 
         // 1. Flip all 'draft' requests for this employee and period to 'pending'
-        int updatedCount = await _attendanceRepository.FlipDraftsToPendingAsync(employeeId, snapshot.Month, snapshot.Year);
+        int updatedCount = await _attendanceRepository.FlipDraftsToPendingAsync(employeeId, snapshot.Month, snapshot.Year,timesheetId);
 
         if (updatedCount > 0)
         {
@@ -1777,7 +1793,7 @@ public class AttendanceService : IAttendanceService
 
         Guid? filterManagerId = isGlobalViewer ? null : currentUserId;
         var rawLogs = await _attendanceRepository.GetConsolidatedAttendanceAsync(organizationId, start, end, targetEmployeeId, filterManagerId);
-        var pendingReqs = await _attendanceRepository.GetAllPendingRequestsAsync(organizationId, filterManagerId);
+        var pendingReqs = await _attendanceRepository.GetAllReviewableRequestsAsync(organizationId, filterManagerId);
         var grouped = rawLogs.GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode, r.DepartmentName })
             .Select(g => new EmployeeReviewPackage
             {
@@ -1829,7 +1845,9 @@ public class AttendanceService : IAttendanceService
             HasPendingRequest = (req != null && req.Status == "pending")
                     || (log?.HasPendingRequest ?? false),
             HasDraftRequest = (req != null && req.Status == "Draft")
-                    || (log?.HasDraftRequest ?? false)
+                    || (log?.HasDraftRequest ?? false),
+            HasApprovedRequest = (req != null && req.Status == "approved") 
+        || (log?.HasApprovedRequest ?? false)
         };
     }).ToList()
             }).ToList();
@@ -1843,18 +1861,27 @@ public class AttendanceService : IAttendanceService
                 return s != "weekend" && s != "norecord";
             }).ToList();
 
-            var attendanceRecords = records.Where(r => r.AttendanceId.HasValue).ToList();
+            var finalizableRecords = workingDayRecords
+                .Where(r => r.AttendanceId.HasValue || r.RequestId.HasValue)
+                .ToList();
 
             pkg.TotalRecords = workingDayRecords.Count;
-            pkg.FinalizedCount = attendanceRecords.Count(r => r.IsFinalized);  
+
+            pkg.FinalizedCount = finalizableRecords.Count(r => r.IsFinalized);
+
             pkg.PendingRequestCount = records.Count(r => r.HasPendingRequest);
+
             pkg.ApprovedCount = records.Count(r =>
-                string.Equals(r.RequestStatus, "approved", StringComparison.OrdinalIgnoreCase));
+                string.Equals(r.RequestStatus, "approved", StringComparison.OrdinalIgnoreCase)
+                || (!string.Equals(r.RequestStatus, "pending", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(r.RequestStatus, "rejected", StringComparison.OrdinalIgnoreCase)
+                    && r.HasApprovedRequest));
+
             pkg.RejectedCount = records.Count(r =>
                 string.Equals(r.RequestStatus, "rejected", StringComparison.OrdinalIgnoreCase));
 
-            pkg.IsFinalized = attendanceRecords.Count > 0
-                              && attendanceRecords.All(r => r.IsFinalized);
+            pkg.IsFinalized = finalizableRecords.Count > 0
+                              && finalizableRecords.All(r => r.IsFinalized);
         }
 
         return new ServiceResponse<List<EmployeeReviewPackage>> { Data = grouped, Success = true };
@@ -1872,8 +1899,8 @@ public class AttendanceService : IAttendanceService
     }
     public async Task<bool> AdminOverrideAttendanceAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId)
     {
-        _logger.LogInformation("Admin Override initiated by {ManagerId} for Employee {EmployeeId} on {Date}",
-            managerId, dto.EmployeeId, dto.AttendanceId);
+        _logger.LogInformation("Admin override initiated by {ManagerId} for Employee {EmployeeId} on {Date}",
+            managerId, dto.EmployeeId, dto.WorkDate);
 
         var result = await _attendanceRepository.AdminFinalizeRecordAsync(dto, managerId, orgId);
 
@@ -1883,10 +1910,11 @@ public class AttendanceService : IAttendanceService
             {
                 Receiveruserid = new List<Guid> { dto.EmployeeId },
                 Senderuserid = managerId,
-                Title = "Attendance Finalized",
-                Message = $"A manager has administratively finalized your attendance for this date.",
+                Title = "Attendance Override",
+                Message = $"A manager has overridden your attendance record for {dto.WorkDate:yyyy-MM-dd}. The record has been updated but is not yet finalized for payroll.",
                 Notificationtype = "Message",
                 moduletype = "attendance",
+                Redirecturl = "/attendance/dashboard",
                 organizationId = orgId
             });
         }

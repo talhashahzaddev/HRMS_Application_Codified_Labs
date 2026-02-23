@@ -21,13 +21,16 @@ public class AttendanceDto
     public bool IsFinalized { get; set; }
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }
+    public bool HasApprovedRequest { get; set; }
+    public DateTime? RequestedCheckIn { get; set; }
+    public DateTime? RequestedCheckOut { get; set; }
+    public string? RequestedStatus { get; set; }
     public Guid? ShiftId { get; set; }
     public string? Location { get; set; }
     public string? checkinip { get; set; }
     public string? checkoutip { get; set; }
     public string? checkinLocationType { get; set; }
     public string? checkoutLocationType { get; set; }
-
     public string ipAddress { get; set; }
 
 }
@@ -303,6 +306,7 @@ public class EmployeeTimesheetDto
     public string? Department { get; set; }
     public List<DailyAttendanceRecord> DailyRecords { get; set; } = new();
     public decimal TotalHoursWorked { get; set; }
+    public bool IsFinalized { get; set; }
     public int PresentDays { get; set; }
     public int AbsentDays { get; set; }
     /// <summary>Count of days where status = 'late'.</summary>
@@ -343,6 +347,7 @@ public class AttendanceUpdateRequestDto
     public string RequestedStatus { get; set; }
     public string ReasonForEdit { get; set; }
     public string? RequestedNotes { get; set; }
+    public Guid? TimesheetId { get; set; }
 }
 
 public class ProcessAttendanceRequestDto
@@ -384,6 +389,7 @@ public class PendingAttendanceRequest
     public string RequestedStatus { get; set; } = string.Empty;
     public string ReasonForEdit { get; set; } = string.Empty;
     public string? RequestedNotes { get; set; }
+    public string? RejectionReason { get; set; }
     public DateTime Submittedat { get; set; }
     public string Status { get; set; } = "pending";
 }
@@ -487,6 +493,10 @@ public class DailyAttendanceRecord
     public bool IsFinalized { get; set; }
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }
+    public bool HasApprovedRequest { get; set; }
+    public DateTime? RequestedCheckIn { get; set; }
+    public DateTime? RequestedCheckOut { get; set; }
+    public string? RequestedStatus { get; set; }
 }
 public class AttendanceReportDto
 {
