@@ -52,6 +52,12 @@ public class AuthRepository : BaseRepository, IAuthRepository
             return null;
         }
     }
+    public async Task<string> GetOrganizationDomainAsync(Guid? organizationId)
+    {
+        var sql = "SELECT domain FROM auth.organizations WHERE organizationid = @organizationId";
+        var result = await QuerySingleOrDefaultAsync<string>(sql, new { organizationId });
+        return result ?? string.Empty;
+    }   
 
 
     public async Task<User?> GetUserByIdAsync(Guid? userId)

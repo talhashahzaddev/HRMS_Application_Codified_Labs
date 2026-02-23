@@ -192,6 +192,7 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IJobsService, JobsService>();
 builder.Services.AddScoped<INewsService, NewsService>();
+builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
 
 // -------------------- REPOSITORIES --------------------
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
