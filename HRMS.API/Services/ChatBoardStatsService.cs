@@ -544,7 +544,7 @@ namespace HRMS.API.Services
                 return new ChatResponseDto
                 {
                     Intent = ChatIntent.ClockIn,
-                    ResponseText = "❌ Unable to clock in at the moment. Please try again later.",
+                    ResponseText = "❌ " + ex.Message,
                     Module = "Attendance"
                 };
             }
@@ -588,7 +588,7 @@ namespace HRMS.API.Services
                 return new ChatResponseDto
                 {
                     Intent = ChatIntent.ClockOut,
-                    ResponseText = "❌ Unable to clock out at the moment. Please try again later.",
+                    ResponseText = "❌ "+ ex.Message,
                     Module = "Attendance"
                 };
             }

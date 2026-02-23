@@ -22,9 +22,10 @@ namespace HRMS.API.Controllers
         private readonly IGuidanceAIService _guidance_service;
         private readonly ILeaveService _leaveService;
         private readonly IChatBoardAiService _chatBoardAiService;
+        private readonly IAuthRepository _authRepository;
         private readonly ILogger<ChatController> _logger;
 
-        public ChatController(IChatService chatService,ILeaveRepository leaveRepository, IChatBoardStatsService chatBoardStatsService,IGuidanceAIService guidanceAIService,ILeaveService leaveService,IChatBoardAiService chatBoardAiService, ILogger<ChatController> logger)
+        public ChatController(IChatService chatService,ILeaveRepository leaveRepository, IChatBoardStatsService chatBoardStatsService,IGuidanceAIService guidanceAIService,ILeaveService leaveService,IChatBoardAiService chatBoardAiService,IAuthRepository authRepository, ILogger<ChatController> logger)
         {
             _chatService = chatService;
             _leaveRepository = leaveRepository;
@@ -32,6 +33,7 @@ namespace HRMS.API.Controllers
             _guidance_service = guidanceAIService;
             _leaveService = leaveService;
             _chatBoardAiService = chatBoardAiService;
+            _authRepository = authRepository;
             _logger = logger;
         }
 
@@ -44,7 +46,8 @@ namespace HRMS.API.Controllers
                 var organizationId = GetCurrentOrganizationId();
                 Guid empid = await _leaveRepository.GetEmpId(currentUserId);
                 string? roleName = await _leaveRepository.GetUserRoleNameAsync(currentUserId);
-                var response = await _chatService.HandleChatAsync(request,roleName);
+                string? domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationId);
+                var response = await _chatService.HandleChatAsync(request,roleName, domain);
                 var ipAddress = GetClientIp(); // add this method in ChatController
 
 

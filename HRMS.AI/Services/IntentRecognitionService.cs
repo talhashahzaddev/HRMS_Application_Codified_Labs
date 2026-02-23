@@ -20,21 +20,20 @@ namespace HRMS.AI.Services
         private readonly ILogger<IntentRecognitionService> _logger;
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
-        private readonly string _ApiKey;
+        private readonly IApiKeyProvider _apiKeyProvider;
         private readonly string _Url;
         private readonly string _model;
-        public IntentRecognitionService(IConfiguration configuration, ILogger<IntentRecognitionService> logger, HttpClient httpClient)
+        public IntentRecognitionService(IConfiguration configuration, IApiKeyProvider apiKeyProvider, ILogger<IntentRecognitionService> logger, HttpClient httpClient)
         {
             _configuration = configuration;
             _logger = logger;
             _httpClient = httpClient;
-            _ApiKey = _configuration["GroqAI:ApiKey"] ?? string.Empty;
+            _apiKeyProvider = apiKeyProvider;
             _Url = _configuration["GroqAI:Url"] ?? string.Empty;
             _model = _configuration["GroqAI:Model"] ?? string.Empty;
 
-            if (string.IsNullOrEmpty(_ApiKey))
-                _logger.LogWarning("OpenAI API key is not configured. Intent recognition will fail in production.");
         }
+        private string CurrentKey => _apiKeyProvider.GetCurrentKey();
 
         public async Task<IntentDetectionResult> DetectIntentAsync(string message)
         {
@@ -43,72 +42,70 @@ namespace HRMS.AI.Services
             //     User wants to view or download payslip details including monthly salary,
             //     deductions, allowances, payroll summary, or salary slip.
             var prompt =
-                $@"You are classifying HRMS user messages.
-                   Labels:
-                        - Greeting:
-                          Greetings, casual conversations
-                          User starts the conversation with greetings such as
-                          hi, hello, hey, good morning, good afternoon, or similar
-                          conversation starters without asking an HR-related question.
+     $@"You are classifying HRMS user messages.
+        Labels:
+             - Greeting:
+               Greetings, casual conversations
+               User starts the conversation with greetings such as
+               hi, hello, hey, good morning, good afternoon, or similar
+               conversation starters without asking an HR-related question.
 
-                        - Guidance:
-                          Questions related to HRMS rules, permissions, processes, or steps.
-                          Example topics include how to apply for leave, attendance rules,Employee Mangement,where to find,how to check,where to check , Perfomance Mnagment, payroll process,
-                          HR policies, or where to check specific information.
+          - Guidance:
+              Questions related to HRMS rules, permissions, processes, or steps.
+              Example topics include leave application, attendance rules, Employee Management,
+              Performance Management, payroll process, HR policies, Assets Management
+              (creating asset types, assigning/viewing/editing assets), Account creation or organization registration,
+              Global Calendar, News updates, Job postings, Expense management, or other process-related queries,
+              for any question related Calendar move to global calnder.
 
-                        - GetPerformanceSummary:
-                          User wants to view performance-related information such as performance summary,
-                          ratings, appraisals, or last month/quarter performance review details.
+             - GetPerformanceSummary:
+               User wants to view performance-related information such as performance summary,
+               ratings, appraisals, or last month/quarter performance review details.
 
-                        - GetAttendance:
-                          User wants to view attendance-related data including working days, present days,
-                          absents, late check-ins, check-in/check-out times, or attendance summary.
+             - GetAttendance:
+               User wants to view attendance-related data including working days, present days,
+               absents, late check-ins, check-in/check-out times, or attendance summary.
 
-                        - CheckMyShift:
-                          User wants to know their assigned shift details such as shift timing,
-                          working hours, day/night shift, or shift schedule, or what are my shift timing .
+             - CheckMyShift:
+               User wants to know their assigned shift details such as shift timing,
+               working hours, day/night shift, or shift schedule.
 
-                        - GetLeaveBalance:
-                          User wants to check leave-related information including total leave balance,
-                          remaining leaves, used leaves, leave types, or leave balance summary, how many leavs i do get and other related question.
+             - GetLeaveBalance:
+               User wants to check leave-related information including total leave balance,
+               remaining leaves, used leaves, leave types, or leave balance summary.
 
-                        - ApplyForLeave:
-                          User wants to apply for leave, submit a leave request, select leave type,
-                          choose leave dates, or check leave eligibility or  how many leavs do.
+             - ApplyForLeave:
+               User wants to apply for leave, submit a leave request, select leave type,
+               choose leave dates, or check leave eligibility.
 
-                        - LeaveApplicationDetails:
-                          User provides leave application details such as leave type,
-                          start date, end date, and reason for applying for leave.
+             - LeaveApplicationDetails:
+               User provides leave application details such as leave type,
+               start date, end date, and reason for applying for leave.
 
-                        - EmployeeInfo:
-                          User wants to know about there personal info related to him only like who is my manager, what is my name ,
-                          and user can also ask like my salry detaisl, my joining date, my date of birth and other question those are linked with employee personal info, and also related how many days i worked in this company.
+             - EmployeeInfo:
+               User wants to know about their personal info only.
 
-                        - GetMySkills:
-                          User wants to view their skill set, skill matrix, or skills assessment details.
+             - GetMySkills:
+               User wants to view their skill set or skill matrix.
 
-                        - ClockIn:
-                          User wants to clock in for attendance, mark their start of the workday,
-                          or record their check-in time or check in attendance.
+             - ClockIn:
+               User wants to clock in for attendance.
 
-                        - ClockOut:
-                          User wants to clock out for attendance, mark the end of their workday,
-                          or record their check-out time or checkout attendance.
+             - ClockOut:
+               User wants to clock out for attendance.
 
-                        - Unknown:
-                          Any request that does not clearly
-                          match HRMS guidance or user-specific HRMS data.
+             - Unknown:
+               Any request that does not clearly match HRMS guidance.
+ 
+If the label is Guidance, Greeting, also determine the affected module, and if related department of positions then also return EmployeeManagement. If label is Greeting then module is also Greeting. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings, HRPolicies, AssetsManagement, AccountCreation, GlobalCalendar, NewsManagement, JobsManagement, ExpensesManagement, Other.
 
+        Return EXACT output in this format (no extra text):
+        Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
 
-                   If the label is Guidance, Greeting, also determine the affected module,and if related department of positions then also return EmployeeManagement if label is Greeting then module is also Greeting. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings,HRPolices, Other.
+        User message:
+        ""{message}"".
 
-                   Return EXACT output in this format (no extra text):
-                   Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
-
-                   User message:
-                   ""{message}"".
-
-                  Result:";
+       Result:";
 
             try
             {
@@ -125,7 +122,7 @@ namespace HRMS.AI.Services
 
                 var requestJson = JsonSerializer.Serialize(requestBody);
                 var req = new HttpRequestMessage(HttpMethod.Post, _Url);
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _ApiKey);
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", CurrentKey);
                 req.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
                 var resp = await _httpClient.SendAsync(req);

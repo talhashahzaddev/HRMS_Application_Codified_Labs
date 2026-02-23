@@ -26,6 +26,7 @@ public interface IAuthRepository
 
     Task<bool> UpdateProfile_UserAsync(Guid userId, UpdateProfileRequest request);
     Task<User?> AuthenticateAsync(string email, string passwordHash);
+    Task<string> GetOrganizationDomainAsync(Guid? organizationId);
     Task<User?> GetUserByIdAsync(Guid? userId);
     Task<User?> GetUserByEmailAsync(string email);
     Task<User> CreateUserAsync(User user);
