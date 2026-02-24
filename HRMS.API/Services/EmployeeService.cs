@@ -76,10 +76,6 @@ public class EmployeeService : IEmployeeService
         if (request.HireDate.Date > DateTime.UtcNow.Date)
             throw new ArgumentException("Hire date cannot be in the future");
 
-        //var isWithinLimit = await _employeeRepository.CheckEmployeeLimitAsync(organizationId);
-        //if (!isWithinLimit)
-        //    throw new InvalidOperationException("You have reached the limit to add max number of employee.");
-
         var existingByCode = await _employeeRepository.GetEmployeeByCodeAsync(organizationId, request.EmployeeNumber);
         if (existingByCode != null)
             throw new InvalidOperationException($"Employee with code '{request.EmployeeNumber}' already exists");
