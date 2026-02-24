@@ -1096,6 +1096,10 @@ ALTER TABLE IF EXISTS jobs.jobapplications
 
 -- DROP TABLE IF EXISTS jobs.applicationstages;
 
+-- Table: jobs.applicationstages
+
+-- DROP TABLE IF EXISTS jobs.applicationstages;
+
 CREATE TABLE IF NOT EXISTS jobs.applicationstages
 (
     applicationstageid uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -1106,6 +1110,8 @@ CREATE TABLE IF NOT EXISTS jobs.applicationstages
     type character varying(50) COLLATE pg_catalog."default",
     updatedon timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedby uuid,
+    interviewdate timestamp with time zone,
+    interviewplace character varying(200) COLLATE pg_catalog."default",
     CONSTRAINT applicationstages_pkey PRIMARY KEY (applicationstageid)
 )
 

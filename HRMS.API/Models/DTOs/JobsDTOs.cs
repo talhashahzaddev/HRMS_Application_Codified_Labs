@@ -236,6 +236,8 @@ public class ApplicationStageDto
     public DateTime? UpdatedOn { get; set; }
     public Guid? UpdatedBy { get; set; }
     public string? UpdatedByName { get; set; }
+    public DateTime? InterviewDate { get; set; }
+    public string? InterviewPlace { get; set; }
 }
 
 public class CreateApplicationStageRequest
@@ -264,6 +266,12 @@ public class UpdateApplicationStageRequest
 
     [MaxLength(50)]
     public string? Type { get; set; }
+
+    /// <summary>Interview date and time (must be in the future when setting).</summary>
+    public DateTime? InterviewDate { get; set; }
+
+    [MaxLength(200)]
+    public string? InterviewPlace { get; set; }
 }
 
 public class UpdateJobApplicationRequest
