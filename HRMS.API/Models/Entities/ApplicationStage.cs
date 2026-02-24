@@ -28,4 +28,10 @@ public class ApplicationStage
 
     [Column("updatedby")]
     public Guid? UpdatedBy { get; set; }
+
+    [Column("interviewdate")]
+    public DateTime? InterviewDate { get; set; }
+
+    [Column("interviewplace")]
+    public string? InterviewPlace { get; set; }
 }

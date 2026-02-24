@@ -370,7 +370,9 @@ public class JobsService : IJobsService
             Notes = request.Notes ?? existing.Notes,
             Interviewers = interviewersText,
             Type = request.Type ?? existing.Type,
-            UpdatedBy = updatedByEmployeeId
+            UpdatedBy = updatedByEmployeeId,
+            InterviewDate = request.InterviewDate ?? existing.InterviewDate,
+            InterviewPlace = request.InterviewPlace ?? existing.InterviewPlace
         };
 
         var updated = await _jobsRepository.UpdateApplicationStageAsync(entity);

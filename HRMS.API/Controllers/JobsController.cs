@@ -879,7 +879,7 @@ public class JobsController : ControllerBase
 
     // ==================== Application Stages ====================
     [HttpGet("application-stages")]
-    [Authorize(Roles = "Super Admin")]
+   [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetAllApplicationStages()
     {
         try
@@ -913,7 +913,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("application-stages/by-application/{jobApplyId}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
     {
         try
@@ -946,7 +946,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> GetApplicationStageById(Guid id)
     {
         try
@@ -978,7 +978,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("application-stages")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> CreateApplicationStage([FromBody] CreateApplicationStageRequest request)
     {
         try
@@ -1028,7 +1028,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> UpdateApplicationStage(Guid id, [FromBody] UpdateApplicationStageRequest request)
     {
         try
@@ -1076,7 +1076,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteApplicationStage(Guid id)
     {
         try
