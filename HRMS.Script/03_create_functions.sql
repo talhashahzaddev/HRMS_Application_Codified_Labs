@@ -300,6 +300,7 @@ $$ LANGUAGE plpgsql;
 -- DROP FUNCTION IF EXISTS employee.fn_get_employees(uuid, character varying, uuid, uuid, character varying, character varying, integer, integer);
 
 
+
 CREATE OR REPLACE FUNCTION employee.fn_get_employees(
 	p_organization_id uuid DEFAULT NULL::uuid,
 	p_search_term character varying DEFAULT NULL::character varying,
@@ -309,7 +310,7 @@ CREATE OR REPLACE FUNCTION employee.fn_get_employees(
 	p_status character varying DEFAULT NULL::character varying,
 	p_limit integer DEFAULT 50,
 	p_offset integer DEFAULT 0)
-    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentid uuid, departmentname character varying, profilepictureurl character varying, positionid uuid, positiontitle character varying, employmenttype character varying, paytype character varying, basicsalary numeric, reportingmanagerid uuid, reportingmanagername character varying, gender character varying, nationality character varying, maritalstatus character varying, dateofbirth date, address jsonb, emergencycontact jsonb, totalcount bigint) 
+    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentid uuid, departmentname character varying, profilepictureurl character varying, positionid uuid, positiontitle character varying, employmenttype character varying, paytype character varying, basicsalary numeric, reportingmanagerid uuid, reportingmanagername character varying, gender character varying, nationality character varying, maritalstatus character varying, dateofbirth date, address jsonb, emergencycontact jsonb, roleid uuid, rolename character varying, totalcount bigint) 
     LANGUAGE 'plpgsql'
     COST 100
     VOLATILE PARALLEL UNSAFE
@@ -319,15 +320,13 @@ AS $BODY$
 DECLARE
     total_records BIGINT;
 BEGIN
-    -- Count total matching records
+
     SELECT COUNT(*) INTO total_records
     FROM employee.employees e
     LEFT JOIN employee.employmentdetails ed 
-           ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-    LEFT JOIN employee.departments d 
-           ON ed.departmentid = d.departmentid
+        ON e.employeeid = ed.employeeid AND ed.iscurrent = true
     LEFT JOIN employee.positions pos
-           ON ed.positionid = pos.positionid
+        ON ed.positionid = pos.positionid
     WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
       AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
       AND (p_position_id IS NULL OR ed.positionid = p_position_id)
@@ -337,7 +336,6 @@ BEGIN
            LIKE LOWER('%' || p_search_term || '%'))
       AND (p_status IS NULL OR e.status = p_status);
 
-    -- Return paginated results
     RETURN QUERY
     SELECT 
         e.employeeid,
@@ -348,10 +346,10 @@ BEGIN
         e.phone,
         e.hiredate,
         e.status,
-        ed.departmentid,             -- added
+        ed.departmentid,
         d.departmentname,
         e.profilepictureurl,
-        ed.positionid,               -- added
+        ed.positionid,
         pos.positiontitle,
         ed.employmenttype,
         ed.paytype,
@@ -360,23 +358,27 @@ BEGIN
         (CASE 
             WHEN rm.firstname IS NULL AND rm.lastname IS NULL THEN NULL
             ELSE rm.firstname || ' ' || rm.lastname
-         END)::character varying AS reportingmanagername,
+         END)::character varying,
         e.gender,
         e.nationality,
         e.maritalstatus,
         e.dateofbirth,
         e.address::jsonb,
         e.emergencycontact::jsonb,
-        total_records::bigint
+        r.roleid,            -- ? from positions
+        r.rolename,          -- ? from auth.roles
+        total_records
     FROM employee.employees e
     LEFT JOIN employee.employmentdetails ed 
-           ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+        ON e.employeeid = ed.employeeid AND ed.iscurrent = true
     LEFT JOIN employee.departments d 
-           ON ed.departmentid = d.departmentid
+        ON ed.departmentid = d.departmentid
     LEFT JOIN employee.positions pos 
-           ON ed.positionid = pos.positionid
+        ON ed.positionid = pos.positionid
+    LEFT JOIN auth.roles r
+        ON pos.roleid = r.roleid   -- ? CORRECT JOIN
     LEFT JOIN employee.employees rm
-           ON ed.reportingmanagerid = rm.employeeid
+        ON ed.reportingmanagerid = rm.employeeid
     WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
       AND (p_department_id IS NULL OR ed.departmentid = p_department_id)
       AND (p_position_id IS NULL OR ed.positionid = p_position_id)
@@ -387,9 +389,9 @@ BEGIN
       AND (p_status IS NULL OR e.status = p_status)
     ORDER BY e.firstname, e.lastname
     LIMIT p_limit OFFSET p_offset;
+
 END;
 $BODY$;
-
 
 -- =====================================================================
 -- ATTENDANCE FUNCTIONS
