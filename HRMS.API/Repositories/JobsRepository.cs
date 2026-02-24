@@ -522,7 +522,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    ast.stageid AS StageId, s.stagename AS StageName,
                    ast.notes AS Notes, ast.interviewers AS InterviewersText, ast.type AS Type,
                    ast.updatedon AS UpdatedOn, ast.updatedby AS UpdatedBy,
-                   CONCAT(upd.firstname, ' ', upd.lastname) AS UpdatedByName
+                   CONCAT(upd.firstname, ' ', upd.lastname) AS UpdatedByName,
+                   ast.interviewdate AS InterviewDate, ast.interviewplace AS InterviewPlace
             FROM jobs.applicationstages ast
             INNER JOIN jobs.jobapplications a ON ast.jobapplyid = a.jobapplyid
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
@@ -608,7 +609,9 @@ public class JobsRepository : BaseRepository, IJobsRepository
             Type = r.Type,
             UpdatedOn = r.UpdatedOn,
             UpdatedBy = r.UpdatedBy,
-            UpdatedByName = r.UpdatedByName
+            UpdatedByName = r.UpdatedByName,
+            InterviewDate = r.InterviewDate,
+            InterviewPlace = r.InterviewPlace
         };
     }
 
@@ -657,7 +660,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = @"
             UPDATE jobs.applicationstages
-            SET notes = @Notes, interviewers = @Interviewers, type = @Type, updatedon = CURRENT_TIMESTAMP, updatedby = @UpdatedBy
+            SET notes = @Notes, interviewers = @Interviewers, type = @Type, updatedon = CURRENT_TIMESTAMP, updatedby = @UpdatedBy,
+                interviewdate = @InterviewDate, interviewplace = @InterviewPlace
             WHERE applicationstageid = @ApplicationStageId";
         var rows = await ExecuteAsync(sql, new
         {
@@ -665,7 +669,9 @@ public class JobsRepository : BaseRepository, IJobsRepository
             entity.Notes,
             entity.Interviewers,
             entity.Type,
-            entity.UpdatedBy
+            entity.UpdatedBy,
+            entity.InterviewDate,
+            entity.InterviewPlace
         });
         return rows > 0;
     }
@@ -692,5 +698,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         public DateTime? UpdatedOn { get; set; }
         public Guid? UpdatedBy { get; set; }
         public string? UpdatedByName { get; set; }
+        public DateTime? InterviewDate { get; set; }
+        public string? InterviewPlace { get; set; }
     }
 }
