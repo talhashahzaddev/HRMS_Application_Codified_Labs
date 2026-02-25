@@ -81,8 +81,9 @@ public class EmployeeListItemDto
     public string? Gender { get; set; }
     public string? Nationality { get; set; }
     public string? MaritalStatus { get; set; }
+    public Guid? RoleId { get; set; }
+    public string? RoleName { get; set; }
     public DateTime? DateOfBirth { get; set; }
-
     // JSON fields
     public Dictionary<string, string>? Address { get; set; }
     public Dictionary<string, string>? EmergencyContact { get; set; }

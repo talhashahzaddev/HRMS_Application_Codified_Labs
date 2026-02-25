@@ -332,15 +332,18 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     public async Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode)
     {
         var sql = @"
-            SELECT employeeid, organizationid, userid, employeecode, firstname, lastname,
-                   email, phone, dateofbirth, hiredate, status, createdat
-            FROM employee.employees 
-            WHERE organizationid = @organizationId AND employeecode = @employeeCode";
+        SELECT employeeid, organizationid, userid, employeecode, firstname, lastname,
+               email, phone, dateofbirth, hiredate, status, createdat
+        FROM employee.employees 
+        WHERE organizationid = @organizationId 
+        AND UPPER(employeecode) = UPPER(@employeeCode)";
 
-        var result = await QuerySingleOrDefaultAsync<Employee>(sql, new { organizationId, employeeCode });
+        var result = await QuerySingleOrDefaultAsync<Employee>(
+            sql,
+            new { organizationId, employeeCode });
+
         return result;
     }
-
     public async Task<Employee?> GetEmployeeByEmailAsync(Guid organizationId, string email)
     {
         var sql = @"
@@ -419,8 +422,9 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 Gender = r.gender,
                 Nationality = r.nationality,
                 MaritalStatus = r.maritalstatus,
+                RoleId = r.roleid,
+                RoleName = r.rolename,
                 DateOfBirth = r.dateofbirth,
-
                 // JSON fields
                 Address = r.address != null
               ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.address.ToString())
