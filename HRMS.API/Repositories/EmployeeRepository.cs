@@ -422,9 +422,9 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 Gender = r.gender,
                 Nationality = r.nationality,
                 MaritalStatus = r.maritalstatus,
-                DateOfBirth = r.dateofbirth,
                 RoleId = r.roleid,
                 RoleName = r.rolename,
+                DateOfBirth = r.dateofbirth,
                 // JSON fields
                 Address = r.address != null
               ? JsonSerializer.Deserialize<Dictionary<string, string>>(r.address.ToString())
