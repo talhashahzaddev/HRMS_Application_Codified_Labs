@@ -9,6 +9,7 @@ public class StageMasterDto
     public Guid OrganizationId { get; set; }
     public string StageName { get; set; } = string.Empty;
     public int? StageOrder { get; set; }
+    public bool IsInterviewStage { get; set; }
     public DateTime? CreatedAt { get; set; }
 }
 
@@ -19,6 +20,7 @@ public class CreateStageMasterRequest
     public string StageName { get; set; } = string.Empty;
 
     public int? StageOrder { get; set; }
+    public bool IsInterviewStage { get; set; } = false;
 }
 
 public class UpdateStageMasterRequest
@@ -28,6 +30,7 @@ public class UpdateStageMasterRequest
     public string StageName { get; set; } = string.Empty;
 
     public int? StageOrder { get; set; }
+    public bool IsInterviewStage { get; set; }
 }
 
 // ==================== Job Openings ====================

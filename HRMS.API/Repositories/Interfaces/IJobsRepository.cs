@@ -8,8 +8,8 @@ public interface IJobsRepository
     // StageMaster
     Task<IEnumerable<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId);
     Task<StageMasterDto?> GetStageMasterByIdAsync(Guid stageId);
-    Task<Guid> CreateStageMasterAsync(Guid organizationId, string stageName, int? stageOrder);
-    Task<bool> UpdateStageMasterAsync(Guid stageId, string stageName, int? stageOrder);
+    Task<Guid> CreateStageMasterAsync(Guid organizationId, string stageName, int? stageOrder, bool isInterviewStage);
+    Task<bool> UpdateStageMasterAsync(Guid stageId, string stageName, int? stageOrder, bool isInterviewStage);
     Task<bool> DeleteStageMasterAsync(Guid stageId);
 
     // JobOpenings

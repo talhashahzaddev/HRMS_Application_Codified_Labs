@@ -1005,10 +1005,14 @@ CREATE TABLE IF NOT EXISTS jobs.stagemaster
     stagename character varying(100) COLLATE pg_catalog."default" NOT NULL,
     stageorder integer,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    isinterviewstage boolean DEFAULT false,
     CONSTRAINT stagemaster_pkey PRIMARY KEY (stageid)
 )
 
 TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.stagemaster
+    OWNER to postgres;
 
 -- DROP TABLE IF EXISTS news.news_reads_count;
 

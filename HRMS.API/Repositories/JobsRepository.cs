@@ -14,7 +14,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = @"
             SELECT stageid AS StageId, organizationid AS OrganizationId, stagename AS StageName,
-                   stageorder AS StageOrder, createdat AS CreatedAt
+                   stageorder AS StageOrder, isinterviewstage AS IsInterviewStage, createdat AS CreatedAt
             FROM jobs.stagemaster
             WHERE organizationid = @organizationId
             ORDER BY stageorder NULLS LAST, stagename";
@@ -25,28 +25,28 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = @"
             SELECT stageid AS StageId, organizationid AS OrganizationId, stagename AS StageName,
-                   stageorder AS StageOrder, createdat AS CreatedAt
+                   stageorder AS StageOrder, isinterviewstage AS IsInterviewStage, createdat AS CreatedAt
             FROM jobs.stagemaster
             WHERE stageid = @stageId";
         return await QuerySingleOrDefaultAsync<StageMasterDto>(sql, new { stageId });
     }
 
-    public async Task<Guid> CreateStageMasterAsync(Guid organizationId, string stageName, int? stageOrder)
+    public async Task<Guid> CreateStageMasterAsync(Guid organizationId, string stageName, int? stageOrder, bool isInterviewStage)
     {
         var sql = @"
-            INSERT INTO jobs.stagemaster (organizationid, stagename, stageorder)
-            VALUES (@organizationId, @stageName, @stageOrder)
+            INSERT INTO jobs.stagemaster (organizationid, stagename, stageorder, isinterviewstage)
+            VALUES (@organizationId, @stageName, @stageOrder, @isInterviewStage)
             RETURNING stageid";
-        return await ExecuteScalarAsync<Guid>(sql, new { organizationId, stageName, stageOrder });
+        return await ExecuteScalarAsync<Guid>(sql, new { organizationId, stageName, stageOrder, isInterviewStage });
     }
 
-    public async Task<bool> UpdateStageMasterAsync(Guid stageId, string stageName, int? stageOrder)
+    public async Task<bool> UpdateStageMasterAsync(Guid stageId, string stageName, int? stageOrder, bool isInterviewStage)
     {
         var sql = @"
             UPDATE jobs.stagemaster
-            SET stagename = @stageName, stageorder = @stageOrder
+            SET stagename = @stageName, stageorder = @stageOrder, isinterviewstage = @isInterviewStage
             WHERE stageid = @stageId";
-        var rows = await ExecuteAsync(sql, new { stageId, stageName, stageOrder });
+        var rows = await ExecuteAsync(sql, new { stageId, stageName, stageOrder, isInterviewStage });
         return rows > 0;
     }
 
