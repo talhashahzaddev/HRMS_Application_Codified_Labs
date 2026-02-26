@@ -342,7 +342,9 @@ public class JobsService : IJobsService
             Notes = request.Notes?.Trim(),
             Interviewers = interviewersText,
             Type = request.Type?.Trim(),
-            UpdatedBy = updatedByEmployeeId
+            UpdatedBy = updatedByEmployeeId,
+            InterviewDate = request.InterviewDate,
+            InterviewPlace = request.InterviewPlace?.Trim()
         };
 
         var applicationStageId = await _jobsRepository.CreateApplicationStageAsync(entity);
