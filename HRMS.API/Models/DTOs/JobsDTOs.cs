@@ -9,6 +9,7 @@ public class StageMasterDto
     public Guid OrganizationId { get; set; }
     public string StageName { get; set; } = string.Empty;
     public int? StageOrder { get; set; }
+    public bool IsInterviewStage { get; set; }
     public DateTime? CreatedAt { get; set; }
 }
 
@@ -19,6 +20,7 @@ public class CreateStageMasterRequest
     public string StageName { get; set; } = string.Empty;
 
     public int? StageOrder { get; set; }
+    public bool IsInterviewStage { get; set; } = false;
 }
 
 public class UpdateStageMasterRequest
@@ -28,6 +30,7 @@ public class UpdateStageMasterRequest
     public string StageName { get; set; } = string.Empty;
 
     public int? StageOrder { get; set; }
+    public bool IsInterviewStage { get; set; }
 }
 
 // ==================== Job Openings ====================
@@ -229,6 +232,7 @@ public class ApplicationStageDto
     public string? CandidateName { get; set; }
     public Guid StageId { get; set; }
     public string? StageName { get; set; }
+    public bool IsInterviewStage { get; set; }
     public string? Notes { get; set; }
     public List<Guid> InterviewerIds { get; set; } = new();
     public List<InterviewerInfoDto> Interviewers { get; set; } = new();
@@ -255,6 +259,11 @@ public class CreateApplicationStageRequest
 
     [MaxLength(50)]
     public string? Type { get; set; }
+
+    public DateTime? InterviewDate { get; set; }
+
+    [MaxLength(200)]
+    public string? InterviewPlace { get; set; }
 }
 
 public class UpdateApplicationStageRequest

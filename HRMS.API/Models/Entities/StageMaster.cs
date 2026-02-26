@@ -17,6 +17,9 @@ public class StageMaster
     [Column("stageorder")]
     public int? StageOrder { get; set; }
 
+    [Column("isinterviewstage")]
+    public bool IsInterviewStage { get; set; } = false;
+
     [Column("createdat")]
     public DateTime? CreatedAt { get; set; }
 }

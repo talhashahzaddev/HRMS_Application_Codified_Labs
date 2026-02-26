@@ -14,7 +14,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = @"
             SELECT stageid AS StageId, organizationid AS OrganizationId, stagename AS StageName,
-                   stageorder AS StageOrder, createdat AS CreatedAt
+                   stageorder AS StageOrder, isinterviewstage AS IsInterviewStage, createdat AS CreatedAt
             FROM jobs.stagemaster
             WHERE organizationid = @organizationId
             ORDER BY stageorder NULLS LAST, stagename";
@@ -25,28 +25,28 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = @"
             SELECT stageid AS StageId, organizationid AS OrganizationId, stagename AS StageName,
-                   stageorder AS StageOrder, createdat AS CreatedAt
+                   stageorder AS StageOrder, isinterviewstage AS IsInterviewStage, createdat AS CreatedAt
             FROM jobs.stagemaster
             WHERE stageid = @stageId";
         return await QuerySingleOrDefaultAsync<StageMasterDto>(sql, new { stageId });
     }
 
-    public async Task<Guid> CreateStageMasterAsync(Guid organizationId, string stageName, int? stageOrder)
+    public async Task<Guid> CreateStageMasterAsync(Guid organizationId, string stageName, int? stageOrder, bool isInterviewStage)
     {
         var sql = @"
-            INSERT INTO jobs.stagemaster (organizationid, stagename, stageorder)
-            VALUES (@organizationId, @stageName, @stageOrder)
+            INSERT INTO jobs.stagemaster (organizationid, stagename, stageorder, isinterviewstage)
+            VALUES (@organizationId, @stageName, @stageOrder, @isInterviewStage)
             RETURNING stageid";
-        return await ExecuteScalarAsync<Guid>(sql, new { organizationId, stageName, stageOrder });
+        return await ExecuteScalarAsync<Guid>(sql, new { organizationId, stageName, stageOrder, isInterviewStage });
     }
 
-    public async Task<bool> UpdateStageMasterAsync(Guid stageId, string stageName, int? stageOrder)
+    public async Task<bool> UpdateStageMasterAsync(Guid stageId, string stageName, int? stageOrder, bool isInterviewStage)
     {
         var sql = @"
             UPDATE jobs.stagemaster
-            SET stagename = @stageName, stageorder = @stageOrder
+            SET stagename = @stageName, stageorder = @stageOrder, isinterviewstage = @isInterviewStage
             WHERE stageid = @stageId";
-        var rows = await ExecuteAsync(sql, new { stageId, stageName, stageOrder });
+        var rows = await ExecuteAsync(sql, new { stageId, stageName, stageOrder, isInterviewStage });
         return rows > 0;
     }
 
@@ -519,7 +519,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     private const string ApplicationStageSelectSql = @"
             SELECT ast.applicationstageid AS ApplicationStageId, ast.jobapplyid AS JobApplyId, a.jobid AS JobId,
                    j.jobrolename AS JobRoleName, a.candidatename AS CandidateName,
-                   ast.stageid AS StageId, s.stagename AS StageName,
+                   ast.stageid AS StageId, s.stagename AS StageName, s.isinterviewstage AS IsInterviewStage,
                    ast.notes AS Notes, ast.interviewers AS InterviewersText, ast.type AS Type,
                    ast.updatedon AS UpdatedOn, ast.updatedby AS UpdatedBy,
                    CONCAT(upd.firstname, ' ', upd.lastname) AS UpdatedByName,
@@ -603,6 +603,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             CandidateName = r.CandidateName,
             StageId = r.StageId,
             StageName = r.StageName,
+            IsInterviewStage = r.IsInterviewStage,
             Notes = r.Notes,
             InterviewerIds = ParseInterviewerIds(r.InterviewersText),
             Interviewers = interviewers,
@@ -634,8 +635,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
     public async Task<Guid> CreateApplicationStageAsync(ApplicationStage entity)
     {
         var sql = @"
-            INSERT INTO jobs.applicationstages (jobapplyid, stageid, notes, interviewers, type, updatedby)
-            VALUES (@JobApplyId, @StageId, @Notes, @Interviewers, @Type, @UpdatedBy)
+            INSERT INTO jobs.applicationstages (jobapplyid, stageid, notes, interviewers, type, updatedby, interviewdate, interviewplace)
+            VALUES (@JobApplyId, @StageId, @Notes, @Interviewers, @Type, @UpdatedBy, @InterviewDate, @InterviewPlace)
             RETURNING applicationstageid";
         var id = await ExecuteScalarAsync<Guid>(sql, new
         {
@@ -644,7 +645,9 @@ public class JobsRepository : BaseRepository, IJobsRepository
             entity.Notes,
             entity.Interviewers,
             entity.Type,
-            entity.UpdatedBy
+            entity.UpdatedBy,
+            entity.InterviewDate,
+            entity.InterviewPlace
         });
 
         var updateJobAppSql = @"
@@ -692,6 +695,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         public string? CandidateName { get; set; }
         public Guid StageId { get; set; }
         public string? StageName { get; set; }
+        public bool IsInterviewStage { get; set; }
         public string? Notes { get; set; }
         public string? InterviewersText { get; set; }
         public string? Type { get; set; }

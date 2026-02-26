@@ -36,7 +36,7 @@ public class JobsService : IJobsService
         if (string.IsNullOrWhiteSpace(request.StageName))
             throw new ArgumentException("Stage name is required", nameof(request));
 
-        var stageId = await _jobsRepository.CreateStageMasterAsync(organizationId, request.StageName.Trim(), request.StageOrder);
+        var stageId = await _jobsRepository.CreateStageMasterAsync(organizationId, request.StageName.Trim(), request.StageOrder, request.IsInterviewStage);
         var created = await _jobsRepository.GetStageMasterByIdAsync(stageId);
         if (created == null)
             throw new InvalidOperationException("Failed to retrieve created stage");
@@ -50,7 +50,7 @@ public class JobsService : IJobsService
         if (string.IsNullOrWhiteSpace(request.StageName))
             throw new ArgumentException("Stage name is required", nameof(request));
 
-        var updated = await _jobsRepository.UpdateStageMasterAsync(stageId, request.StageName.Trim(), request.StageOrder);
+        var updated = await _jobsRepository.UpdateStageMasterAsync(stageId, request.StageName.Trim(), request.StageOrder, request.IsInterviewStage);
         if (!updated)
             return null;
         return await _jobsRepository.GetStageMasterByIdAsync(stageId);
@@ -342,7 +342,9 @@ public class JobsService : IJobsService
             Notes = request.Notes?.Trim(),
             Interviewers = interviewersText,
             Type = request.Type?.Trim(),
-            UpdatedBy = updatedByEmployeeId
+            UpdatedBy = updatedByEmployeeId,
+            InterviewDate = request.InterviewDate,
+            InterviewPlace = request.InterviewPlace?.Trim()
         };
 
         var applicationStageId = await _jobsRepository.CreateApplicationStageAsync(entity);

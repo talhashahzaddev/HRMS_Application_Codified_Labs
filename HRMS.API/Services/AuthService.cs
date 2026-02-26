@@ -241,7 +241,7 @@ public class AuthService : IAuthService
         var defaultStages = new[] { ("Initial", 1), ("Short List", 2), ("Interviewed", 3), ("Selected", 4), ("Rejected", 5) };
         foreach (var (stageName, stageOrder) in defaultStages)
         {
-            await _jobsRepository.CreateStageMasterAsync(organizationId, stageName, stageOrder);
+            await _jobsRepository.CreateStageMasterAsync(organizationId, stageName, stageOrder, false);
         }
         _logger.LogInformation("Default stages created for organization {OrganizationId}", organizationId);
 
