@@ -10,6 +10,7 @@ namespace HRMS.API.Repositories.Interfaces
         Task<bool> MarkNotificationAsReadAsync(Guid notificationId);
         Task<Guid> GetEmpId(Guid? employeeId);
         Task<Guid> GetReciveridAsync(Guid employeeId);
+        Task<Guid> GetNoManagerReciveridAsync(Guid employeeId);
         Task<Notification> getnotificationdetailAsync(Guid requestId);
         Task<(Guid userId, Guid organizationId)?> GetEmployeeUserInfoAsync(Guid employeeId);
     }
