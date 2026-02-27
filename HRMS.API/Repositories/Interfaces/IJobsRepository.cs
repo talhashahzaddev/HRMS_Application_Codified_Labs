@@ -22,8 +22,8 @@ public interface IJobsRepository
 
     // JobApplications
     Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);
-    Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, int pageNumber, int pageSize);
-    Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, int pageNumber, int pageSize);
+    Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize);
+    Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize);
     Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId);
     Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId);
     Task<PagedResult<JobApplicationDto>> GetJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize);
@@ -40,5 +40,6 @@ public interface IJobsRepository
     Task<Guid> CreateApplicationStageAsync(ApplicationStage entity);
     Task<bool> UpdateApplicationStageAsync(ApplicationStage entity);
     Task<bool> DeleteApplicationStageAsync(Guid applicationStageId);
+    Task<bool> ApplicationStageExistsAsync(Guid jobApplyId, Guid stageId);
     Task<IEnumerable<InterviewerInfoDto>> GetInterviewerDetailsAsync(IEnumerable<Guid> employeeIds);
 }

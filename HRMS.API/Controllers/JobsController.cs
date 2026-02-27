@@ -479,12 +479,13 @@ public class JobsController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] DateTime? applyDateFrom = null,
         [FromQuery] DateTime? applyDateTo = null,
-        [FromQuery] Guid? stageId = null)
+        [FromQuery] Guid? stageId = null,
+        [FromQuery] Guid? jobId = null)
     {
         try
         {
             var employeeId = await GetCurrentEmployeeId();
-            var result = await _jobsService.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, pageNumber, pageSize);
+            var result = await _jobsService.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, jobId, pageNumber, pageSize);
             return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = true,
@@ -519,12 +520,13 @@ public class JobsController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] DateTime? applyDateFrom = null,
         [FromQuery] DateTime? applyDateTo = null,
-        [FromQuery] Guid? stageId = null)
+        [FromQuery] Guid? stageId = null,
+        [FromQuery] Guid? jobId = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var result = await _jobsService.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, pageNumber, pageSize);
+            var result = await _jobsService.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, jobId, pageNumber, pageSize);
             return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = true,
@@ -1015,6 +1017,11 @@ public class JobsController : ControllerBase
         {
             _logger.LogWarning(ex, "Invalid argument for creating application stage");
             return BadRequest(new ServiceResponse<ApplicationStageDto> { Success = false, Message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Conflict creating application stage: {Message}", ex.Message);
+            return Conflict(new ServiceResponse<ApplicationStageDto> { Success = false, Message = ex.Message });
         }
         catch (Exception ex)
         {

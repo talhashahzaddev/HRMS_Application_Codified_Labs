@@ -171,14 +171,14 @@ public class JobsService : IJobsService
         return await _jobsRepository.GetAllJobApplicationsAsync(organizationId);
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize)
     {
-        return await _jobsRepository.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, pageNumber, pageSize);
+        return await _jobsRepository.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, jobId, pageNumber, pageSize);
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize)
     {
-        return await _jobsRepository.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, pageNumber, pageSize);
+        return await _jobsRepository.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, jobId, pageNumber, pageSize);
     }
 
     public async Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId)
@@ -331,6 +331,11 @@ public class JobsService : IJobsService
             throw new ArgumentException("Job apply ID is required", nameof(request));
         if (request.StageId == Guid.Empty)
             throw new ArgumentException("Stage ID is required", nameof(request));
+
+        // Duplicate check: same application cannot be added to the same stage twice
+        var alreadyExists = await _jobsRepository.ApplicationStageExistsAsync(request.JobApplyId, request.StageId);
+        if (alreadyExists)
+            throw new InvalidOperationException("This application has already been added to the same stage. Cannot add it again.");
 
         var interviewerIds = request.InterviewerIds ?? new List<Guid>();
         var interviewersText = interviewerIds.Any() ? string.Join(",", interviewerIds.Where(g => g != Guid.Empty).Distinct()) : string.Empty;
