@@ -461,8 +461,7 @@ WHERE token = @token;
             throw new Exception("An error occured", ex.InnerException);
         }
     }
-
-    public async Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId, string title = "Super Admin")
+    public async Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId, Guid? departmentId, string title)
     {
         // Note: We include PositionTitle because it is defined as NOT NULL in your schema.
         // We include OrganizationId so the position is linked to the correct tenant.
@@ -471,12 +470,14 @@ WHERE token = @token;
             organizationid, 
             positiontitle, 
             roleid,
+            departmentid,
             isactive
         )
         VALUES (
             @organizationId, 
             @positionTitle, 
             @roleId,
+            @departmentId,
             true
         )
         RETURNING positionid;";
@@ -485,11 +486,13 @@ WHERE token = @token;
         {
             organizationId = organizationId,
             positionTitle = title,
-            roleId = roleId
+            roleId = roleId,
+            departmentId=departmentId
         });
 
         return positionId;
     }
+
 
     public async Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt)
     {
