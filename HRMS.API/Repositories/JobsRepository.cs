@@ -270,7 +270,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await QueryAsync<JobApplicationDto>(sql, new { organizationId });
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize)
     {
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize < 1) pageSize = 10;
@@ -291,8 +291,9 @@ public class JobsRepository : BaseRepository, IJobsRepository
                   j.jobrolename ILIKE @searchPattern))
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
-              AND (@stageId IS NULL OR a.currentstageid = @stageId)";
-        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, fromDate, toDate, stageId });
+              AND (@stageId IS NULL OR a.currentstageid = @stageId)
+              AND (@jobId IS NULL OR a.jobid = @jobId)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, fromDate, toDate, stageId, jobId });
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.organizationid = @organizationId
@@ -303,9 +304,10 @@ public class JobsRepository : BaseRepository, IJobsRepository
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
+              AND (@jobId IS NULL OR a.jobid = @jobId)
             ORDER BY a.createddate DESC NULLS LAST
             LIMIT @pageSize OFFSET @offset";
-        var data = await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, stageId, pageSize, offset });
+        var data = await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, stageId, jobId, pageSize, offset });
         return new PagedResult<JobApplicationDto>
         {
             Data = data?.ToList() ?? new List<JobApplicationDto>(),
@@ -315,7 +317,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         };
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize)
     {
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize < 1) pageSize = 10;
@@ -336,8 +338,9 @@ public class JobsRepository : BaseRepository, IJobsRepository
                   j.jobrolename ILIKE @searchPattern))
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
-              AND (@stageId IS NULL OR a.currentstageid = @stageId)";
-        var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, searchPattern, fromDate, toDate, stageId });
+              AND (@stageId IS NULL OR a.currentstageid = @stageId)
+              AND (@jobId IS NULL OR a.jobid = @jobId)";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, searchPattern, fromDate, toDate, stageId, jobId });
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.jobid IN (SELECT jobid FROM jobs.jobopenings WHERE createdby = @employeeId)
@@ -348,9 +351,10 @@ public class JobsRepository : BaseRepository, IJobsRepository
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
+              AND (@jobId IS NULL OR a.jobid = @jobId)
             ORDER BY a.createddate DESC NULLS LAST
             LIMIT @pageSize OFFSET @offset";
-        var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, searchPattern, fromDate, toDate, stageId, pageSize, offset });
+        var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, searchPattern, fromDate, toDate, stageId, jobId, pageSize, offset });
         return new PagedResult<JobApplicationDto>
         {
             Data = data?.ToList() ?? new List<JobApplicationDto>(),
