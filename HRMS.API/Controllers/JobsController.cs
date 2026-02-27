@@ -1018,6 +1018,11 @@ public class JobsController : ControllerBase
             _logger.LogWarning(ex, "Invalid argument for creating application stage");
             return BadRequest(new ServiceResponse<ApplicationStageDto> { Success = false, Message = ex.Message });
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Conflict creating application stage: {Message}", ex.Message);
+            return Conflict(new ServiceResponse<ApplicationStageDto> { Success = false, Message = ex.Message });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating application stage");

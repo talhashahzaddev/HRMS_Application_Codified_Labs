@@ -579,6 +579,17 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await BuildApplicationStageDtosAsync(rows);
     }
 
+    public async Task<bool> ApplicationStageExistsAsync(Guid jobApplyId, Guid stageId)
+    {
+        var sql = @"
+            SELECT COUNT(1)
+            FROM jobs.applicationstages
+            WHERE jobapplyid = @jobApplyId
+              AND stageid = @stageId";
+        var count = await ExecuteScalarAsync<int>(sql, new { jobApplyId, stageId });
+        return count > 0;
+    }
+
     private async Task<IEnumerable<ApplicationStageDto>> BuildApplicationStageDtosAsync(IEnumerable<ApplicationStageRow> rows)
     {
         var rowList = rows?.ToList() ?? new List<ApplicationStageRow>();

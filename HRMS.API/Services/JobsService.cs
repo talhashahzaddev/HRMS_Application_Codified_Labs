@@ -332,6 +332,11 @@ public class JobsService : IJobsService
         if (request.StageId == Guid.Empty)
             throw new ArgumentException("Stage ID is required", nameof(request));
 
+        // Duplicate check: same application cannot be added to the same stage twice
+        var alreadyExists = await _jobsRepository.ApplicationStageExistsAsync(request.JobApplyId, request.StageId);
+        if (alreadyExists)
+            throw new InvalidOperationException("This application has already been added to the same stage. Cannot add it again.");
+
         var interviewerIds = request.InterviewerIds ?? new List<Guid>();
         var interviewersText = interviewerIds.Any() ? string.Join(",", interviewerIds.Where(g => g != Guid.Empty).Distinct()) : string.Empty;
 

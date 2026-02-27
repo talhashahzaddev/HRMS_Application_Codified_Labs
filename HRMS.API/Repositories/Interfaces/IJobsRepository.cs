@@ -40,5 +40,6 @@ public interface IJobsRepository
     Task<Guid> CreateApplicationStageAsync(ApplicationStage entity);
     Task<bool> UpdateApplicationStageAsync(ApplicationStage entity);
     Task<bool> DeleteApplicationStageAsync(Guid applicationStageId);
+    Task<bool> ApplicationStageExistsAsync(Guid jobApplyId, Guid stageId);
     Task<IEnumerable<InterviewerInfoDto>> GetInterviewerDetailsAsync(IEnumerable<Guid> employeeIds);
 }
