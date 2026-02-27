@@ -79,6 +79,14 @@ public class LeaveService : ILeaveService
             var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
             var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
 
+            //if no manager assigne then push notification to superadmin
+
+            if (reportingmangerid == Guid.Empty)
+            {
+                var superadminid = await _notificationRepository.GetNoManagerReciveridAsync(employee.EmployeeId);
+                reportingmangerid = superadminid;
+            }
+
             
 
             if (leaveRequest != null)

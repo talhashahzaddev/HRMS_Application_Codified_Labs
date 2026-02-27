@@ -55,6 +55,40 @@ namespace HRMS.API.Repositories
             }
         }
 
+        public async Task<Guid> GetNoManagerReciveridAsync(Guid employeeId)
+        {
+            try
+            {
+                var sql = @"
+            SELECT e.employeeid
+            FROM employee.employees e
+            JOIN auth.users u ON u.userid = e.userid
+            WHERE e.organizationid = (
+                    SELECT organizationid
+                    FROM employee.employees
+                    WHERE employeeid = 'fd0db15e-8f0c-4832-89b8-ae052b02d30e'
+                    LIMIT 1
+                )
+            AND u.roleid = (
+                    SELECT roleid
+                    FROM auth.roles
+                    WHERE rolename = 'Super Admin'
+                    AND organizationid = e.organizationid
+                    LIMIT 1
+                )
+            LIMIT 1";
+
+                var results = await QueryAsync<Guid>(sql, new { EmployeeId = employeeId });
+
+                return results.FirstOrDefault();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching reporting manager: {ex.Message}");
+                return Guid.Empty;
+            }
+        }
+
 
 
 
