@@ -88,7 +88,7 @@ public class UpdateProfileRequest
     public string? Nationality { get; set; }
     public Dictionary<string, object> EmergencyContact { get; set; } = new();
     public Guid? roleId { get; set; }
-    public string profileurl { get; set; }
+    public string? profileurl { get; set; }
 }
 
 

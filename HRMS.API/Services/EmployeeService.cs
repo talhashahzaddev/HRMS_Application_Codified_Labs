@@ -73,9 +73,6 @@ public class EmployeeService : IEmployeeService
         if (request.HireDate == default)
             throw new ArgumentException("Hire date is required");
 
-        if (request.HireDate.Date > DateTime.UtcNow.Date)
-            throw new ArgumentException("Hire date cannot be in the future");
-
         //var isWithinLimit = await _employeeRepository.CheckEmployeeLimitAsync(organizationId);
         //if (!isWithinLimit)
         //    throw new InvalidOperationException("You have reached the limit to add max number of employee.");

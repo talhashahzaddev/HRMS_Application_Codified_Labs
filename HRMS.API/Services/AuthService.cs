@@ -6,6 +6,7 @@ using HRMS.API.Models.Entities;
 using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using Irony;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -20,6 +21,7 @@ public class AuthService : IAuthService
 {
     private readonly IAuthRepository _authRepository;
     private readonly IOrganizationService _organizationService;
+    private readonly IEmployeeRepository _employeeRepository;
     private readonly JwtSettings _jwtSettings;
     private readonly IMapper _mapper;
     private readonly ILogger<AuthService> _logger;
@@ -34,6 +36,7 @@ public class AuthService : IAuthService
         IMapper mapper,
         ILogger<AuthService> logger,
         ICloudinaryService cloudinaryService,
+        IEmployeeRepository employeeRepository,
         IEmailService emailService,
         IJobsRepository jobsRepository)
     {
@@ -42,6 +45,7 @@ public class AuthService : IAuthService
         _jwtSettings = jwtSettings.Value;
         _mapper = mapper;
         _logger = logger;
+        _employeeRepository = employeeRepository;
         _emailService = emailService;
         _cloudinaryService = cloudinaryService;
         _jobsRepository = jobsRepository;
@@ -245,6 +249,51 @@ public class AuthService : IAuthService
         }
         _logger.LogInformation("Default stages created for organization {OrganizationId}", organizationId);
 
+        //Creating deparmtent and position for New organization
+        var allRoles = await _authRepository.GetOrganizationRolesAsync(organizationId);
+        var departments = new List<(
+            string DeptName,
+            string Description,
+            List<(string PositionName, string RoleName)> Positions)>
+       {(
+        "Human Resources",
+        "This is default department of Human Resources",
+        new List<(string PositionName, string RoleName)>
+        {
+            ("Manager", "Manager")
+        }),
+        (
+        "Marketing",
+        "This is Marketing Department",
+        new List<(string PositionName, string RoleName)>
+        {
+            ("Team Lead", "Employee"),
+            ("Trainee", "Employee")
+        }
+    )};
+    foreach (var dept in departments)
+        {
+            // 1️⃣ Create Department
+            var createdDepartment = await _employeeRepository.CreateDepartmentAsync(new Department
+            {
+                DepartmentName = dept.DeptName,
+                Description = dept.Description,
+                OrganizationId = organizationId
+            });
+            // 2️⃣ Create Positions
+            foreach (var Pos in dept.Positions)
+            {
+                var role = allRoles.FirstOrDefault(r => r.RoleName == Pos.RoleName);
+                if (role == null)
+                    continue;
+                await _authRepository.CreatePositionAsync(
+                    organizationId,
+                    role.RoleId.Value, // ✅ use already found role
+                    createdDepartment.DepartmentId,
+                    Pos.PositionName
+                );
+            }
+        }
         // Step 2: Create SuperAdmin user for the organization
         var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
         var emailVerificationToken = Guid.NewGuid().ToString("N");
@@ -273,7 +322,7 @@ public class AuthService : IAuthService
 
         var superadminEmployeeid = await _authRepository.GetEmployeeIdByEmailAsync(createdUser.Email);
 
-        var position = await _authRepository.CreatePositionAsync(createdUser.OrganizationId.Value, createdUser.RoleId.Value, "Super Admin");
+        var position = await _authRepository.CreatePositionAsync(createdUser.OrganizationId.Value, createdUser.RoleId.Value,null, "Super Admin");
 
         await _authRepository.AdminIntoEmployeeDetailsAsync(superadminEmployeeid, position);
 
