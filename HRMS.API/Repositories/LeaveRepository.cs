@@ -563,9 +563,11 @@ WHERE employeeid = @employeeid
         try
         {
             var sql = @"
-        SELECT *
-        FROM attendance.leaverequests
-        WHERE employeeid = @employeeId";
+        SELECT lr.*, lt.typename
+        FROM attendance.leaverequests lr
+        JOIN attendance.leavetypes lt 
+            ON lt.leavetypeid = lr.leavetypeid
+        WHERE lr.employeeid = @employeeId";
 
             var results = await QueryAsync<LeaveRequest>(sql, new { employeeId });
             return results.ToList();

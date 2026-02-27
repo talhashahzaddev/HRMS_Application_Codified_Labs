@@ -222,8 +222,6 @@ public class LeaveService : ILeaveService
         var normalizedStatus = request.Status.Trim().ToLowerInvariant();
         if (normalizedStatus != "approved" && normalizedStatus != "rejected")
             throw new ArgumentException("Invalid status. Allowed: approved or rejected", nameof(request));
-        if (normalizedStatus == "rejected" && string.IsNullOrWhiteSpace(request.RejectionReason))
-            throw new ArgumentException("Rejection reason is required when rejecting", nameof(request));
 
         try
         {
