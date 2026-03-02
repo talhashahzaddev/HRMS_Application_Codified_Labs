@@ -78,6 +78,17 @@ namespace HRMS.API.Services
             return new ServiceResponse<bool> { Data = true, Success = true, Message = "Organization deleted successfully." };
         }
 
+        public async Task<ServiceResponse<OrganizationDTO>> GetOrganizationByDomainAsync(string domain)
+        {
+            var organization = await _organizationRepository.GetOrganizationByDomainAsync(domain);
+            if (organization == null)
+            {
+                return new ServiceResponse<OrganizationDTO> { Success = false, Message = "Organization not found." };
+            }
+            var organizationDTO = _mapper.Map<OrganizationDTO>(organization);
+            return new ServiceResponse<OrganizationDTO> { Data = organizationDTO, Success = true };
+        }
+
         public async Task<ServiceResponse<IEnumerable<OrganizationDTO>>> GetAllOrganizationsAsync()
         {
             var organizations = await _organizationRepository.GetAllOrganizationsAsync();

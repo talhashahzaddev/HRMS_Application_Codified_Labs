@@ -72,6 +72,11 @@ public class JobsService : IJobsService
         return await _jobsRepository.GetJobOpeningsPagedAsync(organizationId, search, status, lastDateFrom, lastDateTo, pageNumber, pageSize);
     }
 
+    public async Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize)
+    {
+        return await _jobsRepository.GetExternalJobOpeningsPagedAsync(organizationId, search, status, lastDateFrom, lastDateTo, pageNumber, pageSize);
+    }
+
     public async Task<JobOpeningDto?> GetJobOpeningByIdAsync(Guid jobId)
     {
         return await _jobsRepository.GetJobOpeningByIdAsync(jobId);
@@ -227,7 +232,7 @@ public class JobsService : IJobsService
             Phone = request.Phone?.Trim(),
             CoverLetter = request.CoverLetter?.Trim(),
             CurrentStageId = request.CurrentStageId,
-            ApplicationSource = request.ApplicationSource?.Trim(),
+            ApplicationSource = "Internal",
             Status = string.IsNullOrWhiteSpace(request.Status) ? "Applied" : request.Status.Trim(),
             IsSelf=request.IsSelf
         };

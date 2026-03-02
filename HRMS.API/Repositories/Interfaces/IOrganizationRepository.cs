@@ -9,6 +9,7 @@ namespace HRMS.API.Repositories.Interfaces
         Task<Organization?> GetOrganizationByNameAsync(string name);
         Task<bool> UpdateOrganizationAsync(Organization organization);
         Task<bool> DeleteOrganizationAsync(Guid organizationId);
+        Task<Organization?> GetOrganizationByDomainAsync(string domain);
         Task<IEnumerable<Organization>> GetAllOrganizationsAsync();
     }
 }

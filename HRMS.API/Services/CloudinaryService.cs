@@ -92,6 +92,43 @@ public class CloudinaryService : ICloudinaryService, IFileUploadService
         }
     }
 
+    public async Task<bool> DeleteFileAsync(string fileUrl)
+    {
+        if (string.IsNullOrWhiteSpace(fileUrl))
+        {
+            throw new ArgumentException("File URL cannot be null or empty.", nameof(fileUrl));
+        }
+
+        try
+        {
+            var publicId = ExtractPublicIdFromUrl(fileUrl);
+            if (string.IsNullOrEmpty(publicId))
+            {
+                _logger.LogWarning("Could not extract public ID from URL: {Url}", fileUrl);
+                return false;
+            }
+
+            var deletionParams = new DeletionParams(publicId);
+            var result = await _cloudinary.DestroyAsync(deletionParams);
+
+            if (result.Result == "ok")
+            {
+                _logger.LogInformation("File deleted from Cloudinary: {PublicId}", publicId);
+                return true;
+            }
+            else
+            {
+                _logger.LogWarning("Failed to delete file from Cloudinary: {PublicId}. Result: {Result}", publicId, result.Result);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting file from Cloudinary: {Url}", fileUrl);
+            throw;
+        }
+    }
+
     private async Task<string> UploadImageAsync(IFormFile file, string folder, CancellationToken cancellationToken = default)
     {
         using var stream = file.OpenReadStream();
@@ -200,5 +237,48 @@ public class CloudinaryService : ICloudinaryService, IFileUploadService
         }
 
         return file.FileName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ExtractPublicIdFromUrl(string fileUrl)
+    {
+        if (string.IsNullOrWhiteSpace(fileUrl))
+        {
+            return null;
+        }
+
+        try
+        {
+            // Cloudinary URLs typically follow this pattern:
+            // https://res.cloudinary.com/{cloud_name}/image/upload/v{timestamp}/{public_id}.{extension}
+            // or for PDFs: https://res.cloudinary.com/{cloud_name}/raw/upload/v{timestamp}/{public_id}.{extension}
+
+            var uri = new Uri(fileUrl);
+            var pathSegments = uri.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+
+            // Find the segment that contains the public ID
+            // It's usually after the version segment (v{timestamp})
+            for (int i = 0; i < pathSegments.Length; i++)
+            {
+                if (pathSegments[i].StartsWith("v") && pathSegments[i].Length > 1 && char.IsDigit(pathSegments[i][1]))
+                {
+                    // The next segment should be the public ID
+                    if (i + 1 < pathSegments.Length)
+                    {
+                        var publicIdWithExtension = pathSegments[i + 1];
+                        // Remove file extension if present
+                        var publicId = publicIdWithExtension.Split('.')[0];
+                        return publicId;
+                    }
+                }
+            }
+
+            // Fallback: try to get the last segment before extension
+            var lastSegment = pathSegments.Length > 0 ? pathSegments[pathSegments.Length - 1] : string.Empty;
+            return lastSegment.Split('.')[0];
+        }
+        catch
+        {
+            return null;
+        }
     }
 }
