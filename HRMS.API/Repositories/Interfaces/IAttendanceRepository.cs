@@ -62,7 +62,7 @@ public interface IAttendanceRepository
     Task<bool> UpdateManualAttendanceAsync(Attendance attendance, AttendanceAudit audit);
     Task<bool> HasPermissionToEditAsync(Guid editorId, Guid targetEmployeeId, Guid organizationId);
     Task<int> BatchFinalizeMonthAsync(Guid timesheetId, Guid organizationId, Guid actionedBy);
-    Task<int> BatchFinalizeForEmployeeAsync(Guid employeeId, Guid timesheetId);
+    Task<int> BatchFinalizeForEmployeeAsync(Guid timesheetId, Guid employeeId);
     Task<IEnumerable<FinalizedTimesheetRecordDto>> GetFinalizedRecordsAsync(Guid timesheetId, Guid? employeeId = null);
     Task<IEnumerable<MonthlyTimesheetSummary>> GetMonthlySnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate);
     Task<IEnumerable<AttendanceDto>> GetConsolidatedAttendanceAsync(
@@ -70,6 +70,7 @@ public interface IAttendanceRepository
     Task<MonthlyTimesheetSummary?> GetSnapshotByIdAsync(Guid timesheetId);
     Task<int> SubmitBatchForApprovalAsync(Guid employeeId, Guid organizationId, Guid timesheetId, DateTime startDate, DateTime endDate);
     Task<int> ApproveAllBatchAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid organizationId);
+    Task<bool> IsEmployeePackageFinalizedAsync(Guid timesheetId, Guid employeeId);
     Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(Guid organizationId, int month, int year);
     Task<IEnumerable<PendingAttendanceRequest>> GetAllReviewableRequestsAsync(Guid organizationId, Guid? managerId = null);
     Task<bool> AdminFinalizeRecordAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId);

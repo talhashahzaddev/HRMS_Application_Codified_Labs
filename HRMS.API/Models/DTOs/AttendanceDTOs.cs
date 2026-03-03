@@ -18,6 +18,7 @@ public class AttendanceDto
     public decimal OvertimeHours { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
+    public bool IsManagerOverride { get; set; }
     public bool IsFinalized { get; set; }
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }
@@ -309,9 +310,9 @@ public class EmployeeTimesheetDto
     public bool IsFinalized { get; set; }
     public int PresentDays { get; set; }
     public int AbsentDays { get; set; }
-    /// <summary>Count of days where status = 'late'.</summary>
     public int LateDays { get; set; }
-    /// <summary>Present days (including late) divided by total working days × 100.</summary>
+    public int LeaveDays { get; set; }
+    public int HalfDays { get; set; }
     public decimal AttendancePercentage { get; set; }
 }
 public class MonthlyTimesheetCreateDto
@@ -327,15 +328,20 @@ public class OrgSubmissionProgressDto
     public int TotalEmployees { get; set; }
     public int FinalizedCount { get; set; }
     public int SubmittedCount { get; set; }
+    public int DraftCount { get; set; }
+    public int RejectedCount { get; set;}
+    public int FinalizationPercentage { get; set; }
     public int PendingReviewCount { get; set; }
     public int InProgressCount { get; set; }
     public int UntouchedCount { get; set; }
-    public decimal SubmissionRate => TotalEmployees > 0
-        ? Math.Round(((decimal)(FinalizedCount + SubmittedCount) / TotalEmployees) * 100, 1)
-        : 0;
-    public decimal ComplianceRate => TotalEmployees > 0
-       ? Math.Round(((decimal)FinalizedCount / TotalEmployees) * 100, 1)
-       : 0;
+    public decimal SubmissionRate { get; set; }
+    //=> TotalEmployees > 0
+    //    ? Math.Round(((decimal)(FinalizedCount + SubmittedCount) / TotalEmployees) * 100, 1)
+    //    : 0;
+    public decimal ComplianceRate { get; set; } 
+        //=> TotalEmployees > 0
+      // ? Math.Round(((decimal)FinalizedCount / TotalEmployees) * 100, 1)
+       //: 0;
 }
 public class AttendanceUpdateRequestDto
 {
@@ -490,6 +496,7 @@ public class DailyAttendanceRecord
     public string Status { get; set; }
     public decimal TotalHours { get; set; }
     public string? Notes { get; set; }
+    public bool IsManagerOverride { get; set; }
     public bool IsFinalized { get; set; }
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }

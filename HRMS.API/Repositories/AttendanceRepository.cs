@@ -200,14 +200,26 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     }
     public async Task<int> BatchFinalizeMonthAsync(Guid timesheetId, Guid organizationId, Guid actionedBy)
     {
-        // Calling the PG function we created for batch processing
-        const string sql = "SELECT attendance.fn_batch_finalize_month(@timesheetId, @organizationId, @actionedBy)";
+        var snapshot = await QuerySingleOrDefaultAsync<(int Month, int Year)>(
+            "SELECT month, year FROM attendance.monthly_timesheets WHERE timesheet_id = @timesheetId",
+            new { timesheetId });
+
+        if (snapshot == default) return 0;
+
+        const string sql = @"
+        SELECT (fn_result).finalized_count
+        FROM (
+            SELECT attendance.fn_batch_finalize_month(
+                @timesheetId, @organizationId, @month, @year
+            ) AS fn_result
+        ) t";
 
         return await ExecuteScalarAsync<int>(sql, new
         {
             timesheetId,
             organizationId,
-            actionedBy
+            month = snapshot.Month,
+            year = snapshot.Year
         });
     }
     public async Task<int> BatchFinalizeForEmployeeAsync(Guid employeeId, Guid timesheetId)
@@ -218,7 +230,6 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
         try
         {
-            // Fetch month, year AND organization_id from the timesheet
             var snapshot = await connection.QuerySingleOrDefaultAsync<(int Month, int Year, string OrgId)>(
                 @"SELECT month, year, organization_id::text
               FROM attendance.monthly_timesheets
@@ -226,86 +237,112 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 new { timesheetId = timesheetId.ToString() },
                 transaction);
 
-            if (snapshot == default)
-                return 0;
+            if (snapshot == default) return 0;
 
             var startDate = new DateTime(snapshot.Year, snapshot.Month, 1);
             var endDate = startDate.AddMonths(1).AddDays(-1);
             var orgId = snapshot.OrgId;
 
-            var attendanceSql = @"
-    INSERT INTO attendance.finalized_timesheet_records
-        (record_id, timesheet_id, organization_id, employee_id, attendance_id, work_date, record_status, approved_at)
-    SELECT DISTINCT ON (a.attendanceid)
-        gen_random_uuid(),
-        @timesheetId::uuid,
-        @orgId::uuid,
-        @employeeId::uuid,
-        a.attendanceid,
-        a.workdate,
-        'finalized',
-        NOW()
-    FROM attendance.attendance a
-    WHERE a.employeeid = @employeeId::uuid
-      AND a.workdate >= @startDate::date
-      AND a.workdate <= @endDate::date
-    ORDER BY a.attendanceid
-    ON CONFLICT (attendance_id) WHERE attendance_id IS NOT NULL
-    DO UPDATE SET record_status = 'finalized', approved_at = NOW()";
+            var parameters = new
+            {
+                timesheetId = timesheetId.ToString(),
+                orgId,
+                employeeId = employeeId.ToString(),
+                startDate = startDate.ToString("yyyy-MM-dd"),
+                endDate = endDate.ToString("yyyy-MM-dd")
+            };
 
+            // Step 1: Finalize days with an actual attendance record
+            const string step1 = @"
+            INSERT INTO attendance.finalized_timesheet_records
+                (record_id, timesheet_id, employee_id, organization_id,
+                 attendance_id, work_date, record_status, approved_at)
+            SELECT DISTINCT ON (a.workdate)
+                gen_random_uuid(),
+                @timesheetId::uuid,
+                @employeeId::uuid,
+                @orgId::uuid,
+                a.attendanceid,
+                a.workdate,
+                CASE WHEN ftr.record_status = 'overridden' THEN 'overridden' ELSE 'finalized' END,
+                NOW()
+            FROM attendance.attendance a
+            LEFT JOIN attendance.finalized_timesheet_records ftr
+                ON ftr.attendance_id = a.attendanceid
+            WHERE a.employeeid = @employeeId::uuid
+              AND a.workdate  >= @startDate::date
+              AND a.workdate  <= @endDate::date
+            ORDER BY a.workdate, a.attendanceid
+            ON CONFLICT (attendance_id) WHERE attendance_id IS NOT NULL
+            DO UPDATE SET
+                record_status = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden' THEN 'overridden'
+                    ELSE 'finalized'
+                END,
+                approved_at = NOW();";
 
-            await connection.ExecuteAsync(attendanceSql,
-                new
-                {
-                    timesheetId = timesheetId.ToString(),
-                    orgId,
-                    employeeId = employeeId.ToString(),
-                    startDate = startDate.ToString("yyyy-MM-dd"),
-                    endDate = endDate.ToString("yyyy-MM-dd")
-                },
-                transaction);
+            // Step 2: Finalize approved absent-day requests (attendance_id IS NULL)
+            const string step2 = @"
+            INSERT INTO attendance.finalized_timesheet_records
+                (record_id, timesheet_id, employee_id, organization_id,
+                 attendance_id, work_date, record_status, approved_at)
+            SELECT DISTINCT ON (r.workdate)
+                gen_random_uuid(),
+                @timesheetId::uuid,
+                @employeeId::uuid,
+                @orgId::uuid,
+                NULL::uuid,
+                r.workdate,
+                'finalized',
+                NOW()
+            FROM attendance.attendance_update_requests r
+            WHERE r.employee_id  = @employeeId::uuid
+              AND r.status        = 'approved'
+              AND r.attendance_id IS NULL
+              AND r.workdate     >= @startDate::date
+              AND r.workdate     <= @endDate::date
+            ORDER BY r.workdate, r.submitted_at DESC
+            ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
+            DO UPDATE SET record_status = 'finalized', approved_at = NOW();";
 
-            var absenceSql = @"
-    INSERT INTO attendance.finalized_timesheet_records
-        (record_id, timesheet_id, organization_id, employee_id, attendance_id, work_date, record_status, approved_at)
-    SELECT DISTINCT ON (r.workdate)
-        gen_random_uuid(),
-        @timesheetId::uuid,
-        @orgId::uuid,
-        @employeeId::uuid,
-        NULL::uuid,
-        r.workdate,
-        'finalized',
-        NOW()
-    FROM attendance.attendance_update_requests r
-    WHERE r.employee_id = @employeeId::uuid
-      AND r.status = 'approved'
-      AND r.attendance_id IS NULL
-      AND r.workdate >= @startDate::date
-      AND r.workdate <= @endDate::date
-    ORDER BY r.workdate, r.submitted_at DESC
-    ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
-    DO UPDATE SET record_status = 'finalized', approved_at = NOW()";
+            // Step 3: Finalize truly absent days (no attendance row, no request at all, elapsed weekday)
+            const string step3 = @"
+            INSERT INTO attendance.finalized_timesheet_records
+                (record_id, timesheet_id, employee_id, organization_id,
+                 attendance_id, work_date, record_status, approved_at)
+            SELECT
+                gen_random_uuid(),
+                @timesheetId::uuid,
+                @employeeId::uuid,
+                @orgId::uuid,
+                NULL::uuid,
+                gs.d::date,
+                'finalized',
+                NOW()
+            FROM generate_series(
+                @startDate::date,
+                LEAST(@endDate::date, CURRENT_DATE - 1),
+                '1 day'::interval
+            ) AS gs(d)
+            WHERE EXTRACT(DOW FROM gs.d) NOT IN (0, 6)
+              AND NOT EXISTS (
+                  SELECT 1 FROM attendance.attendance a
+                  WHERE a.employeeid = @employeeId::uuid
+                    AND a.workdate   = gs.d::date
+              )
+            ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
+            DO NOTHING;";
 
-            await connection.ExecuteAsync(absenceSql,
-                new
-                {
-                    timesheetId = timesheetId.ToString(),
-                    orgId,
-                    employeeId = employeeId.ToString(),
-                    startDate = startDate.ToString("yyyy-MM-dd"),
-                    endDate = endDate.ToString("yyyy-MM-dd")
-                },
-                transaction);
-
-            var updateStatusSql = @"
+            // Step 4: Mark timesheet as Finalized
+            const string step4 = @"
             UPDATE attendance.monthly_timesheets
             SET status = 'Finalized'
-            WHERE timesheet_id = @timesheetId::uuid";
+            WHERE timesheet_id = @timesheetId::uuid;";
 
-            await connection.ExecuteAsync(updateStatusSql,
-                new { timesheetId = timesheetId.ToString() },
-                transaction);
+            await connection.ExecuteAsync(step1, parameters, transaction);
+            await connection.ExecuteAsync(step2, parameters, transaction);
+            await connection.ExecuteAsync(step3, parameters, transaction);
+            await connection.ExecuteAsync(step4, new { timesheetId = timesheetId.ToString() }, transaction);
 
             transaction.Commit();
             return 1;
@@ -355,40 +392,66 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         return await QueryAsync<MonthlyTimesheetSummary>(sql, new { organizationId, startDate, endDate });
     }
     public async Task<IEnumerable<AttendanceDto>> GetConsolidatedAttendanceAsync(
-    Guid organizationId, DateTime startDate, DateTime endDate, Guid? employeeId, Guid? managerId = null)
+    Guid organizationId, DateTime startDate, DateTime endDate,
+    Guid? employeeId, Guid? managerId = null)
     {
-        try {
+        try
+        {
             bool isGlobalView = managerId == null || managerId == Guid.Empty;
 
             var sql = @"
-    SELECT 
+WITH date_series AS (
+    SELECT generate_series(@startStr::date, @endStr::date, interval '1 day')::date AS workdate
+),
+filtered_employees AS (
+    SELECT
         e.employeeid,
         (e.firstname || ' ' || e.lastname) AS employeename,
         e.employeecode,
-        d.departmentname,
-        v.attendanceid AS AttendanceId,
-        v.workdate,
-        v.checkintime,
-        v.checkouttime,
-        v.status,
-        v.totalhours, 
-        v.is_finalized        AS ""IsFinalized"",
-        v.has_pending_request AS ""HasPendingRequest"",
-        v.has_draft_request   AS ""HasDraftRequest"",
-        v.has_approved_request AS ""HasApprovedRequest"",
-        v.requested_checkin  AS ""RequestedCheckIn"",
-        v.requested_checkout AS ""RequestedCheckOut"",
-        v.requested_status   AS ""RequestedStatus""
+        d.departmentname
     FROM employee.employees e
-    LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-    LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
-    LEFT JOIN attendance.vw_employee_timesheet_details v ON e.employeeid = v.employeeid 
-        AND v.workdate >= @startStr::DATE 
-        AND v.workdate <= @endStr::DATE
-    WHERE e.organizationid = @orgStr::UUID 
-      AND (@empStr IS NULL OR e.employeeid = @empStr::UUID)
+    LEFT JOIN employee.employmentdetails ed
+           ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+    LEFT JOIN employee.departments d
+           ON ed.departmentid = d.departmentid
+    WHERE e.organizationid = @orgStr::UUID
+      AND (@empStr::UUID IS NULL OR e.employeeid = @empStr::UUID)
       AND (@isGlobalView = TRUE OR ed.reportingmanagerid = @mgrStr::UUID)
-    ORDER BY e.firstname, v.workdate ASC";
+),
+emp_dates AS (
+    SELECT
+        fe.employeeid,
+        fe.employeename,
+        fe.employeecode,
+        fe.departmentname,
+        ds.workdate
+    FROM filtered_employees fe
+    CROSS JOIN date_series ds
+)
+SELECT
+    ed.employeeid,
+    ed.employeename,
+    ed.employeecode,
+    ed.departmentname,
+    v.attendanceid          AS AttendanceId,
+    ed.workdate,
+    v.checkintime,
+    v.checkouttime,
+    v.status,
+    COALESCE(v.totalhours, 0)           AS totalhours,
+    COALESCE(v.is_finalized,   FALSE)   AS ""IsFinalized"",
+    COALESCE(v.is_manager_override, FALSE) AS ""IsManagerOverride"",
+    COALESCE(v.has_pending_request, FALSE) AS ""HasPendingRequest"",
+    COALESCE(v.has_draft_request,   FALSE) AS ""HasDraftRequest"",
+    COALESCE(v.has_approved_request,FALSE) AS ""HasApprovedRequest"",
+    v.requested_checkin  AS ""RequestedCheckIn"",
+    v.requested_checkout AS ""RequestedCheckOut"",
+    v.requested_status   AS ""RequestedStatus""
+FROM emp_dates ed
+LEFT JOIN attendance.vw_employee_timesheet_details v
+       ON v.employeeid = ed.employeeid
+      AND v.workdate   = ed.workdate
+ORDER BY ed.employeename, ed.workdate ASC";
 
             var result = await QueryAsync<AttendanceDto>(sql, new
             {
@@ -406,10 +469,11 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Error in GetConsolidatedAttendanceAsync");
             throw;
         }
     }
-    
+
     public async Task<MonthlyTimesheetSummary?> GetSnapshotByIdAsync(Guid timesheetId)
     {
         var sql = @"SELECT timesheet_id as TimesheetId, month, year, timesheet_name as TimesheetName 
@@ -449,97 +513,212 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
+    public async Task<bool> IsEmployeePackageFinalizedAsync(Guid timesheetId, Guid employeeId)
+    {
+        const string sql = @"
+        WITH timesheet_period AS (
+            SELECT month, year
+            FROM attendance.monthly_timesheets
+            WHERE timesheet_id = @timesheetId
+            LIMIT 1
+        ),
+        elapsed_workdays AS (
+            SELECT COUNT(gs.d)::int AS total_elapsed
+            FROM timesheet_period tp
+            CROSS JOIN generate_series(
+                make_date(tp.year, tp.month, 1),
+                LEAST(
+                    (make_date(tp.year, tp.month, 1) + INTERVAL '1 month - 1 day')::date,
+                    CURRENT_DATE - 1
+                ),
+                '1 day'::interval
+            ) AS gs(d)
+            WHERE EXTRACT(DOW FROM gs.d) NOT IN (0, 6)
+        ),
+        finalized_days AS (
+            SELECT COUNT(DISTINCT work_date)::int AS finalized_count
+            FROM attendance.finalized_timesheet_records
+            WHERE timesheet_id = @timesheetId
+              AND employee_id   = @employeeId
+              AND record_status IN ('finalized', 'overridden')
+        )
+        SELECT
+            CASE WHEN ew.total_elapsed > 0
+                      AND fd.finalized_count >= ew.total_elapsed
+                 THEN TRUE ELSE FALSE END
+        FROM elapsed_workdays ew, finalized_days fd;";
+
+        using var conn = CreateConnection();
+        return await conn.ExecuteScalarAsync<bool>(sql, new { timesheetId, employeeId });
+    }
     public async Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(
-      Guid organizationId, int month, int year)
+    Guid organizationId, int month, int year)
     {
         try
         {
             const string sql = @"
-        WITH org_employees AS (
-            SELECT DISTINCT e.employeeid
-            FROM employee.employees e
-            WHERE e.organizationid = @OrganizationId
+        WITH
+        -- All employee-timesheet enrollments for this org + period
+        enrollments AS (
+    SELECT
+        mt.timesheet_id AS timesheetid,
+        e.employeeid
+    FROM attendance.monthly_timesheets mt
+    JOIN employee.employees e ON e.organizationid = mt.organization_id
+    WHERE mt.organization_id = @orgId::uuid
+      AND mt.month = @month
+      AND mt.year  = @year
+     ),
+        -- Elapsed working days in the month up to yesterday (Mon–Fri only)
+        elapsed_month_workdays AS (
+    SELECT COUNT(gs.d)::int AS total_elapsed
+    FROM generate_series(
+        make_date(@year, @month, 1),
+        LEAST(
+            (make_date(@year, @month, 1) + INTERVAL '1 month - 1 day')::date,
+            CURRENT_DATE - 1
         ),
-        employee_request_state AS (
-            SELECT
-                ar.employee_id AS employeeid,
-                BOOL_OR(ar.status = 'draft') AS has_draft,
-                BOOL_OR(ar.status = 'pending') AS has_pending,
-                BOOL_OR(ar.status IN ('pending','approved')) AS has_submitted
-            FROM attendance.attendance_update_requests ar
-            INNER JOIN employee.employees e ON e.employeeid = ar.employee_id
-            INNER JOIN attendance.monthly_timesheets mt ON mt.timesheet_id = ar.timesheet_id
-            WHERE e.organizationid = @OrganizationId
-              AND mt.month = @Month
-              AND mt.year  = @Year
-            GROUP BY ar.employee_id
+        '1 day'::interval
+        ) AS gs(d)
+        WHERE EXTRACT(DOW FROM gs.d) NOT IN (0, 6)
         ),
-        employee_finalized AS (
-            SELECT
-                a.employeeid,
-                BOOL_OR(a.is_finalized = TRUE) AS is_finalized
-            FROM attendance.attendance a
-            INNER JOIN employee.employees e ON e.employeeid = a.employeeid
-            WHERE e.organizationid = @OrganizationId
-              AND EXTRACT(MONTH FROM a.workdate) = @Month
-              AND EXTRACT(YEAR  FROM a.workdate) = @Year
-            GROUP BY a.employeeid
+        fully_finalized AS (
+      SELECT f.employee_id AS employeeid
+      FROM attendance.finalized_timesheet_records f
+      INNER JOIN attendance.monthly_timesheets mt
+        ON mt.timesheet_id = f.timesheet_id
+    WHERE mt.organization_id = @orgId::uuid
+      AND mt.month           = @month
+      AND mt.year            = @year
+      AND f.record_status   IN ('finalized', 'overridden')
+    GROUP BY f.employee_id
+    HAVING COUNT(DISTINCT f.work_date) >= (SELECT total_elapsed FROM elapsed_month_workdays)
+),
+        -- Submitted: has at least one PENDING request (not finalized)
+        pending_employees AS (
+            SELECT DISTINCT aur.employee_id AS employeeid
+            FROM attendance.attendance_update_requests aur
+            JOIN enrollments en
+                ON en.timesheetid = aur.timesheet_id
+               AND en.employeeid  = aur.employee_id
+            WHERE aur.status = 'pending'
+              AND aur.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
         ),
-        employee_states AS (
-            SELECT
-                oe.employeeid,
-                CASE
-                    WHEN COALESCE(ef.is_finalized, FALSE) = TRUE THEN 'finalized'
-                    WHEN COALESCE(ers.has_draft, FALSE) = FALSE AND COALESCE(ers.has_submitted, FALSE) = TRUE THEN 'submitted'
-                    WHEN COALESCE(ers.has_pending, FALSE) = TRUE THEN 'pending_review'
-                    WHEN COALESCE(ers.has_draft, FALSE) = TRUE THEN 'in_progress'
-                    ELSE 'untouched'
-                END AS state
-            FROM org_employees oe
-            LEFT JOIN employee_finalized ef ON ef.employeeid = oe.employeeid
-            LEFT JOIN employee_request_state ers ON ers.employeeid = oe.employeeid
+
+        -- Draft: has drafts but no pending (not finalized)
+        draft_employees AS (
+            SELECT DISTINCT aur.employee_id AS employeeid
+            FROM attendance.attendance_update_requests aur
+            JOIN enrollments en
+                ON en.timesheetid = aur.timesheet_id
+               AND en.employeeid  = aur.employee_id
+            WHERE aur.status = 'draft'
+              AND aur.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
+              AND aur.employee_id NOT IN (SELECT employeeid FROM pending_employees)
+        ),
+
+        -- Rejected: has rejected requests but no pending (not finalized)
+        rejected_employees AS (
+            SELECT DISTINCT aur.employee_id AS employeeid
+            FROM attendance.attendance_update_requests aur
+            JOIN enrollments en
+                ON en.timesheetid = aur.timesheet_id
+               AND en.employeeid  = aur.employee_id
+            WHERE aur.status = 'rejected'
+              AND aur.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
+              AND aur.employee_id NOT IN (SELECT employeeid FROM pending_employees)
+        ),
+       in_progress_employees AS (
+      SELECT DISTINCT f.employee_id AS employeeid
+      FROM attendance.finalized_timesheet_records f
+      INNER JOIN attendance.monthly_timesheets mt
+        ON mt.timesheet_id = f.timesheet_id
+      WHERE mt.organization_id = @orgId::uuid
+      AND mt.month           = @month
+      AND mt.year            = @year
+      AND f.record_status   IN ('finalized', 'overridden')
+      AND f.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
+        ),
+        all_employees AS (
+            SELECT DISTINCT employeeid FROM enrollments
         )
-        SELECT
-            COUNT(*) AS total_employees,
-            COUNT(*) FILTER (WHERE state = 'finalized') AS finalized_count,
-            COUNT(*) FILTER (WHERE state = 'submitted') AS submitted_count,
-            COUNT(*) FILTER (WHERE state = 'pending_review') AS pending_review_count,
-            COUNT(*) FILTER (WHERE state = 'in_progress') AS in_progress_count,
-            COUNT(*) FILTER (WHERE state = 'untouched') AS untouched_count
-        FROM employee_states;";
+             SELECT
+    COUNT(DISTINCT ae.employeeid)              AS total_employees,
+    COUNT(DISTINCT ff.employeeid)              AS finalized_count,
+    COUNT(DISTINCT pe.employeeid)              AS submitted_count,
+    COUNT(DISTINCT de.employeeid)              AS draft_count,
+    COUNT(DISTINCT re.employeeid)              AS rejected_count,
+    COUNT(DISTINCT ip.employeeid)              AS in_progress_count,
+    COUNT(DISTINCT ae.employeeid)
+        - COUNT(DISTINCT ff.employeeid)
+        - COUNT(DISTINCT pe.employeeid)
+        - COUNT(DISTINCT de.employeeid)
+        - COUNT(DISTINCT re.employeeid)
+        - COUNT(DISTINCT ip.employeeid)        AS untouched_count,
+         CASE WHEN COUNT(DISTINCT ae.employeeid) = 0 THEN 0
+         ELSE ROUND(
+             COUNT(DISTINCT ff.employeeid) * 100.0
+             / COUNT(DISTINCT ae.employeeid)
+             )
+            END     AS finalization_percentage
+               FROM all_employees ae
+                 LEFT JOIN fully_finalized     ff ON ff.employeeid = ae.employeeid
+                 LEFT JOIN pending_employees   pe ON pe.employeeid = ae.employeeid
+                 LEFT JOIN draft_employees     de ON de.employeeid = ae.employeeid
+                 LEFT JOIN rejected_employees  re ON re.employeeid = ae.employeeid
+                 LEFT JOIN in_progress_employees ip ON ip.employeeid = ae.employeeid";
 
-            using var connection = CreateConnection();
-
-            var row = await connection.QuerySingleOrDefaultAsync<dynamic>(sql, new
+            using var conn = CreateConnection();
+            var row = await conn.QuerySingleAsync(sql, new
             {
-                OrganizationId = organizationId,
-                Month = month,
-                Year = year
+                orgId = organizationId,
+                month,
+                year
             });
+
+            int total = (int)(row.total_employees ?? 0);
+            int finalized = (int)(row.finalized_count ?? 0);
+            int pending = (int)(row.submitted_count ?? 0);
+            int draft = (int)(row.draft_count ?? 0);
+            int rejected = (int)(row.rejected_count ?? 0);
+            int inprogress = (int)(row.in_progress_count ?? 0);
+            int untouched = (int)(row.untouched_count ?? 0);
 
             return new OrgSubmissionProgressDto
             {
                 Month = month,
                 Year = year,
-                TotalEmployees = row != null ? (int)row.total_employees : 0,
-                FinalizedCount = row != null ? (int)row.finalized_count : 0,
-                SubmittedCount = row != null ? (int)row.submitted_count : 0,
-                PendingReviewCount = row != null ? (int)row.pending_review_count : 0,
-                InProgressCount = row != null ? (int)row.in_progress_count : 0,
-                UntouchedCount = row != null ? (int)row.untouched_count : 0
+                TotalEmployees = total,
+                FinalizedCount = finalized,
+                SubmittedCount = pending,
+                PendingReviewCount = pending,
+                DraftCount = draft,
+                RejectedCount = rejected,
+                InProgressCount = inprogress,
+                UntouchedCount = untouched,
+                FinalizationPercentage = (int)(row.finalization_percentage ?? 0),
+                SubmissionRate = total > 0 ? Math.Round((decimal)(pending + finalized) * 100m / total, 2) : 0,
+                ComplianceRate = total > 0 ? Math.Round((decimal)finalized * 100m / total, 2) : 0
             };
         }
-        catch (Exception ex)
-        {
-            
-            return null;
+        catch (Exception ex) {
+            throw ex;
         }
     }
     public async Task<bool> AdminFinalizeRecordAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId)
     {
         try
         {
-            const string sql = @"
+            if (dto.TimesheetId == Guid.Empty)
+                throw new ArgumentException("TimesheetId is required for admin override.");
+
+            var attendanceId = dto.AttendanceId == Guid.Empty ? (Guid?)null : dto.AttendanceId;
+
+            string sql;
+
+            if (attendanceId.HasValue)
+            {
+                sql = @"
             INSERT INTO attendance.finalized_timesheet_records (
                 record_id,
                 timesheet_id,
@@ -570,7 +749,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 @Reason,
                 'overridden'
             )
-            ON CONFLICT (employee_id, work_date)
+            ON CONFLICT (attendance_id) WHERE attendance_id IS NOT NULL
             DO UPDATE SET
                 final_checkin   = EXCLUDED.final_checkin,
                 final_checkout  = EXCLUDED.final_checkout,
@@ -580,13 +759,52 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 attendance_id   = EXCLUDED.attendance_id,
                 override_reason = EXCLUDED.override_reason,
                 record_status   = 'overridden';";
+            }
+            else
+            {
+                sql = @"
+            INSERT INTO attendance.finalized_timesheet_records (
+                record_id,
+                timesheet_id,
+                employee_id,
+                organization_id,
+                work_date,
+                final_checkin,
+                final_checkout,
+                final_status,
+                approved_by,
+                approved_at,
+                attendance_id,
+                override_reason,
+                record_status
+            )
+            VALUES (
+                uuid_generate_v4(),
+                @TimesheetId,
+                @EmployeeId,
+                @OrgId,
+                @WorkDate,
+                @CheckInTime,
+                @CheckOutTime,
+                @Status,
+                @ManagerId,
+                NOW(),
+                NULL,
+                @Reason,
+                'overridden'
+            )
+            ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
+            DO UPDATE SET
+                final_checkin   = EXCLUDED.final_checkin,
+                final_checkout  = EXCLUDED.final_checkout,
+                final_status    = EXCLUDED.final_status,
+                approved_by     = EXCLUDED.approved_by,
+                approved_at     = NOW(),
+                override_reason = EXCLUDED.override_reason,
+                record_status   = 'overridden';";
+            }
 
             using var connection = CreateConnection();
-
-            if (dto.TimesheetId == Guid.Empty)
-                throw new ArgumentException("TimesheetId is required for admin override.");
-
-            var attendanceId = dto.AttendanceId == Guid.Empty ? (Guid?)null : dto.AttendanceId;
 
             return await connection.ExecuteAsync(sql, new
             {

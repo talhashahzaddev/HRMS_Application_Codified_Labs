@@ -147,13 +147,3 @@ public class SettingsController : ControllerBase
         return organizationId;
     }
 }
-
-
-
-
-
-
-
-
-
-
