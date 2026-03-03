@@ -6,6 +6,10 @@
 -- AUTH SCHEMA
 -- ==============================
 
+-- Table: auth.organizations
+
+-- DROP TABLE IF EXISTS auth.organizations;
+
 CREATE TABLE IF NOT EXISTS auth.organizations
 (
     organizationid uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -18,8 +22,16 @@ CREATE TABLE IF NOT EXISTS auth.organizations
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     currency character varying(50) COLLATE pg_catalog."default" DEFAULT NULL::character varying,
+    careerbgimageurl character varying(500) COLLATE pg_catalog."default",
+    careerheadertext character varying(255) COLLATE pg_catalog."default",
+    careerdescription text COLLATE pg_catalog."default",
     CONSTRAINT organizations_pkey PRIMARY KEY (organizationid)
 )
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS auth.organizations
+    OWNER to postgres;
 
 CREATE TABLE auth.Roles (
     RoleId UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -1058,6 +1070,7 @@ CREATE TABLE IF NOT EXISTS jobs.jobopenings
     createdby uuid,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone,
+    jobcode character varying(100) COLLATE pg_catalog."default",
     CONSTRAINT jobopenings_pkey PRIMARY KEY (jobid)
 )
 

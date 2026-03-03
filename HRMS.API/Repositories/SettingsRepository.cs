@@ -1,4 +1,5 @@
 using HRMS.API.Configuration;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using Dapper;
 using Npgsql;
@@ -28,6 +29,32 @@ public class SettingsRepository : BaseRepository, ISettingsRepository
                     WHERE organizationid = @organizationId";
         var affectedRows = await ExecuteAsync(sql, new { currency, organizationId });
         return affectedRows > 0;
+    }
+
+    public async Task<bool> UpdateCareerPageAsync(Guid organizationId, string? careerBgImageUrl, string? careerHeaderText, string? careerDescription, string? logoUrl)
+    {
+        var sql = @"UPDATE auth.organizations
+                    SET careerbgimageurl   = @careerBgImageUrl,
+                        careerheadertext   = @careerHeaderText,
+                        careerdescription  = @careerDescription,
+                        logourl            = @logoUrl,
+                        updatedat          = CURRENT_TIMESTAMP
+                    WHERE organizationid = @organizationId";
+        var affectedRows = await ExecuteAsync(sql, new { careerBgImageUrl, careerHeaderText, careerDescription, logoUrl, organizationId });
+        return affectedRows > 0;
+    }
+
+    public async Task<CareerPageDto?> GetCareerPageAsync(Guid organizationId)
+    {
+        var sql = @"SELECT organizationid  AS OrganizationId,
+                           name            AS Name,
+                           logourl         AS LogoUrl,
+                           careerbgimageurl  AS CareerBgImageUrl,
+                           careerheadertext  AS CareerHeaderText,
+                           careerdescription AS CareerDescription
+                    FROM auth.organizations
+                    WHERE organizationid = @organizationId";
+        return await QuerySingleOrDefaultAsync<CareerPageDto?>(sql, new { organizationId });
     }
 }
 

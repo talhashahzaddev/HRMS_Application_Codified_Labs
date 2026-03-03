@@ -14,6 +14,9 @@ public class JobOpening
     [Column("jobrolename")]
     public string JobRoleName { get; set; } = string.Empty;
 
+    [Column("jobcode")]
+    public string? JobCode { get; set; }
+
     [Column("departmentid")]
     public Guid? DepartmentId { get; set; }
 

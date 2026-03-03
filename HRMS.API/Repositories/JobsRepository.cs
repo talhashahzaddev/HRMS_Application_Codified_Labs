@@ -61,7 +61,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     public async Task<IEnumerable<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId)
     {
         var sql = @"
-            SELECT j.jobid AS JobId, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
+            SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
                    j.departmentid AS DepartmentId, d.departmentname AS DepartmentName,
                    j.experiencemin AS ExperienceMin, j.experiencemax AS ExperienceMax,
                    j.ctcmin AS CtcMin, j.ctcmax AS CtcMax, j.currency AS Currency,
@@ -110,7 +110,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, status, fromDate, toDate });
 
         var dataSql = @"
-            SELECT j.jobid AS JobId, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
+            SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
                    j.departmentid AS DepartmentId, d.departmentname AS DepartmentName,
                    j.experiencemin AS ExperienceMin, j.experiencemax AS ExperienceMax,
                    j.ctcmin AS CtcMin, j.ctcmax AS CtcMax, j.currency AS Currency,
@@ -147,11 +147,79 @@ public class JobsRepository : BaseRepository, IJobsRepository
             PageSize = pageSize
         };
     }
+    public async Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 100) pageSize = 100;
+        var offset = (pageNumber - 1) * pageSize;
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
+        var fromDate = lastDateFrom ?? new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var toDate = lastDateTo ?? new DateTime(9999, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+
+        var countSql = @"
+            SELECT COUNT(*)
+            FROM jobs.jobopenings j
+            LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
+            WHERE j.organizationid = @organizationId
+              AND j.postedas = 'External'
+              AND (@status IS NULL OR j.status = @status)
+              AND (@searchPattern IS NULL OR (
+                  j.jobrolename ILIKE @searchPattern OR
+                  j.location ILIKE @searchPattern OR
+                  d.departmentname ILIKE @searchPattern OR
+                  j.workmode ILIKE @searchPattern OR
+                  j.employmenttype ILIKE @searchPattern OR
+                  j.jobintroduction ILIKE @searchPattern OR
+                  j.skillset ILIKE @searchPattern))
+              AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (j.lastdate >= @fromDate))
+              AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (j.lastdate <= @toDate))";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, status, fromDate, toDate });
+
+        var dataSql = @"
+            SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
+                   j.departmentid AS DepartmentId, d.departmentname AS DepartmentName,
+                   j.experiencemin AS ExperienceMin, j.experiencemax AS ExperienceMax,
+                   j.ctcmin AS CtcMin, j.ctcmax AS CtcMax, j.currency AS Currency,
+                   j.vacancies AS Vacancies, j.location AS Location, j.workmode AS WorkMode,
+                   j.employmenttype AS EmploymentType, j.jobintroduction AS JobIntroduction,
+                   j.responsibilities AS Responsibilities, j.skillset AS Skillset,
+                   j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
+                   j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
+                   CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+            FROM jobs.jobopenings j
+            LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
+            LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
+            WHERE j.organizationid = @organizationId
+              AND j.postedas = 'External'
+              AND (@status IS NULL OR j.status = @status)
+              AND (@searchPattern IS NULL OR (
+                  j.jobrolename ILIKE @searchPattern OR
+                  j.location ILIKE @searchPattern OR
+                  d.departmentname ILIKE @searchPattern OR
+                  j.workmode ILIKE @searchPattern OR
+                  j.employmenttype ILIKE @searchPattern OR
+                  j.jobintroduction ILIKE @searchPattern OR
+                  j.skillset ILIKE @searchPattern))
+              AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (j.lastdate >= @fromDate))
+              AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (j.lastdate <= @toDate))
+            ORDER BY j.posteddate DESC NULLS LAST, j.createdat DESC
+            LIMIT @pageSize OFFSET @offset";
+        var data = await QueryAsync<JobOpeningDto>(dataSql, new { organizationId, searchPattern, status, fromDate, toDate, pageSize, offset });
+        return new PagedResult<JobOpeningDto>
+        {
+            Data = data?.ToList() ?? new List<JobOpeningDto>(),
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
 
     public async Task<JobOpeningDto?> GetJobOpeningByIdAsync(Guid jobId)
     {
         var sql = @"
-            SELECT j.jobid AS JobId, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
+            SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
                    j.departmentid AS DepartmentId, d.departmentname AS DepartmentName,
                    j.experiencemin AS ExperienceMin, j.experiencemax AS ExperienceMax,
                    j.ctcmin AS CtcMin, j.ctcmax AS CtcMax, j.currency AS Currency,
@@ -172,16 +240,17 @@ public class JobsRepository : BaseRepository, IJobsRepository
     public async Task<Guid> CreateJobOpeningAsync(JobOpening entity)
     {
         var sql = @"
-            INSERT INTO jobs.jobopenings (organizationid, jobrolename, departmentid, experiencemin, experiencemax,
+            INSERT INTO jobs.jobopenings (organizationid, jobcode, jobrolename, departmentid, experiencemin, experiencemax,
                 ctcmin, ctcmax, currency, vacancies, location, workmode, employmenttype, jobintroduction,
                 responsibilities, skillset, lastdate, postedas, externallink, status, createdby)
-            VALUES (@OrganizationId, @JobRoleName, @DepartmentId, @ExperienceMin, @ExperienceMax,
+            VALUES (@OrganizationId, @JobCode, @JobRoleName, @DepartmentId, @ExperienceMin, @ExperienceMax,
                 @CtcMin, @CtcMax, @Currency, @Vacancies, @Location, @WorkMode, @EmploymentType, @JobIntroduction,
                 @Responsibilities, @Skillset, @LastDate, @PostedAs, @ExternalLink, @Status, @CreatedBy)
             RETURNING jobid";
         return await ExecuteScalarAsync<Guid>(sql, new
         {
             entity.OrganizationId,
+            entity.JobCode,
             entity.JobRoleName,
             entity.DepartmentId,
             entity.ExperienceMin,
@@ -208,7 +277,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = @"
             UPDATE jobs.jobopenings
-            SET jobrolename = @JobRoleName, departmentid = @DepartmentId, experiencemin = @ExperienceMin,
+            SET jobcode = @JobCode, jobrolename = @JobRoleName, departmentid = @DepartmentId, experiencemin = @ExperienceMin,
                 experiencemax = @ExperienceMax, ctcmin = @CtcMin, ctcmax = @CtcMax, currency = @Currency,
                 vacancies = @Vacancies, location = @Location, workmode = @WorkMode, employmenttype = @EmploymentType,
                 jobintroduction = @JobIntroduction, responsibilities = @Responsibilities, skillset = @Skillset,
@@ -218,6 +287,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var rows = await ExecuteAsync(sql, new
         {
             entity.JobId,
+            entity.JobCode,
             entity.JobRoleName,
             entity.DepartmentId,
             entity.ExperienceMin,
@@ -247,9 +317,26 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return rows > 0;
     }
 
+    public async Task<bool> IsJobCodeExistsAsync(string jobCode, Guid organizationId, Guid? excludeJobId = null)
+    {
+        var sql = @"
+            SELECT COUNT(1)
+            FROM jobs.jobopenings
+            WHERE organizationid = @organizationId
+              AND LOWER(jobcode) = LOWER(@jobCode)";
+        
+        if (excludeJobId.HasValue)
+        {
+            sql += " AND jobid != @excludeJobId";
+        }
+
+        var count = await ExecuteScalarAsync<int>(sql, new { organizationId, jobCode, excludeJobId });
+        return count > 0;
+    }
+
     // ==================== JobApplications ====================
     private const string JobApplicationSelectSql = @"
-            SELECT a.jobapplyid AS JobApplyId, a.jobid AS JobId, j.jobrolename AS JobRoleName,
+            SELECT a.jobapplyid AS JobApplyId, a.jobid AS JobId, j.jobcode AS JobCode, j.jobrolename AS JobRoleName,
                    a.organizationid AS OrganizationId, a.employeeid AS EmployeeId,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
                    a.candidateid AS CandidateId, a.candidatename AS CandidateName, a.candidateemail AS CandidateEmail,
@@ -522,7 +609,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     // ==================== ApplicationStages ====================
     private const string ApplicationStageSelectSql = @"
             SELECT ast.applicationstageid AS ApplicationStageId, ast.jobapplyid AS JobApplyId, a.jobid AS JobId,
-                   j.jobrolename AS JobRoleName, a.candidatename AS CandidateName,
+                   j.jobcode AS JobCode, j.jobrolename AS JobRoleName, a.candidatename AS CandidateName,
                    ast.stageid AS StageId, s.stagename AS StageName, s.isinterviewstage AS IsInterviewStage,
                    ast.notes AS Notes, ast.interviewers AS InterviewersText, ast.type AS Type,
                    ast.updatedon AS UpdatedOn, ast.updatedby AS UpdatedBy,
@@ -614,6 +701,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             ApplicationStageId = r.ApplicationStageId,
             JobApplyId = r.JobApplyId,
             JobId = r.JobId,
+            JobCode = r.JobCode,
             JobRoleName = r.JobRoleName,
             CandidateName = r.CandidateName,
             StageId = r.StageId,
@@ -706,6 +794,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         public Guid ApplicationStageId { get; set; }
         public Guid JobApplyId { get; set; }
         public Guid? JobId { get; set; }
+        public string? JobCode { get; set; }
         public string? JobRoleName { get; set; }
         public string? CandidateName { get; set; }
         public Guid StageId { get; set; }

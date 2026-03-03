@@ -74,6 +74,60 @@ public class SettingsController : ControllerBase
         }
     }
 
+    [HttpPut("career-page")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateCareerPage([FromBody] UpdateCareerPageRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.UpdateCareerPageAsync(organizationId, request);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating career page settings");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating career page settings"
+            });
+        }
+    }
+
+    [HttpGet("career-page")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<CareerPageDto>>> GetCareerPage()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.GetCareerPageAsync(organizationId);
+
+            if (!result.Success)
+            {
+                return NotFound(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving career page details for organization");
+            return StatusCode(500, new ServiceResponse<CareerPageDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving career page details"
+            });
+        }
+    }
+
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");

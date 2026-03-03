@@ -15,10 +15,12 @@ public interface IJobsRepository
     // JobOpenings
     Task<IEnumerable<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId);
     Task<PagedResult<JobOpeningDto>> GetJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize);
+    Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize);
     Task<JobOpeningDto?> GetJobOpeningByIdAsync(Guid jobId);
     Task<Guid> CreateJobOpeningAsync(JobOpening entity);
     Task<bool> UpdateJobOpeningAsync(JobOpening entity);
     Task<bool> DeleteJobOpeningAsync(Guid jobId);
+    Task<bool> IsJobCodeExistsAsync(string jobCode, Guid organizationId, Guid? excludeJobId = null);
 
     // JobApplications
     Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);

@@ -48,6 +48,12 @@ namespace HRMS.API.Repositories
             return affectedRows > 0;
         }
 
+        public async Task<Organization?> GetOrganizationByDomainAsync(string domain)
+        {
+            var sql = "SELECT * FROM auth.organizations WHERE domain = @domain";
+            return await QuerySingleOrDefaultAsync<Organization>(sql, new { domain });
+        }
+
         public async Task<IEnumerable<Organization>> GetAllOrganizationsAsync()
         {
             var sql = "SELECT * FROM auth.organizations";

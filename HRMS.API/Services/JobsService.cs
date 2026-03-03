@@ -72,6 +72,11 @@ public class JobsService : IJobsService
         return await _jobsRepository.GetJobOpeningsPagedAsync(organizationId, search, status, lastDateFrom, lastDateTo, pageNumber, pageSize);
     }
 
+    public async Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize)
+    {
+        return await _jobsRepository.GetExternalJobOpeningsPagedAsync(organizationId, search, status, lastDateFrom, lastDateTo, pageNumber, pageSize);
+    }
+
     public async Task<JobOpeningDto?> GetJobOpeningByIdAsync(Guid jobId)
     {
         return await _jobsRepository.GetJobOpeningByIdAsync(jobId);
@@ -90,9 +95,17 @@ public class JobsService : IJobsService
         if (request.Vacancies < 1)
             throw new ArgumentException("Vacancies must be at least 1", nameof(request));
 
+        if (!string.IsNullOrWhiteSpace(request.JobCode))
+        {
+            var exists = await _jobsRepository.IsJobCodeExistsAsync(request.JobCode.Trim(), organizationId);
+            if (exists)
+                throw new ArgumentException($"A job opening with the Job Code '{request.JobCode}' already exists.", nameof(request.JobCode));
+        }
+
         var entity = new JobOpening
         {
             OrganizationId = organizationId,
+            JobCode = request.JobCode?.Trim(),
             JobRoleName = request.JobRoleName.Trim(),
             DepartmentId = request.DepartmentId,
             ExperienceMin = request.ExperienceMin,
@@ -130,10 +143,18 @@ public class JobsService : IJobsService
         if (existing == null)
             return null;
 
+        if (!string.IsNullOrWhiteSpace(request.JobCode) && !string.Equals(request.JobCode.Trim(), existing.JobCode, StringComparison.OrdinalIgnoreCase))
+        {
+            var exists = await _jobsRepository.IsJobCodeExistsAsync(request.JobCode.Trim(), existing.OrganizationId, jobId);
+            if (exists)
+                throw new ArgumentException($"A job opening with the Job Code '{request.JobCode}' already exists.", nameof(request.JobCode));
+        }
+
         var entity = new JobOpening
         {
             JobId = jobId,
             OrganizationId = existing.OrganizationId,
+            JobCode = request.JobCode ?? existing.JobCode,
             JobRoleName = request.JobRoleName ?? existing.JobRoleName,
             DepartmentId = request.DepartmentId ?? existing.DepartmentId,
             ExperienceMin = request.ExperienceMin ?? existing.ExperienceMin,
@@ -227,7 +248,7 @@ public class JobsService : IJobsService
             Phone = request.Phone?.Trim(),
             CoverLetter = request.CoverLetter?.Trim(),
             CurrentStageId = request.CurrentStageId,
-            ApplicationSource = request.ApplicationSource?.Trim(),
+            ApplicationSource = "Internal",
             Status = string.IsNullOrWhiteSpace(request.Status) ? "Applied" : request.Status.Trim(),
             IsSelf=request.IsSelf
         };

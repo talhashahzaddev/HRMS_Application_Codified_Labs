@@ -39,6 +39,7 @@ public class JobOpeningDto
     public Guid JobId { get; set; }
     public Guid OrganizationId { get; set; }
     public string JobRoleName { get; set; } = string.Empty;
+    public string? JobCode { get; set; }
     public Guid? DepartmentId { get; set; }
     public string? DepartmentName { get; set; }
     public int? ExperienceMin { get; set; }
@@ -69,6 +70,9 @@ public class CreateJobOpeningRequest
     [Required]
     [MaxLength(200)]
     public string JobRoleName { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string? JobCode { get; set; }
 
     public Guid? DepartmentId { get; set; }
     public int? ExperienceMin { get; set; }
@@ -110,6 +114,9 @@ public class UpdateJobOpeningRequest
     [MaxLength(200)]
     public string? JobRoleName { get; set; }
 
+    [MaxLength(100)]
+    public string? JobCode { get; set; }
+
     public Guid? DepartmentId { get; set; }
     public int? ExperienceMin { get; set; }
     public int? ExperienceMax { get; set; }
@@ -149,6 +156,7 @@ public class JobApplicationDto
 {
     public Guid JobApplyId { get; set; }
     public Guid JobId { get; set; }
+    public string? JobCode { get; set; }
     public string? JobRoleName { get; set; }
     public Guid OrganizationId { get; set; }
     public Guid? EmployeeId { get; set; }
@@ -228,6 +236,7 @@ public class ApplicationStageDto
     public Guid ApplicationStageId { get; set; }
     public Guid JobApplyId { get; set; }
     public Guid? JobId { get; set; }
+    public string? JobCode { get; set; }
     public string? JobRoleName { get; set; }
     public string? CandidateName { get; set; }
     public Guid StageId { get; set; }
