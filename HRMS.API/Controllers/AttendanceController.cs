@@ -1887,6 +1887,7 @@ public class AttendanceController : ControllerBase
         var result = await _attendanceService.GetManagerReviewDashboardAsync(timesheetId, organizationId, managerId, employeeId);
         return Ok(result);
     }
+
     [HttpPost("admin-override")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<IActionResult> AdminOverride([FromBody] ManualAttendanceUpdateDto dto)
@@ -1895,15 +1896,17 @@ public class AttendanceController : ControllerBase
         {
             var managerId = await GetCurrentEmployeeId();
             var orgId = GetCurrentOrganizationId();
-
             var result = await _attendanceService.AdminOverrideAttendanceAsync(dto, managerId, orgId);
-
             return Ok(new ServiceResponse<bool>
             {
                 Success = result,
                 Message = result ? "Attendance record overridden successfully." : "Failed to override record.",
                 Data = result
             });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = ex.Message });
         }
         catch (Exception ex)
         {

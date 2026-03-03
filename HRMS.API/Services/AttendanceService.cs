@@ -1338,6 +1338,21 @@ public class AttendanceService : IAttendanceService
             endDate,
             isAdminOrHR ? null : currentEmployeeId);
 
+        static string EffectiveStatus(AttendanceDto r, DateTime todayDate)
+        {
+            if (!string.IsNullOrWhiteSpace(r.Status))
+                return r.Status.Trim().ToLowerInvariant();
+
+            var dow = r.WorkDate.DayOfWeek;
+            if (dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday)
+                return "weekend";
+
+            if (r.WorkDate.Date > todayDate)
+                return "no_record";
+
+            return "absent";   
+        }
+
         var groupedTimesheet = records
             .GroupBy(r => new {
                 r.EmployeeId,
@@ -1345,68 +1360,73 @@ public class AttendanceService : IAttendanceService
                 r.EmployeeCode,
                 r.DepartmentName
             })
-            .Select(g => new EmployeeTimesheetDto
+            .Select(g =>
             {
-                EmployeeId = g.Key.EmployeeId,
-                EmployeeName = g.Key.EmployeeName,
-                EmployeeCode = g.Key.EmployeeCode,
-                Department = g.Key.DepartmentName,
-                DailyRecords = g.Select(r =>
+                var dailyRecords = g.Select(r => new DailyAttendanceRecord
                 {
-                    string calculatedStatus;
-                    if (!string.IsNullOrEmpty(r.Status))
-                    {
-                        calculatedStatus = r.Status;
-                    }
-                    else if (r.WorkDate.Date > today)
-                    {
-                        calculatedStatus = "no_record";
-                    }
-                    else if (r.WorkDate.DayOfWeek == DayOfWeek.Saturday || r.WorkDate.DayOfWeek == DayOfWeek.Sunday)
-                    {
-                        calculatedStatus = "weekend";
-                    }
-                    else
-                    {
-                        calculatedStatus = "absent";
-                    }
+                    AttendanceId = r.AttendanceId,
+                    Date = r.WorkDate,
+                    CheckInTime = r.CheckInTime,
+                    CheckOutTime = r.CheckOutTime,
+                    Status = EffectiveStatus(r, today),
+                    TotalHours = r.TotalHours,
+                    IsFinalized = r.IsFinalized,
+                    HasPendingRequest = r.HasPendingRequest,
+                    HasDraftRequest = r.HasDraftRequest,
+                    RequestedCheckIn = r.RequestedCheckIn,
+                    RequestedCheckOut = r.RequestedCheckOut,
+                    RequestedStatus = r.RequestedStatus,
+                    IsManagerOverride = r.IsManagerOverride
+                }).OrderBy(d => d.Date).ToList();
 
-                    return new DailyAttendanceRecord
-                    {
-                        AttendanceId = r.AttendanceId,
-                        Date = r.WorkDate,
-                        CheckInTime = r.CheckInTime,
-                        CheckOutTime = r.CheckOutTime,
-                        Status = calculatedStatus,
-                        TotalHours = r.TotalHours,
-                        IsFinalized = r.IsFinalized,
-                        HasPendingRequest = r.HasPendingRequest,
-                        HasDraftRequest = r.HasDraftRequest,
-                        RequestedCheckIn = r.RequestedCheckIn,
-                        RequestedCheckOut = r.RequestedCheckOut,
-                        RequestedStatus = r.RequestedStatus
-                    };
-                }).OrderBy(d => d.Date).ToList(),
+                int presentDays = g.Count(r => {
+                    var s = EffectiveStatus(r, today);
+                    return s == "present" || s == "late" || s == "half_day";
+                });
 
-                IsFinalized = g.Where(r => r.AttendanceId != Guid.Empty).Any()
-                           && g.Where(r => r.AttendanceId != Guid.Empty).All(r => r.IsFinalized),
+                int absentDays = g.Count(r => EffectiveStatus(r, today) == "absent");
 
-                TotalHoursWorked = g.Sum(r => r.TotalHours),
-                PresentDays = g.Count(r => r.Status?.ToLower() == "present"),
-                AbsentDays = g.Count(r => r.Status?.ToLower() == "absent"),
-                LateDays = g.Count(r => r.Status?.ToLower() == "late"),
-                AttendancePercentage = g.Any()
-                    ? Math.Round(
-                        (decimal)g.Count(r =>
-                            r.Status?.ToLower() == "present" ||
-                            r.Status?.ToLower() == "late" ||
-                            r.Status?.ToLower() == "half_day")
-                        / g.Count(r =>
-                            r.WorkDate.DayOfWeek != DayOfWeek.Saturday &&
-                            r.WorkDate.DayOfWeek != DayOfWeek.Sunday &&
-                            r.WorkDate.Date <= today)
-                        * 100, 1)
-                    : 0
+                int leaveDays = g.Count(r => {
+                    var s = EffectiveStatus(r, today);
+                    return s == "leave" || s == "on_leave";
+                });
+
+                int halfDays = g.Count(r => EffectiveStatus(r, today) == "half_day");
+                int lateDays = g.Count(r => EffectiveStatus(r, today) == "late");
+                
+                int workedOrAbsentDays = g.Count(r => {
+                    var s = EffectiveStatus(r, today);
+                    return r.WorkDate.Date <= today
+                        && s != "weekend"
+                        && s != "no_record";
+                });
+
+                decimal attendancePct = workedOrAbsentDays > 0
+                    ? Math.Round((decimal)presentDays / workedOrAbsentDays * 100m, 1)
+                    : 0m;
+
+                return new EmployeeTimesheetDto
+                {
+                    EmployeeId = g.Key.EmployeeId,
+                    EmployeeName = g.Key.EmployeeName,
+                    EmployeeCode = g.Key.EmployeeCode,
+                    Department = g.Key.DepartmentName,
+                    DailyRecords = dailyRecords,
+                    IsFinalized = g.Any(r => r.IsFinalized)
+                    && g.Where(r => {
+                    var s = EffectiveStatus(r, today);
+                    return !string.Equals(s, "weekend", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(s, "no_record", StringComparison.OrdinalIgnoreCase)
+                    && r.WorkDate.Date <= today;
+                     }).All(r => r.IsFinalized),
+                    TotalHoursWorked = g.Sum(r => r.TotalHours),
+                    PresentDays = presentDays,
+                    AbsentDays = absentDays,
+                    LeaveDays = leaveDays,
+                    HalfDays = halfDays,
+                    LateDays = lateDays,
+                    AttendancePercentage = attendancePct
+                };
             }).ToList();
 
         return new ServiceResponse<List<EmployeeTimesheetDto>> { Data = groupedTimesheet, Success = true };
@@ -1561,33 +1581,79 @@ public class AttendanceService : IAttendanceService
                 Message = "Cannot add new corrections while your previous submission is awaiting manager review."
             };
         }
+        catch (Npgsql.PostgresException ex) when (ex.Message.Contains("OVERRIDDEN_RECORD"))
+        {
+            return new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = "This record has been overridden by a manager and cannot be corrected."
+            };
+        }
     }
-    public async Task<ServiceResponse<List<MonthlyTimesheetSummary>>> GetMonthlyTimesheetSnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate, Guid currentEmployeeId)
+    public async Task<ServiceResponse<List<MonthlyTimesheetSummary>>> GetMonthlyTimesheetSnapshotsAsync(
+    Guid organizationId, DateTime? startDate, DateTime? endDate, Guid currentEmployeeId)
     {
         var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
         var snapshots = (await _attendanceRepository.GetMonthlySnapshotsAsync(organizationId, startDate, endDate)).ToList();
+        var today = DateTime.Today;
 
         foreach (var snapshot in snapshots)
         {
             var start = new DateTime(snapshot.Year, snapshot.Month, 1);
             var end = start.AddMonths(1).AddDays(-1);
+
             var allRosterData = await _attendanceRepository.GetConsolidatedAttendanceAsync(
                 organizationId, start, end,
                 isAdminOrHR ? null : currentEmployeeId);
 
-            if (allRosterData.Any())
+            if (!allRosterData.Any()) continue;
+
+            static string EffectiveStatus(AttendanceDto r, DateTime todayDate)
             {
-                snapshot.TotalHoursWorked = allRosterData.Sum(r => r.TotalHours);
-                snapshot.TotalPresentDays = allRosterData.Count(r => r.Status?.ToLower() == "present");
-                snapshot.TotalAbsentDays = allRosterData.Count(r => r.Status?.ToLower() == "absent");
-                snapshot.TotalLateDays = allRosterData.Count(r => r.Status?.ToLower() == "late");
-                int daysInMonth = DateTime.DaysInMonth(snapshot.Year, snapshot.Month);
-                decimal totalExpectedManDays = snapshot.TotalEmployees * daysInMonth;
-                snapshot.AttendancePercentage = totalExpectedManDays > 0
-                    ? (snapshot.TotalPresentDays / totalExpectedManDays) * 100
-                    : 0;
-                if (!isAdminOrHR) snapshot.TotalEmployees = 1;
+                if (!string.IsNullOrWhiteSpace(r.Status))
+                    return r.Status.Trim().ToLowerInvariant();
+
+                var dow = r.WorkDate.DayOfWeek;
+                if (dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday) return "weekend";
+                if (r.WorkDate.Date > todayDate) return "no_record";
+                return "absent";
             }
+
+            snapshot.TotalPresentDays = allRosterData.Count(r => {
+                var s = EffectiveStatus(r, today);
+                return s == "present" || s == "late" || s == "half_day";
+            });
+
+            snapshot.TotalAbsentDays = allRosterData.Count(r =>
+                EffectiveStatus(r, today) == "absent");
+
+            snapshot.TotalLateDays = allRosterData.Count(r =>
+                EffectiveStatus(r, today) == "late");
+
+            snapshot.TotalHoursWorked = allRosterData.Sum(r => r.TotalHours);
+
+            var elapsedWorkingDays = Enumerable
+                .Range(0, (end - start).Days + 1)
+                .Count(offset => {
+                    var d = start.AddDays(offset);
+                    return d.Date <= today
+                        && d.DayOfWeek != DayOfWeek.Saturday
+                        && d.DayOfWeek != DayOfWeek.Sunday;
+                });
+
+            int distinctEmployees = allRosterData
+                .Select(r => r.EmployeeId)
+                .Distinct()
+                .Count();
+
+            decimal totalExpectedManDays = distinctEmployees * elapsedWorkingDays;
+
+            snapshot.AttendancePercentage = totalExpectedManDays > 0
+                ? Math.Round((snapshot.TotalPresentDays / totalExpectedManDays) * 100m, 1)
+                : 0m;
+
+            if (!isAdminOrHR)
+                snapshot.TotalEmployees = 1;
         }
 
         return new ServiceResponse<List<MonthlyTimesheetSummary>> { Data = snapshots, Success = true };
@@ -1811,7 +1877,7 @@ public class AttendanceService : IAttendanceService
         var req = pendingReqs?.FirstOrDefault(r => r.WorkDate.Date == currentDay.Date &&
                         r.EmployeeId == g.Key.EmployeeId);
         string calculatedStatus;
-        if (log != null)
+        if (log != null && !string.IsNullOrWhiteSpace(log.Status))
         {
             calculatedStatus = log.Status; 
         }
@@ -1847,7 +1913,8 @@ public class AttendanceService : IAttendanceService
             HasDraftRequest = (req != null && req.Status == "Draft")
                     || (log?.HasDraftRequest ?? false),
             HasApprovedRequest = (req != null && req.Status == "approved") 
-        || (log?.HasApprovedRequest ?? false)
+        || (log?.HasApprovedRequest ?? false),
+            IsManagerOverride = log?.IsManagerOverride ?? false
         };
     }).ToList()
             }).ToList();
@@ -1855,17 +1922,18 @@ public class AttendanceService : IAttendanceService
         {
             var records = pkg.FullMonthRecords;
 
-            var workingDayRecords = records.Where(r =>
-            {
+            var workingDayRecords = records.Where(r => {
                 var s = (r.Status ?? "").ToLowerInvariant().Replace("_", "");
                 return s != "weekend" && s != "norecord";
             }).ToList();
 
-            var finalizableRecords = workingDayRecords
-                .Where(r => r.AttendanceId.HasValue || r.RequestId.HasValue)
+            var elapsedWorkingRecords = workingDayRecords
+                .Where(r => r.Date.Date <= DateTime.Today)
                 .ToList();
 
-            pkg.TotalRecords = workingDayRecords.Count;
+            pkg.TotalRecords = elapsedWorkingRecords.Count;
+
+            var finalizableRecords = elapsedWorkingRecords;
 
             pkg.FinalizedCount = finalizableRecords.Count(r => r.IsFinalized);
 
@@ -1873,15 +1941,16 @@ public class AttendanceService : IAttendanceService
 
             pkg.ApprovedCount = records.Count(r =>
                 string.Equals(r.RequestStatus, "approved", StringComparison.OrdinalIgnoreCase)
-                || (!string.Equals(r.RequestStatus, "pending", StringComparison.OrdinalIgnoreCase)
+                || (r.HasApprovedRequest
+                    && !string.Equals(r.RequestStatus, "pending", StringComparison.OrdinalIgnoreCase)
                     && !string.Equals(r.RequestStatus, "rejected", StringComparison.OrdinalIgnoreCase)
-                    && r.HasApprovedRequest));
+                    && !string.Equals(r.RequestStatus, "none", StringComparison.OrdinalIgnoreCase)));
 
             pkg.RejectedCount = records.Count(r =>
                 string.Equals(r.RequestStatus, "rejected", StringComparison.OrdinalIgnoreCase));
 
             pkg.IsFinalized = finalizableRecords.Count > 0
-                              && finalizableRecords.All(r => r.IsFinalized);
+                           && finalizableRecords.All(r => r.IsFinalized);
         }
 
         return new ServiceResponse<List<EmployeeReviewPackage>> { Data = grouped, Success = true };
@@ -1901,6 +1970,14 @@ public class AttendanceService : IAttendanceService
     {
         _logger.LogInformation("Admin override initiated by {ManagerId} for Employee {EmployeeId} on {Date}",
             managerId, dto.EmployeeId, dto.WorkDate);
+        if (dto.TimesheetId != Guid.Empty)
+        {
+            var isPackageFinalized = await _attendanceRepository.IsEmployeePackageFinalizedAsync(
+                dto.TimesheetId, dto.EmployeeId);
+            if (isPackageFinalized)
+                throw new InvalidOperationException(
+                    "Cannot override: this employee's timesheet has been fully finalized for payroll.");
+        }
 
         var result = await _attendanceRepository.AdminFinalizeRecordAsync(dto, managerId, orgId);
 
