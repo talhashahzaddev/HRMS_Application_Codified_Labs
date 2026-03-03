@@ -1,4 +1,5 @@
 ﻿using DocumentFormat.OpenXml.Wordprocessing;
+using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using Mailjet.Client;
@@ -101,26 +102,306 @@ public class EmailService : IEmailService
         return await SendEmailAsync(to, subject, body);
     }
 
-    public async Task<bool> SendLeaveApprovalNotificationAsync(
-        string to,
-        string employeeName,
-        string leaveType,
-        DateTime startDate,
-        DateTime endDate,
-        bool approved)
+    public async Task<bool> SendLeaveApprovalRejectionEmailAsync(
+    string to,
+    string employeeName,
+    string leaveType,
+    DateTime startDate,
+    DateTime endDate,
+    bool approved,
+    Guid organizationid)
     {
+        var domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationid);
+        var cleanDomain = domain.Trim().ToLower().Replace("http://", "").Replace("https://", "").Replace(".com", "");
         var status = approved ? "approved" : "rejected";
-        var subject = $"Leave Request {status.ToUpper()}";
-        var body = $@"
-            <h2>Leave Request Update</h2>
-            <p>Dear {employeeName},</p>
-            <p>Your {leaveType} request from {startDate:MMM dd, yyyy} 
-               to {endDate:MMM dd, yyyy} has been <strong>{status}</strong>.</p>
-            <p>Please contact HR if you have any questions.</p>
-            <p>Best regards,<br/>HR Team</p>
-        ";
+        var statusColor = approved ? "#28a745" : "#dc3545"; // Green for approved, red for rejected
+        var subject = $"Leave Request {status.ToUpper()} | BriskPeople";
+        var dashboardLink = $"https://{cleanDomain}.briskpeople.com/leave/dashboard";
+
+        var body = $@"<!DOCTYPE html>
+    <html>
+        <head>
+            <meta charset='UTF-8'>
+        </head>
+        <body style='margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif;'>
+            <table width='100%' cellpadding='0' cellspacing='0' style='padding:30px 0;'>
+            <tr>
+            <td align='center'>
+            <table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff; border-radius:8px; overflow:hidden;'>
+            <tr>
+            <td align=""center"" style=""padding:30px; background:#ffffff;"">
+                <table cellspacing=""0"" cellpadding=""0"" border=""0"" style=""margin:auto;"">
+                <tr>
+                    <td style=""vertical-align:middle; padding-right:10px;"">
+                        <img src=""https://www.briskpeople.com/hub.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
+                    </td>
+                    <td style=""vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;"">
+                        BriskPeople
+                    </td>
+                </tr>
+                </table>
+            </td>
+            </tr>
+            <tr>
+                <td style='padding:30px; color:#333333; font-size:14px; line-height:1.7;'>
+                    <p style='margin-top:0;'>Hi <strong>{employeeName}</strong>,</p>
+                    
+                    <p>Your leave request has been:</p>
+                    
+                    <!-- Status Badge -->
+                    <table width='100%' cellpadding='0' cellspacing='0' style='margin:20px 0;'>
+                        <tr>
+                            <td align='center'>
+                                <span style='
+                                    background:{statusColor}; 
+                                    color:#ffffff; 
+                                    padding:10px 30px; 
+                                    border-radius:50px; 
+                                    font-size:18px; 
+                                    font-weight:bold; 
+                                    display:inline-block;
+                                    text-transform:uppercase;'>
+                                    {status}
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <!-- Leave Details Card -->
+                    <table width='100%' cellpadding='15' cellspacing='0' style='background:#f9fafb; border-radius:8px; margin:20px 0; border:1px solid #e9ecef;'>
+                        <tr>
+                            <td colspan='2' style='border-bottom:1px solid #e9ecef; font-weight:bold; color:#1f4fd8; font-size:15px;'>
+                                📋 Leave Request Details
+                            </td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>Leave Type</td>
+                            <td>{leaveType}</td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>Start Date</td>
+                            <td>{startDate:dddd, MMMM dd, yyyy}</td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>End Date</td>
+                            <td>{endDate:dddd, MMMM dd, yyyy}</td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>Duration</td>
+                            <td>{(endDate - startDate).Days + 1} day(s)</td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>Status</td>
+                            <td style='color:{statusColor}; font-weight:bold; text-transform:uppercase;'>{status}</td>
+                        </tr>
+                    </table>
+                    
+                    <p style='margin:20px 0;'>
+                        {(approved ?
+                              "Congratulations! Your leave request has been approved. You can view the details in your dashboard." :
+                              "Unfortunately, your leave request has been rejected. Please contact your HR administrator for more information.")}
+                    </p>
+                    
+                    <!-- Dashboard Button -->
+                    <table width='100%' cellpadding='0' cellspacing='0' style='margin:30px 0;'>
+                        <tr>
+                            <td align='center'>
+                                <a href='{dashboardLink}'
+                                   style='background:#1f4fd8; color:#ffffff; padding:14px 28px; text-decoration:none; border-radius:6px; font-size:14px; font-weight:bold; display:inline-block;'>
+                                    View Leave Dashboard →
+                                </a>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <!-- Alternative text link for email clients that block images/buttons -->
+                    <p style='text-align:center; font-size:12px; color:#777777; margin:10px 0;'>
+                        If the button doesn't work, copy and paste this link: <br>
+                        <a href='{dashboardLink}' style='color:#1f4fd8;'>{dashboardLink}</a>
+                    </p>
+                    
+                    <p>
+                        If you have any questions regarding this decision, 
+                        please don't hesitate to contact your HR administrator.
+                    </p>
+                    
+                    <p style='margin-bottom:0;'>
+                        Best regards,<br/>
+                        <strong>HR Team</strong><br/>
+                        BriskPeople
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align='center' style='padding:20px; background:#f4f6f8; font-size:12px; color:#777777;'>
+                    © {DateTime.UtcNow.Year} BriskPeople. All rights reserved.<br/>
+                    This is an automated message, please do not reply to this email.
+                </td>
+            </tr>
+            </table>
+            </td>
+            </tr>
+            </table>
+        </body>
+    </html>";
 
         return await SendEmailAsync(to, subject, body);
+    }
+
+    public async Task<bool> SendLeaveRequestToManagerAsync(
+    string managerEmail,
+    string managerName,
+    string employeeName,
+    string leaveType,
+    DateTime startDate,
+    DateTime endDate,
+    string reason, Guid organizationid)
+    {
+        var domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationid);
+        var cleanDomain = domain.Trim().ToLower().Replace("http://", "").Replace("https://", "").Replace(".com", "");
+
+        var subject = $"Leave Request Pending Approval | {employeeName} | BriskPeople";
+        var pendingColor = "#ffc107"; // Yellow/amber for pending
+        var approvalLink = $"https://{cleanDomain}.briskpeople.com/leave/team"; 
+
+        var body = $@"<!DOCTYPE html>
+    <html>
+        <head>
+            <meta charset='UTF-8'>
+        </head>
+        <body style='margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif;'>
+            <table width='100%' cellpadding='0' cellspacing='0' style='padding:30px 0;'>
+            <tr>
+            <td align='center'>
+            <table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff; border-radius:8px; overflow:hidden;'>
+            <tr>
+            <td align=""center"" style=""padding:30px; background:#ffffff;"">
+                <table cellspacing=""0"" cellpadding=""0"" border=""0"" style=""margin:auto;"">
+                <tr>
+                    <td style=""vertical-align:middle; padding-right:10px;"">
+                        <img src=""https://www.briskpeople.com/hub.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
+                    </td>
+                    <td style=""vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;"">
+                        BriskPeople
+                    </td>
+                </tr>
+                </table>
+            </td>
+            </tr>
+            <tr>
+                <td style='padding:30px; color:#333333; font-size:14px; line-height:1.7;'>
+                    <p style='margin-top:0;'>Hi <strong>{managerName}</strong>,</p>
+                    
+                    <p>A leave request requires your attention:</p>
+                    
+                    <!-- Pending Status Badge -->
+                    <table width='100%' cellpadding='0' cellspacing='0' style='margin:20px 0;'>
+                        <tr>
+                            <td align='center'>
+                                <span style='
+                                    background:{pendingColor}; 
+                                    color:#000000; 
+                                    padding:10px 30px; 
+                                    border-radius:50px; 
+                                    font-size:18px; 
+                                    font-weight:bold; 
+                                    display:inline-block;
+                                    text-transform:uppercase;'>
+                                    ⏳ PENDING APPROVAL
+                                </span>
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <!-- Employee Info Card -->
+                    <table width='100%' cellpadding='15' cellspacing='0' style='background:#f9fafb; border-radius:8px; margin:20px 0; border:1px solid #e9ecef;'>
+                        <tr>
+                            <td colspan='2' style='border-bottom:1px solid #e9ecef; font-weight:bold; color:#1f4fd8; font-size:15px;'>
+                                👤 Employee Information
+                            </td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>Employee</td>
+                            <td>
+                                <strong>{employeeName}</strong> 
+                            </td>
+                        </tr>
+                    </table>
+                    
+                    <!-- Leave Request Details Card -->
+                    <table width='100%' cellpadding='15' cellspacing='0' style='background:#f9fafb; border-radius:8px; margin:20px 0; border:1px solid #e9ecef;'>
+                        <tr>
+                            <td colspan='2' style='border-bottom:1px solid #e9ecef; font-weight:bold; color:#1f4fd8; font-size:15px;'>
+                                📋 Leave Request Details
+                            </td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>Leave Type</td>
+                            <td>{leaveType}</td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>Start Date</td>
+                            <td>{startDate:dddd, MMMM dd, yyyy}</td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>End Date</td>
+                            <td>{endDate:dddd, MMMM dd, yyyy}</td>
+                        </tr>
+                        <tr>
+                            <td width='35%' style='font-weight:bold; color:#555555;'>Duration</td>
+                            <td>{(endDate - startDate).Days + 1} day(s)</td>
+                        </tr>
+                    </table>
+                    
+                    <!-- Reason Card (if reason is provided) -->
+                    {(string.IsNullOrEmpty(reason) ? "" : $@"
+                    <table width='100%' cellpadding='15' cellspacing='0' style='background:#f9fafb; border-radius:8px; margin:20px 0; border:1px solid #e9ecef;'>
+                        <tr>
+                            <td style='border-bottom:1px solid #e9ecef; font-weight:bold; color:#1f4fd8; font-size:15px;'>
+                                📝 Reason for Leave
+                            </td>
+                        </tr>
+                        <tr>
+                            <td style='color:#555555; font-style:italic;'>
+                                ""{reason}""
+                            </td>
+                        </tr>
+                    </table>
+                    ")}
+                    
+                    
+                    
+                    <!-- Alternative text links -->
+                    <p style='text-align:center; font-size:12px; color:#777777; margin:10px 0;'>
+                        Quick actions:<br>
+                        <a href='{approvalLink}' style='color:#1f4fd8;'>View All Pending Requests</a>
+                    </p>
+                    
+                    <p style='margin-top:25px; padding-top:15px; border-top:1px solid #e9ecef; font-size:13px; color:#777777;'>
+                        <strong>Next Steps:</strong> Please review this leave request and take action at your earliest convenience. 
+                        The employee will be notified of your decision via email.
+                    </p>
+                    
+                    <p style='margin-bottom:0;'>
+                        Best regards,<br/>
+                        <strong>BriskPeople System</strong>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align='center' style='padding:20px; background:#f4f6f8; font-size:12px; color:#777777;'>
+                    © {DateTime.UtcNow.Year} BriskPeople. All rights reserved.<br/>
+                    This is an automated notification. Please do not reply to this email.
+                </td>
+            </tr>
+            </table>
+            </td>
+            </tr>
+            </table>
+        </body>
+    </html>";
+
+        return await SendEmailAsync(managerEmail, subject, body);
     }
 
     public async Task<bool> SendPasswordResetEmailAsync(

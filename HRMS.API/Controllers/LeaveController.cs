@@ -159,7 +159,8 @@ public class LeaveController : ControllerBase
                 });
             }
             var UserId = GetCurrentEmployeeId();
-            var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, UserId);
+            var organizationid = GetCurrentOrganizationId();
+            var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, UserId,organizationid);
             
             return CreatedAtAction(nameof(GetLeaveRequest), new { id = leaveRequest.RequestId }, new ServiceResponse<LeaveRequestDto>
             {
@@ -212,8 +213,9 @@ public class LeaveController : ControllerBase
         try
         {
             var approvedBy = GetCurrentEmployeeId();
+            var organizationid = GetCurrentOrganizationId();
             var request = new UpdateLeaveRequestStatusRequest { Status = "approved" };
-            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
+            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy, organizationid);
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -282,8 +284,9 @@ public class LeaveController : ControllerBase
                 });
             }
             var approvedBy = GetCurrentEmployeeId();
+            var organizationid = GetCurrentOrganizationId();
             request.Status = "rejected";
-            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
+            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy,organizationid);
             
             return Ok(new ServiceResponse<bool>
             {
@@ -475,6 +478,30 @@ public class LeaveController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var leaveTypes = await _leaveService.GetLeaveTypesAsync(organizationId);
             
+            return Ok(new ServiceResponse<List<LeaveTypeDto>>
+            {
+                Success = true,
+                Data = leaveTypes
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving leave types");
+            return StatusCode(500, new ServiceResponse<List<LeaveTypeDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving leave types"
+            });
+        }
+    }
+    [HttpGet("typesforrequest")]
+    public async Task<ActionResult<ServiceResponse<List<LeaveTypeDto>>>> GetLeaveTypesforRequest()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var leaveTypes = await _leaveService.GetLeaveTypesforrequestAsync(organizationId);
+
             return Ok(new ServiceResponse<List<LeaveTypeDto>>
             {
                 Success = true,

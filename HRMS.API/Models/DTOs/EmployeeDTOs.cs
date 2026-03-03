@@ -255,3 +255,14 @@ public class BulkEmployeeRequest
 {
     public List<Guid> EmployeeIds { get; set; } = new();
 }
+
+public class PushEmailLeaveRequest
+{
+    public string email { get; set; }
+    public string firstname { get; set; }
+    public string lastname { get; set; }
+    public string EmployeeName { get; set; }
+    public string typename { get; set; }
+    public DateTime startdate { get; set; }
+    public DateTime enddate { get; set; }
+}

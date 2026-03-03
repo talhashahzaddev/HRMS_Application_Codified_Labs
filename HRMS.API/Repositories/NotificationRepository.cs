@@ -38,10 +38,12 @@ namespace HRMS.API.Repositories
             try
             {
                 var sql = @"
-            SELECT ed.reportingmanagerid
+            SELECT ed.reportingmanagerid , e.email
             FROM employee.employmentdetails ed
+            JOIN employee.employees e on e.employeeid = ed.reportingmanagerid
             WHERE ed.employeeid = @EmployeeId
               AND ed.iscurrent = true
+              AND e.status = 'active'
             LIMIT 1";
 
                 var results = await QueryAsync<Guid>(sql, new { EmployeeId = employeeId });
@@ -54,19 +56,42 @@ namespace HRMS.API.Repositories
                 return Guid.Empty;
             }
         }
-
-        public async Task<Guid> GetNoManagerReciveridAsync(Guid employeeId)
+        public async Task<leaveNotification> GetReciveridANdEmailAsync(Guid employeeId)
         {
             try
             {
                 var sql = @"
-            SELECT e.employeeid
+            SELECT ed.reportingmanagerid , e.email , CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) AS receivername
+            FROM employee.employmentdetails ed
+            JOIN employee.employees e on e.employeeid = ed.reportingmanagerid
+            WHERE ed.employeeid = @EmployeeId
+              AND ed.iscurrent = true
+              AND e.status = 'active'
+            LIMIT 1";
+
+                var results = await QuerySingleOrDefaultAsync<leaveNotification>(sql, new { EmployeeId = employeeId });
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching reporting manager: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<leaveNotification> GetNoManagerReciveridAsync(Guid employeeId)
+        {
+            try
+            {
+                var sql = @"
+            SELECT e.employeeid AS reportingmanagerid, e.email, CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) AS receivername
             FROM employee.employees e
             JOIN auth.users u ON u.userid = e.userid
             WHERE e.organizationid = (
                     SELECT organizationid
                     FROM employee.employees
-                    WHERE employeeid = 'fd0db15e-8f0c-4832-89b8-ae052b02d30e'
+                    WHERE employeeid = @EmployeeId
                     LIMIT 1
                 )
             AND u.roleid = (
@@ -78,14 +103,14 @@ namespace HRMS.API.Repositories
                 )
             LIMIT 1";
 
-                var results = await QueryAsync<Guid>(sql, new { EmployeeId = employeeId });
+                var results = await QuerySingleOrDefaultAsync<leaveNotification>(sql, new { EmployeeId = employeeId });
 
-                return results.FirstOrDefault();
+                return results;
             }
             catch (Exception ex)
             {
                 Console.WriteLine($"Error fetching reporting manager: {ex.Message}");
-                return Guid.Empty;
+                return null;
             }
         }
 

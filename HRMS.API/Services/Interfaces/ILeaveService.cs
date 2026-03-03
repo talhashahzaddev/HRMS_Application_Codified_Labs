@@ -8,12 +8,13 @@ namespace HRMS.API.Services.Interfaces;
 
 public interface ILeaveService
 {
-    Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequest request, Guid employeeId);
+    Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequest request, Guid employeeId , Guid organizationid);
     Task<LeaveApplicationDetails> CreateLeaveRequestByChatBotAsync(LeaveApplicationDetails request, Guid employeeId, Guid organizationId);
-    Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy);
+    Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy, Guid organizationid);
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid userId,LeaveRequestSearchViewModel searchModel, Guid organizationId);
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsByOrganizationAsync(LeaveRequestSearchViewModel searchModel, Guid organizationId);
     Task<List<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId);
+    Task<List<LeaveTypeDto>> GetLeaveTypesforrequestAsync(Guid organizationId);
     Task<Guid> CreateLeaveTypeAsync(Guid organizationId, CreateLeaveTypeRequest request);
     Task<bool> EditLeaveTypeAsync(Guid organizationId, Guid leaveTypeId, EditLeaveTypeRequest request);
     Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year);
