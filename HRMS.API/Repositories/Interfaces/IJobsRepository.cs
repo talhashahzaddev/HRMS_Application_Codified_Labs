@@ -20,6 +20,7 @@ public interface IJobsRepository
     Task<Guid> CreateJobOpeningAsync(JobOpening entity);
     Task<bool> UpdateJobOpeningAsync(JobOpening entity);
     Task<bool> DeleteJobOpeningAsync(Guid jobId);
+    Task<bool> IsJobCodeExistsAsync(string jobCode, Guid organizationId, Guid? excludeJobId = null);
 
     // JobApplications
     Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);

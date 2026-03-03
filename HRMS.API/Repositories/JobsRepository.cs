@@ -61,7 +61,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     public async Task<IEnumerable<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId)
     {
         var sql = @"
-            SELECT j.jobid AS JobId, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
+            SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
                    j.departmentid AS DepartmentId, d.departmentname AS DepartmentName,
                    j.experiencemin AS ExperienceMin, j.experiencemax AS ExperienceMax,
                    j.ctcmin AS CtcMin, j.ctcmax AS CtcMax, j.currency AS Currency,
@@ -110,7 +110,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, status, fromDate, toDate });
 
         var dataSql = @"
-            SELECT j.jobid AS JobId, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
+            SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
                    j.departmentid AS DepartmentId, d.departmentname AS DepartmentName,
                    j.experiencemin AS ExperienceMin, j.experiencemax AS ExperienceMax,
                    j.ctcmin AS CtcMin, j.ctcmax AS CtcMax, j.currency AS Currency,
@@ -177,7 +177,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, status, fromDate, toDate });
 
         var dataSql = @"
-            SELECT j.jobid AS JobId, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
+            SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
                    j.departmentid AS DepartmentId, d.departmentname AS DepartmentName,
                    j.experiencemin AS ExperienceMin, j.experiencemax AS ExperienceMax,
                    j.ctcmin AS CtcMin, j.ctcmax AS CtcMax, j.currency AS Currency,
@@ -219,7 +219,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     public async Task<JobOpeningDto?> GetJobOpeningByIdAsync(Guid jobId)
     {
         var sql = @"
-            SELECT j.jobid AS JobId, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
+            SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
                    j.departmentid AS DepartmentId, d.departmentname AS DepartmentName,
                    j.experiencemin AS ExperienceMin, j.experiencemax AS ExperienceMax,
                    j.ctcmin AS CtcMin, j.ctcmax AS CtcMax, j.currency AS Currency,
@@ -240,16 +240,17 @@ public class JobsRepository : BaseRepository, IJobsRepository
     public async Task<Guid> CreateJobOpeningAsync(JobOpening entity)
     {
         var sql = @"
-            INSERT INTO jobs.jobopenings (organizationid, jobrolename, departmentid, experiencemin, experiencemax,
+            INSERT INTO jobs.jobopenings (organizationid, jobcode, jobrolename, departmentid, experiencemin, experiencemax,
                 ctcmin, ctcmax, currency, vacancies, location, workmode, employmenttype, jobintroduction,
                 responsibilities, skillset, lastdate, postedas, externallink, status, createdby)
-            VALUES (@OrganizationId, @JobRoleName, @DepartmentId, @ExperienceMin, @ExperienceMax,
+            VALUES (@OrganizationId, @JobCode, @JobRoleName, @DepartmentId, @ExperienceMin, @ExperienceMax,
                 @CtcMin, @CtcMax, @Currency, @Vacancies, @Location, @WorkMode, @EmploymentType, @JobIntroduction,
                 @Responsibilities, @Skillset, @LastDate, @PostedAs, @ExternalLink, @Status, @CreatedBy)
             RETURNING jobid";
         return await ExecuteScalarAsync<Guid>(sql, new
         {
             entity.OrganizationId,
+            entity.JobCode,
             entity.JobRoleName,
             entity.DepartmentId,
             entity.ExperienceMin,
@@ -276,7 +277,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = @"
             UPDATE jobs.jobopenings
-            SET jobrolename = @JobRoleName, departmentid = @DepartmentId, experiencemin = @ExperienceMin,
+            SET jobcode = @JobCode, jobrolename = @JobRoleName, departmentid = @DepartmentId, experiencemin = @ExperienceMin,
                 experiencemax = @ExperienceMax, ctcmin = @CtcMin, ctcmax = @CtcMax, currency = @Currency,
                 vacancies = @Vacancies, location = @Location, workmode = @WorkMode, employmenttype = @EmploymentType,
                 jobintroduction = @JobIntroduction, responsibilities = @Responsibilities, skillset = @Skillset,
@@ -286,6 +287,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var rows = await ExecuteAsync(sql, new
         {
             entity.JobId,
+            entity.JobCode,
             entity.JobRoleName,
             entity.DepartmentId,
             entity.ExperienceMin,
@@ -315,9 +317,26 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return rows > 0;
     }
 
+    public async Task<bool> IsJobCodeExistsAsync(string jobCode, Guid organizationId, Guid? excludeJobId = null)
+    {
+        var sql = @"
+            SELECT COUNT(1)
+            FROM jobs.jobopenings
+            WHERE organizationid = @organizationId
+              AND LOWER(jobcode) = LOWER(@jobCode)";
+        
+        if (excludeJobId.HasValue)
+        {
+            sql += " AND jobid != @excludeJobId";
+        }
+
+        var count = await ExecuteScalarAsync<int>(sql, new { organizationId, jobCode, excludeJobId });
+        return count > 0;
+    }
+
     // ==================== JobApplications ====================
     private const string JobApplicationSelectSql = @"
-            SELECT a.jobapplyid AS JobApplyId, a.jobid AS JobId, j.jobrolename AS JobRoleName,
+            SELECT a.jobapplyid AS JobApplyId, a.jobid AS JobId, j.jobcode AS JobCode, j.jobrolename AS JobRoleName,
                    a.organizationid AS OrganizationId, a.employeeid AS EmployeeId,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS EmployeeName,
                    a.candidateid AS CandidateId, a.candidatename AS CandidateName, a.candidateemail AS CandidateEmail,
@@ -590,7 +609,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     // ==================== ApplicationStages ====================
     private const string ApplicationStageSelectSql = @"
             SELECT ast.applicationstageid AS ApplicationStageId, ast.jobapplyid AS JobApplyId, a.jobid AS JobId,
-                   j.jobrolename AS JobRoleName, a.candidatename AS CandidateName,
+                   j.jobcode AS JobCode, j.jobrolename AS JobRoleName, a.candidatename AS CandidateName,
                    ast.stageid AS StageId, s.stagename AS StageName, s.isinterviewstage AS IsInterviewStage,
                    ast.notes AS Notes, ast.interviewers AS InterviewersText, ast.type AS Type,
                    ast.updatedon AS UpdatedOn, ast.updatedby AS UpdatedBy,
@@ -682,6 +701,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             ApplicationStageId = r.ApplicationStageId,
             JobApplyId = r.JobApplyId,
             JobId = r.JobId,
+            JobCode = r.JobCode,
             JobRoleName = r.JobRoleName,
             CandidateName = r.CandidateName,
             StageId = r.StageId,
@@ -774,6 +794,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         public Guid ApplicationStageId { get; set; }
         public Guid JobApplyId { get; set; }
         public Guid? JobId { get; set; }
+        public string? JobCode { get; set; }
         public string? JobRoleName { get; set; }
         public string? CandidateName { get; set; }
         public Guid StageId { get; set; }
