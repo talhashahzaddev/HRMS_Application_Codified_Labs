@@ -108,6 +108,32 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         }
     }
 
+    public async Task<PushEmailLeaveRequest> GetEmployeeDetails(Guid requestId)
+    {
+        try
+        {
+            return await QuerySingleOrDefaultAsync<PushEmailLeaveRequest>(
+             @"SELECT e.email,
+                     e.firstname,
+                     e.lastname,
+                     CONCAT(e.firstname, ' ', e.lastname) AS EmployeeName,
+                     lt.typename,
+                     lr.startdate,
+                     lr.enddate
+              FROM employee.employees e
+              JOIN attendance.leaverequests lr 
+                  ON lr.employeeid = e.employeeid
+              JOIN attendance.leavetypes lt
+                  ON lt.leavetypeid = lr.leavetypeid
+              WHERE lr.requestid = @RequestId",
+             new { RequestId = requestId });
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     public async Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid? employeeId, Guid organizationId, string? status = null, int page = 1, int pageSize = 50)
     {
         try
@@ -260,6 +286,18 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
             SELECT leavetypeid, typename, description, maxdaysperyear, 
                    ispaid, carryforwardallowed, maxcarryforwarddays, color, isactive
             FROM attendance.leavetypes 
+            WHERE organizationid = @organizationId 
+            ORDER BY typename";
+
+        var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
+        return results.ToList();
+    }
+    public async Task<List<LeaveTypeDto>> GetLeaveTypesforRequestAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT leavetypeid, typename, description, maxdaysperyear, 
+                   ispaid, carryforwardallowed, maxcarryforwarddays, color, isactive
+            FROM attendance.leavetypes 
             WHERE organizationid = @organizationId AND isactive = true
             ORDER BY typename";
 
@@ -276,6 +314,17 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
 
         var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId,LeaveType });
         return results.ToList();
+    }
+    public async Task<string> GetLeaveTypeNameByIdAsync(Guid LeaveTypeid, Guid organizationId)
+    {
+        var sql = @"
+            SELECT typename
+            FROM attendance.leavetypes 
+            WHERE organizationid = @organizationId AND leavetypeid = @LeaveTypeid AND isactive = true
+            ORDER BY typename";
+
+        var results = await QuerySingleOrDefaultAsync<string>(sql, new { organizationId, LeaveTypeid });
+        return results;
     }
     public async Task<bool> CreateLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto)
     {

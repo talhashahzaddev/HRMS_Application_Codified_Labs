@@ -33,6 +33,13 @@ namespace HRMS.API.Models.DTOs
             public DateTime CreatedAt { get; set; }
         }
 
+        public class leaveNotification
+        {
+            public Guid reportingmanagerid { get; set; }
+            public string email { get; set; }
+            public string receivername { get; set; }
+        }
+
 
 
     }
