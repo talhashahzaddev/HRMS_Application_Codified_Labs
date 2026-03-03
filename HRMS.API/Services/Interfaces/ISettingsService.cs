@@ -6,6 +6,8 @@ public interface ISettingsService
 {
     Task<ServiceResponse<OrganizationSettingsDto>> GetOrganizationSettingsAsync(Guid organizationId);
     Task<ServiceResponse<bool>> UpdateCurrencyAsync(Guid organizationId, string currency);
+    Task<ServiceResponse<bool>> UpdateCareerPageAsync(Guid organizationId, UpdateCareerPageRequest request);
+    Task<ServiceResponse<CareerPageDto>> GetCareerPageAsync(Guid organizationId);
 }
 
 
