@@ -33,6 +33,12 @@ public class EmployeeDto
     public Guid? PositionId { get; set; }
 }
 
+public class EmployeeNameList
+{
+    public string EmployeeName { get; set; }
+    public string EmployeeCode { get; set; }
+    public string Email { get; set; }
+}
 public class EmployeeSimpleDto
 {
     public Guid EmployeeId { get; set; }

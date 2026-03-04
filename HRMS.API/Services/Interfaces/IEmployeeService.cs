@@ -13,6 +13,7 @@ public interface IEmployeeService
     Task<bool> UpdatePositionStatusAsync(Guid organizationId,Guid positionId,bool isActive);
     Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId);
     Task<EmployeeDto?> GetEmployeeByIdAsync(Guid userId);
+    Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid userId, Guid organizationid);
     /// <summary>Gets employee by employee ID (no userId lookup). Use when you already have the employee ID.</summary>
     Task<EmployeeDto?> GetEmployeeByEmployeeIdAsync(Guid employeeId);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(EmployeeSearchViewModel searchModel, Guid organizationId);

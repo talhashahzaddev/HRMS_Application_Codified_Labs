@@ -177,6 +177,22 @@ public class EmployeeService : IEmployeeService
 
         return employee != null ? _mapper.Map<EmployeeDto>(employee) : null;
     }
+    public async Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid userId,Guid organizationid)
+    {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+        var reportingmanagerid = await _employeeRepository.getemployeeid(userId);
+        var getuserrole = await _employeeRepository.GetUserRoleAsync(userId);
+        if (getuserrole == "Super Admin")
+        {
+            reportingmanagerid = null;
+        }
+
+        var employee = await _employeeRepository.GetEmployeeByOrganizationAsync(organizationid, reportingmanagerid);
+
+        return employee;
+    }
 
     public async Task<EmployeeDto?> GetEmployeeByEmployeeIdAsync(Guid employeeId)
     {

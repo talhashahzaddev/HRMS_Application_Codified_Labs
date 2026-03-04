@@ -5,6 +5,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Npgsql;
+using NPOI.HPSF;
 using NPOI.SS.Formula.Functions;
 using System.Data;
 using System.Text.Json;
@@ -287,6 +288,54 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         {
             return null;
 
+        }
+    }
+    public async Task<string> GetUserRoleAsync(Guid userid)
+    {
+        try
+        {
+            var sql = @"
+        SELECT r.rolename 
+        FROM auth.users u
+        JOIN auth.roles r ON u.roleid = r.roleid
+        WHERE u.userid = @userid AND u.isactive = true";
+            var roleName = await QuerySingleOrDefaultAsync<string>(sql, new { userid });
+            return roleName;
+        }
+        catch (Exception ex) {
+            return null;
+        }
+    }
+    public async Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid)
+    {
+        try
+        {
+            var sql = @"
+        SELECT 
+            CONCAT(e.firstname, ' ', e.lastname) AS EmployeeName,
+            e.employeecode AS EmployeeCode,
+            e.email AS Email 
+        FROM employee.employees AS e
+        LEFT JOIN employee.employmentdetails AS ed 
+            ON e.employeeid = ed.employeeid
+        WHERE 
+            e.organizationid = @organizationid
+            AND e.status = 'active'
+            AND (
+                @reportingmanagerid IS NULL 
+                OR ed.reportingmanagerid = @reportingmanagerid
+            );
+        ";
+
+            var result =  await QueryAsync<EmployeeNameList>(
+                sql,
+                new { organizationid, reportingmanagerid }
+            );
+            return result.ToList();
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
     public async Task<List<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds)

@@ -19,6 +19,8 @@ public interface IEmployeeRepository
 
     Task<Employee> CreateEmployeeAsync(Employee employee);
     Task<Employee?> GetEmployeeByIdAsync(Guid? employeeId);
+    Task<string> GetUserRoleAsync(Guid userid);
+    Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid);
     Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode);
     Task<List<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds);
     Task<Employee?> GetEmployeeByEmailAsync(Guid organizationId, string email);
