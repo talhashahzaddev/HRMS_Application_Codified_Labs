@@ -8,19 +8,22 @@ namespace HRMS.API.Controllers;
 [ApiController]
 [Route("api/[controller]")]
 [AllowAnonymous]
-public class ExternallJobsController : ControllerBase
+public class CareerController : ControllerBase
 {
     private readonly IJobsService _jobsService;
     private readonly IOrganizationService _organizationService;
-    private readonly ILogger<ExternallJobsController> _logger;
+    private readonly ISettingsService _settingsService;
+    private readonly ILogger<CareerController> _logger;
 
-    public ExternallJobsController(
+    public CareerController(
         IJobsService jobsService,
         IOrganizationService organizationService,
-        ILogger<ExternallJobsController> logger)
+        ISettingsService settingsService,
+        ILogger<CareerController> logger)
     {
         _jobsService = jobsService;
         _organizationService = organizationService;
+        _settingsService = settingsService;
         _logger = logger;
     }
 
@@ -77,6 +80,51 @@ public class ExternallJobsController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while retrieving job openings"
+            });
+        }
+    }
+
+    [HttpGet("companycareerdetails")]
+    public async Task<ActionResult<ServiceResponse<CareerPageDto>>> GetCompanyCareerDetails([FromQuery] string domain)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(domain))
+            {
+                return BadRequest(new ServiceResponse<CareerPageDto>
+                {
+                    Success = false,
+                    Message = "Domain name is required"
+                });
+            }
+
+            // Get organization ID by domain
+            var orgResult = await _organizationService.GetOrganizationByDomainAsync(domain);
+            if (!orgResult.Success || orgResult.Data == null)
+            {
+                return NotFound(new ServiceResponse<CareerPageDto>
+                {
+                    Success = false,
+                    Message = "Organization not found for the provided domain"
+                });
+            }
+
+            var result = await _settingsService.GetCareerPageAsync(orgResult.Data.OrganizationId);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving career page details for domain {Domain}", domain);
+            return StatusCode(500, new ServiceResponse<CareerPageDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving career page details"
             });
         }
     }
