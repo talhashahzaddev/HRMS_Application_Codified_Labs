@@ -590,8 +590,31 @@ public class LeaveService : ILeaveService
             throw new InvalidOperationException("Leave request overlaps with existing leave");
         }
 
-        // Calculate days requested
-        var daysRequested = (decimal)(request.EndDate - request.StartDate).TotalDays + 1;
+        //Getting old requested days
+
+        var OldRequestedDays = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
+
+        // Calculate days requested after edit 
+        var daysRequested = 0;
+        for (DateTime date = request.StartDate; date <= request.EndDate; date = date.AddDays(1))
+        {
+            if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+            {
+                daysRequested++;
+            }
+        }
+
+        if (daysRequested > OldRequestedDays.DaysRequested)
+        {
+            var DaysAfterEdit = daysRequested - OldRequestedDays.DaysRequested;
+            var Editing_Elementals = await _leaveRepository.EditingLeaveElementals(empId, request.LeaveTypeId, DaysAfterEdit);
+        }
+
+        if (daysRequested < OldRequestedDays.DaysRequested)
+        {
+            var DaysAfterEdit = OldRequestedDays.DaysRequested - daysRequested;
+            var Editing_Elementals = await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, request.LeaveTypeId, DaysAfterEdit);
+        }
 
         // Update the request
         var updated = await _leaveRepository.UpdateLeaveRequestAsync(
@@ -639,10 +662,15 @@ public class LeaveService : ILeaveService
         }
 
         // Cancel the request
-        var result= await _leaveRepository.CancelLeaveRequestAsync(requestId);
+        var result = await _leaveRepository.CancelLeaveRequestAsync(requestId);
+        //Handling Balance while canceling the request
+        var Editing_Elementals = await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, existingRequest.LeaveTypeId, existingRequest.DaysRequested);
+
         //Cancel notification too
         return await _notificationRepository.DeleteNotificationAsync(requestId);
+        //update the Balance again
 
+        //return await _leaveRepository.
     }
     public async Task<List<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {

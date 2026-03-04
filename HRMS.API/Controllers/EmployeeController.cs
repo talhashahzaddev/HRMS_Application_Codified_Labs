@@ -82,6 +82,44 @@ public class EmployeeController : ControllerBase
         }
     }
 
+    [HttpGet("GetEmployeebyOrganization")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeNameList>>>> GetEmployeebyOrganization()
+    {
+        try
+        {
+            var reportingManagerId = GetCurrentEmployeeId();  // this is manager
+            var organizationid = GetCurrentOrganizationId();
+
+            var employees = await _employeeService
+                .GetEmployeeByOrganizationAsync(reportingManagerId,organizationid);
+
+            if (employees == null || !employees.Any())
+            {
+                return NotFound(new ServiceResponse<List<EmployeeNameList>>
+                {
+                    Success = false,
+                    Message = "Employees not found"
+                });
+            }
+
+            return Ok(new ServiceResponse<List<EmployeeNameList>>
+            {
+                Success = true,
+                Data = employees
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employees");
+
+            return StatusCode(500, new ServiceResponse<List<EmployeeNameList>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employees"
+            });
+        }
+    }
+
     [HttpPost]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> CreateEmployee([FromBody] CreateEmployeeRequest request)
@@ -1195,6 +1233,24 @@ public class EmployeeController : ControllerBase
                 Message = "An error occurred while retrieving manager's employees"
             });
         }
+    }
+    private Guid GetCurrentEmployeeId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userIdClaim))
+        {
+            _logger.LogError("User ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("User ID not found in token");
+        }
+
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
+            throw new UnauthorizedAccessException("Invalid user ID format");
+        }
+
+        return userId;
     }
 
     private Guid GetCurrentOrganizationId()
