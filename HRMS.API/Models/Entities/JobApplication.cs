@@ -54,4 +54,7 @@ public class JobApplication
     public DateTime? UpdatedDate { get; set; }
     [Column("isself")]
     public bool? IsSelf { get; set; }
+    
+    [Column("isexternal")]
+    public bool? IsExternal { get; set; }
 }
