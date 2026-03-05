@@ -194,6 +194,11 @@ builder.Services.AddScoped<IJobsService, JobsService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
 
+// --- Super Admin Portal Services ---
+builder.Services.AddScoped<IPlatformAdminAuthService, PlatformAdminAuthService>();
+builder.Services.AddScoped<IDemoInquiryService, DemoInquiryService>();
+builder.Services.AddScoped<ISuperAdminService, SuperAdminService>();
+
 // -------------------- REPOSITORIES --------------------
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
@@ -213,6 +218,11 @@ builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
 builder.Services.AddScoped<IJobsRepository, JobsRepository>();
 builder.Services.AddScoped<INewsRepository, NewsRepository>();
+
+// --- Super Admin Portal Repositories ---
+builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
+builder.Services.AddScoped<IDemoInquiryRepository, DemoInquiryRepository>();
+builder.Services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
 
 // -------------------- HOSTED SERVICES --------------------
 builder.Services.AddHostedService<LeaveBalanceResetHostedService>();

@@ -23,6 +23,14 @@ namespace HRMS.API.Models.DTOs
         [MaxLength(50)]
         public string SubscriptionType { get; set; }
         public string? Currency { get; set; }
+        [MaxLength(255)]
+        public string? AdminEmail { get; set; }
+        [MaxLength(50)]
+        public string? CompanySize { get; set; }
+        [MaxLength(100)]
+        public string? Industry { get; set; }
+        [MaxLength(100)]
+        public string? Country { get; set; }
     }
 
     public class UpdateOrganizationDTO
