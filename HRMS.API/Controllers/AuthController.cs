@@ -852,6 +852,145 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [HttpGet("menus")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<List<MenuDto>>>> GetMenus()
+    {
+        try
+        {
+            var menus = await _authService.GetMenusAsync();
+
+            return Ok(new ServiceResponse<List<MenuDto>>
+            {
+                Success = true,
+                Data = menus,
+                Message = "Menus retrieved successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while retrieving menus");
+
+            return BadRequest(new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business logic error while retrieving menus");
+
+            return BadRequest(new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving menus");
+
+            return StatusCode(500, new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving menus"
+            });
+        }
+    }
+    [HttpPost("create-role")]
+    public async Task<ActionResult<ServiceResponse<CreateRoleResponse>>> CreateRoleAsync([FromBody] Create_RoleRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<CreateRoleResponse>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+            var organizationid = GetOrganizationIdFromClaims();
+
+            var result = await _authService.Create_RoleAsync(request, organizationid);
+
+            return Ok(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = true,
+                Message = "Role created successfully",
+                Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for role creation");
+            return BadRequest(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Role already exists");
+            return Conflict(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Role creation failed for role: {RoleName}", request.RoleName);
+            return StatusCode(500, new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = "An error occurred while creating the role"
+            });
+        }
+    }
+    [HttpGet("get-roles-by-organization")]
+    public async Task<ActionResult<ServiceResponse<List<RoleDetailResponse>>>> GetRolesByOrganization()
+    {
+        try
+        {
+            var claimsOrganizationId = GetOrganizationIdFromClaims();
+            if (claimsOrganizationId == Guid.Empty)
+            {
+                return BadRequest(new ServiceResponse<List<RoleDetailResponse>>
+                {
+                    Success = false,
+                    Message = "Invalid organization ID",
+                    Data = null,
+                    Errors = new List<string> { "Organization ID is required" }
+                });
+            }
+           
+
+            var response = await _authService.GetRolesByOrganizationAsync(claimsOrganizationId);
+
+            return Ok(new ServiceResponse<List<RoleDetailResponse>>
+            {
+                Success = true,
+                Message = "Roles retrieved successfully",
+                Data = response,
+                Errors = null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving roles for organization");
+            return StatusCode(500, new ServiceResponse<List<RoleDetailResponse>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving roles",
+                Data = null,
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
 
     private Guid? GetOrganizationIdFromClaims()
     {

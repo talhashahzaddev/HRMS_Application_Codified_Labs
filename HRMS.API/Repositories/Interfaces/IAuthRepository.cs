@@ -39,6 +39,13 @@ public interface IAuthRepository
     //Task<string> GenerateEmployeeCodeAsync()
     Task<Role?> GetRoleByNameAsync(Guid? organizationId, string roleName);
     Task<List<Role>> GetOrganizationRolesAsync(Guid? organizationId);
+    Task<IEnumerable<dynamic>> GetMenusAsync();
+    Task<Guid> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId);
+    Task<Role> GetRoleByNameAsync(string roleName, Guid organizationId);
+    Task<bool> MenuExistsAsync(Guid menuId);
+    Task<bool> SubMenuExistsAsync(Guid subMenuId, Guid menuId);
+    Task<List<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId);
+    Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId);
     Task<Role> CreateRoleAsync(Role role);
     Task<bool> UpdateUserRoleAsync(Guid? userId, Guid? roleId);
     Task<bool> VerifyEmail(string token);
