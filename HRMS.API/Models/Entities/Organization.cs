@@ -30,4 +30,16 @@ public class Organization : BaseEntity
     
     [Column("currency")]
     public string? Currency { get; set; }
+    
+    [Column("admin_email")]
+    public string? AdminEmail { get; set; }
+    
+    [Column("company_size")]
+    public string? CompanySize { get; set; }
+    
+    [Column("industry")]
+    public string? Industry { get; set; }
+    
+    [Column("country")]
+    public string? Country { get; set; }
 }

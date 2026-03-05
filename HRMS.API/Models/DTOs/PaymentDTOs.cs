@@ -65,9 +65,12 @@ public class CompanySubscriptionDto
 
 public class CompanySubscriptionDetailsDto
 {
+    public Guid SubscriptionId { get; set; }
     public Guid PlanId { get; set; }
     public string PlanName { get; set; } = string.Empty;
     public string BillingCycle { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
     public bool IsExpired { get; set; }
