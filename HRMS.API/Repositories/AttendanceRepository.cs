@@ -333,11 +333,33 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
             DO NOTHING;";
 
-            // Step 4: Mark timesheet as Finalized
+            // Step 4: Only mark timesheet as Finalized if ALL employees in the org are now finalized
+            // When finalizing a single employee, we should NOT lock the entire timesheet.
             const string step4 = @"
-            UPDATE attendance.monthly_timesheets
+            UPDATE attendance.monthly_timesheets mt
             SET status = 'Finalized'
-            WHERE timesheet_id = @timesheetId::uuid;";
+            WHERE mt.timesheet_id = @timesheetId::uuid
+              AND NOT EXISTS (
+                  -- Find any employee who still has un-finalized elapsed workdays
+                  SELECT 1
+                  FROM employee.employees e
+                  CROSS JOIN generate_series(
+                      make_date(mt.year, mt.month, 1),
+                      LEAST(
+                          (make_date(mt.year, mt.month, 1) + INTERVAL '1 month - 1 day')::date,
+                          CURRENT_DATE - 1
+                      ),
+                      '1 day'::interval
+                  ) AS gs(d)
+                  WHERE e.organizationid = mt.organization_id
+                    AND EXTRACT(DOW FROM gs.d) NOT IN (0, 6)
+                    AND NOT EXISTS (
+                        SELECT 1 FROM attendance.finalized_timesheet_records ftr
+                        WHERE ftr.timesheet_id = mt.timesheet_id
+                          AND ftr.employee_id  = e.employeeid
+                          AND ftr.work_date    = gs.d::date
+                    )
+              );";
 
             await connection.ExecuteAsync(step1, parameters, transaction);
             await connection.ExecuteAsync(step2, parameters, transaction);
@@ -1405,7 +1427,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 ShiftName = request.ShiftName,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
-                ApplyMarginhours = request.ApplyMarginhours,
+                ApplyMarginhours = request.ApplyMarginhours ?? false,
                 marginHours = request.marginHours,
 
                 BreakDuration = request.BreakDuration ?? 0,

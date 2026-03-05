@@ -131,7 +131,7 @@ public class CreateShiftDto
     public TimeSpan? StartTime { get; set; }              // Start time of the shift
     public TimeSpan? EndTime { get; set; }                // End time of the shift
     public int marginHours { get; set; }
-    public bool ApplyMarginhours { get; set; } = false;
+    public bool? ApplyMarginhours { get; set; } = false;
 
     public int? BreakDuration { get; set; } = 0;          // Break duration in minutes
     public TimeSpan? BreakStartTime { get; set; }         // Added: Break start time

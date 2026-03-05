@@ -29,6 +29,8 @@ public class AttendanceService : IAttendanceService
     private readonly ILogger<AttendanceService> _logger;
     private readonly IIpAddressRepository _ipAddressRepository;
     private readonly ISettingsRepository _settingsRepository;
+    private readonly IEmailService _emailService;
+    private readonly IAuthRepository _authRepository;
 
     public AttendanceService(
         IAttendanceRepository attendanceRepository,
@@ -38,6 +40,8 @@ public class AttendanceService : IAttendanceService
         ILeaveRepository leaveRepository,
         IIpAddressRepository ipAddressRepository,
         ISettingsRepository settingsRepository,
+        IEmailService emailService,
+        IAuthRepository authRepository,
         ILogger<AttendanceService> logger)
     {
         _attendanceRepository = attendanceRepository;
@@ -46,6 +50,8 @@ public class AttendanceService : IAttendanceService
         _leaveRepository = leaveRepository;
         _ipAddressRepository = ipAddressRepository; 
         _settingsRepository = settingsRepository;
+        _emailService = emailService;
+        _authRepository = authRepository;
         _mapper = mapper;
         _logger = logger;
     }
@@ -1528,6 +1534,66 @@ public class AttendanceService : IAttendanceService
     {
         // Snapshot logic
         var success = await _attendanceRepository.CreateMonthlySnapshotAsync(organizationId, currentUserEmployeeId, dto);
+
+        if (success)
+        {
+            // ── Send notification + email to all employees ──
+            try
+            {
+                var monthName = new DateTime(dto.Year, dto.Month, 1).ToString("MMMM yyyy");
+                var creator = await _employeeRepository.GetEmployeeByIdAsync(currentUserEmployeeId);
+                var creatorName = creator != null
+                    ? $"{creator.FirstName} {creator.LastName}".Trim()
+                    : "Your manager";
+
+                // Get all active employees in the organization
+                var allEmployees = await _employeeRepository.GetEmployeesAsync(organizationId);
+                var employeeList = allEmployees.Data
+                    .Where(e => e.EmployeeId.HasValue && e.EmployeeId.Value != currentUserEmployeeId)
+                    .ToList();
+
+                if (employeeList.Any())
+                {
+                    // ── In-app notification ──
+                    var receiverIds = employeeList.Select(e => e.EmployeeId!.Value).ToList();
+                    var notification = new NotificationCreateDto
+                    {
+                        Receiveruserid = receiverIds,
+                        Senderuserid = currentUserEmployeeId,
+                        Title = "Timesheet Created",
+                        Message = $"{creatorName} has created the {monthName} timesheet — \"{dto.TimesheetName}\". Please review your attendance records.",
+                        Notificationtype = "Message",
+                        Createdby = currentUserEmployeeId,
+                        moduletype = "Attendance",
+                        Redirecturl = "/attendance/timesheet",
+                        organizationId = organizationId
+                    };
+                    await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+                    // ── Email ──
+                    var recipientEmails = employeeList
+                        .Where(e => !string.IsNullOrWhiteSpace(e.Email))
+                        .Select(e => e.Email!)
+                        .ToList();
+
+                    if (recipientEmails.Any())
+                    {
+                        await _emailService.SendTimesheetCreatedEmailAsync(
+                            recipientEmails, creatorName, dto.TimesheetName, monthName, organizationId);
+                    }
+                }
+
+                _logger.LogInformation(
+                    "Timesheet creation notifications sent to {Count} employees for {Month}",
+                    employeeList.Count, monthName);
+            }
+            catch (Exception ex)
+            {
+                // Notification/email failure should not break the snapshot creation response
+                _logger.LogError(ex, "Failed to send timesheet creation notifications for org {OrgId}", organizationId);
+            }
+        }
+
         return new ServiceResponse<bool>
         {
             Success = success,
@@ -1935,7 +2001,7 @@ public class AttendanceService : IAttendanceService
 
             var finalizableRecords = elapsedWorkingRecords;
 
-            pkg.FinalizedCount = finalizableRecords.Count(r => r.IsFinalized);
+            pkg.FinalizedCount = finalizableRecords.Count(r => r.IsFinalized && !r.IsManagerOverride);
 
             pkg.PendingRequestCount = records.Count(r => r.HasPendingRequest);
 
@@ -1949,8 +2015,9 @@ public class AttendanceService : IAttendanceService
             pkg.RejectedCount = records.Count(r =>
                 string.Equals(r.RequestStatus, "rejected", StringComparison.OrdinalIgnoreCase));
 
+            // Only truly finalized (not just overridden) records should count toward package finalization
             pkg.IsFinalized = finalizableRecords.Count > 0
-                           && finalizableRecords.All(r => r.IsFinalized);
+                           && finalizableRecords.All(r => r.IsFinalized && !r.IsManagerOverride);
         }
 
         return new ServiceResponse<List<EmployeeReviewPackage>> { Data = grouped, Success = true };
