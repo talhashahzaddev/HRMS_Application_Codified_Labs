@@ -706,6 +706,144 @@ public class AuthService : IAuthService
         var roles = await _authRepository.GetOrganizationRolesAsync(organizationId);
         return roles.Select(MapToRoleDto).ToList();
     }
+    public async Task<List<MenuDto>> GetMenusAsync()
+    {
+        var result = await _authRepository.GetMenusAsync();
+
+        if (result == null || !result.Any())
+            throw new InvalidOperationException("No menus found");
+
+        var menus = result
+            .GroupBy(x => new { x.menuid, x.menuname, x.menuicon })
+            .Select(g => new MenuDto
+            {
+                MenuId = g.Key.menuid,
+                MenuName = g.Key.menuname,
+                Icon = g.Key.menuicon,
+                SubMenus = g
+                    .Where(x => x.submenuid != null)
+                    .Select(x => new SubMenuDto
+                    {
+                        SubMenuId = x.submenuid,
+                        SubMenuName = x.submenuname,
+                        Icon = x.submenuicon
+                    }).ToList()
+            })
+            .ToList();
+
+        return menus;
+    }
+    public async Task<CreateRoleResponse> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (string.IsNullOrWhiteSpace(request.RoleName)) throw new ArgumentException("Role name is required", nameof(request.RoleName));
+        if (organizationId == Guid.Empty) throw new ArgumentException("Organization ID is required", nameof(organizationId));
+
+        _logger.LogInformation("Creating new role: {RoleName} for organization: {OrganizationId}",
+            request.RoleName, organizationId);
+
+        // Check if role already exists
+        var existingRole = await _authRepository.GetRoleByNameAsync( organizationId, request.RoleName);
+        if (existingRole != null)
+        {
+            _logger.LogWarning("Role already exists: {RoleName}", request.RoleName);
+            throw new InvalidOperationException("Role name already exists in this organization");
+        }
+
+        // Validate all menu and submenu IDs
+        foreach (var menu in request.Menus)
+        {
+            var menuExists = await _authRepository.MenuExistsAsync(menu.MenuId);
+            if (!menuExists)
+            {
+                _logger.LogWarning("Menu ID does not exist: {MenuId}", menu.MenuId);
+                throw new ArgumentException($"Menu ID {menu.MenuId} does not exist");
+            }
+
+            foreach (var subMenu in menu.SubMenus)
+            {
+                var subMenuExists = await _authRepository.SubMenuExistsAsync(subMenu.SubMenuId, menu.MenuId);
+                if (!subMenuExists)
+                {
+                    _logger.LogWarning("SubMenu ID does not exist: {SubMenuId} for Menu: {MenuId}",
+                        subMenu.SubMenuId, menu.MenuId);
+                    throw new ArgumentException($"SubMenu ID {subMenu.SubMenuId} does not exist or doesn't belong to the specified menu");
+                }
+            }
+        }
+
+        // Create role in database
+        var roleId = await _authRepository.Create_RoleAsync(request,organizationId);
+
+        _logger.LogInformation("Role created successfully with ID: {RoleId}", roleId);
+
+        return new CreateRoleResponse
+        {
+            RoleId = roleId,
+            RoleName = request.RoleName,
+            Description = request.Description,
+            OrganizationId = organizationId,
+            IsSystemRole = request.IsSystemRole
+        };
+    }
+    public async Task<List<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID is required", nameof(organizationId));
+
+        _logger.LogInformation("Retrieving all roles for organization: {OrganizationId}", organizationId);
+
+        // Get all roles for the organization
+        var roles = await _authRepository.GetRolesByOrganizationIdAsync(organizationId);
+
+        if (roles == null || !roles.Any())
+        {
+            _logger.LogInformation("No roles found for organization: {OrganizationId}", organizationId);
+            return new List<RoleDetailResponse>();
+        }
+
+        var roleResponses = new List<RoleDetailResponse>();
+
+        foreach (var role in roles)
+        {
+            // Get permissions for each role
+            var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(role.RoleId);
+
+            // Group permissions by menu
+            var menus = permissions
+                .GroupBy(p => new { p.MenuId, p.MenuName })
+                .Select(g => new RoleMenuPermission
+                {
+                    MenuId = g.Key.MenuId,
+                    MenuName = g.Key.MenuName,
+                    SubMenus = g.Select(p => new RoleSubMenuPermission
+                    {
+                        SubMenuId = p.SubMenuId,
+                        SubMenuName = p.SubMenuName,
+                        CanView = p.CanView,
+                        CanAdd = p.CanAdd,
+                        CanEdit = p.CanEdit,
+                        CanDelete = p.CanDelete
+                    }).ToList()
+                }).ToList();
+
+            roleResponses.Add(new RoleDetailResponse
+            {
+                RoleId = role.RoleId,
+                RoleName = role.RoleName,
+                Description = role.Description,
+                IsSystemRole = role.IsSystemRole,
+                OrganizationId = role.OrganizationId,
+                CreatedAt = role.CreatedAt,
+                Menus = menus
+            });
+        }
+
+        _logger.LogInformation("Retrieved {Count} roles for organization: {OrganizationId}",
+            roleResponses.Count, organizationId);
+
+        return roleResponses;
+    }
 
     public async Task<bool> UpdateUserRoleAsync(Guid userId, Guid roleId)
     {

@@ -1164,3 +1164,92 @@ BEGIN
     LIMIT p_limit OFFSET p_offset;
 END;
 $BODY$;
+
+--Customise Role Functions
+CREATE OR REPLACE FUNCTION auth.fn_create_role(
+    p_organizationid uuid,
+    p_rolename text,
+    p_description text,
+    p_issystemrole boolean,
+    p_menus jsonb
+)
+RETURNS uuid
+LANGUAGE 'plpgsql'
+COST 100
+VOLATILE 
+AS $$
+DECLARE
+    new_role_id uuid;
+    menu_record jsonb;
+    submenu_record jsonb;
+    menu_id uuid;
+    submenu_id uuid;
+    v_canview boolean;
+    v_canadd boolean;
+    v_canedit boolean;
+    v_candelete boolean;
+BEGIN
+    -- Insert into auth.roles
+    INSERT INTO auth.roles (
+        roleid,
+        organizationid,
+        rolename,
+        description,
+        issystemrole,
+        createdat
+    )
+    VALUES (
+        uuid_generate_v4(),
+        p_organizationid,
+        p_rolename,
+        p_description,
+        p_issystemrole,
+        CURRENT_TIMESTAMP
+    )
+    RETURNING roleid INTO new_role_id;
+
+    -- Loop through menus
+    FOR menu_record IN SELECT * FROM jsonb_array_elements(p_menus)
+    LOOP
+        menu_id := (menu_record->>'MenuId')::uuid;
+
+        -- Loop through submenus in each menu
+        FOR submenu_record IN SELECT * FROM jsonb_array_elements(menu_record->'SubMenus')
+        LOOP
+            submenu_id := (submenu_record->>'SubMenuId')::uuid;
+            v_canview := COALESCE((submenu_record->>'CanView')::boolean, false);
+            v_canadd := COALESCE((submenu_record->>'CanAdd')::boolean, false);
+            v_canedit := COALESCE((submenu_record->>'CanEdit')::boolean, false);
+            v_candelete := COALESCE((submenu_record->>'CanDelete')::boolean, false);
+
+            -- Insert permissions into auth.permissions
+            INSERT INTO auth.permissions (
+                permissionid,
+                roleid,
+                menuid,
+                submenuid,
+                organizationid,
+                canview,
+                canadd,
+                canedit,
+                candelete,
+                created_date
+            )
+            VALUES (
+                uuid_generate_v4(),
+                new_role_id,
+                menu_id,
+                submenu_id,
+                p_organizationid,
+                v_canview,
+                v_canadd,
+                v_canedit,
+                v_candelete,
+                CURRENT_TIMESTAMP
+            );
+        END LOOP;
+    END LOOP;
+
+    RETURN new_role_id;
+END;
+$$;

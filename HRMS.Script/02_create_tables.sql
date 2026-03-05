@@ -1136,3 +1136,51 @@ TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS jobs.applicationstages
     OWNER to postgres;
+
+    --// Table : Customise Roles
+    CREATE TABLE IF NOT EXISTS auth.permissions
+(
+    permissionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    roleid uuid NOT NULL,
+	menuid uuid NOT NULL,
+    submenuid uuid NOT NULL,
+    organizationid uuid NOT NULL,
+
+    canview BOOLEAN DEFAULT false,
+    canadd BOOLEAN DEFAULT false,
+    canedit BOOLEAN DEFAULT false,
+    candelete BOOLEAN DEFAULT false,
+
+    created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    createdby uuid,
+	updatedby uuid,
+
+    CONSTRAINT permissions_pkey PRIMARY KEY (permissionid),
+    CONSTRAINT unique_permission UNIQUE (roleid, submenuid)
+);
+
+
+CREATE TABLE IF NOT EXISTS auth.menus
+(
+    menuid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    menuname character varying(200) NOT NULL,
+    icon character varying(100),
+    created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT menus_pkey PRIMARY KEY (menuid)
+);
+
+CREATE TABLE IF NOT EXISTS auth.submenus
+(
+    submenuid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    menuid uuid NOT NULL,
+    submenuname character varying(200) NOT NULL,
+    icon character varying(100),
+    created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT sub_menus_pkey PRIMARY KEY (submenuid)
+
+);

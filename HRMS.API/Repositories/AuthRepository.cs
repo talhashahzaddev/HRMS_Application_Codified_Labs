@@ -599,6 +599,119 @@ WHERE token = @token;
         }
 
     }
+    public async Task<IEnumerable<dynamic>> GetMenusAsync()
+    {
+        var sql = @"
+        SELECT 
+            m.menuid,
+            m.menuname,
+            m.icon AS menuicon,
+            s.submenuid,
+            s.submenuname,
+            s.icon AS submenuicon
+        FROM auth.menus m
+        LEFT JOIN auth.submenus s 
+            ON s.menuid = m.menuid";
+        //ORDER BY m.menuname, s.submenuname";
+
+        try
+        {
+            var result = await QueryAsync<dynamic>(sql);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Database error while retrieving menus", ex);
+        }
+    }
+
+    public async Task<Guid> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId)
+    {
+        const string sql = "SELECT * FROM auth.fn_create_role(@p_organizationid, @p_rolename, @p_description, @p_issystemrole, @p_menus::jsonb)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organizationid", organizationId, DbType.Guid);
+        parameters.Add("p_rolename", request.RoleName, DbType.String);
+        parameters.Add("p_description", request.Description, DbType.String);
+        parameters.Add("p_issystemrole", request.IsSystemRole, DbType.Boolean);
+
+        string jsonMenus = JsonConvert.SerializeObject(request.Menus);
+        parameters.Add("p_menus", jsonMenus, DbType.String);
+
+        try
+        {
+            //using var connection = await _dbContext.CreateConnectionAsync();
+            var result = await ExecuteScalarAsync<Guid?>(sql, parameters);
+
+            if (result == null || result == Guid.Empty)
+            {
+                throw new InvalidOperationException("Failed to create role");
+            }
+
+            return result.Value;
+        }
+        catch (Exception ex)
+        {
+            //.LogError(ex, "Database error while creating role: {RoleName}", request.RoleName);
+            throw;
+        }
+    }
+
+    public async Task<Role> GetRoleByNameAsync(string roleName, Guid organizationId)
+    {
+        const string sql = @"
+        SELECT roleid, rolename, description, organizationid, issystemrole, createdat
+        FROM auth.roles 
+        WHERE rolename = @rolename AND organizationid = @organizationid";
+
+        return await QuerySingleOrDefaultAsync<Role>(sql, new { rolename = roleName, organizationid = organizationId });
+    }
+
+    public async Task<bool> MenuExistsAsync(Guid menuId)
+    {
+        const string sql = "SELECT COUNT(1) FROM auth.menus WHERE menuid = @menuid";
+        var count = await ExecuteScalarAsync<int>(sql, new { menuid = menuId });
+        return count > 0;
+    }
+
+    public async Task<bool> SubMenuExistsAsync(Guid subMenuId, Guid menuId)
+    {
+        const string sql = "SELECT COUNT(1) FROM auth.submenus WHERE submenuid = @submenuid AND menuid = @menuid";
+        var count = await ExecuteScalarAsync<int>(sql, new { submenuid = subMenuId, menuid = menuId });
+        return count > 0;
+    }
+
+    public async Task<List<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId)
+    {
+        const string sql = @"
+        SELECT roleid, rolename, description, organizationid, issystemrole, createdat
+        FROM auth.roles 
+        WHERE organizationid = @organizationid
+        ORDER BY createdat DESC";
+
+        return (await QueryAsync<Role>(sql, new { organizationid = organizationId })).ToList();
+    }
+
+    public async Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId)
+    {
+        const string sql = @"
+        SELECT 
+            p.menuid,
+            m.menuname as MenuName,
+            p.submenuid,
+            sm.submenuname as SubMenuName,
+            p.canview,
+            p.canadd,
+            p.canedit,
+            p.candelete
+        FROM auth.permissions p
+        INNER JOIN auth.menus m ON p.menuid = m.menuid
+        INNER JOIN auth.submenus sm ON p.submenuid = sm.submenuid
+        WHERE p.roleid = @roleid
+        ORDER BY m.menuname, sm.submenuname";
+
+        return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
+    }
     private Dictionary<string, object> NormalizePermissions(Dictionary<string, object>? permissions)
     {
         if (permissions == null)
