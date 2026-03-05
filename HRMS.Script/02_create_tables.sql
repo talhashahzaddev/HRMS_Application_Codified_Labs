@@ -1101,6 +1101,8 @@ CREATE TABLE IF NOT EXISTS jobs.jobapplications
     status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Applied'::character varying,
     createddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updateddate timestamp with time zone,
+    isself boolean DEFAULT false,
+    isexternal boolean DEFAULT false,
     CONSTRAINT jobapplications_pkey PRIMARY KEY (jobapplyid)
 )
 
