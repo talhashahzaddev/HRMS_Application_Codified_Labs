@@ -24,30 +24,13 @@ public class DemoInquiryDto
 
 public class CreateDemoInquiryRequest
 {
-    [Required]
-    [MaxLength(200)]
-    public string FullName { get; set; } = string.Empty;
-
-    [Required]
-    [MaxLength(255)]
-    [EmailAddress]
-    public string Email { get; set; } = string.Empty;
-
-    [MaxLength(50)]
-    public string? Phone { get; set; }
-
-    [MaxLength(200)]
-    public string? CompanyName { get; set; }
-
-    [MaxLength(50)]
+    public string FullName { get; set; }
+    public string EmailAddress { get; set; }
     public string? CompanySize { get; set; }
-
-    [MaxLength(100)]
-    public string? Industry { get; set; }
-
-    [MaxLength(100)]
     public string? Country { get; set; }
-
+    public string? PhoneNumber { get; set; }
+    public string? CompanyName { get; set; }
+    public string? Industry { get; set; }
     public string? Message { get; set; }
 }
 

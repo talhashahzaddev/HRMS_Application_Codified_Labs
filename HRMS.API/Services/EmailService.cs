@@ -262,7 +262,7 @@ public class EmailService : IEmailService
 
         var subject = $"Leave Request Pending Approval | {employeeName} | BriskPeople";
         var pendingColor = "#ffc107"; // Yellow/amber for pending
-        var approvalLink = $"https://{cleanDomain}.briskpeople.com/leave/team"; 
+        var approvalLink = $"https://{cleanDomain}.briskpeople.com/leave/team";
 
         var body = $@"<!DOCTYPE html>
     <html>
@@ -695,4 +695,65 @@ public class EmailService : IEmailService
         return true;
     }
 
+    public async Task<bool> SendDemoEmailAsync(string toEmail, string fullName, string companyName, string fromEmail)
+    {
+        var subject = $"New Demo Inquiry from {fullName} | BriskPeople";
+        var body = $@"<!DOCTYPE html>
+            <html>
+                <body style='margin:0;padding:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;'>
+                    <table width='100%' cellpadding='0' cellspacing='0' style='padding:30px 0;'>
+                        <tr>
+                        <td align='center'>
+                            <table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff;border-radius:8px;overflow:hidden;'>
+                                <tr>
+                                <td style='background:#ffffff;padding:20px 30px;border-bottom:1px solid #e5e7eb;'>
+                                    <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
+                                        <tr>
+                                        <td style='vertical-align:middle; padding-right:10px;'>
+                                            <img src='https://www.briskpeople.com/hub.png' alt='BriskPeople' style='height:40px; display:block;' />
+                                        </td>
+                                        <td style='vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;'>
+                                            BriskPeople
+                                        </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td style='padding:35px;color:#333;font-size:14px;line-height:1.7;'>
+                                    <p style='margin-top:0;'>Hello <strong>Support Team</strong>,</p>
+                                    <p>You have received a new <strong>Demo Request</strong> from a potential client on <strong>BriskPeople</strong>. The user's details are provided below:</p>
+                                    <table width='100%' cellpadding='8' cellspacing='0' style='margin-top:15px;border:1px solid #e5e7eb;border-collapse:collapse;font-size:14px;'>
+                                        <tr style='background:#f9fafb;'>
+                                            <td style='border:1px solid #e5e7eb;'><strong>Name</strong></td>
+                                            <td style='border:1px solid #e5e7eb;'>{fullName}</td>
+                                        </tr>
+                                        <tr>
+                                            <td style='border:1px solid #e5e7eb;'><strong>Company</strong></td>
+                                            <td style='border:1px solid #e5e7eb;'>{companyName}</td>
+                                        </tr>
+                                        <tr style='background:#f9fafb;'>
+                                            <td style='border:1px solid #e5e7eb;'><strong>Email</strong></td>
+                                            <td style='border:1px solid #e5e7eb;'>{fromEmail}</td>
+                                        </tr>
+                                    </table>
+                                    <p style='margin-top:25px;'>
+                                        Please review this request and follow up with the client to schedule a product demo at the earliest convenience.
+                                    </p>
+                                    <p style='margin-bottom:0;'>Best regards,<br/><strong>BriskPeople</strong></p>
+                                </td>
+                                </tr>
+                                <tr>
+                                <td align='center' style='padding:18px;background:#f4f6f8;font-size:12px;color:#777;'>
+                                    © {DateTime.UtcNow.Year} BriskPeople. All rights reserved.
+                                </td>
+                                </tr>
+                            </table>
+                        </td>
+                        </tr>
+                    </table>
+                </body>
+            </html>";
+        return await SendEmailAsync(toEmail, subject, body);
+    }
 }

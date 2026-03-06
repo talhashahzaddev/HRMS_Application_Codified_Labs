@@ -18,40 +18,43 @@ public class DemoInquiryController : ControllerBase
         _logger = logger;
     }
 
-    /// <summary>
-    /// Submit a demo/inquiry request (public - no auth required)
-    /// </summary>
-    [HttpPost]
+    [HttpPost("book-demo")]
     [AllowAnonymous]
-    public async Task<ActionResult<ServiceResponse<DemoInquiryDto>>> SubmitInquiry([FromBody] CreateDemoInquiryRequest request)
+    public async Task<IActionResult> SubmitInquiry([FromBody] CreateDemoInquiryRequest request)
     {
         try
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new ServiceResponse<DemoInquiryDto>
-                {
-                    Success = false,
-                    Message = "Invalid request data",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
-                });
-            }
-
             var response = await _inquiryService.CreateAsync(request);
-            if (!response.Success)
+            return Ok(new ServiceResponse<dynamic>
             {
-                return BadRequest(response);
-            }
-
-            return CreatedAtAction(nameof(GetInquiryById), new { inquiryId = response.Data?.InquiryId }, response);
+                Success = true,
+                Data = response,
+                Message = "Demo booked successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating role");
+            return BadRequest(new ServiceResponse<dynamic>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<dynamic>
+            {
+                Success = false,
+                Message = ex.Message
+            });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error submitting demo inquiry");
-            return StatusCode(500, new ServiceResponse<DemoInquiryDto>
+            return StatusCode(500, new ServiceResponse<dynamic>
             {
                 Success = false,
-                Message = "An error occurred while submitting your inquiry"
+                Message = "An error occurred while creating the role"
             });
         }
     }
