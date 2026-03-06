@@ -191,6 +191,7 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IJobsService, JobsService>();
+builder.Services.AddScoped<ICareerService, CareerService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
 
@@ -217,6 +218,7 @@ builder.Services.AddScoped<IChatBoardAiRepository, ChatBoardAiRepository>();
 builder.Services.AddScoped<IPaymentRepository, PaymentRepository>();
 builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
 builder.Services.AddScoped<IJobsRepository, JobsRepository>();
+builder.Services.AddScoped<ICareerRepository, CareerRepository>();
 builder.Services.AddScoped<INewsRepository, NewsRepository>();
 
 // --- Super Admin Portal Repositories ---

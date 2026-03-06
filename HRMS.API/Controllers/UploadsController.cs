@@ -11,7 +11,7 @@ namespace HRMS.API.Controllers;
 
 [ApiController]
 [Route("api/uploads")]
-[Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+[AllowAnonymous]
 public class UploadsController : ControllerBase
 {
     private readonly IFileUploadService _fileUploadService;
