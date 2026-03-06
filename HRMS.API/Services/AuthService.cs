@@ -716,22 +716,34 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("No menus found");
 
         var menus = result
-            .GroupBy(x => new { x.menuid, x.menuname, x.menuicon })
-            .Select(g => new MenuDto
-            {
-                MenuId = g.Key.menuid,
-                MenuName = g.Key.menuname,
-                Icon = g.Key.menuicon,
-                SubMenus = g
-                    .Where(x => x.submenuid != null)
-                    .Select(x => new SubMenuDto
-                    {
-                        SubMenuId = x.submenuid,
-                        SubMenuName = x.submenuname,
-                        Icon = x.submenuicon
-                    }).ToList()
-            })
-            .ToList();
+         .Where(x => x.menuid != null)
+         .GroupBy(x => new { x.menuid, x.menuname, x.menuicon })
+         .Select(g => new MenuDto
+         {
+             MenuId = g.Key.menuid,
+             MenuName = g.Key.menuname,
+             Icon = g.Key.menuicon,
+             SubMenus = g
+                 .Where(x => x.submenuid != null)
+                 .GroupBy(x => new { x.submenuid, x.submenuname, x.submenuicon })
+                 .Select(sg => new SubMenuDto
+                 {
+                     SubMenuId = sg.Key.submenuid,
+                     SubMenuName = sg.Key.submenuname,
+                     Icon = sg.Key.submenuicon,
+                     Actions = sg
+                         .Where(x => x.actionid != null)
+                         .Select(x => new ActionDto
+                         {
+                             ActionId = x.actionid,
+                             ActionName = x.actionname,
+                             ActionKey = x.actionkey
+                         })
+                         .DistinctBy(a => a.ActionId) // Remove duplicate actions if any
+                         .ToList()
+                 }).ToList()
+         })
+         .ToList();
 
         return menus;
     }
@@ -745,14 +757,14 @@ public class AuthService : IAuthService
             request.RoleName, organizationId);
 
         // Check if role already exists
-        var existingRole = await _authRepository.GetRoleByNameAsync( organizationId, request.RoleName);
+        var existingRole = await _authRepository.GetRoleByNameAsync(organizationId, request.RoleName);
         if (existingRole != null)
         {
             _logger.LogWarning("Role already exists: {RoleName}", request.RoleName);
             throw new InvalidOperationException("Role name already exists in this organization");
         }
 
-        // Validate all menu and submenu IDs
+        // Validate all menu, submenu, and action IDs
         foreach (var menu in request.Menus)
         {
             var menuExists = await _authRepository.MenuExistsAsync(menu.MenuId);
@@ -771,11 +783,23 @@ public class AuthService : IAuthService
                         subMenu.SubMenuId, menu.MenuId);
                     throw new ArgumentException($"SubMenu ID {subMenu.SubMenuId} does not exist or doesn't belong to the specified menu");
                 }
+
+                // NEW: Validate each action exists under the submenu
+                foreach (var action in subMenu.Actions)
+                {
+                    var actionExists = await _authRepository.ActionExistsAsync(action.ActionId, subMenu.SubMenuId);
+                    if (!actionExists)
+                    {
+                        _logger.LogWarning("Action ID does not exist: {ActionId} for SubMenu: {SubMenuId}",
+                            action.ActionId, subMenu.SubMenuId);
+                        throw new ArgumentException($"Action ID {action.ActionId} does not exist or doesn't belong to the specified submenu");
+                    }
+                }
             }
         }
 
         // Create role in database
-        var roleId = await _authRepository.Create_RoleAsync(request,organizationId);
+        var roleId = await _authRepository.Create_RoleAsync(request, organizationId);
 
         _logger.LogInformation("Role created successfully with ID: {RoleId}", roleId);
 
@@ -808,25 +832,30 @@ public class AuthService : IAuthService
 
         foreach (var role in roles)
         {
-            // Get permissions for each role
+            // Get permissions for each role (now returns actions)
             var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(role.RoleId);
 
-            // Group permissions by menu
+            // Group permissions by menu and submenu
             var menus = permissions
                 .GroupBy(p => new { p.MenuId, p.MenuName })
                 .Select(g => new RoleMenuPermission
                 {
                     MenuId = g.Key.MenuId,
                     MenuName = g.Key.MenuName,
-                    SubMenus = g.Select(p => new RoleSubMenuPermission
-                    {
-                        SubMenuId = p.SubMenuId,
-                        SubMenuName = p.SubMenuName,
-                        CanView = p.CanView,
-                        CanAdd = p.CanAdd,
-                        CanEdit = p.CanEdit,
-                        CanDelete = p.CanDelete
-                    }).ToList()
+                    SubMenus = g
+                        .GroupBy(p => new { p.SubMenuId, p.SubMenuName })
+                        .Select(sg => new RoleSubMenuPermission
+                        {
+                            SubMenuId = sg.Key.SubMenuId,
+                            SubMenuName = sg.Key.SubMenuName,
+                            Actions = sg.Select(p => new RoleActionPermission
+                            {
+                                ActionId = p.MenuId,
+                                ActionName = p.ActionName,
+                                ActionKey = p.ActionKey,
+                                HasPermission = p.HasPermission
+                            }).ToList()
+                        }).ToList()
                 }).ToList();
 
             roleResponses.Add(new RoleDetailResponse

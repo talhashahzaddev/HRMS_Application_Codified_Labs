@@ -1140,26 +1140,30 @@ ALTER TABLE IF EXISTS jobs.applicationstages
     OWNER to postgres;
 
     --// Table : Customise Roles
-    CREATE TABLE IF NOT EXISTS auth.permissions
+   CREATE TABLE IF NOT EXISTS auth.actions
+(
+    actionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    submenuid uuid NOT NULL,
+    actionname character varying(200) NOT NULL,  -- e.g., "Add Shift", "Request Swap"
+    actionkey character varying(100) NOT NULL,   -- e.g., "add_shift", "request_swap"
+    created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT actions_pkey PRIMARY KEY (actionid),
+    CONSTRAINT fk_submenu FOREIGN KEY (submenuid) REFERENCES auth.submenus(submenuid)
+);
+
+
+CREATE TABLE IF NOT EXISTS auth.permissions
 (
     permissionid uuid NOT NULL DEFAULT uuid_generate_v4(),
     roleid uuid NOT NULL,
-	menuid uuid NOT NULL,
-    submenuid uuid NOT NULL,
+    actionid uuid NOT NULL,
     organizationid uuid NOT NULL,
-
-    canview BOOLEAN DEFAULT false,
-    canadd BOOLEAN DEFAULT false,
-    canedit BOOLEAN DEFAULT false,
-    candelete BOOLEAN DEFAULT false,
-
+    has_permission BOOLEAN DEFAULT false,
     created_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updated_date timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     createdby uuid,
-	updatedby uuid,
-
-    CONSTRAINT permissions_pkey PRIMARY KEY (permissionid),
-    CONSTRAINT unique_permission UNIQUE (roleid, submenuid)
+    updatedby uuid
 );
 
 

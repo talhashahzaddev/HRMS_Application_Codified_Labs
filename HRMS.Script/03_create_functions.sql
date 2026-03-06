@@ -1182,12 +1182,11 @@ DECLARE
     new_role_id uuid;
     menu_record jsonb;
     submenu_record jsonb;
+    action_record jsonb;
     menu_id uuid;
     submenu_id uuid;
-    v_canview boolean;
-    v_canadd boolean;
-    v_canedit boolean;
-    v_candelete boolean;
+    action_id uuid;
+    v_haspermission boolean;
 BEGIN
     -- Insert into auth.roles
     INSERT INTO auth.roles (
@@ -1217,36 +1216,31 @@ BEGIN
         FOR submenu_record IN SELECT * FROM jsonb_array_elements(menu_record->'SubMenus')
         LOOP
             submenu_id := (submenu_record->>'SubMenuId')::uuid;
-            v_canview := COALESCE((submenu_record->>'CanView')::boolean, false);
-            v_canadd := COALESCE((submenu_record->>'CanAdd')::boolean, false);
-            v_canedit := COALESCE((submenu_record->>'CanEdit')::boolean, false);
-            v_candelete := COALESCE((submenu_record->>'CanDelete')::boolean, false);
 
-            -- Insert permissions into auth.permissions
-            INSERT INTO auth.permissions (
-                permissionid,
-                roleid,
-                menuid,
-                submenuid,
-                organizationid,
-                canview,
-                canadd,
-                canedit,
-                candelete,
-                created_date
-            )
-            VALUES (
-                uuid_generate_v4(),
-                new_role_id,
-                menu_id,
-                submenu_id,
-                p_organizationid,
-                v_canview,
-                v_canadd,
-                v_canedit,
-                v_candelete,
-                CURRENT_TIMESTAMP
-            );
+            -- Loop through actions in each submenu
+            FOR action_record IN SELECT * FROM jsonb_array_elements(submenu_record->'Actions')
+            LOOP
+                action_id := (action_record->>'ActionId')::uuid;
+                v_haspermission := COALESCE((action_record->>'HasPermission')::boolean, false);
+
+                -- Insert permissions into auth.permissions (UPDATED TABLE STRUCTURE)
+                INSERT INTO auth.permissions (
+                    permissionid,
+                    roleid,
+                    actionid,        -- Changed from menuid/submenuid
+                    organizationid,
+                    has_permission,   -- Changed from canview/canadd/canedit/candelete
+                    created_date
+                )
+                VALUES (
+                    uuid_generate_v4(),
+                    new_role_id,
+                    action_id,        -- Now storing actionid directly
+                    p_organizationid,
+                    v_haspermission,   -- Single permission flag
+                    CURRENT_TIMESTAMP
+                );
+            END LOOP;
         END LOOP;
     END LOOP;
 
