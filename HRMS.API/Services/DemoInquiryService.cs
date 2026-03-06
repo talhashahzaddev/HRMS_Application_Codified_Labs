@@ -9,64 +9,51 @@ public class DemoInquiryService : IDemoInquiryService
 {
     private readonly IDemoInquiryRepository _repository;
     private readonly ILogger<DemoInquiryService> _logger;
+    private readonly IEmailService _emailService;
 
-    public DemoInquiryService(IDemoInquiryRepository repository, ILogger<DemoInquiryService> logger)
+    public DemoInquiryService(IDemoInquiryRepository repository, ILogger<DemoInquiryService> logger, IEmailService emailService)
     {
         _repository = repository;
         _logger = logger;
+        _emailService = emailService;
     }
 
-    public async Task<ServiceResponse<DemoInquiryDto>> CreateAsync(CreateDemoInquiryRequest request)
+    public async Task<dynamic> CreateAsync(CreateDemoInquiryRequest request)
     {
         try
         {
             var inquiry = new DemoInquiry
             {
                 FullName = request.FullName,
-                Email = request.Email,
-                Phone = request.Phone,
+                Email = request.EmailAddress,
+                Phone = request.PhoneNumber,
                 CompanyName = request.CompanyName,
                 CompanySize = request.CompanySize,
                 Industry = request.Industry,
                 Country = request.Country,
                 Message = request.Message,
-                Status = "new",
+                Status = "requested",
                 Source = "website"
             };
 
             var inquiryId = await _repository.CreateAsync(inquiry);
-            inquiry.InquiryId = inquiryId;
+            _logger.LogInformation("Demo inquiry created: {InquiryId} from {Email}", inquiryId, request.EmailAddress);
 
-            _logger.LogInformation("Demo inquiry created: {InquiryId} from {Email}", inquiryId, request.Email);
-
-            var dto = new DemoInquiryDto
+            if(inquiryId != Guid.Empty)
             {
-                InquiryId = inquiryId,
-                FullName = inquiry.FullName,
-                Email = inquiry.Email,
-                Phone = inquiry.Phone,
-                CompanyName = inquiry.CompanyName,
-                CompanySize = inquiry.CompanySize,
-                Industry = inquiry.Industry,
-                Country = inquiry.Country,
-                Message = inquiry.Message,
-                Status = inquiry.Status,
-                Source = inquiry.Source,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            return new ServiceResponse<DemoInquiryDto>
+                await _emailService.SendDemoEmailAsync("talhashahzaddev@gmail.com", request.FullName, request.CompanyName, request.EmailAddress);
+            }
+            return new ServiceResponse<dynamic>
             {
                 Success = true,
                 Message = "Inquiry submitted successfully. We will contact you shortly.",
-                Data = dto
+                Data = inquiryId
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating demo inquiry for {Email}", request.Email);
-            return new ServiceResponse<DemoInquiryDto>
+            _logger.LogError(ex, "Error creating demo inquiry for {Email}", request.EmailAddress);
+            return new ServiceResponse<dynamic>
             {
                 Success = false,
                 Message = "Failed to submit inquiry. Please try again."
