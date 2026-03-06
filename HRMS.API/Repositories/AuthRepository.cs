@@ -608,10 +608,13 @@ WHERE token = @token;
             m.icon AS menuicon,
             s.submenuid,
             s.submenuname,
-            s.icon AS submenuicon
+            s.icon AS submenuicon,
+            a.actionid,         
+            a.actionname,         
+            a.actionkey          
         FROM auth.menus m
-        LEFT JOIN auth.submenus s 
-            ON s.menuid = m.menuid";
+        LEFT JOIN auth.submenus s ON s.menuid = m.menuid
+        LEFT JOIN auth.actions a ON a.submenuid = s.submenuid";
         //ORDER BY m.menuname, s.submenuname";
 
         try
@@ -640,7 +643,6 @@ WHERE token = @token;
 
         try
         {
-            //using var connection = await _dbContext.CreateConnectionAsync();
             var result = await ExecuteScalarAsync<Guid?>(sql, parameters);
 
             if (result == null || result == Guid.Empty)
@@ -652,7 +654,7 @@ WHERE token = @token;
         }
         catch (Exception ex)
         {
-            //.LogError(ex, "Database error while creating role: {RoleName}", request.RoleName);
+            //_logger.LogError(ex, "Database error while creating role: {RoleName}", request.RoleName);
             throw;
         }
     }
@@ -680,6 +682,12 @@ WHERE token = @token;
         var count = await ExecuteScalarAsync<int>(sql, new { submenuid = subMenuId, menuid = menuId });
         return count > 0;
     }
+    public async Task<bool> ActionExistsAsync(Guid actionId, Guid subMenuId)
+    {
+        const string sql = "SELECT COUNT(1) FROM auth.actions WHERE actionid = @actionid AND submenuid = @submenuid";
+        var count = await ExecuteScalarAsync<int>(sql, new { actionid = actionId, submenuid = subMenuId });
+        return count > 0;
+    }
 
     public async Task<List<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId)
     {
@@ -695,20 +703,20 @@ WHERE token = @token;
     public async Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId)
     {
         const string sql = @"
-        SELECT 
-            p.menuid,
-            m.menuname as MenuName,
-            p.submenuid,
-            sm.submenuname as SubMenuName,
-            p.canview,
-            p.canadd,
-            p.canedit,
-            p.candelete
-        FROM auth.permissions p
-        INNER JOIN auth.menus m ON p.menuid = m.menuid
-        INNER JOIN auth.submenus sm ON p.submenuid = sm.submenuid
-        WHERE p.roleid = @roleid
-        ORDER BY m.menuname, sm.submenuname";
+    SELECT 
+        m.menuid,
+        m.menuname as MenuName,
+        sm.submenuid,
+        sm.submenuname as SubMenuName,
+        a.actionid,
+        a.actionname as ActionName,
+        a.actionkey as ActionKey,
+        COALESCE(p.has_permission, false) as HasPermission
+    FROM auth.menus m
+    INNER JOIN auth.submenus sm ON sm.menuid = m.menuid
+    INNER JOIN auth.actions a ON a.submenuid = sm.submenuid
+    LEFT JOIN auth.permissions p ON p.actionid = a.actionid AND p.roleid = @roleid
+    ORDER BY m.menuname, sm.submenuname, a.actionname";
 
         return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
     }

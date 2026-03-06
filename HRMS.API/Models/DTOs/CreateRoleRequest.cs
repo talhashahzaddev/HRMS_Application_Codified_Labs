@@ -31,6 +31,13 @@ public class SubMenuDto
     public Guid SubMenuId { get; set; }
     public string SubMenuName { get; set; }
     public string Icon { get; set; }
+    public List<ActionDto> Actions { get; set; } = new();
+}
+public class ActionDto 
+{
+    public Guid ActionId { get; set; }
+    public string ActionName { get; set; }
+    public string ActionKey { get; set; }
 }
 
 // Models/DTOs/CreateRoleRequest.cs
@@ -38,23 +45,26 @@ public class Create_RoleRequest
 {
     public string RoleName { get; set; }
     public string Description { get; set; }
-    public bool IsSystemRole { get; set; } = false;
-    public List<MenuPermissions> Menus { get; set; }
+    public bool IsSystemRole { get; set; }
+    public List<MenuPermissionDto> Menus { get; set; }
 }
 
-public class MenuPermissions
+public class MenuPermissionDto
 {
     public Guid MenuId { get; set; }
-    public List<SubMenuPermission> SubMenus { get; set; }
+    public List<SubMenuPermissionDto> SubMenus { get; set; }
 }
 
-public class SubMenuPermission
+public class SubMenuPermissionDto
 {
     public Guid SubMenuId { get; set; }
-    public bool CanView { get; set; } = false;
-    public bool CanAdd { get; set; } = false;
-    public bool CanEdit { get; set; } = false;
-    public bool CanDelete { get; set; } = false;
+    public List<ActionPermissionDto> Actions { get; set; } // Changed from CanView/Add/Edit/Delete
+}
+
+public class ActionPermissionDto
+{
+    public Guid ActionId { get; set; }
+    public bool HasPermission { get; set; } // Single permission flag per action
 }
 public class CreateRoleResponse
 {
@@ -70,10 +80,10 @@ public class PermissionDetail
     public string MenuName { get; set; }
     public Guid SubMenuId { get; set; }
     public string SubMenuName { get; set; }
-    public bool CanView { get; set; }
-    public bool CanAdd { get; set; }
-    public bool CanEdit { get; set; }
-    public bool CanDelete { get; set; }
+    public Guid ActionId { get; set; }        // Added
+    public string ActionName { get; set; }    // Added
+    public string ActionKey { get; set; }     // Added
+    public bool HasPermission { get; set; }   // Replaced CanView/Add/Edit/Delete
 }
 public class RoleDetailResponse
 {
@@ -97,8 +107,12 @@ public class RoleSubMenuPermission
 {
     public Guid SubMenuId { get; set; }
     public string SubMenuName { get; set; }
-    public bool CanView { get; set; }
-    public bool CanAdd { get; set; }
-    public bool CanEdit { get; set; }
-    public bool CanDelete { get; set; }
+    public List<RoleActionPermission> Actions { get; set; }
+}
+public class RoleActionPermission
+{
+    public Guid ActionId { get; set; }
+    public string ActionName { get; set; }
+    public string ActionKey { get; set; }
+    public bool HasPermission { get; set; }
 }

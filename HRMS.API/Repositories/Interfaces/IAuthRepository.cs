@@ -44,6 +44,7 @@ public interface IAuthRepository
     Task<Role> GetRoleByNameAsync(string roleName, Guid organizationId);
     Task<bool> MenuExistsAsync(Guid menuId);
     Task<bool> SubMenuExistsAsync(Guid subMenuId, Guid menuId);
+    Task<bool> ActionExistsAsync(Guid actionId, Guid subMenuId);
     Task<List<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId);
     Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId);
     Task<Role> CreateRoleAsync(Role role);
