@@ -80,6 +80,21 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await QueryAsync<JobOpeningDto>(sql, new { organizationId });
     }
 
+    public async Task<JobOpeningStatsDto> GetJobOpeningStatsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT 
+                COUNT(*) AS TotalJobs,
+                COALESCE(SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END), 0) AS OpenPositions,
+                COALESCE(SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END), 0) AS ClosedPositions,
+                COALESCE(SUM(CASE WHEN status = 'Open' THEN vacancies ELSE 0 END), 0) AS TotalVacancies
+            FROM jobs.jobopenings
+            WHERE organizationid = @organizationId";
+
+        var result = await QuerySingleOrDefaultAsync<JobOpeningStatsDto>(sql, new { organizationId });
+        return result ?? new JobOpeningStatsDto();
+    }
+
     public async Task<PagedResult<JobOpeningDto>> GetJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize)
     {
         if (pageNumber < 1) pageNumber = 1;

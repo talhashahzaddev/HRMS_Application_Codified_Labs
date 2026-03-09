@@ -151,6 +151,14 @@ public class UpdateJobOpeningRequest
     public string? Status { get; set; }
 }
 
+public class JobOpeningStatsDto
+{
+    public int TotalJobs { get; set; }
+    public int OpenPositions { get; set; }
+    public int ClosedPositions { get; set; }
+    public int TotalVacancies { get; set; }
+}
+
 // ==================== Job Applications ====================
 public class JobApplicationDto
 {

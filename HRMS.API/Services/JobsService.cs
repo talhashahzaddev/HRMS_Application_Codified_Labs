@@ -67,6 +67,11 @@ public class JobsService : IJobsService
         return await _jobsRepository.GetAllJobOpeningsAsync(organizationId);
     }
 
+    public async Task<JobOpeningStatsDto> GetOpeningOverallDetailsAsync(Guid organizationId)
+    {
+        return await _jobsRepository.GetJobOpeningStatsAsync(organizationId);
+    }
+
     public async Task<PagedResult<JobOpeningDto>> GetJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize)
     {
         return await _jobsRepository.GetJobOpeningsPagedAsync(organizationId, search, status, lastDateFrom, lastDateTo, pageNumber, pageSize);

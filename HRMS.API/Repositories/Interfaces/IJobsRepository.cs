@@ -14,6 +14,7 @@ public interface IJobsRepository
 
     // JobOpenings
     Task<IEnumerable<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId);
+    Task<JobOpeningStatsDto> GetJobOpeningStatsAsync(Guid organizationId);
     Task<PagedResult<JobOpeningDto>> GetJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize);
     Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? employmentType, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize);
     Task<JobOpeningDto?> GetJobOpeningByIdAsync(Guid jobId);
