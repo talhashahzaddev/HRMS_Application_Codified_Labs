@@ -1058,7 +1058,7 @@ CREATE TABLE IF NOT EXISTS jobs.jobopenings
     vacancies integer NOT NULL DEFAULT 1,
     location character varying(200) COLLATE pg_catalog."default",
     workmode character varying(50) COLLATE pg_catalog."default",
-    employmenttype character varying(50) COLLATE pg_catalog."default",
+    employmenttype character varying(50) COLLATE pg_catalog."default" DEFAULT 'Full-time'::character varying,
     jobintroduction text COLLATE pg_catalog."default",
     responsibilities text COLLATE pg_catalog."default",
     skillset text COLLATE pg_catalog."default",
