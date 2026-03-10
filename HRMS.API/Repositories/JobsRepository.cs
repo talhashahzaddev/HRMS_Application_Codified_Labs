@@ -80,6 +80,21 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await QueryAsync<JobOpeningDto>(sql, new { organizationId });
     }
 
+    public async Task<JobOpeningStatsDto> GetJobOpeningStatsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT 
+                COUNT(*) AS TotalJobs,
+                COALESCE(SUM(CASE WHEN status = 'Open' THEN 1 ELSE 0 END), 0) AS OpenPositions,
+                COALESCE(SUM(CASE WHEN status = 'Closed' THEN 1 ELSE 0 END), 0) AS ClosedPositions,
+                COALESCE(SUM(CASE WHEN status = 'Open' THEN vacancies ELSE 0 END), 0) AS TotalVacancies
+            FROM jobs.jobopenings
+            WHERE organizationid = @organizationId";
+
+        var result = await QuerySingleOrDefaultAsync<JobOpeningStatsDto>(sql, new { organizationId });
+        return result ?? new JobOpeningStatsDto();
+    }
+
     public async Task<PagedResult<JobOpeningDto>> GetJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize)
     {
         if (pageNumber < 1) pageNumber = 1;
@@ -147,7 +162,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             PageSize = pageSize
         };
     }
-    public async Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? employmentType, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize)
     {
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize < 1) pageSize = 10;
@@ -163,7 +178,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             WHERE j.organizationid = @organizationId
               AND j.postedas = 'External'
-              AND (@status IS NULL OR j.status = @status)
+              AND (@employmentType IS NULL OR j.employmenttype = @employmentType)
               AND (@searchPattern IS NULL OR (
                   j.jobrolename ILIKE @searchPattern OR
                   j.location ILIKE @searchPattern OR
@@ -174,7 +189,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
                   j.skillset ILIKE @searchPattern))
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (j.lastdate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (j.lastdate <= @toDate))";
-        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, status, fromDate, toDate });
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, employmentType, fromDate, toDate });
 
         var dataSql = @"
             SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
@@ -193,7 +208,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
             WHERE j.organizationid = @organizationId
               AND j.postedas = 'External'
-              AND (@status IS NULL OR j.status = @status)
+              AND (@employmentType IS NULL OR j.employmenttype = @employmentType)
               AND (@searchPattern IS NULL OR (
                   j.jobrolename ILIKE @searchPattern OR
                   j.location ILIKE @searchPattern OR
@@ -206,7 +221,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (j.lastdate <= @toDate))
             ORDER BY j.posteddate DESC NULLS LAST, j.createdat DESC
             LIMIT @pageSize OFFSET @offset";
-        var data = await QueryAsync<JobOpeningDto>(dataSql, new { organizationId, searchPattern, status, fromDate, toDate, pageSize, offset });
+        var data = await QueryAsync<JobOpeningDto>(dataSql, new { organizationId, searchPattern, employmentType, fromDate, toDate, pageSize, offset });
         return new PagedResult<JobOpeningDto>
         {
             Data = data?.ToList() ?? new List<JobOpeningDto>(),

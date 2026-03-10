@@ -34,7 +34,7 @@ public class CareerController : ControllerBase
     public async Task<ActionResult<ServiceResponse<PagedResult<JobOpeningDto>>>> GetExternalJobOpenings(
         [FromQuery] string domain,
         [FromQuery] string? search,
-        [FromQuery] string? status = "Open",
+        [FromQuery] string? employmentType = "Full-time",
         [FromQuery] string? lastDateFrom = null,
         [FromQuery] string? lastDateTo = null,
         [FromQuery] int pageNumber = 1,
@@ -68,7 +68,7 @@ public class CareerController : ControllerBase
             DateTime? from = DateTime.TryParse(lastDateFrom, out var parsedFrom) ? parsedFrom : null;
             DateTime? to = DateTime.TryParse(lastDateTo, out var parsedTo) ? parsedTo : null;
 
-            var result = await _jobsService.GetExternalJobOpeningsPagedAsync(orgResult.Data.OrganizationId, search, status, from, to, pageNumber, pageSize);
+            var result = await _jobsService.GetExternalJobOpeningsPagedAsync(orgResult.Data.OrganizationId, search, employmentType, from, to, pageNumber, pageSize);
             
             return Ok(new ServiceResponse<PagedResult<JobOpeningDto>>
             {

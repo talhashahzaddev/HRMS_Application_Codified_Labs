@@ -273,6 +273,40 @@ public class JobsController : ControllerBase
         }
     }
 
+    [HttpGet("OpeningOverallDetails")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<JobOpeningStatsDto>>> GetOpeningOverallDetails()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _jobsService.GetOpeningOverallDetailsAsync(organizationId);
+            return Ok(new ServiceResponse<JobOpeningStatsDto>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting job opening details");
+            return Unauthorized(new ServiceResponse<JobOpeningStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving job opening details");
+            return StatusCode(500, new ServiceResponse<JobOpeningStatsDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving job opening details"
+            });
+        }
+    }
+
     [HttpGet("openings/{id}")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> GetJobOpeningById(Guid id)
