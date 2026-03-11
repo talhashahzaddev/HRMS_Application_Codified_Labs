@@ -913,6 +913,219 @@ TABLESPACE pg_default;
 ALTER TABLE IF EXISTS expense.expensecategories
     OWNER to postgres;
 
+    -- ============================================================================
+-- Migration: Payment Management Tables
+-- Date: 2026-03-11
+-- Description: Creates transactions, invoices, and refunds tables in the
+--              payment schema to support full payment gateway integration
+--              and admin payment management.
+-- ============================================================================
+
+-- ============================================================================
+-- 1. INVOICE NUMBER SEQUENCE
+-- ============================================================================
+CREATE SEQUENCE IF NOT EXISTS payment.invoice_number_seq
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+-- ============================================================================
+-- 2. TRANSACTIONS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS payment.transactions (
+    transaction_id          UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id              UUID            NOT NULL,
+    subscription_id         UUID            NULL,
+    plan_id                 UUID            NOT NULL,
+
+    -- Gateway details
+    gateway                 VARCHAR(50)     NOT NULL DEFAULT 'stripe',       -- 'stripe' | 'razorpay' | 'manual'
+    gateway_transaction_id  VARCHAR(255)    NULL,                            -- e.g. Stripe PaymentIntent ID
+    gateway_order_id        VARCHAR(255)    NULL,                            -- e.g. Stripe Checkout Session ID
+    gateway_customer_id     VARCHAR(255)    NULL,                            -- e.g. Stripe Customer ID
+
+    -- Payment details
+    amount                  DECIMAL(12,2)   NOT NULL,
+    currency                VARCHAR(10)     NOT NULL DEFAULT 'USD',
+    billing_cycle           VARCHAR(20)     NOT NULL,                        -- 'monthly' | 'annual'
+    status                  VARCHAR(30)     NOT NULL DEFAULT 'pending',      -- 'pending' | 'completed' | 'failed' | 'refunded' | 'cancelled'
+
+    -- Payment method info (captured from gateway)
+    payment_method          VARCHAR(50)     NULL,                            -- 'card' | 'upi' | 'netbanking' | 'wallet' | 'bank_transfer'
+    card_last4              VARCHAR(4)      NULL,
+    card_brand              VARCHAR(30)     NULL,                            -- 'visa' | 'mastercard' | 'amex' etc.
+
+    -- Failure / extra info
+    failure_reason          TEXT            NULL,
+    metadata                JSONB           NULL,                            -- Gateway-specific payload / extra data
+
+    -- Timestamps
+    created_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    updated_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+
+    -- Foreign keys
+    CONSTRAINT fk_transactions_company
+        FOREIGN KEY (company_id) REFERENCES auth.organizations(organizationid) ON DELETE RESTRICT,
+    CONSTRAINT fk_transactions_subscription
+        FOREIGN KEY (subscription_id) REFERENCES payment.companysubscriptions(subscriptionid) ON DELETE SET NULL,
+    CONSTRAINT fk_transactions_plan
+        FOREIGN KEY (plan_id) REFERENCES payment.subscriptionplans(planid) ON DELETE RESTRICT
+);
+
+-- Indexes for transactions
+CREATE INDEX IF NOT EXISTS idx_transactions_company_id      ON payment.transactions(company_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_status          ON payment.transactions(status);
+CREATE INDEX IF NOT EXISTS idx_transactions_gateway         ON payment.transactions(gateway);
+CREATE INDEX IF NOT EXISTS idx_transactions_created_at      ON payment.transactions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_gateway_txn_id  ON payment.transactions(gateway_transaction_id) WHERE gateway_transaction_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transactions_gateway_order   ON payment.transactions(gateway_order_id) WHERE gateway_order_id IS NOT NULL;
+
+-- ============================================================================
+-- 3. INVOICES TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS payment.invoices (
+    invoice_id              UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id          UUID            NOT NULL,
+    company_id              UUID            NOT NULL,
+
+    -- Invoice number (auto-generated, human-readable)
+    invoice_number          VARCHAR(50)     NOT NULL UNIQUE,
+
+    -- Amounts
+    amount                  DECIMAL(12,2)   NOT NULL,                        -- Subtotal (plan price)
+    tax_amount              DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
+    discount_amount         DECIMAL(12,2)   NOT NULL DEFAULT 0.00,
+    total_amount            DECIMAL(12,2)   NOT NULL,                        -- amount + tax - discount
+    currency                VARCHAR(10)     NOT NULL DEFAULT 'USD',
+
+    -- Billing period
+    billing_period_start    TIMESTAMPTZ     NOT NULL,
+    billing_period_end      TIMESTAMPTZ     NOT NULL,
+
+    -- Snapshot fields (captured at time of invoice for audit trail)
+    plan_name               VARCHAR(100)    NOT NULL,
+    billing_cycle           VARCHAR(20)     NOT NULL,
+    company_name            VARCHAR(255)    NOT NULL,
+    company_email           VARCHAR(255)    NULL,
+
+    -- Status
+    status                  VARCHAR(20)     NOT NULL DEFAULT 'draft',        -- 'draft' | 'paid' | 'void' | 'refunded'
+
+    -- Dates
+    issued_at               TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    paid_at                 TIMESTAMPTZ     NULL,
+    due_date                TIMESTAMPTZ     NULL,
+
+    -- Notes
+    notes                   TEXT            NULL,
+
+    -- Foreign keys
+    CONSTRAINT fk_invoices_transaction
+        FOREIGN KEY (transaction_id) REFERENCES payment.transactions(transaction_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_invoices_company
+        FOREIGN KEY (company_id) REFERENCES auth.organizations(organizationid) ON DELETE RESTRICT
+);
+
+-- Indexes for invoices
+CREATE INDEX IF NOT EXISTS idx_invoices_company_id      ON payment.invoices(company_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_transaction_id  ON payment.invoices(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_invoices_status          ON payment.invoices(status);
+CREATE INDEX IF NOT EXISTS idx_invoices_issued_at       ON payment.invoices(issued_at DESC);
+CREATE INDEX IF NOT EXISTS idx_invoices_invoice_number  ON payment.invoices(invoice_number);
+
+-- ============================================================================
+-- 4. REFUNDS TABLE
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS payment.refunds (
+    refund_id               UUID            PRIMARY KEY DEFAULT gen_random_uuid(),
+    transaction_id          UUID            NOT NULL,
+
+    -- Gateway refund reference
+    gateway_refund_id       VARCHAR(255)    NULL,
+
+    -- Refund details
+    amount                  DECIMAL(12,2)   NOT NULL,
+    currency                VARCHAR(10)     NOT NULL DEFAULT 'USD',
+    reason                  TEXT            NOT NULL,
+    status                  VARCHAR(30)     NOT NULL DEFAULT 'pending',      -- 'pending' | 'completed' | 'failed'
+
+    -- Who initiated
+    initiated_by            VARCHAR(20)     NOT NULL DEFAULT 'admin',        -- 'admin' | 'system'
+    admin_id                UUID            NULL,                            -- References admin.platform_admins if initiated by admin
+
+    -- Timestamps
+    created_at              TIMESTAMPTZ     NOT NULL DEFAULT NOW(),
+    processed_at            TIMESTAMPTZ     NULL,
+
+    -- Foreign key
+    CONSTRAINT fk_refunds_transaction
+        FOREIGN KEY (transaction_id) REFERENCES payment.transactions(transaction_id) ON DELETE RESTRICT
+);
+
+-- Indexes for refunds
+CREATE INDEX IF NOT EXISTS idx_refunds_transaction_id   ON payment.refunds(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_refunds_status           ON payment.refunds(status);
+CREATE INDEX IF NOT EXISTS idx_refunds_created_at       ON payment.refunds(created_at DESC);
+
+-- ============================================================================
+-- 5. HELPER FUNCTION: Auto-generate invoice numbers (INV-YYYY-NNNNNN)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION payment.generate_invoice_number()
+RETURNS TEXT AS $$
+DECLARE
+    next_val BIGINT;
+    year_part TEXT;
+BEGIN
+    next_val := nextval('payment.invoice_number_seq');
+    year_part := EXTRACT(YEAR FROM NOW())::TEXT;
+    RETURN 'INV-' || year_part || '-' || LPAD(next_val::TEXT, 6, '0');
+END;
+$$ LANGUAGE plpgsql;
+
+-- ============================================================================
+-- 6. TRIGGER: Auto-update updated_at on transactions
+-- ============================================================================
+CREATE OR REPLACE FUNCTION payment.update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_transactions_updated_at ON payment.transactions;
+CREATE TRIGGER trg_transactions_updated_at
+    BEFORE UPDATE ON payment.transactions
+    FOR EACH ROW
+    EXECUTE FUNCTION payment.update_updated_at_column();
+
+-- ============================================================================
+-- 7. ADD INDEX ON EXISTING companysubscriptions FOR FASTER JOINS
+-- ============================================================================
+CREATE INDEX IF NOT EXISTS idx_companysubscriptions_company_id
+    ON payment.companysubscriptions(companyid);
+CREATE INDEX IF NOT EXISTS idx_companysubscriptions_status
+    ON payment.companysubscriptions(status);
+
+-- ============================================================================
+-- MIGRATION COMPLETE
+-- ============================================================================
+-- Tables created:
+--   payment.transactions    — Records every payment attempt/completion
+--   payment.invoices        — Auto-generated invoices for completed payments
+--   payment.refunds         — Tracks refund requests and processing
+--
+-- Functions created:
+--   payment.generate_invoice_number()  — Returns 'INV-YYYY-NNNNNN'
+--   payment.update_updated_at_column() — Auto-updates updated_at timestamp
+--
+-- To verify, run:
+--   SELECT table_name FROM information_schema.tables WHERE table_schema = 'payment';
+-- ============================================================================
+
+
 -- ============================
 -- Expenses
 -- ============================
