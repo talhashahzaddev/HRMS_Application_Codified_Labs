@@ -895,7 +895,6 @@ public class AttendanceController : ControllerBase
         }
     }
 
-
     [HttpPost("assign-shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> AssignShift([FromBody] AssignShiftDto request)
     {
@@ -1225,16 +1224,6 @@ public class AttendanceController : ControllerBase
         {
             var shift = await _attendanceService.GetShiftByEmployeeIdAsync(employeeId);
 
-            //if (shift == null)
-            //{
-            //    return NotFound(new ServiceResponse<ShiftDto>
-            //    {
-            //        Success = true,
-            //        Message = "Shift not found for the given employee.",
-            //        Data = null
-            //    });
-            //}
-
             return Ok(new ServiceResponse<ShiftDto>
             {
                 Success = true,
@@ -1300,6 +1289,8 @@ public class AttendanceController : ControllerBase
             });
         }
     }
+
+
 
     [HttpPut("shift/{shiftId}")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateShift(Guid shiftId, [FromBody] UpdateShiftDto request)
@@ -1404,6 +1395,53 @@ public class AttendanceController : ControllerBase
         }
     }
 
+    [HttpGet("shift-summary")]
+    public async Task<ActionResult<ServiceResponse<ShiftSummary>>> GetShiftSummary()
+    {
+        try
+        {
+            _logger.LogInformation("Shift summary request received");
+
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetShiftSummaryAsync(organizationId,currentEmployeeId);
+
+            return Ok(new ServiceResponse<ShiftSummary>
+            {
+                Success = true,
+                Message = "Shift summary retrieved successfully.",
+                Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while retrieving shift summary");
+            return BadRequest(new ServiceResponse<ShiftSummary>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error while retrieving shift summary");
+            return BadRequest(new ServiceResponse<ShiftSummary>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving shift summary");
+            return StatusCode(500, new ServiceResponse<ShiftSummary>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving shift summary."
+            });
+        }
+    }
 
 
     [HttpGet("my-calendar")]
@@ -1954,6 +1992,46 @@ public class AttendanceController : ControllerBase
         }
         var employeeId = await _attendanceService.GetEmployeeFromTable(userId);
         return employeeId;
+    }
+
+    //Get all timezone
+    [HttpGet("timezones")]
+    public async Task<ActionResult<ServiceResponse<List<TimeZoneDto>>>> GetAllTimeZones()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployee = await GetCurrentEmployeeId();
+
+            // Optional: you can use these if you want permission validation
+
+            var timeZones = TimeZoneInfo.GetSystemTimeZones()
+                .Select(tz => new TimeZoneDto
+                {
+                    Id = tz.Id,
+                    DisplayName = tz.DisplayName,
+                    UtcOffset = tz.BaseUtcOffset.ToString(@"hh\:mm")
+                })
+                .OrderBy(t => t.DisplayName)
+                .ToList();
+
+            return Ok(new ServiceResponse<List<TimeZoneDto>>
+            {
+                Success = true,
+                Message = "Time zones retrieved successfully.",
+                Data = timeZones
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving time zones");
+
+            return StatusCode(500, new ServiceResponse<List<TimeZoneDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving time zones"
+            });
+        }
     }
 
     private Guid GetCurrentOrganizationId()

@@ -15,7 +15,7 @@ public class EmailService : IEmailService
     private readonly IConfiguration _configuration;
     private readonly IAuthRepository _authRepository;
 
-    public EmailService(ILogger<EmailService> logger, IConfiguration configuration,IAuthRepository authRepository)
+    public EmailService(ILogger<EmailService> logger, IConfiguration configuration, IAuthRepository authRepository)
     {
         _logger = logger;
         _configuration = configuration;
@@ -561,7 +561,7 @@ public class EmailService : IEmailService
         return await SendEmailAsync(email, subject, body);
     }
 
-    public async Task<bool> SendNewsEmailAsync(List<string> receiverEmails, NewsRequest request,Guid organizationId,Guid? newsid)
+    public async Task<bool> SendNewsEmailAsync(List<string> receiverEmails, NewsRequest request, Guid organizationId, Guid? newsid)
     {
         //Getting domain for the user 
         var domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationId);
@@ -756,4 +756,111 @@ public class EmailService : IEmailService
             </html>";
         return await SendEmailAsync(toEmail, subject, body);
     }
+
+    public async Task<bool> SendAssignShiftEmailAsync(List<string> receiverEmails, string message, Guid organizationId)
+    {
+        // Getting domain
+        var domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationId);
+
+        if (receiverEmails == null || !receiverEmails.Any())
+            return false;
+
+        var subject = $"Shift Assigned | BriskPeople";
+
+        var cleanDomain = domain
+            .Trim()
+            .ToLower()
+            .Replace("http://", "")
+            .Replace("https://", "")
+            .Replace(".com", "");
+
+        var dashboardUrl = $"http://{cleanDomain}.briskpeople.com/attendance/shift";
+
+        var body = $@"<!DOCTYPE html>
+                  <html>
+                 <head>
+                <meta charset='UTF-8'>
+                 </head>
+               <body style='margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif;'>
+
+             <table width='100%' cellpadding='0' cellspacing='0' style='padding:30px 0;'>     
+                  <tr>
+           <td align='center'>
+         <table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff; border-radius:8px; overflow:hidden;'>
+      <!-- Header -->
+           <tr>
+         <td align='center' style='padding:30px; background:#ffffff;'>
+            <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
+         <tr>
+            <td style='vertical-align:middle; padding-right:10px;'>
+        <img src='https://www.briskpeople.com/hub.png' 
+           alt='BriskPeople' 
+        style='height:40px; display:block;' />
+        </td>
+        <td style='vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;'>
+      BriskPeople
+          </td>
+            </tr>
+            </table>
+            </td>
+             </tr>
+          <!-- Content -->
+              <tr>
+             <td style='padding:30px; color:#333333; font-size:14px; line-height:1.7;'>
+       <p style='margin-top:0;'>Hi,</p>
+        <p>
+           A new shift has been assigned to you on <strong>BriskPeople</strong>. 
+         </p>
+           <h3 style='margin:15px 0; color:#1f4fd8;'>
+        Shift Assignment
+           </h3>
+          <p>
+        {message}
+        </p>
+        <!-- Button -->
+         <p style='text-align:center; margin:25px 0;'>
+       <a href='{dashboardUrl}'
+   style='background:#1f4fd8;
+          color:#ffffff;
+          padding:14px 28px;
+          text-decoration:none;
+          border-radius:6px;
+          font-size:14px;
+          font-weight:bold;
+          display:inline-block;'>
+     View Shift
+       </a>
+          </p>
+        <p>
+         You can view your assigned shifts by clicking the button above.
+       </p>
+           <p style='margin-bottom:0;'>
+       Best regards,<br/>
+       <strong>BriskPeople Team</strong>
+       </p>
+        </td>
+          </tr>
+<!-- Footer -->
+            <tr>
+           <td align='center' style='padding:20px; background:#f4f6f8; font-size:12px; color:#777777;'>
+       © {DateTime.UtcNow.Year} BriskPeople. All rights reserved.
+       </td>
+         </tr>
+      </table>
+         </td>
+        </tr>
+        </table>
+         </body>
+          </html>";
+
+        foreach (var email in receiverEmails)
+        {
+            await SendEmailAsync(email, subject, body);
+        }
+
+        return true;
+    }
+
+
+
 }

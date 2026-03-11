@@ -9,6 +9,8 @@ public interface ISettingsRepository
     Task<int> GetManualEntryTimeLimitAsync(Guid organizationId);
     Task<bool> UpdateCareerPageAsync(Guid organizationId, string? careerBgImageUrl, string? careerHeaderText, string? careerDescription, string? logoUrl);
     Task<CareerPageDto?> GetCareerPageAsync(Guid organizationId);
+    Task<bool> UpdateLocalizationAsync(Guid organizationId, string currency, string timeZone, string culture);
+    Task<GetLocaalizationSettings?> GetOrganizationSettingsAsync(Guid organizationId);
 }
 
 

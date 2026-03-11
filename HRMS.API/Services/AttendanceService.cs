@@ -9,6 +9,7 @@ using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using iTextSharp.text;
+using Mailjet.Client.Resources;
 using NPOI.SS.Formula.Functions;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
@@ -29,6 +30,7 @@ public class AttendanceService : IAttendanceService
     private readonly ILogger<AttendanceService> _logger;
     private readonly IIpAddressRepository _ipAddressRepository;
     private readonly ISettingsRepository _settingsRepository;
+    private readonly IEmailService _emailService;
 
     public AttendanceService(
         IAttendanceRepository attendanceRepository,
@@ -37,6 +39,7 @@ public class AttendanceService : IAttendanceService
         IEmployeeRepository employeeRepository,
         ILeaveRepository leaveRepository,
         IIpAddressRepository ipAddressRepository,
+        IEmailService emailService,
         ISettingsRepository settingsRepository,
         ILogger<AttendanceService> logger)
     {
@@ -44,8 +47,9 @@ public class AttendanceService : IAttendanceService
         _notificationRepository = notificationRepository;
         _employeeRepository = employeeRepository;
         _leaveRepository = leaveRepository;
-        _ipAddressRepository = ipAddressRepository; 
+        _ipAddressRepository = ipAddressRepository;
         _settingsRepository = settingsRepository;
+        _emailService = emailService;
         _mapper = mapper;
         _logger = logger;
     }
@@ -74,6 +78,12 @@ public class AttendanceService : IAttendanceService
         var shiftStartDateTime = now.Date + shift.StartTime;
         var shiftStart = shiftStartDateTime.AddHours(+shift.marginHours);
         var allowedFrom = shiftStartDateTime.AddHours(-shift.marginHours);
+        var today = (int)now.DayOfWeek;
+        // Check if today is included in shift days
+        if (shift.DaysOfWeek == null || !shift.DaysOfWeek.Contains(today))
+        {
+            throw new InvalidOperationException("You have no shift assigned for today, so you cannot clock in.");
+        }
 
         if (shift.ApplyMarginhours)
         {
@@ -83,6 +93,7 @@ public class AttendanceService : IAttendanceService
         if (await _attendanceRepository.CheckAlreadyClockInAsync(employeeId))
             throw new InvalidOperationException("Already clocked in");
         var todayAttendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
+       
 
         string message = "Clocked in successfully";
 
@@ -683,38 +694,58 @@ public class AttendanceService : IAttendanceService
         return true;
     }
 
-    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request,Guid currentEmpid)
+    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request, Guid currentEmpid)
     {
-        var result = await _attendanceRepository.AssignShiftToEmployeeAsync(organizationId, request);
+        if (request.SelectedEmployees == null || !request.SelectedEmployees.Any())
+            return false;
 
-        //Create Notification 
+        // 1️⃣ Update all shifts in one DB call
+        var assignResult = await _attendanceRepository.AssignShiftToEmployeeAsync(organizationId, request);
+        if (!assignResult)
+            return false;
+
         var currentEmp = await _employeeRepository.GetEmployeeByIdAsync(currentEmpid);
-        //var employee = await _employeeRepository.GetEmployeeByIdAsync(currentEmp);
-        //Get shift details
         var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(request.ShiftId);
 
-        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
-        if (result!= null)
-
+        // 2️⃣ Prepare receiver list (Selected Employees)
+        var receiverIds = request.SelectedEmployees.ToList();
+       
+        if (receiverIds.Any())
         {
-            var notification = new NotificationCreateDto
+            foreach (var receiverId in receiverIds)
             {
-                Receiveruserid = new List<Guid> { request.EmployeeId },
-                Senderuserid = currentEmpid,
-                Title = "Shift Assign",
-                Message = $"{currentEmp.FirstName} {currentEmp.LastName}, assign you shift of {shiftDetails.ShiftName} ",
-                Notificationtype = "Message",
-                Createdby = currentEmpid,
-                moduletype = "Shift",
-                Redirecturl = "/attendance/shift",
-                organizationId = organizationId
-            };
-            await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+                var message = receiverId == currentEmpid ? $"You assigned shift of {shiftDetails.ShiftName} successfully" :                                                     $"{currentEmp.FirstName} {currentEmp.LastName} assigned you shift of {shiftDetails.ShiftName}";
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = new List<Guid> { receiverId },  // All selected employees at once
+                    Senderuserid = currentEmpid,
+                    Title = "Shift Assign",
+                    Message = message,
+                    Notificationtype = "Message",
+                    Createdby = currentEmpid,
+                    moduletype = "Shift",
+                    Redirecturl = "/attendance/shift",
+                    organizationId = organizationId
+                };
+
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+
+            }
+
+
+            //Implemennting Email in news creation
+            var ReciverEmails = new List<string>();
+            var Emailmessage = $"{currentEmp.FirstName} {currentEmp.LastName} assigned you shift of {shiftDetails.ShiftName}";
+            var selectedEmployees = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(receiverIds);
+            ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
+
+            await _emailService.SendAssignShiftEmailAsync(ReciverEmails, Emailmessage, organizationId);
         }
 
         return true;
-
     }
+
 
 
     public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId,Guid currentEmployeeId)
@@ -756,45 +787,49 @@ public class AttendanceService : IAttendanceService
     //Shiftswap 
 
    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
-    {
-  
-        var result= await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
+    {   
         //Step 2: Create notification
-
         var EMPID = await _attendanceRepository.GetEmpId(requestDto.EmployeeId);
 
         var employee = await _employeeRepository.GetEmployeeByIdAsync(EMPID);
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
         //Getting manager employeeid
-        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
-        // Get Request shift Details
-
-        var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(requestDto.RequestedShiftId);
-
-
-        if (result!=null)
-
+        var reportingManagerDetail = await _employeeRepository.GetEmployeeByIdAsync(reportingmangerid);
+       if (reportingManagerDetail!=null)
         {
-            var notification = new NotificationCreateDto
+            var result = await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
+            var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(requestDto.RequestedShiftId);
+
+
+            if (result != null)
+
             {
-                //Receiveruserid = reportingmangerid,
-                Receiveruserid = new List<Guid> { reportingmangerid},
-                Senderuserid = employee.EmployeeId,
-                Title = "Swap Request",
-                Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
-                Notificationtype = "Request",
-                Createdby = requestDto.EmployeeId,
-                moduletype = "attendance",
-                Redirecturl = "/attendance/shift",
-                RequestId = result.RequestId,
-                organizationId = organizationId
-            };
-            await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = new List<Guid> { reportingmangerid },
+                    Senderuserid = employee.EmployeeId,
+                    Title = "Swap Request",
+                    Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
+                    Notificationtype = "Request",
+                    Createdby = requestDto.EmployeeId,
+                    moduletype = "attendance",
+                    Redirecturl = "/attendance/shift",
+                    RequestId = result.RequestId,
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+            }
+            return true;
+        }
+        else
+        {
+            throw new InvalidOperationException("No Reporting manager is assigned");
 
         }
 
-        return true;
+
 
     }
 
@@ -880,8 +915,30 @@ public class AttendanceService : IAttendanceService
     {
         return await _attendanceRepository.GetShiftSwapRequestsByEmployeeAsync(employeeId);
     }
+    //Getting Shift Summaary
+    public async Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Invalid organization id");
 
+        if (currentEmployeeId == Guid.Empty)
+            throw new ArgumentException("Invalid employee id");
 
+        var summary = await _attendanceRepository.GetShiftSummaryAsync(organizationId, currentEmployeeId);
+
+        if (summary == null)
+        {
+            return new ShiftSummary
+            {
+                TotalShifts = 0,
+                ShiftAssignedEmployee = 0,
+                UnassignedShiftsEmp = 0,
+                shiftSwapRequests = 0
+            };
+        }
+
+        return summary;
+    }
 
 
 
@@ -973,12 +1030,8 @@ public class AttendanceService : IAttendanceService
 
             return await _attendanceRepository.GetManagerEmployeeAsync(currentEmployeeId, organizationId, departmentId);
         }
-
-        
+       
     }
-
-
-
 
     private async Task<AttendanceReportDto> GetFullAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10)
     {

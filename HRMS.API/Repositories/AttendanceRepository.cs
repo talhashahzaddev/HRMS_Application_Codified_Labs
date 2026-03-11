@@ -1405,7 +1405,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 ShiftName = request.ShiftName,
                 StartTime = request.StartTime,
                 EndTime = request.EndTime,
-                ApplyMarginhours = request.ApplyMarginhours,
+                ApplyMarginhours = request.ApplyMarginhours ?? false,
                 marginHours = request.marginHours,
 
                 BreakDuration = request.BreakDuration ?? 0,
@@ -1455,20 +1455,21 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
     public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request)
     {
+        if (request.SelectedEmployees == null || !request.SelectedEmployees.Any())
+            return false;
+
         try
         {
             var sql = @"
-            UPDATE employee.employmentdetails
-            SET shiftid = @ShiftId
-            WHERE employeeid = @EmployeeId
-          
-        ";
+        UPDATE employee.employmentdetails
+        SET shiftid = @ShiftId
+        WHERE employeeid = ANY(@EmployeeIds::uuid[])
+    ";
 
             var parameters = new
             {
                 ShiftId = request.ShiftId,
-                EmployeeId = request.EmployeeId,
-                //OrganizationId = organizationId
+                EmployeeIds = request.SelectedEmployees
             };
 
             var rowsAffected = await ExecuteAsync(sql, parameters);
@@ -1476,11 +1477,10 @@ ORDER BY ed.employeename, ed.workdate ASC";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error assigning shift {ShiftId} to employee {EmployeeId} for organization {OrganizationId}",
-                request.ShiftId, request.EmployeeId, organizationId);
+            _logger.LogError(ex, "Error assigning shift {ShiftId} to employees {@EmployeeIds} for organization {OrganizationId}",
+                request.ShiftId, request.SelectedEmployees, organizationId);
             throw;
         }
-
     }
 
     //Get by shift
@@ -1889,6 +1889,58 @@ WHERE ed.employeeid = @EmployeeId
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching shifts for organization {OrganizationId}", organizationId);
+            throw;
+        }
+    }
+ //Getting shift summary 
+    public async Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId)
+    {
+        try
+        {
+            var sql = @"
+        SELECT
+            -- Total shifts in organization
+            (SELECT COUNT(*)
+             FROM attendance.shifts s
+             WHERE s.organizationid = @OrganizationId) AS ""TotalShifts"",
+
+            -- Employees with assigned shift
+            (SELECT COUNT(*)
+             FROM employee.employees e
+             LEFT JOIN employee.employmentdetails ed 
+                ON e.employeeid = ed.employeeid 
+                AND ed.iscurrent = TRUE
+             WHERE e.organizationid = @OrganizationId
+             AND ed.shiftid IS NOT NULL) AS ""ShiftAssignedEmployee"",
+
+            -- Employees without shift
+            (SELECT COUNT(*)
+             FROM employee.employees e
+             LEFT JOIN employee.employmentdetails ed 
+                ON e.employeeid = ed.employeeid 
+                AND ed.iscurrent = TRUE
+             WHERE e.organizationid = @OrganizationId
+             AND ed.shiftid IS NULL) AS ""UnassignedShiftsEmp"",
+
+            -- Pending shift swap requests
+            (SELECT COUNT(*)
+             FROM attendance.shiftswaprequests ssr
+             WHERE ssr.organizationid = @OrganizationId
+             AND ssr.status = 'pending') AS ""shiftSwapRequests"";
+        ";
+
+            var parameters = new
+            {
+                OrganizationId = organizationId
+            };
+
+            var result = await QuerySingleOrDefaultAsync<ShiftSummary>(sql, parameters);
+
+            return result ?? new ShiftSummary();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching shift summary for organization {OrganizationId}", organizationId);
             throw;
         }
     }

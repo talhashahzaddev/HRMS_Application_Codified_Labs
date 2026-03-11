@@ -1,3 +1,5 @@
+using System.Drawing;
+
 namespace HRMS.API.Models.DTOs;
 
 public class OrganizationSettingsDto
@@ -6,6 +8,8 @@ public class OrganizationSettingsDto
     public string? Currency { get; set; }
     public string OrganizationName { get; set; } = string.Empty;
     public int ManualAttendanceTimeLimitDays { get; set; } = 30; // Default 30 days
+    public string? TimeZone { get; set; }
+    public string? Culture { get; set; }
 }
 
 public class UpdateCurrencyRequest
@@ -13,6 +17,19 @@ public class UpdateCurrencyRequest
     public string Currency { get; set; } = string.Empty;
 }
 
+public class UpdateLocalizationSettingsRequest
+{
+    public string Currency { get; set; }
+    public string? TimeZone { get; set; }
+    public string? Culture { get; set; }
+}
+
+public class GetLocaalizationSettings
+{
+    public string? Currency { get; set; }
+    public string? TimeZone { get; set; }
+    public string? Culture { get; set; }
+}
 public class UpdateCareerPageRequest
 {
     public string? CareerBgImageUrl { get; set; }

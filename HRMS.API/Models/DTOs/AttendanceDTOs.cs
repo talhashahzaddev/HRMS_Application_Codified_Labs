@@ -130,8 +130,8 @@ public class CreateShiftDto
     public string ShiftName { get; set; }                 // Name of the shift e.g., "Morning", "Evening"
     public TimeSpan? StartTime { get; set; }              // Start time of the shift
     public TimeSpan? EndTime { get; set; }                // End time of the shift
-    public int marginHours { get; set; }
-    public bool ApplyMarginhours { get; set; } = false;
+    public int? marginHours { get; set; }
+    public bool? ApplyMarginhours { get; set; } = false;
 
     public int? BreakDuration { get; set; } = 0;          // Break duration in minutes
     public TimeSpan? BreakStartTime { get; set; }         // Added: Break start time
@@ -166,9 +166,17 @@ public class UpdateShiftDto
 
 
 
+//public class AssignShiftDto
+//{
+//    public Guid EmployeeId { get; set; }
+//    public Guid ShiftId { get; set; }
+//    public DateTime AssignedDate { get; set; }
+
+//}
+
 public class AssignShiftDto
 {
-    public Guid EmployeeId { get; set; }
+    public Guid[]? SelectedEmployees { get; set; }
     public Guid ShiftId { get; set; }
     public DateTime AssignedDate { get; set; }
 
@@ -234,6 +242,14 @@ public class ApproveShiftSwapRequestDto
     public Guid ApprovedBy { get; set; }
     public bool IsApproved { get; set; }
     public string? RejectionReason { get; set; }
+}
+
+public class ShiftSummary
+{
+    public int TotalShifts { get; set; }
+    public int ShiftAssignedEmployee { get; set; }
+    public int UnassignedShiftsEmp { get; set; }
+    public int shiftSwapRequests { get; set; }
 }
 
 
@@ -320,6 +336,12 @@ public class MonthlyTimesheetCreateDto
     public string TimesheetName { get; set; }
     public int Month { get; set; }
     public int Year { get; set; }
+}
+public class TimeZoneDto
+{
+    public string Id { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string UtcOffset { get; set; } = string.Empty;
 }
 public class OrgSubmissionProgressDto
 {
