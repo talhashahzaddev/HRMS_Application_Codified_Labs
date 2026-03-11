@@ -55,7 +55,7 @@ public class SettingsController : ControllerBase
         {
             var organizationId = GetCurrentOrganizationId();
             var result = await _settingsService.UpdateCurrencyAsync(organizationId, request.Currency);
-            
+
             if (!result.Success)
             {
                 return BadRequest(result);
@@ -70,6 +70,42 @@ public class SettingsController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while updating currency"
+            });
+        }
+    }
+
+
+    [HttpPut("localization")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateLocalization(
+    [FromBody] UpdateLocalizationSettingsRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var result = await _settingsService.UpdateLocalizationAsync(
+                organizationId,
+                request.Currency,
+                request.TimeZone,
+                request.Culture
+            );
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating localization settings");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating localization settings"
             });
         }
     }

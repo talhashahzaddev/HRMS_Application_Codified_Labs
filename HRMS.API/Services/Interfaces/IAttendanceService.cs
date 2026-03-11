@@ -65,5 +65,6 @@ public interface IAttendanceService
     Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(Guid timesheetId,Guid organizationId,Guid currentUserId,Guid? targetEmployeeId = null);
     Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(
        Guid organizationId, int month, int year);
-        Task<bool> AdminOverrideAttendanceAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId);
+    Task<bool> AdminOverrideAttendanceAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId);
+    Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId);
 }

@@ -75,5 +75,6 @@ public interface IAttendanceRepository
     Task<IEnumerable<PendingAttendanceRequest>> GetAllReviewableRequestsAsync(Guid organizationId, Guid? managerId = null);
     Task<bool> AdminFinalizeRecordAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId);
     Task<int> FlipDraftsToPendingAsync(Guid employeeId, int month, int year, Guid timesheetId);
+    Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId);
 
 }

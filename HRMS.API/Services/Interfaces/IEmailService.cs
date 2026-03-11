@@ -13,4 +13,5 @@ public interface IEmailService
     Task<bool> SendVerificationEmailAsync(string email, string adminName, string verificationToken);
     Task<bool> SendNewsEmailAsync(List<string> receiverEmails, NewsRequest request,Guid OrganizationId,Guid? newsId);
     Task<bool> SendDemoEmailAsync(string toEmail, string fullName, string companyName, string fromEmail);
+    Task<bool> SendAssignShiftEmailAsync(List<string> receiverEmails, string message, Guid organizationId);
 }
