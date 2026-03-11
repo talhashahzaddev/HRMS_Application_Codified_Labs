@@ -12,11 +12,16 @@ namespace HRMS.API.Controllers;
 public class SuperAdminController : ControllerBase
 {
     private readonly ISuperAdminService _superAdminService;
+    private readonly ITransactionService _transactionService;
     private readonly ILogger<SuperAdminController> _logger;
 
-    public SuperAdminController(ISuperAdminService superAdminService, ILogger<SuperAdminController> logger)
+    public SuperAdminController(
+        ISuperAdminService superAdminService,
+        ITransactionService transactionService,
+        ILogger<SuperAdminController> logger)
     {
         _superAdminService = superAdminService;
+        _transactionService = transactionService;
         _logger = logger;
     }
 
@@ -167,6 +172,146 @@ public class SuperAdminController : ControllerBase
                 Success = false,
                 Message = "An error occurred while managing the subscription"
             });
+        }
+    }
+
+
+    // ========== PAYMENT MANAGEMENT (Admin) ==========
+
+    /// <summary>
+    /// Get payment dashboard with revenue statistics
+    /// </summary>
+    [HttpGet("payment-dashboard")]
+    public async Task<ActionResult<ServiceResponse<PaymentDashboardDto>>> GetPaymentDashboard()
+    {
+        try
+        {
+            var response = await _transactionService.GetPaymentDashboardAsync();
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting payment dashboard");
+            return StatusCode(500, new ServiceResponse<PaymentDashboardDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Get all transactions with filters (admin view)
+    /// </summary>
+    [HttpGet("transactions")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<TransactionDto>>>> GetAllTransactions(
+        [FromQuery] string? status, [FromQuery] string? gateway, [FromQuery] Guid? companyId,
+        [FromQuery] Guid? planId, [FromQuery] DateTime? dateFrom, [FromQuery] DateTime? dateTo,
+        [FromQuery] string? sortBy, [FromQuery] string? sortDirection,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var filter = new TransactionFilterRequest
+            {
+                Status = status, Gateway = gateway, CompanyId = companyId, PlanId = planId,
+                DateFrom = dateFrom, DateTo = dateTo,
+                SortBy = sortBy ?? "created_at", SortDirection = sortDirection ?? "desc",
+                Page = page, PageSize = Math.Min(pageSize, 100)
+            };
+            var response = await _transactionService.GetAllTransactionsAsync(filter);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all transactions");
+            return StatusCode(500, new ServiceResponse<PagedResult<TransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Get detailed transaction information
+    /// </summary>
+    [HttpGet("transactions/{transactionId:guid}")]
+    public async Task<ActionResult<ServiceResponse<TransactionDetailDto>>> GetTransactionDetail(Guid transactionId)
+    {
+        try
+        {
+            var response = await _transactionService.GetTransactionDetailAsync(transactionId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting transaction detail {TransactionId}", transactionId);
+            return StatusCode(500, new ServiceResponse<TransactionDetailDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Get all invoices with filters (admin view)
+    /// </summary>
+    [HttpGet("invoices")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<InvoiceDto>>>> GetAllInvoices(
+        [FromQuery] string? status, [FromQuery] Guid? companyId,
+        [FromQuery] DateTime? dateFrom, [FromQuery] DateTime? dateTo,
+        [FromQuery] string? sortBy, [FromQuery] string? sortDirection,
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var filter = new InvoiceFilterRequest
+            {
+                Status = status, CompanyId = companyId,
+                DateFrom = dateFrom, DateTo = dateTo,
+                SortBy = sortBy ?? "issued_at", SortDirection = sortDirection ?? "desc",
+                Page = page, PageSize = Math.Min(pageSize, 100)
+            };
+            var response = await _transactionService.GetAllInvoicesAsync(filter);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all invoices");
+            return StatusCode(500, new ServiceResponse<PagedResult<InvoiceDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Process a refund for a transaction
+    /// </summary>
+    [HttpPost("refunds")]
+    public async Task<ActionResult<ServiceResponse<RefundDto>>> CreateRefund([FromBody] CreateRefundRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new ServiceResponse<RefundDto> { Success = false, Message = "Invalid request" });
+
+            var adminId = GetCurrentAdminId();
+            var response = await _transactionService.CreateRefundAsync(adminId, request);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating refund");
+            return StatusCode(500, new ServiceResponse<RefundDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Get revenue analytics (charts data)
+    /// </summary>
+    [HttpGet("revenue-analytics")]
+    public async Task<ActionResult<ServiceResponse<RevenueAnalyticsDto>>> GetRevenueAnalytics(
+        [FromQuery] int months = 12)
+    {
+        try
+        {
+            var response = await _transactionService.GetRevenueAnalyticsAsync(Math.Min(months, 24));
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting revenue analytics");
+            return StatusCode(500, new ServiceResponse<RevenueAnalyticsDto> { Success = false, Message = "An error occurred" });
         }
     }
 

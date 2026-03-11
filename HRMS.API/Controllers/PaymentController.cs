@@ -13,13 +13,16 @@ namespace HRMS.API.Controllers;
 public class PaymentController : ControllerBase
 {
     private readonly IPaymentService _paymentService;
+    private readonly ITransactionService _transactionService;
     private readonly ILogger<PaymentController> _logger;
 
     public PaymentController(
         IPaymentService paymentService,
+        ITransactionService transactionService,
         ILogger<PaymentController> logger)
     {
         _paymentService = paymentService;
+        _transactionService = transactionService;
         _logger = logger;
     }
 
@@ -671,6 +674,150 @@ public class PaymentController : ControllerBase
 
         return organizationId;
     }
+
+    // ========== PAYMENT MANAGEMENT ENDPOINTS ==========
+
+    private Guid GetCompanyIdFromToken()
+    {
+        var companyIdClaim = User.FindFirstValue("organizationId")
+            ?? User.FindFirstValue("companyId");
+        if (string.IsNullOrEmpty(companyIdClaim) || !Guid.TryParse(companyIdClaim, out var companyId))
+        {
+            throw new UnauthorizedAccessException("Company ID not found in token");
+        }
+        return companyId;
+    }
+
+    /// <summary>
+    /// Create a checkout session for plan purchase
+    /// </summary>
+    [HttpPost("create-checkout-session")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<CheckoutSessionResponse>>> CreateCheckoutSession(
+        [FromBody] CreateCheckoutSessionRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new ServiceResponse<CheckoutSessionResponse> { Success = false, Message = "Invalid request" });
+
+            var companyId = GetCompanyIdFromToken();
+            var response = await _transactionService.CreateCheckoutSessionAsync(companyId, request);
+
+            if (!response.Success)
+                return BadRequest(response);
+
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new ServiceResponse<CheckoutSessionResponse> { Success = false, Message = "Unauthorized" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating checkout session");
+            return StatusCode(500, new ServiceResponse<CheckoutSessionResponse> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Verify payment after gateway redirect
+    /// </summary>
+    [HttpPost("verify-payment")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<PaymentConfirmationDto>>> VerifyPayment(
+        [FromBody] VerifyPaymentRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(new ServiceResponse<PaymentConfirmationDto> { Success = false, Message = "Invalid request" });
+
+            var response = await _transactionService.VerifyPaymentAsync(request);
+
+            if (!response.Success)
+                return BadRequest(response);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying payment");
+            return StatusCode(500, new ServiceResponse<PaymentConfirmationDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Get transaction history for the authenticated company
+    /// </summary>
+    [HttpGet("transactions")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<PagedResult<TransactionDto>>>> GetMyTransactions(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var companyId = GetCompanyIdFromToken();
+            var response = await _transactionService.GetTransactionsByCompanyAsync(companyId, page, Math.Min(pageSize, 50));
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new ServiceResponse<PagedResult<TransactionDto>> { Success = false, Message = "Unauthorized" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting transactions");
+            return StatusCode(500, new ServiceResponse<PagedResult<TransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Get invoices for the authenticated company
+    /// </summary>
+    [HttpGet("invoices")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<PagedResult<InvoiceDto>>>> GetMyInvoices(
+        [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    {
+        try
+        {
+            var companyId = GetCompanyIdFromToken();
+            var response = await _transactionService.GetInvoicesByCompanyAsync(companyId, page, Math.Min(pageSize, 50));
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(new ServiceResponse<PagedResult<InvoiceDto>> { Success = false, Message = "Unauthorized" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting invoices");
+            return StatusCode(500, new ServiceResponse<PagedResult<InvoiceDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    /// <summary>
+    /// Get a specific invoice by ID
+    /// </summary>
+    [HttpGet("invoices/{invoiceId:guid}")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<InvoiceDto>>> GetInvoice(Guid invoiceId)
+    {
+        try
+        {
+            var response = await _transactionService.GetInvoiceByIdAsync(invoiceId);
+            if (!response.Success)
+                return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting invoice {InvoiceId}", invoiceId);
+            return StatusCode(500, new ServiceResponse<InvoiceDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
 }
 
 
