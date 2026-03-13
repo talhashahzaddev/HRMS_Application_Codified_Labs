@@ -372,7 +372,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await QueryAsync<JobApplicationDto>(sql, new { organizationId });
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize)
     {
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize < 1) pageSize = 10;
@@ -381,6 +381,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
         var fromDate = applyDateFrom ?? new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var toDate = applyDateTo ?? new DateTime(9999, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+        var jobIdArray = jobIds?.Where(id => id != Guid.Empty).ToArray();
+        var hasJobIds = jobIdArray != null && jobIdArray.Length > 0;
 
         var countSql = @"
             SELECT COUNT(*)
@@ -394,8 +396,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
-              AND (@jobId IS NULL OR a.jobid = @jobId)";
-        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, fromDate, toDate, stageId, jobId });
+              AND (@hasJobIds = false OR a.jobid = ANY(@jobIdArray))";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { organizationId, searchPattern, fromDate, toDate, stageId, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>() });
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.organizationid = @organizationId
@@ -406,10 +408,10 @@ public class JobsRepository : BaseRepository, IJobsRepository
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
-              AND (@jobId IS NULL OR a.jobid = @jobId)
+              AND (@hasJobIds = false OR a.jobid = ANY(@jobIdArray))
             ORDER BY a.createddate DESC NULLS LAST
             LIMIT @pageSize OFFSET @offset";
-        var data = await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, stageId, jobId, pageSize, offset });
+        var data = await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, stageId, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>(), pageSize, offset });
         return new PagedResult<JobApplicationDto>
         {
             Data = data?.ToList() ?? new List<JobApplicationDto>(),
@@ -419,7 +421,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         };
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize)
     {
         if (pageNumber < 1) pageNumber = 1;
         if (pageSize < 1) pageSize = 10;
@@ -428,6 +430,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
         var fromDate = applyDateFrom ?? new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var toDate = applyDateTo ?? new DateTime(9999, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+        var jobIdArray = jobIds?.Where(id => id != Guid.Empty).ToArray();
+        var hasJobIds = jobIdArray != null && jobIdArray.Length > 0;
 
         var countSql = @"
             SELECT COUNT(*)
@@ -441,8 +445,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
-              AND (@jobId IS NULL OR a.jobid = @jobId)";
-        var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, searchPattern, fromDate, toDate, stageId, jobId });
+              AND (@hasJobIds = false OR a.jobid = ANY(@jobIdArray))";
+        var totalCount = await ExecuteScalarAsync<int>(countSql, new { employeeId, searchPattern, fromDate, toDate, stageId, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>() });
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.jobid IN (SELECT jobid FROM jobs.jobopenings WHERE createdby = @employeeId)
@@ -453,10 +457,10 @@ public class JobsRepository : BaseRepository, IJobsRepository
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
               AND (@stageId IS NULL OR a.currentstageid = @stageId)
-              AND (@jobId IS NULL OR a.jobid = @jobId)
+              AND (@hasJobIds = false OR a.jobid = ANY(@jobIdArray))
             ORDER BY a.createddate DESC NULLS LAST
             LIMIT @pageSize OFFSET @offset";
-        var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, searchPattern, fromDate, toDate, stageId, jobId, pageSize, offset });
+        var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, searchPattern, fromDate, toDate, stageId, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>(), pageSize, offset });
         return new PagedResult<JobApplicationDto>
         {
             Data = data?.ToList() ?? new List<JobApplicationDto>(),

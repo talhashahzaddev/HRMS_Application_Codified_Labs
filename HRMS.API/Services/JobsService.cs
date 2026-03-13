@@ -197,14 +197,14 @@ public class JobsService : IJobsService
         return await _jobsRepository.GetAllJobApplicationsAsync(organizationId);
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize)
     {
-        return await _jobsRepository.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, jobId, pageNumber, pageSize);
+        return await _jobsRepository.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, jobIds, pageNumber, pageSize);
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, Guid? jobId, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize)
     {
-        return await _jobsRepository.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, jobId, pageNumber, pageSize);
+        return await _jobsRepository.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, jobIds, pageNumber, pageSize);
     }
 
     public async Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId)
