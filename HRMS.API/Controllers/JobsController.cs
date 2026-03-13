@@ -514,12 +514,12 @@ public class JobsController : ControllerBase
         [FromQuery] DateTime? applyDateFrom = null,
         [FromQuery] DateTime? applyDateTo = null,
         [FromQuery] Guid? stageId = null,
-        [FromQuery] Guid? jobId = null)
+        [FromQuery] List<Guid>? jobIds = null)
     {
         try
         {
             var employeeId = await GetCurrentEmployeeId();
-            var result = await _jobsService.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, jobId, pageNumber, pageSize);
+            var result = await _jobsService.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, jobIds, pageNumber, pageSize);
             return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = true,
@@ -555,12 +555,12 @@ public class JobsController : ControllerBase
         [FromQuery] DateTime? applyDateFrom = null,
         [FromQuery] DateTime? applyDateTo = null,
         [FromQuery] Guid? stageId = null,
-        [FromQuery] Guid? jobId = null)
+        [FromQuery] List<Guid>? jobIds = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var result = await _jobsService.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, jobId, pageNumber, pageSize);
+            var result = await _jobsService.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, jobIds, pageNumber, pageSize);
             return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = true,
