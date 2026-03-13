@@ -1284,8 +1284,10 @@ public class AttendanceService : IAttendanceService
             var headerFont = workbook.CreateFont();
             headerFont.IsBold = true;
             headerStyle.SetFont(headerFont);
-            headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+            //headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+            //headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
             headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+            headerStyle.FillForegroundColor = NPOI.SS.UserModel.IndexedColors.Grey25Percent.Index;
             cell.CellStyle = headerStyle;
         }
 
@@ -1300,6 +1302,7 @@ public class AttendanceService : IAttendanceService
             row.CreateCell(3).SetCellValue(record.CheckOutTime?.ToString("HH:mm") ?? "N/A");
             row.CreateCell(4).SetCellValue((double)record.TotalHours);
             row.CreateCell(5).SetCellValue((double)record.OvertimeHours);
+
             row.CreateCell(6).SetCellValue(record.Status);
             row.CreateCell(7).SetCellValue(record.Notes ?? "");
         }
