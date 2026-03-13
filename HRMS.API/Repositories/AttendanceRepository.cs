@@ -1050,16 +1050,17 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
 
 
-    public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(
+    public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(string? SearchTerm,
         Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null,
         DateTime? endDate = null, int page = 1, int pageSize = 10, Guid? departmentId = null, string? Status = null)
     {
         try
         {
             var results = await QueryAsync<dynamic>(
-                "SELECT * FROM attendance.fn_get_attendance(@employeeId, @organizationId,@departmentId,@Status,@startDate,@endDate, @limit, @offset)",
+                "SELECT * FROM attendance.fn_get_attendance(@SearchTerm,@employeeId, @organizationId,@departmentId,@Status,@startDate,@endDate, @limit, @offset)",
                 new
                 {
+                    SearchTerm,
                     employeeId,
                     organizationId,
                     startDate,
@@ -2310,112 +2311,141 @@ WHERE ed.employeeid = @EmployeeId
    
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceRecordsAsync(
-    Guid organizationId,
-    DateTime startDate,
-    DateTime endDate,
-    Guid? departmentId = null,
-    string? status = null,
-    Guid? employeeId = null,
-    int pageNumber = 1,
-    int pageSize = 10)
+Guid organizationId,
+DateTime startDate,
+DateTime endDate,
+Guid? departmentId = null,
+string? status = null,
+Guid? employeeId = null,
+int pageNumber = 1,
+int pageSize = 10)
     {
         var offset = (pageNumber - 1) * pageSize;
 
         var countSql = @"
-    -- Get count of records
-    WITH employees AS (
-        SELECT e.employeeid, e.firstname, e.lastname, ed.departmentid
-        FROM employee.employees e
-        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-        WHERE e.organizationid = @organizationId
-          AND e.status = 'active'
-          AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
-          AND (@employeeId IS NULL OR e.employeeid = @employeeId)
-    ),
-    date_range AS (
-        SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
-    ),
-    calendar AS (
-        SELECT emp.employeeid, emp.firstname, emp.lastname, emp.departmentid, dr.workdate
-        FROM employees emp
-        CROSS JOIN date_range dr
-    ),
-    attendance_data AS (
-        SELECT 
-            c.employeeid,
-            c.firstname,
-            c.lastname,
-            c.workdate,
-            COALESCE(a.status, 'absent') AS status
-        FROM calendar c
-        LEFT JOIN attendance.attendance a
-            ON a.employeeid = c.employeeid
-           AND a.workdate = c.workdate
-    )
-    SELECT COUNT(*)
-    FROM attendance_data
-    WHERE (@status IS NULL OR status = @status);
-    ";
+WITH employees AS (
+    SELECT 
+        e.employeeid,
+        e.firstname,
+        e.lastname,
+        e.hiredate,
+        ed.departmentid
+    FROM employee.employees e
+    INNER JOIN employee.employmentdetails ed 
+        ON e.employeeid = ed.employeeid 
+       AND ed.iscurrent = true
+    WHERE e.organizationid = @organizationId
+      AND e.status = 'active'
+      AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
+      AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+),
+
+date_range AS (
+    SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
+),
+
+calendar AS (
+    SELECT 
+        emp.employeeid,
+        emp.firstname,
+        emp.lastname,
+        emp.departmentid,
+        dr.workdate
+    FROM employees emp
+    CROSS JOIN date_range dr
+    WHERE dr.workdate >= emp.hiredate
+),
+
+attendance_data AS (
+    SELECT 
+        c.employeeid,
+        c.firstname,
+        c.lastname,
+        c.workdate,
+        COALESCE(a.status,'absent') AS status
+    FROM calendar c
+    LEFT JOIN attendance.attendance a
+        ON a.employeeid = c.employeeid
+       AND a.workdate = c.workdate
+)
+
+SELECT COUNT(*)
+FROM attendance_data
+WHERE (@status IS NULL OR status = @status);
+";
 
         var sql = @"
-    -- Get all active employees with optional department and employee filter
-    WITH employees AS (
-        SELECT e.employeeid, e.firstname, e.lastname, ed.departmentid
-        FROM employee.employees e
-        INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-        WHERE e.organizationid = @organizationId
-          AND e.status = 'active'
-          AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
-          AND (@employeeId IS NULL OR e.employeeid = @employeeId)  -- new filter
-    ),
-    -- Generate the date range
-    date_range AS (
-        SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
-    ),
-    -- Cross join to get all employee � date combinations
-    calendar AS (
-        SELECT emp.employeeid, emp.firstname, emp.lastname, emp.departmentid, dr.workdate
-        FROM employees emp
-        CROSS JOIN date_range dr
-    ),
-    -- Left join attendance to mark present and absent
-    attendance_data AS (
-        SELECT 
-            c.employeeid,
-            c.firstname,
-            c.lastname,
-            c.workdate,
-            COALESCE(a.attendanceid, NULL) AS attendanceid,
-            COALESCE(a.checkintime, NULL) AS checkintime,
-            COALESCE(a.checkouttime, NULL) AS checkouttime,
-            COALESCE(a.totalhours, 0) AS totalhours,
-            COALESCE(a.overtimehours, 0) AS overtimehours,
-            COALESCE(a.status, 'absent') AS status,
-            a.notes,
-            COALESCE(a.islate, false) AS islate
-        FROM calendar c
-        LEFT JOIN attendance.attendance a
-            ON a.employeeid = c.employeeid
-           AND a.workdate = c.workdate
-    )
+WITH employees AS (
     SELECT 
-        attendanceid AS AttendanceId,
-        employeeid AS EmployeeId,
-        firstname || ' ' || lastname AS EmployeeName,
-        workdate AS WorkDate,
-        workdate AS Date,
-        checkintime AS CheckInTime,
-        checkouttime AS CheckOutTime,
-        totalhours AS TotalHours,
-        overtimehours AS OvertimeHours,
-        status AS Status,
-        notes AS Notes,
-        islate AS IsLate
-    FROM attendance_data
-    WHERE (@status IS NULL OR status = @status)
-    ORDER BY workdate DESC, firstname, lastname
-    LIMIT @pageSize OFFSET @offset;
-    ";
+        e.employeeid,
+        e.firstname,
+        e.lastname,
+        e.hiredate,
+        ed.departmentid
+    FROM employee.employees e
+    INNER JOIN employee.employmentdetails ed 
+        ON e.employeeid = ed.employeeid 
+       AND ed.iscurrent = true
+    WHERE e.organizationid = @organizationId
+      AND e.status = 'active'
+      AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
+      AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+),
+
+date_range AS (
+    SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
+),
+
+calendar AS (
+    SELECT 
+        emp.employeeid,
+        emp.firstname,
+        emp.lastname,
+        emp.departmentid,
+        dr.workdate
+    FROM employees emp
+    CROSS JOIN date_range dr
+    WHERE dr.workdate >= emp.hiredate
+),
+
+attendance_data AS (
+    SELECT 
+        c.employeeid,
+        c.firstname,
+        c.lastname,
+        c.workdate,
+        a.attendanceid,
+        a.checkintime,
+        a.checkouttime,
+        COALESCE(a.totalhours,0) AS totalhours,
+        COALESCE(a.overtimehours,0) AS overtimehours,
+        COALESCE(a.status,'absent') AS status,
+        a.notes,
+        COALESCE(a.islate,false) AS islate
+    FROM calendar c
+    LEFT JOIN attendance.attendance a
+        ON a.employeeid = c.employeeid
+       AND a.workdate = c.workdate
+)
+
+SELECT 
+    attendanceid AS AttendanceId,
+    employeeid AS EmployeeId,
+    firstname || ' ' || lastname AS EmployeeName,
+    workdate AS WorkDate,
+    workdate AS Date,
+    checkintime AS CheckInTime,
+    checkouttime AS CheckOutTime,
+    totalhours AS TotalHours,
+    overtimehours AS OvertimeHours,
+    status AS Status,
+    notes AS Notes,
+    islate AS IsLate
+FROM attendance_data
+WHERE (@status IS NULL OR status = @status)
+ORDER BY workdate DESC, firstname, lastname
+LIMIT @pageSize OFFSET @offset;
+";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
         await connection.OpenAsync();
@@ -2433,6 +2463,7 @@ WHERE ed.employeeid = @EmployeeId
         };
 
         var data = (await connection.QueryAsync<AttendanceDto>(sql, parameters)).ToList();
+
         var totalCount = await connection.QuerySingleAsync<int>(countSql, new
         {
             organizationId,

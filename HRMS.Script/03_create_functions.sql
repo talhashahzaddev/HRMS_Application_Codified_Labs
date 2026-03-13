@@ -479,8 +479,8 @@ $BODY$;
 
 -- DROP FUNCTION IF EXISTS attendance.fn_get_attendance(uuid, uuid, date, date, integer, integer);
 
-
 CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
+	p_search_term character varying DEFAULT NULL::character varying,
 	p_employee_id uuid DEFAULT NULL::uuid,
 	p_organization_id uuid DEFAULT NULL::uuid,
 	p_department_id uuid DEFAULT NULL::uuid,
@@ -489,62 +489,111 @@ CREATE OR REPLACE FUNCTION attendance.fn_get_attendance(
 	p_end_date timestamp with time zone DEFAULT NULL::timestamp with time zone,
 	p_limit integer DEFAULT 100,
 	p_offset integer DEFAULT 0)
-    RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, totalhours numeric, overtimehours numeric, status character varying, sessionscount integer, notes character varying, totalcount bigint) 
+    RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, location jsonb, checkinip character varying, checkoutip character varying, totalhours numeric, overtimehours numeric, status character varying, sessionscount integer, notes character varying, totalcount bigint) 
     LANGUAGE 'plpgsql'
     COST 100
     VOLATILE PARALLEL UNSAFE
     ROWS 1000
 
 AS $BODY$
+
 DECLARE
     totalRecords BIGINT;
+
 BEGIN
-    -- Total employees count including absent
-    SELECT COUNT(*) INTO totalRecords
-    FROM employee.Employees e
-    INNER JOIN employee.EmploymentDetails d ON e.employeeId = d.employeeId
-    WHERE (p_organization_id IS NULL OR e.organizationId = p_organization_id)
-      AND (p_department_id IS NULL OR d.departmentId = p_department_id)
-      AND (p_employee_id IS NULL OR e.employeeId = p_employee_id);
+
+    -- Count employees after filters
+    SELECT COUNT(*)
+    INTO totalRecords
+    FROM employee.employees e
+    INNER JOIN employee.employmentdetails d
+        ON e.employeeid = d.employeeid
+    WHERE e.status = 'active'
+      AND (p_organization_id IS NULL OR e.organizationid = p_organization_id)
+      AND (p_department_id IS NULL OR d.departmentid = p_department_id)
+      AND (p_employee_id IS NULL OR e.employeeid = p_employee_id)
+      AND (
+            p_search_term IS NULL 
+            OR LOWER(CONCAT(e.firstname,' ',e.lastname)) LIKE LOWER('%'||p_search_term||'%')
+          );
 
     RETURN QUERY
     SELECT 
         a.attendanceid,
         e.employeeid,
-        CONCAT(e.firstname, ' ', e.lastname)::varchar AS employeename,
+        CONCAT(e.firstname,' ',e.lastname)::varchar AS employeename,
         gs.workdate,
         a.checkintime,
         a.checkouttime,
+        a.location,
+        last_session.checkinip,
+        last_session.checkoutip,
+
         COALESCE(a.totalhours,0)::numeric AS totalhours,
         COALESCE(a.overtimehours,0)::numeric AS overtimehours,
         COALESCE(a.status,'absent')::varchar AS status,
         COALESCE(sess.sessionscount,0)::integer AS sessionscount,
-        a.notes::character varying AS notes,
+        a.notes::varchar,
         totalRecords::bigint AS totalcount
-    FROM (
+
+    FROM
+    (
         SELECT generate_series(
             COALESCE(p_start_date::date, CURRENT_DATE),
             COALESCE(p_end_date::date, CURRENT_DATE),
             interval '1 day'
         )::date AS workdate
     ) gs
-    CROSS JOIN (
-        SELECT e.employeeid, e.firstname, e.lastname
-        FROM employee.Employees e
-        INNER JOIN employee.EmploymentDetails d ON e.employeeid = d.employeeid
-        WHERE (p_organization_id IS NULL OR e.organizationid = p_organization_id)
+
+    CROSS JOIN
+    (
+        SELECT 
+            e.employeeid,
+            e.firstname,
+            e.lastname,
+            e.hiredate
+        FROM employee.employees e
+        INNER JOIN employee.employmentdetails d
+            ON e.employeeid = d.employeeid
+        WHERE e.status = 'active'
+          AND (p_organization_id IS NULL OR e.organizationid = p_organization_id)
           AND (p_department_id IS NULL OR d.departmentid = p_department_id)
           AND (p_employee_id IS NULL OR e.employeeid = p_employee_id)
+          AND (
+                p_search_term IS NULL
+                OR LOWER(CONCAT(e.firstname,' ',e.lastname)) LIKE LOWER('%'||p_search_term||'%')
+              )
     ) e
+
     LEFT JOIN attendance.attendance a
         ON a.employeeid = e.employeeid
        AND a.workdate = gs.workdate
-    LEFT JOIN LATERAL (
+
+    LEFT JOIN LATERAL
+    (
+        SELECT 
+            s.checkinip,
+            s.checkoutip
+        FROM attendance.attendancesessions s
+        WHERE s.attendanceid = a.attendanceid
+        ORDER BY s.checkintime DESC
+        LIMIT 1
+    ) last_session ON TRUE
+
+    LEFT JOIN LATERAL
+    (
         SELECT COUNT(*) AS sessionscount
         FROM attendance.attendancesessions s
         WHERE s.attendanceid = a.attendanceid
     ) sess ON TRUE
-    WHERE (p_status IS NULL OR a.status = p_status OR (a.attendanceid IS NULL AND p_status='absent'))
+
+    WHERE gs.workdate >= e.hiredate
+      AND (
+        p_status IS NULL
+        OR a.status = p_status
+        OR (a.attendanceid IS NULL AND p_status = 'absent')
+      )
+
     ORDER BY gs.workdate DESC, e.firstname
     LIMIT p_limit OFFSET p_offset;
 

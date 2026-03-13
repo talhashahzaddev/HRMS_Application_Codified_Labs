@@ -33,7 +33,7 @@ public interface IAttendanceRepository
 
     Task<bool> ClockInOutAsync(Guid employeeId, string action, DateTime timestamp, Dictionary<string, object>? location = null, string? notes = null);
     Task<Attendance?> GetTodayAttendanceAsync(Guid employeeId);
-    Task<PagedResult<AttendanceDto>> GetAttendanceAsync(Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 100, Guid? departmentId=null, string? Status=null);
+    Task<PagedResult<AttendanceDto>> GetAttendanceAsync(string? searchTerm,Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 100, Guid? departmentId=null, string? Status=null);
     Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<bool> UpdateAttendanceAsync(Guid attendanceId, Attendance attendance);
     Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date);

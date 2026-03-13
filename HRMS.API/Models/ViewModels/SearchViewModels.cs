@@ -18,6 +18,7 @@ public class EmployeeSearchViewModel
 
 public class AttendanceSearchViewModel
 {
+    public string? SearchTerm { get; set; }
     public Guid? EmployeeId { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }

@@ -222,6 +222,7 @@ namespace HRMS.API.Repositories
             n.visibleto         as VisibleTo,
             n.selectedemployees as SelectedEmployees,
             n.createdat         as CreatedAt,
+            n.views             as Views,
             concat(e.firstname, ' ', e.lastname) as AuthorName
         from news.news n
         left join employee.employees e 
