@@ -1,5 +1,6 @@
 using AutoMapper;
 using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Drawing.Charts;
 using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
 using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Models.DTOs;
@@ -272,6 +273,7 @@ public class AttendanceService : IAttendanceService
         {
             // ✅ Admin / HR
             result = await _attendanceRepository.GetAttendanceAsync(
+                searchModel.SearchTerm,
                 searchModel.EmployeeId,
                 organizationId,
                 searchModel.StartDate,
@@ -301,6 +303,7 @@ public class AttendanceService : IAttendanceService
             if (searchModel.EmployeeId.HasValue)
             {
                 result = await _attendanceRepository.GetAttendanceAsync(
+                    searchModel.SearchTerm,
                     searchModel.EmployeeId,
                     organizationId,
                     searchModel.StartDate,
@@ -323,6 +326,7 @@ public class AttendanceService : IAttendanceService
 
                 var allAttendance =
                     await _attendanceRepository.GetAttendanceAsync(
+                        searchModel.SearchTerm,
                         null,
                         organizationId,
                         searchModel.StartDate,
