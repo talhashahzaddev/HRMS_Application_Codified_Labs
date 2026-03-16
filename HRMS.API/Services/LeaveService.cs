@@ -275,6 +275,8 @@ public class LeaveService : ILeaveService
                 ? "Your leave request has been approved"
                 : $"Your leave request has been rejected. Reason: {request.RejectionReason}";
 
+            await _notificationRepository.UpdateNotificationRequestStatusAsync(requestId, request.Status);
+
             var employeedetails = await _leaveRepository.GetEmployeeDetails(requestId);
 
             bool isApproval = request.Status == "approved" ? true : false;

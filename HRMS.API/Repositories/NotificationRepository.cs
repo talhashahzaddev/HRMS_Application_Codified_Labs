@@ -185,26 +185,6 @@ namespace HRMS.API.Repositories
             return notifications.ToList();
         }
 
-        //Get notifcation details From request id 
-
-        //public async Task<Notification> getnotificationdetailAsync(Guid requestId)
-        //{
-
-        //    var sql = @"
-        //    SELECT *
-        //    FROM notification.notifications
-        //    WHERE requestid = @requestId
-        //    ORDER BY createdat DESC
-        //    LIMIT 1
-        //";
-
-        //    // Execute query and map results to Notification objects
-        //    var notifications = await QueryAsync<Notification>(sql, new { requestId = requestId });
-
-        //    return notifications.FirstOrDefault();
-
-        //}
-
 
 
         public async Task<Notification> getnotificationdetailAsync(Guid requestId)
@@ -267,7 +247,14 @@ namespace HRMS.API.Repositories
             }
         }
 
+        public async Task<bool> UpdateNotificationRequestStatusAsync(Guid requestid,string status)
+        {
+            var sql = @"update notification.notifications set requeststatus=@status
+                    where requestid=@requestid";
+            var result = await ExecuteAsync(sql, new { requestid, status });
+            return result>0;
 
+        }
 
         public async Task<bool> MarkNotificationAsReadAsync(Guid notificationId)
         {
