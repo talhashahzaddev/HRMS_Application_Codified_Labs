@@ -31,6 +31,7 @@ namespace HRMS.API.Models.DTOs
             public string moduletype { get; set; }
             public bool IsRead { get; set; }
             public DateTime CreatedAt { get; set; }
+            public string requestStatus { get; set; }
         }
 
         public class leaveNotification

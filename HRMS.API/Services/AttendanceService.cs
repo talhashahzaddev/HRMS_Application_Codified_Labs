@@ -842,8 +842,7 @@ public class AttendanceService : IAttendanceService
         // Optional: Add business validation
         // Example: check if the request is still pending
         var shiftrequestDetails = await _attendanceRepository.getshifrequestDetailsAsync(dto.RequestId);
-
-
+        string status;
         if (dto.IsApproved == false)
         {
             var success = await _attendanceRepository.RejectShiftSwapRequestAsync(dto);
@@ -864,6 +863,9 @@ public class AttendanceService : IAttendanceService
                     organizationId = organizationId
                 };
                 await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+                //update notificaiton request status 
+                status = "rejected";
+                await _notificationRepository.UpdateNotificationRequestStatusAsync(dto.RequestId, status);
 
             }
         }
@@ -886,7 +888,8 @@ public class AttendanceService : IAttendanceService
                     organizationId = organizationId
                 };
                 await _notificationRepository.CreateNotificationAsync(organizationId, notification);
-
+                status = "approved";
+                await _notificationRepository.UpdateNotificationRequestStatusAsync(dto.RequestId, status);
             }
         }
         return true;

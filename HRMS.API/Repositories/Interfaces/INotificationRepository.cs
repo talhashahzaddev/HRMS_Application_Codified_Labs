@@ -14,5 +14,6 @@ namespace HRMS.API.Repositories.Interfaces
         Task<leaveNotification> GetNoManagerReciveridAsync(Guid employeeId);
         Task<Notification> getnotificationdetailAsync(Guid requestId);
         Task<(Guid userId, Guid organizationId)?> GetEmployeeUserInfoAsync(Guid employeeId);
+        Task<bool> UpdateNotificationRequestStatusAsync(Guid requestid, string status);
     }
 }
