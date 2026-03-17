@@ -874,12 +874,9 @@ public class AttendanceService : IAttendanceService
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
         //Getting manager employeeid
         var reportingManagerDetail = await _employeeRepository.GetEmployeeByIdAsync(reportingmangerid);
-       if (reportingManagerDetail!=null)
-        {
+       
             var result = await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
             var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(requestDto.RequestedShiftId);
-
-
             if (result != null)
 
             {
@@ -899,15 +896,8 @@ public class AttendanceService : IAttendanceService
                 await _notificationRepository.CreateNotificationAsync(organizationId, notification);
 
             }
-            return true;
-        }
-        else
-        {
-            throw new InvalidOperationException("No Reporting manager is assigned");
 
-        }
-
-
+        return true;
 
     }
 
