@@ -301,6 +301,25 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
               AND r.attendance_id IS NULL
               AND r.workdate     >= @startDate::date
               AND r.workdate     <= @endDate::date
+                            AND NOT EXISTS (
+                                    SELECT 1
+                                    FROM attendance.company_holidays ch
+                                    LEFT JOIN employee.employmentdetails ed
+                                        ON ed.employeeid = @employeeId::uuid
+                                     AND ed.iscurrent = true
+                                    LEFT JOIN attendance.holiday_employee_assignments hea
+                                        ON hea.holiday_id = ch.holidayid
+                                     AND hea.employee_id = @employeeId::uuid
+                                    WHERE ch.organizationid = @orgId::uuid
+                                        AND ch.isactive = true
+                                        AND ch.holidaydate = r.workdate::date
+                                        AND (
+                                                ch.applicableto = 'all'
+                                                OR (ch.applicableto = 'department' AND ch.applicablevalue = ed.departmentid::text)
+                                                OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(COALESCE(ed.worklocation, '')))
+                                                OR (ch.applicableto = 'employee' AND hea.employee_id IS NOT NULL)
+                                        )
+                            )
             ORDER BY r.workdate, r.submitted_at DESC
             ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
             DO UPDATE SET record_status = 'finalized', approved_at = NOW();";
@@ -325,6 +344,25 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 '1 day'::interval
             ) AS gs(d)
             WHERE EXTRACT(DOW FROM gs.d) NOT IN (0, 6)
+                            AND NOT EXISTS (
+                                    SELECT 1
+                                    FROM attendance.company_holidays ch
+                                    LEFT JOIN employee.employmentdetails ed
+                                        ON ed.employeeid = @employeeId::uuid
+                                     AND ed.iscurrent = true
+                                    LEFT JOIN attendance.holiday_employee_assignments hea
+                                        ON hea.holiday_id = ch.holidayid
+                                     AND hea.employee_id = @employeeId::uuid
+                                    WHERE ch.organizationid = @orgId::uuid
+                                        AND ch.isactive = true
+                                        AND ch.holidaydate = gs.d::date
+                                        AND (
+                                                ch.applicableto = 'all'
+                                                OR (ch.applicableto = 'department' AND ch.applicablevalue = ed.departmentid::text)
+                                                OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(COALESCE(ed.worklocation, '')))
+                                                OR (ch.applicableto = 'employee' AND hea.employee_id IS NOT NULL)
+                                        )
+                            )
               AND NOT EXISTS (
                   SELECT 1 FROM attendance.attendance a
                   WHERE a.employeeid = @employeeId::uuid
@@ -1195,6 +1233,31 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
                     totalWorkDays++;
             }
+
+            const string holidayCountSql = @"
+            SELECT COUNT(DISTINCT ch.holidaydate::date)
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed
+                ON ed.employeeid = e.employeeid
+               AND ed.iscurrent = true
+            INNER JOIN attendance.company_holidays ch
+                ON ch.organizationid = e.organizationid
+               AND ch.isactive = true
+               AND ch.holidaydate BETWEEN @startDate::date AND @endDate::date
+               AND EXTRACT(DOW FROM ch.holidaydate) NOT IN (0, 6)
+            LEFT JOIN attendance.holiday_employee_assignments hea
+                ON hea.holiday_id = ch.holidayid
+               AND hea.employee_id = e.employeeid
+            WHERE e.employeeid = @employeeId
+              AND (
+                    ch.applicableto = 'all'
+                 OR (ch.applicableto = 'department' AND ch.applicablevalue = ed.departmentid::text)
+                 OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(COALESCE(ed.worklocation, '')))
+                 OR (ch.applicableto = 'employee' AND hea.employee_id IS NOT NULL)
+              );";
+
+            var applicableHolidayCount = await QuerySingleAsync<int>(holidayCountSql, new { employeeId, startDate, endDate });
+            totalWorkDays = Math.Max(totalWorkDays - applicableHolidayCount, 0);
 
             var sql = @"
             SELECT 
@@ -2127,14 +2190,17 @@ WHERE ed.employeeid = @EmployeeId
         ),
         -- Active employees in the organization
         employees AS (
-            SELECT e.employeeid
+            SELECT e.employeeid, ed.departmentid, COALESCE(ed.worklocation, '') AS worklocation
             FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed
+                ON ed.employeeid = e.employeeid
+               AND ed.iscurrent = true
             WHERE e.organizationid = @organizationId
               AND e.status = 'active'
         ),
         -- Cross join employees � dates to create full calendar
         calendar AS (
-            SELECT dr.workdate, e.employeeid
+            SELECT dr.workdate, e.employeeid, e.departmentid, e.worklocation
             FROM date_range dr
             CROSS JOIN employees e
         ),
@@ -2143,7 +2209,10 @@ WHERE ed.employeeid = @EmployeeId
             SELECT 
                 c.workdate,
                 c.employeeid,
-                a.status,
+                CASE
+                    WHEN ch.holidayid IS NOT NULL THEN 'holiday'
+                    ELSE COALESCE(a.status,'absent')
+                END AS status,
                 a.islate,
                 COALESCE(a.totalhours,0) AS totalhours,
                 COALESCE(a.overtimehours,0) AS overtimehours
@@ -2151,13 +2220,31 @@ WHERE ed.employeeid = @EmployeeId
             LEFT JOIN attendance.attendance a
                 ON a.employeeid = c.employeeid
                AND a.workdate = c.workdate
+            LEFT JOIN attendance.company_holidays ch
+                ON ch.organizationid = @organizationId
+               AND ch.holidaydate = c.workdate
+               AND ch.isactive = true
+               AND (
+                    ch.applicableto = 'all'
+                    OR (ch.applicableto = 'department' AND ch.applicablevalue = c.departmentid::text)
+                    OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(c.worklocation))
+                    OR (
+                        ch.applicableto = 'employee'
+                        AND EXISTS (
+                            SELECT 1
+                            FROM attendance.holiday_employee_assignments hea
+                            WHERE hea.holiday_id = ch.holidayid
+                              AND hea.employee_id = c.employeeid
+                        )
+                    )
+               )
         ),
         -- Classify absent/present and late
         classified AS (
             SELECT 
                 employeeid,
                 workdate,
-                COALESCE(status,'absent') AS status,
+                status,
                 totalhours,
                 overtimehours,
                 CASE WHEN islate THEN 1 ELSE 0 END AS islate
@@ -2174,10 +2261,10 @@ WHERE ed.employeeid = @EmployeeId
             (SELECT SUM(totalhours) FROM classified) AS TotalHours,
             (SELECT SUM(overtimehours) FROM classified) AS OvertimeHours,
             CASE 
-                WHEN (SELECT COUNT(*) FROM classified) > 0
+                WHEN (SELECT COUNT(*) FROM classified WHERE status <> 'holiday') > 0
                 THEN ROUND(
                     (SELECT COUNT(*) FROM classified WHERE status = 'present') * 100.0 /
-                    NULLIF((SELECT COUNT(*) FROM classified), 0), 2
+                    NULLIF((SELECT COUNT(*) FROM classified WHERE status <> 'holiday'), 0), 2
                 )
                 ELSE 0
             END AS AverageAttendanceRate
@@ -2207,9 +2294,11 @@ WHERE ed.employeeid = @EmployeeId
     public async Task<List<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(
     Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
     WITH employees AS (
-        SELECT e.employeeid, ed.departmentid
+                SELECT e.employeeid, ed.departmentid, COALESCE(ed.worklocation, '') AS worklocation
         FROM employee.employees e
         INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
         WHERE e.organizationid = @organizationId
@@ -2220,17 +2309,38 @@ WHERE ed.employeeid = @EmployeeId
         SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
     ),
     calendar AS (
-        SELECT d.employeeid, d.departmentid, dr.workdate
+        SELECT d.employeeid, d.departmentid, d.worklocation, dr.workdate
         FROM employees d
         CROSS JOIN date_range dr
     ),
     attendance_data AS (
         SELECT c.employeeid, c.departmentid, c.workdate,
-               COALESCE(a.status, 'absent') AS status
+               CASE
+                   WHEN ch.holidayid IS NOT NULL THEN 'holiday'
+                   ELSE COALESCE(a.status, 'absent')
+               END AS status
         FROM calendar c
         LEFT JOIN attendance.attendance a
             ON a.employeeid = c.employeeid
            AND a.workdate = c.workdate
+        LEFT JOIN attendance.company_holidays ch
+            ON ch.organizationid = @organizationId
+           AND ch.holidaydate = c.workdate
+           AND ch.isactive = true
+           AND (
+                ch.applicableto = 'all'
+                OR (ch.applicableto = 'department' AND ch.applicablevalue = c.departmentid::text)
+                OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(c.worklocation))
+                OR (
+                    ch.applicableto = 'employee'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM attendance.holiday_employee_assignments hea
+                        WHERE hea.holiday_id = ch.holidayid
+                          AND hea.employee_id = c.employeeid
+                    )
+                )
+           )
     )
     SELECT 
         d.departmentid AS DepartmentId,
@@ -2239,10 +2349,10 @@ WHERE ed.employeeid = @EmployeeId
         SUM(CASE WHEN ad.status = 'present' THEN 1 ELSE 0 END) AS PresentEmployees,
         SUM(CASE WHEN ad.status = 'absent' THEN 1 ELSE 0 END) AS AbsentEmployees,
         CASE 
-            WHEN COUNT(DISTINCT e.employeeid) > 0 AND COUNT(DISTINCT dr.workdate) > 0 THEN
+            WHEN SUM(CASE WHEN ad.status <> 'holiday' THEN 1 ELSE 0 END) > 0 THEN
                 ROUND(
                     SUM(CASE WHEN ad.status = 'present' THEN 1 ELSE 0 END) * 100.0 /
-                    NULLIF(COUNT(DISTINCT e.employeeid) * COUNT(DISTINCT dr.workdate), 0),
+                    NULLIF(SUM(CASE WHEN ad.status <> 'holiday' THEN 1 ELSE 0 END), 0),
                     2
                 )
             ELSE 0
@@ -2261,15 +2371,20 @@ WHERE ed.employeeid = @EmployeeId
     ORDER BY d.departmentname;
     ";
 
-        using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
-        return (await connection.QueryAsync<DepartmentAttendanceStatsDto>(sql, new
+            using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
+            await connection.OpenAsync();
+            return (await connection.QueryAsync<DepartmentAttendanceStatsDto>(sql, new
+            {
+                organizationId,
+                startDate,
+                endDate,
+                departmentId
+            })).ToList();
+        }
+        catch (Exception ex)
         {
-            organizationId,
-            startDate,
-            endDate,
-            departmentId
-        })).ToList();
+            return null;
+        }
     }
 
 
@@ -2324,111 +2439,149 @@ int pageSize = 10)
 
         var countSql = @"
 WITH employees AS (
-    SELECT 
+    SELECT
         e.employeeid,
         e.firstname,
         e.lastname,
         e.hiredate,
-        ed.departmentid
-    FROM employee.employees e
-    INNER JOIN employee.employmentdetails ed 
-        ON e.employeeid = ed.employeeid 
-       AND ed.iscurrent = true
-    WHERE e.organizationid = @organizationId
-      AND e.status = 'active'
-      AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
-      AND (@employeeId IS NULL OR e.employeeid = @employeeId)
-),
-
-date_range AS (
-    SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
-),
-
-calendar AS (
-    SELECT 
-        emp.employeeid,
-        emp.firstname,
-        emp.lastname,
-        emp.departmentid,
-        dr.workdate
-    FROM employees emp
-    CROSS JOIN date_range dr
-    WHERE dr.workdate >= emp.hiredate
-),
-
-attendance_data AS (
-    SELECT 
-        c.employeeid,
-        c.firstname,
-        c.lastname,
-        c.workdate,
-        COALESCE(a.status,'absent') AS status
-    FROM calendar c
-    LEFT JOIN attendance.attendance a
-        ON a.employeeid = c.employeeid
-       AND a.workdate = c.workdate
-)
-
+        ed.departmentid,
+        COALESCE(ed.worklocation, '') AS worklocation
+        FROM employee.employees e
+        INNER JOIN employee.employmentdetails ed
+            ON e.employeeid = ed.employeeid
+           AND ed.iscurrent = true
+        WHERE e.organizationid = @organizationId
+          AND e.status = 'active'
+          AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
+          AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+    ),
+    date_range AS (
+        SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
+    ),
+    calendar AS (
+        SELECT
+            emp.employeeid,
+            emp.firstname,
+            emp.lastname,
+            emp.departmentid,
+            emp.worklocation,
+            dr.workdate
+        FROM employees emp
+        CROSS JOIN date_range dr
+        WHERE dr.workdate >= COALESCE(emp.hiredate::date, @startDate::date)
+    ),
+    attendance_data AS (
+        SELECT
+            c.employeeid,
+            c.firstname,
+            c.lastname,
+            c.workdate,
+            CASE
+                WHEN ch.holidayid IS NOT NULL THEN 'holiday'
+                ELSE COALESCE(a.status, 'absent')
+            END AS status
+        FROM calendar c
+        LEFT JOIN attendance.attendance a
+            ON a.employeeid = c.employeeid
+           AND a.workdate = c.workdate
+        LEFT JOIN attendance.company_holidays ch
+            ON ch.organizationid = @organizationId
+           AND ch.holidaydate = c.workdate
+           AND ch.isactive = true
+           AND (
+                ch.applicableto = 'all'
+                OR (ch.applicableto = 'department' AND ch.applicablevalue = c.departmentid::text)
+                OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(c.worklocation))
+                OR (
+                    ch.applicableto = 'employee'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM attendance.holiday_employee_assignments hea
+                        WHERE hea.holiday_id = ch.holidayid
+                          AND hea.employee_id = c.employeeid
+                    )
+                )
+           )
+    )
 SELECT COUNT(*)
-FROM attendance_data
-WHERE (@status IS NULL OR status = @status);
-";
+    FROM attendance_data
+    WHERE (@status IS NULL OR status = @status);
+    ";
 
         var sql = @"
 WITH employees AS (
-    SELECT 
+    SELECT
         e.employeeid,
         e.firstname,
         e.lastname,
         e.hiredate,
-        ed.departmentid
-    FROM employee.employees e
-    INNER JOIN employee.employmentdetails ed 
-        ON e.employeeid = ed.employeeid 
-       AND ed.iscurrent = true
-    WHERE e.organizationid = @organizationId
-      AND e.status = 'active'
-      AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
-      AND (@employeeId IS NULL OR e.employeeid = @employeeId)
-),
-
-date_range AS (
-    SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
-),
-
-calendar AS (
-    SELECT 
-        emp.employeeid,
-        emp.firstname,
-        emp.lastname,
-        emp.departmentid,
-        dr.workdate
-    FROM employees emp
-    CROSS JOIN date_range dr
-    WHERE dr.workdate >= emp.hiredate
-),
-
-attendance_data AS (
-    SELECT 
-        c.employeeid,
-        c.firstname,
-        c.lastname,
-        c.workdate,
-        a.attendanceid,
-        a.checkintime,
-        a.checkouttime,
-        COALESCE(a.totalhours,0) AS totalhours,
-        COALESCE(a.overtimehours,0) AS overtimehours,
-        COALESCE(a.status,'absent') AS status,
-        a.notes,
-        COALESCE(a.islate,false) AS islate
-    FROM calendar c
-    LEFT JOIN attendance.attendance a
-        ON a.employeeid = c.employeeid
-       AND a.workdate = c.workdate
-)
-
-SELECT 
+        ed.departmentid,
+        COALESCE(ed.worklocation, '') AS worklocation
+        FROM employee.employees e
+        INNER JOIN employee.employmentdetails ed
+            ON e.employeeid = ed.employeeid
+           AND ed.iscurrent = true
+        WHERE e.organizationid = @organizationId
+          AND e.status = 'active'
+          AND (@departmentId IS NULL OR ed.departmentid = @departmentId)
+          AND (@employeeId IS NULL OR e.employeeid = @employeeId)
+    ),
+    date_range AS (
+        SELECT generate_series(@startDate::date, @endDate::date, interval '1 day')::date AS workdate
+    ),
+    calendar AS (
+        SELECT
+            emp.employeeid,
+            emp.firstname,
+            emp.lastname,
+            emp.departmentid,
+            emp.worklocation,
+            dr.workdate
+        FROM employees emp
+        CROSS JOIN date_range dr
+        WHERE dr.workdate >= COALESCE(emp.hiredate::date, @startDate::date)
+    ),
+    attendance_data AS (
+        SELECT
+            c.employeeid,
+            c.firstname,
+            c.lastname,
+            c.workdate,
+            a.attendanceid,
+            a.checkintime,
+            a.checkouttime,
+            COALESCE(a.totalhours, 0) AS totalhours,
+            COALESCE(a.overtimehours, 0) AS overtimehours,
+            CASE
+                WHEN ch.holidayid IS NOT NULL THEN 'holiday'
+                ELSE COALESCE(a.status, 'absent')
+            END AS status,
+            a.notes,
+            COALESCE(a.islate, false) AS islate
+        FROM calendar c
+        LEFT JOIN attendance.attendance a
+            ON a.employeeid = c.employeeid
+           AND a.workdate = c.workdate
+        LEFT JOIN attendance.company_holidays ch
+            ON ch.organizationid = @organizationId
+           AND ch.holidaydate = c.workdate
+           AND ch.isactive = true
+           AND (
+                ch.applicableto = 'all'
+                OR (ch.applicableto = 'department' AND ch.applicablevalue = c.departmentid::text)
+                OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(c.worklocation))
+                OR (
+                    ch.applicableto = 'employee'
+                    AND EXISTS (
+                        SELECT 1
+                        FROM attendance.holiday_employee_assignments hea
+                        WHERE hea.holiday_id = ch.holidayid
+                          AND hea.employee_id = c.employeeid
+                    )
+                )
+           )
+    )
+SELECT
     attendanceid AS AttendanceId,
     employeeid AS EmployeeId,
     firstname || ' ' || lastname AS EmployeeName,
@@ -2641,6 +2794,25 @@ OnLeaveEmployees AS (
     INNER JOIN emp ON emp.employeeid = lr.employeeid
     WHERE LOWER(TRIM(lr.status)) = 'approved'
       AND @date BETWEEN lr.startdate AND lr.enddate
+),
+HolidayEmployees AS (
+        SELECT DISTINCT emp.employeeid
+        FROM emp
+        LEFT JOIN employee.employmentdetails ed
+            ON ed.employeeid = emp.employeeid
+         AND ed.iscurrent = true
+        INNER JOIN attendance.company_holidays ch
+            ON ch.organizationid = @organizationId
+         AND ch.isactive = true
+         AND ch.holidaydate = @date::date
+        LEFT JOIN attendance.holiday_employee_assignments hea
+            ON hea.holiday_id = ch.holidayid
+         AND hea.employee_id = emp.employeeid
+        WHERE
+                    ch.applicableto = 'all'
+             OR (ch.applicableto = 'department' AND ch.applicablevalue = ed.departmentid::text)
+             OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(COALESCE(ed.worklocation, '')))
+             OR (ch.applicableto = 'employee' AND hea.employee_id IS NOT NULL)
 )
 SELECT
     @date AS Date,
@@ -2650,7 +2822,8 @@ SELECT
     GREATEST(
         COALESCE((SELECT COUNT(*) FROM emp), 0)
         - COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0)
-        - COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0),
+        - COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0)
+        - COALESCE((SELECT COUNT(*) FROM HolidayEmployees), 0),
         0
     ) AS AbsentEmployees,
     ROUND(
@@ -2702,6 +2875,25 @@ OnLeaveEmployees AS (
     INNER JOIN emp ON emp.employeeid = lr.employeeid
     WHERE LOWER(TRIM(lr.status)) = 'approved'
       AND @date BETWEEN lr.startdate AND lr.enddate
+),
+HolidayEmployees AS (
+        SELECT DISTINCT emp.employeeid
+        FROM emp
+        LEFT JOIN employee.employmentdetails ed
+            ON ed.employeeid = emp.employeeid
+         AND ed.iscurrent = true
+        INNER JOIN attendance.company_holidays ch
+            ON ch.organizationid = @organizationId
+         AND ch.isactive = true
+         AND ch.holidaydate = @date::date
+        LEFT JOIN attendance.holiday_employee_assignments hea
+            ON hea.holiday_id = ch.holidayid
+         AND hea.employee_id = emp.employeeid
+        WHERE
+                    ch.applicableto = 'all'
+             OR (ch.applicableto = 'department' AND ch.applicablevalue = ed.departmentid::text)
+             OR (ch.applicableto = 'location' AND LOWER(ch.applicablevalue) = LOWER(COALESCE(ed.worklocation, '')))
+             OR (ch.applicableto = 'employee' AND hea.employee_id IS NOT NULL)
 )
 SELECT
     @date AS ""Date"",
@@ -2711,7 +2903,8 @@ SELECT
     GREATEST(
         COALESCE((SELECT COUNT(*) FROM emp), 0)
         - COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0)
-        - COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0),
+        - COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0)
+        - COALESCE((SELECT COUNT(*) FROM HolidayEmployees), 0),
         0
     ) AS ""AbsentEmployees"",
     ROUND(

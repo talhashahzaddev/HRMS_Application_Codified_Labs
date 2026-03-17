@@ -27,6 +27,7 @@ public class AttendanceService : IAttendanceService
     private readonly INotificationRepository _notificationRepository;
     private readonly IEmployeeRepository _employeeRepository;
     private readonly ILeaveRepository _leaveRepository;
+    private readonly IHolidayRepository _holidayRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<AttendanceService> _logger;
     private readonly IIpAddressRepository _ipAddressRepository;
@@ -39,6 +40,7 @@ public class AttendanceService : IAttendanceService
         INotificationRepository notificationRepository,
         IEmployeeRepository employeeRepository,
         ILeaveRepository leaveRepository,
+        IHolidayRepository holidayRepository,
         IIpAddressRepository ipAddressRepository,
         IEmailService emailService,
         ISettingsRepository settingsRepository,
@@ -48,11 +50,37 @@ public class AttendanceService : IAttendanceService
         _notificationRepository = notificationRepository;
         _employeeRepository = employeeRepository;
         _leaveRepository = leaveRepository;
+        _holidayRepository = holidayRepository;
         _ipAddressRepository = ipAddressRepository;
         _settingsRepository = settingsRepository;
         _emailService = emailService;
         _mapper = mapper;
         _logger = logger;
+    }
+
+    private async Task<HashSet<DateTime>> GetEmployeeHolidayDateSetAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    {
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        if (employee == null)
+        {
+            return new HashSet<DateTime>();
+        }
+
+        var holidays = await _holidayRepository.GetHolidaysInRangeForEmployeeAsync(
+            employee.OrganizationId,
+            employee.EmployeeId,
+            employee.DepartmentId,
+            employee.WorkLocation,
+            startDate.Date,
+            endDate.Date);
+
+        return holidays.Select(h => h.HolidayDate.Date).ToHashSet();
+    }
+
+    private async Task<bool> IsEmployeeHolidayAsync(Guid employeeId, DateTime date)
+    {
+        var holidaySet = await GetEmployeeHolidayDateSetAsync(employeeId, date.Date, date.Date);
+        return holidaySet.Contains(date.Date);
     }
  
     public async Task<ClockInOutResponse> ClockInAsync(
@@ -65,6 +93,13 @@ public class AttendanceService : IAttendanceService
 
         if (request == null)
             throw new ArgumentNullException(nameof(request));
+
+        var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+        if (await IsEmployeeHolidayAsync(employeeId, nowInPk.Date))
+            throw new InvalidOperationException("You cannot clock in on a holiday.");
 
         var allowedIp = await _ipAddressRepository.GetByIpAsync(ipAddress);
         string locationType = allowedIp != null ? "Office" : "Outside";
@@ -144,6 +179,13 @@ public class AttendanceService : IAttendanceService
 
         if (request == null)
             throw new ArgumentNullException(nameof(request));
+
+        var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+        if (await IsEmployeeHolidayAsync(employeeId, nowInPk.Date))
+            throw new InvalidOperationException("You cannot clock out on a holiday.");
 
         // ✅ 1️⃣ Check allowed IP
         var allowedIp = await _ipAddressRepository.GetByIpAsync(ipAddress);
@@ -506,11 +548,15 @@ public class AttendanceService : IAttendanceService
         {
             throw new ArgumentException("Check-out time cannot be earlier than check-in time", nameof(request));
         }
+
+        var workDate = request.WorkDate != default ? request.WorkDate.Date : request.Date.Date;
+        if (await IsEmployeeHolidayAsync(request.EmployeeId, workDate))
+            throw new InvalidOperationException("Manual attendance cannot be created on a holiday.");
         
         var attendance = new Attendance
         {
             EmployeeId = request.EmployeeId,
-            Date = request.Date,
+            Date = workDate,
             CheckInTime = request.CheckInTime,
             CheckOutTime = request.CheckOutTime,
             CheckInLocation = request.CheckInLocation,
@@ -540,13 +586,17 @@ public class AttendanceService : IAttendanceService
         {
             throw new ArgumentException("Check-out time cannot be earlier than check-in time", nameof(request));
         }
+
+        var workDate = request.WorkDate != default ? request.WorkDate.Date : request.Date.Date;
+        if (await IsEmployeeHolidayAsync(request.EmployeeId, workDate))
+            throw new InvalidOperationException("Manual attendance cannot be updated to a holiday date.");
         
         var existingAttendance = await _attendanceRepository.GetAttendanceByIdAsync(attendanceId);
         if (existingAttendance == null)
             throw new KeyNotFoundException($"Attendance with ID {attendanceId} not found");
 
         // Update properties
-        existingAttendance.Date = request.Date;
+        existingAttendance.Date = workDate;
         existingAttendance.CheckInTime = request.CheckInTime;
         existingAttendance.CheckOutTime = request.CheckOutTime;
         existingAttendance.CheckInLocation = request.CheckInLocation;
@@ -615,6 +665,22 @@ public class AttendanceService : IAttendanceService
         _logger.LogInformation("Found {Count} approved leave dates for employee {EmployeeId} in {Year}-{Month}. Leaves: {Leaves}", 
             leaveDates.Count, employeeId, year, month, string.Join(", ", leaveDates));
 
+        // ✅ Get holidays for the month, filtered by employee's department/location/assignment
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var holidayDates = new Dictionary<DateTime, string>();
+        if (employee != null)
+        {
+            var holidays = await _holidayRepository.GetHolidaysInRangeForEmployeeAsync(
+                employee.OrganizationId, employee.EmployeeId, employee.DepartmentId, 
+                employee.WorkLocation, startDate, endDate);
+            foreach (var holiday in holidays)
+            {
+                holidayDates[holiday.HolidayDate.Date] = holiday.HolidayName;
+            }
+            _logger.LogInformation("Found {Count} holidays for employee {EmpId} (dept={Dept}, loc={Loc}) in {Year}-{Month}",
+                holidayDates.Count, employeeId, employee.DepartmentId, employee.WorkLocation, year, month);
+        }
+
         var calendar = new List<AttendanceCalendarDto>();
 
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
@@ -622,6 +688,7 @@ public class AttendanceService : IAttendanceService
             var normalizedDate = date.Date; // Normalize to date only (remove time component)
             var dayAttendance = attendance.FirstOrDefault(a => a.WorkDate.Date == normalizedDate);
             bool isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+            bool isHoliday = holidayDates.ContainsKey(normalizedDate);
 
             string status;
             
@@ -631,9 +698,15 @@ public class AttendanceService : IAttendanceService
                 status = "Leave";
                 _logger.LogDebug("Date {Date} marked as Leave for employee {EmployeeId}", normalizedDate, employeeId);
             }
+            else if (isHoliday)
+            {
+                status = "Holiday";
+                _logger.LogDebug("Date {Date} marked as Holiday ({HolidayName}) for employee {EmployeeId}",
+                    normalizedDate, holidayDates[normalizedDate], employeeId);
+            }
             else if (normalizedDate > today)
             {
-                status = "No Record"; // ✅ Future days (only if not on leave)
+                status = "No Record"; // ✅ Future days (only if not on leave or holiday)
             }
             else if (dayAttendance != null)
             {
@@ -655,8 +728,9 @@ public class AttendanceService : IAttendanceService
                 CheckInTime = dayAttendance?.CheckInTime,
                 CheckOutTime = dayAttendance?.CheckOutTime,
                 TotalHours = dayAttendance?.TotalHours ?? 0,
-                IsWorkingDay = !isWeekend,
-                IsHoliday = false // ✅ Don't mark weekends as holidays - use Status instead
+                IsWorkingDay = !isWeekend && !isHoliday,
+                IsHoliday = isHoliday,
+                HolidayName = isHoliday ? holidayDates[normalizedDate] : null
             });
         }
 
@@ -1401,19 +1475,10 @@ public class AttendanceService : IAttendanceService
             endDate,
             isAdminOrHR ? null : currentEmployeeId);
 
-        static string EffectiveStatus(AttendanceDto r, DateTime todayDate)
+        var holidayDatesByEmployee = new Dictionary<Guid, HashSet<DateTime>>();
+        foreach (var empId in records.Select(r => r.EmployeeId).Distinct())
         {
-            if (!string.IsNullOrWhiteSpace(r.Status))
-                return r.Status.Trim().ToLowerInvariant();
-
-            var dow = r.WorkDate.DayOfWeek;
-            if (dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday)
-                return "weekend";
-
-            if (r.WorkDate.Date > todayDate)
-                return "no_record";
-
-            return "absent";   
+            holidayDatesByEmployee[empId] = await GetEmployeeHolidayDateSetAsync(empId, startDate, endDate);
         }
 
         var groupedTimesheet = records
@@ -1425,6 +1490,28 @@ public class AttendanceService : IAttendanceService
             })
             .Select(g =>
             {
+                var employeeHolidayDates = holidayDatesByEmployee.TryGetValue(g.Key.EmployeeId, out var dates)
+                    ? dates
+                    : new HashSet<DateTime>();
+
+                string EffectiveStatus(AttendanceDto r, DateTime todayDate)
+                {
+                    if (employeeHolidayDates.Contains(r.WorkDate.Date))
+                        return "holiday";
+
+                    if (!string.IsNullOrWhiteSpace(r.Status))
+                        return r.Status.Trim().ToLowerInvariant();
+
+                    var dow = r.WorkDate.DayOfWeek;
+                    if (dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday)
+                        return "weekend";
+
+                    if (r.WorkDate.Date > todayDate)
+                        return "no_record";
+
+                    return "absent";
+                }
+
                 var dailyRecords = g.Select(r => new DailyAttendanceRecord
                 {
                     AttendanceId = r.AttendanceId,
@@ -1461,6 +1548,7 @@ public class AttendanceService : IAttendanceService
                     var s = EffectiveStatus(r, today);
                     return r.WorkDate.Date <= today
                         && s != "weekend"
+                        && s != "holiday"
                         && s != "no_record";
                 });
 
@@ -1479,6 +1567,7 @@ public class AttendanceService : IAttendanceService
                     && g.Where(r => {
                     var s = EffectiveStatus(r, today);
                     return !string.Equals(s, "weekend", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(s, "holiday", StringComparison.OrdinalIgnoreCase)
                     && !string.Equals(s, "no_record", StringComparison.OrdinalIgnoreCase)
                     && r.WorkDate.Date <= today;
                      }).All(r => r.IsFinalized),
@@ -1616,6 +1705,15 @@ public class AttendanceService : IAttendanceService
     {
         try
         {
+            if (await IsEmployeeHolidayAsync(employeeId, dto.WorkDate.Date))
+            {
+                return new ServiceResponse<Guid>
+                {
+                    Success = false,
+                    Message = "Attendance correction is not allowed on holidays."
+                };
+            }
+
             var requestId = await _attendanceRepository.SubmitUpdateRequestAsync(employeeId, organizationId, dto);
 
             var managerId = await _notificationRepository.GetReciveridAsync(employeeId);
@@ -1671,8 +1769,18 @@ public class AttendanceService : IAttendanceService
 
             if (!allRosterData.Any()) continue;
 
-            static string EffectiveStatus(AttendanceDto r, DateTime todayDate)
+            var holidayDatesByEmployee = new Dictionary<Guid, HashSet<DateTime>>();
+            foreach (var empId in allRosterData.Select(r => r.EmployeeId).Distinct())
             {
+                holidayDatesByEmployee[empId] = await GetEmployeeHolidayDateSetAsync(empId, start, end);
+            }
+
+            string EffectiveStatus(AttendanceDto r, DateTime todayDate)
+            {
+                if (holidayDatesByEmployee.TryGetValue(r.EmployeeId, out var empHolidayDates)
+                    && empHolidayDates.Contains(r.WorkDate.Date))
+                    return "holiday";
+
                 if (!string.IsNullOrWhiteSpace(r.Status))
                     return r.Status.Trim().ToLowerInvariant();
 
@@ -1695,21 +1803,25 @@ public class AttendanceService : IAttendanceService
 
             snapshot.TotalHoursWorked = allRosterData.Sum(r => r.TotalHours);
 
-            var elapsedWorkingDays = Enumerable
-                .Range(0, (end - start).Days + 1)
-                .Count(offset => {
-                    var d = start.AddDays(offset);
-                    return d.Date <= today
-                        && d.DayOfWeek != DayOfWeek.Saturday
-                        && d.DayOfWeek != DayOfWeek.Sunday;
-                });
+            decimal totalExpectedManDays = 0;
+            foreach (var empId in allRosterData.Select(r => r.EmployeeId).Distinct())
+            {
+                holidayDatesByEmployee.TryGetValue(empId, out var empHolidayDates);
+                empHolidayDates ??= new HashSet<DateTime>();
 
-            int distinctEmployees = allRosterData
-                .Select(r => r.EmployeeId)
-                .Distinct()
-                .Count();
+                int expectedForEmployee = Enumerable
+                    .Range(0, (end - start).Days + 1)
+                    .Count(offset =>
+                    {
+                        var d = start.AddDays(offset).Date;
+                        return d <= today
+                            && d.DayOfWeek != DayOfWeek.Saturday
+                            && d.DayOfWeek != DayOfWeek.Sunday
+                            && !empHolidayDates.Contains(d);
+                    });
 
-            decimal totalExpectedManDays = distinctEmployees * elapsedWorkingDays;
+                totalExpectedManDays += expectedForEmployee;
+            }
 
             snapshot.AttendancePercentage = totalExpectedManDays > 0
                 ? Math.Round((snapshot.TotalPresentDays / totalExpectedManDays) * 100m, 1)
@@ -1773,6 +1885,15 @@ public class AttendanceService : IAttendanceService
             if (attendanceRecord == null)
             {
                  return new ServiceResponse<bool> { Success = false, Message = "Attendance record not found" };
+            }
+
+            if (await IsEmployeeHolidayAsync(updateDto.EmployeeId, attendanceRecord.WorkDate.Date))
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Manual attendance updates are not allowed on holidays."
+                };
             }
 
             if ((DateTime.UtcNow.Date - attendanceRecord.WorkDate.Date).TotalDays > timeLimitDays)
@@ -1923,6 +2044,11 @@ public class AttendanceService : IAttendanceService
         Guid? filterManagerId = isGlobalViewer ? null : currentUserId;
         var rawLogs = await _attendanceRepository.GetConsolidatedAttendanceAsync(organizationId, start, end, targetEmployeeId, filterManagerId);
         var pendingReqs = await _attendanceRepository.GetAllReviewableRequestsAsync(organizationId, filterManagerId);
+        var holidayDatesByEmployee = new Dictionary<Guid, HashSet<DateTime>>();
+        foreach (var empId in rawLogs.Select(r => r.EmployeeId).Distinct())
+        {
+            holidayDatesByEmployee[empId] = await GetEmployeeHolidayDateSetAsync(empId, start, end);
+        }
         var grouped = rawLogs.GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode, r.DepartmentName })
             .Select(g => new EmployeeReviewPackage
             {
@@ -1940,7 +2066,15 @@ public class AttendanceService : IAttendanceService
         var req = pendingReqs?.FirstOrDefault(r => r.WorkDate.Date == currentDay.Date &&
                         r.EmployeeId == g.Key.EmployeeId);
         string calculatedStatus;
-        if (log != null && !string.IsNullOrWhiteSpace(log.Status))
+        var employeeHolidayDates = holidayDatesByEmployee.TryGetValue(g.Key.EmployeeId, out var dates)
+            ? dates
+            : new HashSet<DateTime>();
+
+        if (employeeHolidayDates.Contains(currentDay.Date))
+        {
+            calculatedStatus = "holiday";
+        }
+        else if (log != null && !string.IsNullOrWhiteSpace(log.Status))
         {
             calculatedStatus = log.Status; 
         }
@@ -1987,7 +2121,7 @@ public class AttendanceService : IAttendanceService
 
             var workingDayRecords = records.Where(r => {
                 var s = (r.Status ?? "").ToLowerInvariant().Replace("_", "");
-                return s != "weekend" && s != "norecord";
+                return s != "weekend" && s != "norecord" && s != "holiday";
             }).ToList();
 
             var elapsedWorkingRecords = workingDayRecords
@@ -2033,6 +2167,10 @@ public class AttendanceService : IAttendanceService
     {
         _logger.LogInformation("Admin override initiated by {ManagerId} for Employee {EmployeeId} on {Date}",
             managerId, dto.EmployeeId, dto.WorkDate);
+
+        if (await IsEmployeeHolidayAsync(dto.EmployeeId, dto.WorkDate.Date))
+            throw new InvalidOperationException("Attendance override is not allowed on holidays.");
+
         if (dto.TimesheetId != Guid.Empty)
         {
             var isPackageFinalized = await _attendanceRepository.IsEmployeePackageFinalizedAsync(

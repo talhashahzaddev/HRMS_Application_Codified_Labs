@@ -493,6 +493,7 @@ public class AttendanceCalendarDto
     public decimal TotalHours { get; set; }
     public bool IsWorkingDay { get; set; }
     public bool IsHoliday { get; set; }
+    public string? HolidayName { get; set; }
 }
 
 public class DailyAttendanceStatsDto
