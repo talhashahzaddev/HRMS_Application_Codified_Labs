@@ -491,6 +491,239 @@ TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS attendance.shiftswaprequests
     OWNER to postgres;
+    -- ==============================
+-- HOLIDAY MANAGEMENT TABLES
+-- ==============================
+
+-- Table: attendance.holiday_catalogs
+-- Master catalog of country-based holidays (pre-seeded)
+
+CREATE TABLE IF NOT EXISTS attendance.holiday_catalogs
+(
+    catalogid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    countrycode character varying(5) NOT NULL,
+    countryname character varying(100) NOT NULL,
+    holidayname character varying(200) NOT NULL,
+    holidaydate date NOT NULL,
+    isrecurring boolean DEFAULT true,
+    description text,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT holiday_catalogs_pkey PRIMARY KEY (catalogid),
+    CONSTRAINT uq_holiday_catalog UNIQUE (countrycode, holidayname, holidaydate)
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS attendance.holiday_catalogs
+    OWNER to postgres;
+
+CREATE INDEX idx_holiday_catalogs_country ON attendance.holiday_catalogs(countrycode);
+
+-- Table: attendance.company_holidays
+-- Holidays adopted by a company for a particular year
+
+CREATE TABLE IF NOT EXISTS attendance.company_holidays
+(
+    holidayid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    holidayname character varying(200) NOT NULL,
+    holidaydate date NOT NULL,
+    holidaytype character varying(20) NOT NULL DEFAULT 'mandatory',
+    description text,
+    ishalfday boolean DEFAULT false,
+    year integer NOT NULL,
+    applicableto character varying(20) NOT NULL DEFAULT 'all',
+    applicablevalue text,
+    catalogholidayid uuid,
+    createdby uuid,
+    isactive boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT company_holidays_pkey PRIMARY KEY (holidayid),
+    CONSTRAINT fk_company_holidays_org FOREIGN KEY (organizationid)
+        REFERENCES auth.organizations (organizationid) ON DELETE CASCADE,
+    CONSTRAINT fk_company_holidays_catalog FOREIGN KEY (catalogholidayid)
+        REFERENCES attendance.holiday_catalogs (catalogid) ON DELETE SET NULL,
+    CONSTRAINT chk_holiday_type CHECK (holidaytype IN ('mandatory', 'restricted', 'optional')),
+    CONSTRAINT chk_applicable_to CHECK (applicableto IN ('all', 'department', 'location')),
+    CONSTRAINT uq_company_holiday UNIQUE (organizationid, holidayname, holidaydate)
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS attendance.company_holidays
+    OWNER to postgres;
+
+CREATE INDEX idx_company_holidays_org_year ON attendance.company_holidays(organizationid, year);
+CREATE INDEX idx_company_holidays_date ON attendance.company_holidays(holidaydate);
+
+-- Table: attendance.employee_restricted_holidays
+-- Employee selections from the restricted holiday pool
+
+CREATE TABLE IF NOT EXISTS attendance.employee_restricted_holidays
+(
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    companyholidayid uuid NOT NULL,
+    status character varying(20) NOT NULL DEFAULT 'selected',
+    selectedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT employee_restricted_holidays_pkey PRIMARY KEY (id),
+    CONSTRAINT fk_erh_org FOREIGN KEY (organizationid)
+        REFERENCES auth.organizations (organizationid) ON DELETE CASCADE,
+    CONSTRAINT fk_erh_employee FOREIGN KEY (employeeid)
+        REFERENCES employee.employees (employeeid) ON DELETE CASCADE,
+    CONSTRAINT fk_erh_holiday FOREIGN KEY (companyholidayid)
+        REFERENCES attendance.company_holidays (holidayid) ON DELETE CASCADE,
+    CONSTRAINT chk_erh_status CHECK (status IN ('selected', 'cancelled')),
+    CONSTRAINT uq_employee_restricted UNIQUE (employeeid, companyholidayid)
+)
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS attendance.employee_restricted_holidays
+    OWNER to postgres;
+
+CREATE INDEX idx_erh_employee ON attendance.employee_restricted_holidays(employeeid);
+CREATE INDEX idx_erh_org_year ON attendance.employee_restricted_holidays(organizationid);
+
+
+-- ==============================
+-- SEED DATA: Country Holiday Catalogs
+-- ==============================
+
+-- India Public Holidays 2025
+INSERT INTO attendance.holiday_catalogs (countrycode, countryname, holidayname, holidaydate, isrecurring, description) VALUES
+('IN', 'India', 'Republic Day', '2025-01-26', true, 'Celebrates the adoption of the Constitution of India'),
+('IN', 'India', 'Maha Shivaratri', '2025-02-26', true, 'Hindu festival dedicated to Lord Shiva'),
+('IN', 'India', 'Holi', '2025-03-14', true, 'Festival of colors'),
+('IN', 'India', 'Good Friday', '2025-04-18', true, 'Christian observance of the crucifixion of Jesus'),
+('IN', 'India', 'Eid ul-Fitr', '2025-03-31', false, 'Marks the end of Ramadan'),
+('IN', 'India', 'Dr. Ambedkar Jayanti', '2025-04-14', true, 'Birth anniversary of Dr. B.R. Ambedkar'),
+('IN', 'India', 'Ram Navami', '2025-04-06', true, 'Celebrates the birth of Lord Rama'),
+('IN', 'India', 'Mahavir Jayanti', '2025-04-10', true, 'Birth anniversary of Lord Mahavir'),
+('IN', 'India', 'May Day', '2025-05-01', true, 'International Workers Day'),
+('IN', 'India', 'Buddha Purnima', '2025-05-12', true, 'Celebrates the birth of Gautama Buddha'),
+('IN', 'India', 'Eid ul-Adha', '2025-06-07', false, 'Festival of Sacrifice'),
+('IN', 'India', 'Muharram', '2025-07-06', false, 'Islamic New Year'),
+('IN', 'India', 'Independence Day', '2025-08-15', true, 'Celebrates India''s independence from British rule'),
+('IN', 'India', 'Janmashtami', '2025-08-16', true, 'Celebrates the birth of Lord Krishna'),
+('IN', 'India', 'Milad un-Nabi', '2025-09-05', false, 'Birthday of Prophet Muhammad'),
+('IN', 'India', 'Mahatma Gandhi Jayanti', '2025-10-02', true, 'Birth anniversary of Mahatma Gandhi'),
+('IN', 'India', 'Dussehra', '2025-10-02', true, 'Victory of good over evil'),
+('IN', 'India', 'Diwali', '2025-10-20', true, 'Festival of lights'),
+('IN', 'India', 'Guru Nanak Jayanti', '2025-11-05', true, 'Birth anniversary of Guru Nanak'),
+('IN', 'India', 'Christmas Day', '2025-12-25', true, 'Celebrates the birth of Jesus Christ')
+ON CONFLICT ON CONSTRAINT uq_holiday_catalog DO NOTHING;
+
+-- United States Federal Holidays 2025
+INSERT INTO attendance.holiday_catalogs (countrycode, countryname, holidayname, holidaydate, isrecurring, description) VALUES
+('US', 'United States', 'New Year''s Day', '2025-01-01', true, 'Celebrates the start of the new year'),
+('US', 'United States', 'Martin Luther King Jr. Day', '2025-01-20', true, 'Honors civil rights leader Martin Luther King Jr.'),
+('US', 'United States', 'Presidents'' Day', '2025-02-17', true, 'Honors all U.S. presidents'),
+('US', 'United States', 'Memorial Day', '2025-05-26', true, 'Honors military personnel who have died in service'),
+('US', 'United States', 'Juneteenth', '2025-06-19', true, 'Commemorates the emancipation of enslaved people'),
+('US', 'United States', 'Independence Day', '2025-07-04', true, 'Celebrates the Declaration of Independence'),
+('US', 'United States', 'Labor Day', '2025-09-01', true, 'Honors the American labor movement'),
+('US', 'United States', 'Columbus Day', '2025-10-13', true, 'Commemorates the arrival of Columbus in the Americas'),
+('US', 'United States', 'Veterans Day', '2025-11-11', true, 'Honors military veterans'),
+('US', 'United States', 'Thanksgiving Day', '2025-11-27', true, 'A day of giving thanks'),
+('US', 'United States', 'Christmas Day', '2025-12-25', true, 'Celebrates the birth of Jesus Christ')
+ON CONFLICT ON CONSTRAINT uq_holiday_catalog DO NOTHING;
+
+-- United Kingdom Public Holidays 2025
+INSERT INTO attendance.holiday_catalogs (countrycode, countryname, holidayname, holidaydate, isrecurring, description) VALUES
+('GB', 'United Kingdom', 'New Year''s Day', '2025-01-01', true, 'Celebrates the start of the new year'),
+('GB', 'United Kingdom', 'Good Friday', '2025-04-18', true, 'Christian observance'),
+('GB', 'United Kingdom', 'Easter Monday', '2025-04-21', true, 'Day after Easter Sunday'),
+('GB', 'United Kingdom', 'Early May Bank Holiday', '2025-05-05', true, 'First Monday of May'),
+('GB', 'United Kingdom', 'Spring Bank Holiday', '2025-05-26', true, 'Last Monday of May'),
+('GB', 'United Kingdom', 'Summer Bank Holiday', '2025-08-25', true, 'Last Monday of August'),
+('GB', 'United Kingdom', 'Christmas Day', '2025-12-25', true, 'Celebrates the birth of Jesus Christ'),
+('GB', 'United Kingdom', 'Boxing Day', '2025-12-26', true, 'Day after Christmas')
+ON CONFLICT ON CONSTRAINT uq_holiday_catalog DO NOTHING;
+
+-- Canada Public Holidays 2025
+INSERT INTO attendance.holiday_catalogs (countrycode, countryname, holidayname, holidaydate, isrecurring, description) VALUES
+('CA', 'Canada', 'New Year''s Day', '2025-01-01', true, 'Celebrates the start of the new year'),
+('CA', 'Canada', 'Family Day', '2025-02-17', true, 'Provincial family holiday'),
+('CA', 'Canada', 'Good Friday', '2025-04-18', true, 'Christian observance'),
+('CA', 'Canada', 'Victoria Day', '2025-05-19', true, 'Honours Queen Victoria'),
+('CA', 'Canada', 'Canada Day', '2025-07-01', true, 'Celebrates the anniversary of Canadian Confederation'),
+('CA', 'Canada', 'Labour Day', '2025-09-01', true, 'Celebrates the labour movement'),
+('CA', 'Canada', 'Thanksgiving', '2025-10-13', true, 'A day of giving thanks'),
+('CA', 'Canada', 'Remembrance Day', '2025-11-11', true, 'Honours military veterans'),
+('CA', 'Canada', 'Christmas Day', '2025-12-25', true, 'Celebrates the birth of Jesus Christ'),
+('CA', 'Canada', 'Boxing Day', '2025-12-26', true, 'Day after Christmas')
+ON CONFLICT ON CONSTRAINT uq_holiday_catalog DO NOTHING;
+
+-- Australia Public Holidays 2025
+INSERT INTO attendance.holiday_catalogs (countrycode, countryname, holidayname, holidaydate, isrecurring, description) VALUES
+('AU', 'Australia', 'New Year''s Day', '2025-01-01', true, 'Celebrates the start of the new year'),
+('AU', 'Australia', 'Australia Day', '2025-01-27', true, 'Commemorates the foundation of Australia'),
+('AU', 'Australia', 'Good Friday', '2025-04-18', true, 'Christian observance'),
+('AU', 'Australia', 'Easter Saturday', '2025-04-19', true, 'Day before Easter Sunday'),
+('AU', 'Australia', 'Easter Monday', '2025-04-21', true, 'Day after Easter Sunday'),
+('AU', 'Australia', 'Anzac Day', '2025-04-25', true, 'Commemorates Australian and New Zealand war veterans'),
+('AU', 'Australia', 'Queen''s Birthday', '2025-06-09', true, 'Honours the reigning British Monarch'),
+('AU', 'Australia', 'Christmas Day', '2025-12-25', true, 'Celebrates the birth of Jesus Christ'),
+('AU', 'Australia', 'Boxing Day', '2025-12-26', true, 'Day after Christmas')
+ON CONFLICT ON CONSTRAINT uq_holiday_catalog DO NOTHING;
+
+-- UAE Public Holidays 2025
+INSERT INTO attendance.holiday_catalogs (countrycode, countryname, holidayname, holidaydate, isrecurring, description) VALUES
+('AE', 'United Arab Emirates', 'New Year''s Day', '2025-01-01', true, 'Celebrates the start of the new year'),
+('AE', 'United Arab Emirates', 'Eid al-Fitr', '2025-03-30', false, 'Marks the end of Ramadan'),
+('AE', 'United Arab Emirates', 'Eid al-Fitr Holiday', '2025-03-31', false, 'Extended Eid al-Fitr holiday'),
+('AE', 'United Arab Emirates', 'Arafat Day', '2025-06-06', false, 'Day before Eid al-Adha'),
+('AE', 'United Arab Emirates', 'Eid al-Adha', '2025-06-07', false, 'Festival of Sacrifice'),
+('AE', 'United Arab Emirates', 'Islamic New Year', '2025-06-27', false, 'Start of Islamic calendar year'),
+('AE', 'United Arab Emirates', 'Prophet Muhammad''s Birthday', '2025-09-05', false, 'Birthday of Prophet Muhammad'),
+('AE', 'United Arab Emirates', 'Commemoration Day', '2025-11-30', true, 'Honours UAE martyrs'),
+('AE', 'United Arab Emirates', 'UAE National Day', '2025-12-02', true, 'Celebrates the formation of the UAE'),
+('AE', 'United Arab Emirates', 'UAE National Day Holiday', '2025-12-03', true, 'Extended National Day holiday')
+ON CONFLICT ON CONSTRAINT uq_holiday_catalog DO NOTHING;
+
+-- Singapore Public Holidays 2025
+INSERT INTO attendance.holiday_catalogs (countrycode, countryname, holidayname, holidaydate, isrecurring, description) VALUES
+('SG', 'Singapore', 'New Year''s Day', '2025-01-01', true, 'Celebrates the start of the new year'),
+('SG', 'Singapore', 'Chinese New Year', '2025-01-29', true, 'Lunar New Year celebration'),
+('SG', 'Singapore', 'Chinese New Year Day 2', '2025-01-30', true, 'Second day of Lunar New Year'),
+('SG', 'Singapore', 'Good Friday', '2025-04-18', true, 'Christian observance'),
+('SG', 'Singapore', 'Hari Raya Puasa', '2025-03-31', false, 'Marks the end of Ramadan'),
+('SG', 'Singapore', 'Labour Day', '2025-05-01', true, 'International Workers Day'),
+('SG', 'Singapore', 'Vesak Day', '2025-05-12', true, 'Celebrates the birth of Buddha'),
+('SG', 'Singapore', 'Hari Raya Haji', '2025-06-07', false, 'Festival of Sacrifice'),
+('SG', 'Singapore', 'National Day', '2025-08-09', true, 'Celebrates Singapore''s independence'),
+('SG', 'Singapore', 'Deepavali', '2025-10-20', true, 'Festival of lights'),
+('SG', 'Singapore', 'Christmas Day', '2025-12-25', true, 'Celebrates the birth of Jesus Christ')
+ON CONFLICT ON CONSTRAINT uq_holiday_catalog DO NOTHING;
+-- =============================================
+-- Holiday Employee Assignment Table + Schema Updates
+-- Adds ability to assign holidays to specific employees
+-- Also updates applicableTo constraint to include 'employee'
+-- =============================================
+
+-- 1. Alter the CHECK constraint on applicableto to include 'employee'
+ALTER TABLE attendance.company_holidays DROP CONSTRAINT IF EXISTS chk_applicable_to;
+ALTER TABLE attendance.company_holidays ADD CONSTRAINT chk_applicable_to 
+    CHECK (applicableto IN ('all', 'department', 'location', 'employee'));
+
+-- 2. Create holiday_employee_assignments table
+-- Used when applicableTo = 'employee' to assign holidays to specific employees
+CREATE TABLE IF NOT EXISTS attendance.holiday_employee_assignments (
+    id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    holiday_id      uuid NOT NULL REFERENCES attendance.company_holidays(holidayid) ON DELETE CASCADE,
+    employee_id     uuid NOT NULL REFERENCES employee.employees(employeeid) ON DELETE CASCADE,
+    assigned_by     uuid,
+    assigned_at     timestamptz NOT NULL DEFAULT NOW(),
+    
+    -- Prevent duplicate assignments
+    CONSTRAINT uq_holiday_employee UNIQUE (holiday_id, employee_id)
+);
+
+-- Indexes for fast lookups
+CREATE INDEX IF NOT EXISTS idx_holiday_emp_assign_holiday ON attendance.holiday_employee_assignments(holiday_id);
+CREATE INDEX IF NOT EXISTS idx_holiday_emp_assign_employee ON attendance.holiday_employee_assignments(employee_id);
+
 -- ==============================
 -- PAYROLL SCHEMA
 -- ==============================

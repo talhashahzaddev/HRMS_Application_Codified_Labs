@@ -17,6 +17,7 @@ public class LeaveService : ILeaveService
     private readonly INotificationRepository _notificationRepository;
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IAttendanceRepository _attendanceRepository;
+    private readonly IHolidayRepository _holidayRepository;
     private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
     private readonly ILogger<LeaveService> _logger;
@@ -26,6 +27,7 @@ public class LeaveService : ILeaveService
         INotificationRepository notificationRepository,
         IEmployeeRepository employeeRepository,
         IAttendanceRepository attendanceRepository,
+        IHolidayRepository holidayRepository,
         IEmailService emailService,
         IMapper mapper,
         ILogger<LeaveService> logger)
@@ -34,6 +36,7 @@ public class LeaveService : ILeaveService
         _notificationRepository = notificationRepository;
         _employeeRepository = employeeRepository;
         _attendanceRepository = attendanceRepository;
+        _holidayRepository = holidayRepository;
         _emailService = emailService;
         _mapper = mapper;
         _logger = logger;
@@ -58,6 +61,23 @@ public class LeaveService : ILeaveService
         try
         {
             var empId = await _leaveRepository.GetEmpId(employeeId);
+            var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
+            if (employee == null)
+                throw new InvalidOperationException("Employee profile not found");
+
+            var holidaysInRange = (await _holidayRepository.GetHolidaysInRangeForEmployeeAsync(
+                employee.OrganizationId,
+                employee.EmployeeId,
+                employee.DepartmentId,
+                employee.WorkLocation,
+                request.StartDate.Date,
+                request.EndDate.Date)).ToList();
+
+            if (holidaysInRange.Any())
+            {
+                throw new InvalidOperationException("Leave cannot be applied on holiday dates.");
+            }
+
             var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(empId, request.StartDate, request.EndDate);
             if (hasOverlap)
                 throw new InvalidOperationException("Leave request overlaps with existing leave");
@@ -98,7 +118,6 @@ public class LeaveService : ILeaveService
 
             }
 
-            var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
             var reportingmangerdetails = await _notificationRepository.GetReciveridANdEmailAsync(employee.EmployeeId);
 
             //if no manager assigne then push notification to superadmin
