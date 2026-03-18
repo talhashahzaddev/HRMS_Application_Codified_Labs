@@ -548,24 +548,31 @@ WHERE token = @token;
 
     public async Task<Role?> GetRoleByNameAsync(Guid? organizationId, string roleName)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             SELECT roleid, organizationid, rolename, description, permissions, issystemrole, createdat
             FROM auth.roles 
             WHERE organizationid = @organizationId AND rolename = @roleName";
 
-        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { organizationId, roleName });
-        if (result == null) return null;
+            var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { organizationId, roleName });
+            if (result == null) return null;
 
-        return new Role
+            return new Role
+            {
+                RoleId = result.roleid,
+                OrganizationId = result.organizationid,
+                RoleName = result.rolename,
+                Description = result.description,
+                Permissions = result.permissions,
+                IsSystemRole = result.issystemrole,
+                CreatedAt = result.createdat
+            };
+        }
+        catch(Exception ex)
         {
-            RoleId = result.roleid,
-            OrganizationId = result.organizationid,
-            RoleName = result.rolename,
-            Description = result.description,
-            Permissions = result.permissions,
-            IsSystemRole = result.issystemrole,
-            CreatedAt = result.createdat
-        };
+            return null;
+        }
     }
 
     public async Task<List<Role>> GetOrganizationRolesAsync(Guid? organizationId)
@@ -659,14 +666,21 @@ WHERE token = @token;
         }
     }
 
-    public async Task<Role> GetRoleByNameAsync(string roleName, Guid organizationId)
+    public async Task<Role> GetRoleByNameforTokenAsync(string roleName, Guid? organizationId)
     {
-        const string sql = @"
+        try
+        {
+            const string sql = @"
         SELECT roleid, rolename, description, organizationid, issystemrole, createdat
         FROM auth.roles 
         WHERE rolename = @rolename AND organizationid = @organizationid";
 
-        return await QuerySingleOrDefaultAsync<Role>(sql, new { rolename = roleName, organizationid = organizationId });
+            return await QuerySingleOrDefaultAsync<Role>(sql, new { rolename = roleName, organizationid = organizationId });
+        }
+        catch (Exception ex)
+        {
+            return null;
+        }
     }
 
     public async Task<bool> MenuExistsAsync(Guid menuId)
@@ -719,6 +733,48 @@ WHERE token = @token;
     ORDER BY m.menuname, sm.submenuname, a.actionname";
 
         return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
+    }
+    public async Task<Role> GetRoleByIdAsync(Guid roleId)
+    {
+        const string sql = @"
+    SELECT roleid, rolename, description, organizationid, issystemrole, createdat
+    FROM auth.roles 
+    WHERE roleid = @roleid";
+
+        return await QuerySingleOrDefaultAsync<Role>(sql, new { roleid = roleId });
+    }
+    // Add to your AuthRepository
+    public async Task<(User user, Guid? roleId)> GetUserWithRoleAsync(Guid userId)
+    {
+        try
+        {
+            const string sql = @"
+    SELECT 
+        u.userid, u.email, u.roleid,
+        r.rolename, r.description, r.issystemrole
+    FROM auth.users u
+    LEFT JOIN auth.roles r ON r.roleid = u.roleid
+    WHERE u.userid = @userid";
+
+            var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { userid = userId });
+
+            if (result == null)
+                return (null, null);
+
+            var user = new User
+            {
+                UserId = result.userid,
+                //UserName = result.username,
+                Email = result.email,
+                RoleId = result.roleid
+            };
+
+            return (user, result.roleid);
+        }
+        catch(Exception ex)
+        {
+            return (null,null);
+        }
     }
     private Dictionary<string, object> NormalizePermissions(Dictionary<string, object>? permissions)
     {

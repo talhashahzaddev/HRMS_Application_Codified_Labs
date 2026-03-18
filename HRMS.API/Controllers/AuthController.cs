@@ -991,6 +991,57 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [HttpGet("get-user-permissions")]
+    public async Task<ActionResult<ServiceResponse<UserPermissionResponse>>> GetUserPermissions()
+    {
+        try
+        {
+            var userid = GetCurrentUserId();
+            var requestingUserOrganizationId = GetOrganizationIdFromClaims();
+            if (requestingUserOrganizationId == Guid.Empty)
+            {
+                return BadRequest(new ServiceResponse<UserPermissionResponse>
+                {
+                    Success = false,
+                    Message = "Invalid organization ID",
+                    Data = null,
+                    Errors = new List<string> { "Organization ID is required" }
+                });
+            }
+
+            var response = await _authService.GetUserPermissionsAsync(userid);
+
+            if (response == null)
+            {
+                return NotFound(new ServiceResponse<UserPermissionResponse>
+                {
+                    Success = false,
+                    Message = "User not found",
+                    Data = null,
+                    Errors = new List<string> { $"User with ID {userid} not found" }
+                });
+            }
+
+            return Ok(new ServiceResponse<UserPermissionResponse>
+            {
+                Success = true,
+                Message = "User permissions retrieved successfully",
+                Data = response,
+                Errors = null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving permissions for user");
+            return StatusCode(500, new ServiceResponse<UserPermissionResponse>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving user permissions",
+                Data = null,
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
 
     private Guid? GetOrganizationIdFromClaims()
     {
