@@ -116,3 +116,34 @@ public class RoleActionPermission
     public string ActionKey { get; set; }
     public bool HasPermission { get; set; }
 }
+public class UserPermissionResponse
+{
+    public Guid? UserId { get; set; }
+    public string UserName { get; set; }
+    public string Email { get; set; }
+    public Guid? RoleId { get; set; }
+    public string RoleName { get; set; }
+    public List<UserMenuPermission> Menus { get; set; }
+}
+
+public class UserMenuPermission
+{
+    public Guid MenuId { get; set; }
+    public string MenuName { get; set; }
+    public List<UserSubMenuPermission> SubMenus { get; set; }
+}
+
+public class UserSubMenuPermission
+{
+    public Guid SubMenuId { get; set; }
+    public string SubMenuName { get; set; }
+    public List<UserActionPermission> Actions { get; set; }
+}
+
+public class UserActionPermission
+{
+    public Guid ActionId { get; set; }
+    public string ActionName { get; set; }
+    public string ActionKey { get; set; }
+    public bool HasPermission { get; set; }
+}

@@ -24,6 +24,7 @@ public interface IAuthService
     Task<List<MenuDto>> GetMenusAsync();
     Task<CreateRoleResponse> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId);
     Task<List<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId);
+    Task<UserPermissionResponse> GetUserPermissionsAsync(Guid userId);
     Task<bool> UpdateUserRoleAsync(Guid userId, Guid roleId);
     
     // Debug methods for testing

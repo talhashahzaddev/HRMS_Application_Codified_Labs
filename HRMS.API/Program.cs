@@ -12,6 +12,8 @@ using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Repositories;
 using HRMS.AI.Services.Interface;
 using HRMS.AI.Services;
+using Microsoft.AspNetCore.Authorization;
+using HRMS.API.Authorization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -226,6 +228,10 @@ builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
 builder.Services.AddScoped<IDemoInquiryRepository, DemoInquiryRepository>();
 builder.Services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
 
+// -------------------- HOSTED SERVICES --------------------
+builder.Services.AddAuthorization();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 // -------------------- HOSTED SERVICES --------------------
 builder.Services.AddHostedService<LeaveBalanceResetHostedService>();
 

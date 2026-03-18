@@ -593,6 +593,26 @@ public class AuthService : IAuthService
             new("firstName", user.FirstName),
             new("lastName", user.LastName)
         };
+        var role_id = await _authRepository.GetRoleByNameforTokenAsync(user.Role?.RoleName ?? "Employee", user.OrganizationId);
+        // Add permissions as claims if user has a role
+        if (role_id.RoleId.HasValue)
+        {
+            
+            var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(role_id.RoleId.Value);
+
+            // Add each permission as a claim with the action key
+            foreach (var permission in permissions.Where(p => p.HasPermission))
+            {
+                // Add permission claim with format "permission.{actionKey}"
+                claims.Add(new Claim("permission", permission.ActionKey));
+
+                // Also add more specific claims if needed for different scenarios
+                claims.Add(new Claim($"permission.{permission.ActionKey}", "true"));
+            }
+
+            _logger.LogInformation("Added {PermissionCount} permission claims for user {UserId}",
+                permissions.Count(p => p.HasPermission), user.UserId);
+        }
 
         // Debug: Log all claims
         _logger.LogInformation("JWT Claims: {Claims}",
@@ -874,6 +894,76 @@ public class AuthService : IAuthService
             roleResponses.Count, organizationId);
 
         return roleResponses;
+    }
+    // Add to your AuthService
+    public async Task<UserPermissionResponse> GetUserPermissionsAsync(Guid userId)
+    {
+        _logger.LogInformation("Retrieving permissions for user: {UserId}", userId);
+
+        // Get user details with role
+        var (user, roleId) = await _authRepository.GetUserWithRoleAsync(userId);
+
+        if (user == null)
+        {
+            _logger.LogWarning("User not found: {UserId}", userId);
+            return null;
+        }
+
+        if (!roleId.HasValue)
+        {
+            _logger.LogInformation("User {UserId} has no role assigned", userId);
+            return new UserPermissionResponse
+            {
+                UserId = user.UserId,
+                //UserName = user.UserName,
+                Email = user.Email,
+                RoleId = null,
+                RoleName = "No Role Assigned",
+                Menus = new List<UserMenuPermission>()
+            };
+        }
+
+        // Get role details
+        var role = await _authRepository.GetRoleByIdAsync(roleId.Value);
+
+        // Get permissions for the role (reusing your existing method)
+        var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(roleId);
+
+        // Group permissions by menu and submenu (similar to your existing code)
+        var menus = permissions
+            .GroupBy(p => new { p.MenuId, p.MenuName })
+            .Select(g => new UserMenuPermission
+            {
+                MenuId = g.Key.MenuId,
+                MenuName = g.Key.MenuName,
+                SubMenus = g
+                    .GroupBy(p => new { p.SubMenuId, p.SubMenuName })
+                    .Select(sg => new UserSubMenuPermission
+                    {
+                        SubMenuId = sg.Key.SubMenuId,
+                        SubMenuName = sg.Key.SubMenuName,
+                        Actions = sg.Select(p => new UserActionPermission
+                        {
+                            ActionId = p.ActionId,
+                            ActionName = p.ActionName,
+                            ActionKey = p.ActionKey,
+                            HasPermission = p.HasPermission
+                        }).ToList()
+                    }).ToList()
+            }).ToList();
+
+        var response = new UserPermissionResponse
+        {
+            UserId = user.UserId,
+            //UserName = user.UserName,
+            Email = user.Email,
+            RoleId = roleId,
+            RoleName = role?.RoleName ?? "Unknown Role",
+            Menus = menus
+        };
+
+        _logger.LogInformation("Successfully retrieved permissions for user: {UserId}", userId);
+        return response;
     }
 
     public async Task<bool> UpdateUserRoleAsync(Guid userId, Guid roleId)
