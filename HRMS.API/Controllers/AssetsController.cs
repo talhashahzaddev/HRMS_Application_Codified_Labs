@@ -120,13 +120,13 @@ public class AssetsController : ControllerBase
 
     [HttpPut("{id:guid}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<bool>>> UpdateAsset(Guid id, [FromBody] UpdateAssetRequest request)
+    public async Task<ActionResult<ServiceResponse<AssetDto>>> UpdateAsset(Guid id, [FromBody] UpdateAssetRequest request)
     {
         try
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(new ServiceResponse<bool>
+                return BadRequest(new ServiceResponse<AssetDto>
                 {
                     Success = false,
                     Message = "Invalid request data",
@@ -139,24 +139,27 @@ public class AssetsController : ControllerBase
 
             if (!updated)
             {
-                return NotFound(new ServiceResponse<bool>
+                return NotFound(new ServiceResponse<AssetDto>
                 {
                     Success = false,
                     Message = "Asset not found"
                 });
             }
 
-            return Ok(new ServiceResponse<bool>
+            // Fetch the updated asset so client can update UI without an extra call
+            var updatedAsset = await _assetService.GetAssetByIdAsync(organizationId, id);
+
+            return Ok(new ServiceResponse<AssetDto>
             {
                 Success = true,
                 Message = "Asset updated successfully",
-                Data = true
+                Data = updatedAsset
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating asset {AssetId}", id);
-            return StatusCode(500, new ServiceResponse<bool>
+            return StatusCode(500, new ServiceResponse<AssetDto>
             {
                 Success = false,
                 Message = "An error occurred while updating asset"
@@ -301,13 +304,13 @@ public class AssetsController : ControllerBase
 
     [HttpPut("asset-types/{id:guid}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<bool>>> UpdateAssetType(Guid id, [FromBody] UpdateAssetTypeRequest request)
+    public async Task<ActionResult<ServiceResponse<AssetTypeDto>>> UpdateAssetType(Guid id, [FromBody] UpdateAssetTypeRequest request)
     {
         try
         {
             if (!ModelState.IsValid)
             {
-                return BadRequest(new ServiceResponse<bool>
+                return BadRequest(new ServiceResponse<AssetTypeDto>
                 {
                     Success = false,
                     Message = "Invalid request data",
@@ -320,24 +323,27 @@ public class AssetsController : ControllerBase
 
             if (!updated)
             {
-                return NotFound(new ServiceResponse<bool>
+                return NotFound(new ServiceResponse<AssetTypeDto>
                 {
                     Success = false,
                     Message = "Asset type not found"
                 });
             }
 
-            return Ok(new ServiceResponse<bool>
+            // Fetch the updated asset type so client can update UI without an extra call
+            var updatedType = await _assetService.GetAssetTypeByIdAsync(organizationId, id);
+
+            return Ok(new ServiceResponse<AssetTypeDto>
             {
                 Success = true,
                 Message = "Asset type updated successfully",
-                Data = true
+                Data = updatedType
             });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating asset type {AssetTypeId}", id);
-            return StatusCode(500, new ServiceResponse<bool>
+            return StatusCode(500, new ServiceResponse<AssetTypeDto>
             {
                 Success = false,
                 Message = "An error occurred while updating asset type"
