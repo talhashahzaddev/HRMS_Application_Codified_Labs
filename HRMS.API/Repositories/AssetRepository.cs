@@ -25,7 +25,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
             )
             RETURNING id::uuid AS AssetId,
                       typeid::uuid AS AssetTypeId,
-                      (SELECT name FROM assets.assettypes WHERE id = typeid) AS AssetTypeName,
+                      (SELECT name FROM assets.assettypes WHERE id = typeid AND organization_id = @organizationId) AS AssetTypeName,
                       code AS AssetTag,
                       name AS Name,
                       description AS Description,
@@ -42,7 +42,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
             status = "Available",
             purchaseDate = request.PurchaseDate,
             description = request.Description,
-            typeId = request.AssetTypeId.ToString(), // varchar(36)
+            typeId = request.AssetTypeId.ToString(),
             organizationId
         });
     }
@@ -52,8 +52,8 @@ public class AssetRepository : BaseRepository, IAssetRepository
     {
         var typeId = Guid.NewGuid();
         const string sql = @"
-            INSERT INTO assets.assettypes (id, name, description, createdat)
-            VALUES (@id, @name, @description, CURRENT_TIMESTAMP)
+            INSERT INTO assets.assettypes (id, name, description, createdat, organization_id)
+            VALUES (@id, @name, @description, CURRENT_TIMESTAMP, @organizationId)
             RETURNING id::uuid AS AssetTypeId,
                       name AS Name,
                       description AS Description,
@@ -61,12 +61,20 @@ public class AssetRepository : BaseRepository, IAssetRepository
                       createdat AS CreatedAt,
                       updatedat AS UpdatedAt;";
 
-        return await QuerySingleAsync<AssetTypeDto>(sql, new
+        try
         {
-            id = typeId.ToString(),
-            name = request.Name.Trim(),
-            description = request.Description
-        });
+            return await QuerySingleAsync<AssetTypeDto>(sql, new
+            {
+                id = typeId.ToString(),
+                name = request.Name.Trim(),
+                description = request.Description,
+                organizationId
+            });
+        }
+        catch (Exception ex)
+        {
+            throw new Exception($"An error occurred while creating asset type: {ex.Message}", ex);
+        }
     }
 
     // ==================== GET ASSET TYPE BY ID ====================
@@ -81,9 +89,15 @@ public class AssetRepository : BaseRepository, IAssetRepository
                    updatedat AS UpdatedAt
             FROM assets.assettypes
             WHERE id = @assetTypeId
+              AND organization_id = @organizationId
               AND isdeleted = false;";
 
-        return await QuerySingleOrDefaultAsync<AssetTypeDto>(sql, new { assetTypeId = assetTypeId.ToString() });
+        // FIX: pass both assetTypeId AND organizationId
+        return await QuerySingleOrDefaultAsync<AssetTypeDto>(sql, new
+        {
+            assetTypeId = assetTypeId.ToString(),
+            organizationId
+        });
     }
 
     // ==================== GET ALL ASSET TYPES ====================
@@ -98,9 +112,11 @@ public class AssetRepository : BaseRepository, IAssetRepository
                    updatedat AS UpdatedAt
             FROM assets.assettypes
             WHERE isdeleted = false
+              AND organization_id = @organizationId
             ORDER BY name;";
 
-        var result = await QueryAsync<AssetTypeDto>(sql);
+        // FIX: pass organizationId parameter (was missing before)
+        var result = await QueryAsync<AssetTypeDto>(sql, new { organizationId });
         return result.ToList();
     }
 
@@ -113,11 +129,14 @@ public class AssetRepository : BaseRepository, IAssetRepository
                 description = @description,
                 updatedat = CURRENT_TIMESTAMP
             WHERE id = @assetTypeId
+              AND organization_id = @organizationId
               AND isdeleted = false;";
 
+        // FIX: pass organizationId in parameters (was missing before)
         var affectedRows = await ExecuteAsync(sql, new
         {
             assetTypeId = assetTypeId.ToString(),
+            organizationId,
             name = request.Name.Trim(),
             description = request.Description
         });
@@ -133,9 +152,15 @@ public class AssetRepository : BaseRepository, IAssetRepository
             SET isdeleted = true,
                 updatedat = CURRENT_TIMESTAMP
             WHERE id = @assetTypeId
+              AND organization_id = @organizationId
               AND isdeleted = false;";
 
-        var affectedRows = await ExecuteAsync(sql, new { assetTypeId = assetTypeId.ToString() });
+        // FIX: pass organizationId in parameters (was missing before)
+        var affectedRows = await ExecuteAsync(sql, new
+        {
+            assetTypeId = assetTypeId.ToString(),
+            organizationId
+        });
         return affectedRows > 0;
     }
 
@@ -164,7 +189,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
                 new
                 {
                     organizationId,
-                    assetId = request.AssetId, // uuid column
+                    assetId = request.AssetId,
                     employeeId = request.EmployeeId,
                     assignedAt = request.AssignedAt ?? DateTime.UtcNow,
                     dueDate = request.DueDate,
@@ -176,8 +201,9 @@ public class AssetRepository : BaseRepository, IAssetRepository
                 UPDATE assets.assets
                 SET status = 'Assigned', updatedat = CURRENT_TIMESTAMP
                 WHERE id = @assetId
+                  AND organization_id = @organizationId
                   AND isdeleted = false;",
-                new { assetId = request.AssetId.ToString() }, transaction);
+                new { assetId = request.AssetId.ToString(), organizationId }, transaction);
 
             await transaction.CommitAsync();
             return assignment;
@@ -228,8 +254,9 @@ public class AssetRepository : BaseRepository, IAssetRepository
                 UPDATE assets.assets
                 SET status = 'Available', updatedat = CURRENT_TIMESTAMP
                 WHERE id = @assetId
+                  AND organization_id = @organizationId
                   AND isdeleted = false;",
-                new { assetId = assignment.AssetId.ToString() }, transaction);
+                new { assetId = assignment.AssetId.ToString(), organizationId }, transaction);
 
             await transaction.CommitAsync();
             return assignment;
@@ -289,10 +316,16 @@ public class AssetRepository : BaseRepository, IAssetRepository
                    a.updatedat AS UpdatedAt
             FROM assets.assets a
             INNER JOIN assets.assettypes t ON t.id = a.typeid
-            WHERE a.id = @assetId::text
+            WHERE a.id = @assetId
+              AND a.organization_id = @organizationId
               AND a.isdeleted = false;";
 
-        return await QuerySingleOrDefaultAsync<AssetDto>(sql, new { assetId = assetId.ToString() });
+        // FIX: pass both assetId AND organizationId; removed ::text cast on param side
+        return await QuerySingleOrDefaultAsync<AssetDto>(sql, new
+        {
+            assetId = assetId.ToString(),
+            organizationId
+        });
     }
 
     // ==================== GET ASSETS ====================
@@ -312,7 +345,8 @@ public class AssetRepository : BaseRepository, IAssetRepository
             FROM assets.assets a
             INNER JOIN assets.assettypes t ON t.id = a.typeid
             WHERE a.isdeleted = false
-              AND t.isdeleted = false");
+              AND t.isdeleted = false
+              AND a.organization_id = @organizationId");
 
         var parameters = new DynamicParameters();
         parameters.Add("organizationId", organizationId);
@@ -338,6 +372,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
     // ==================== UPDATE ASSET ====================
     public async Task<bool> UpdateAssetAsync(Guid organizationId, Guid assetId, UpdateAssetRequest request)
     {
+        // FIX: removed invalid "a." alias — plain UPDATE has no alias; added organizationId param
         const string sql = @"
             UPDATE assets.assets
             SET typeid = @typeId,
@@ -348,11 +383,13 @@ public class AssetRepository : BaseRepository, IAssetRepository
                 status = @status,
                 updatedat = CURRENT_TIMESTAMP
             WHERE id = @assetId
+              AND organization_id = @organizationId
               AND isdeleted = false;";
 
         var affectedRows = await ExecuteAsync(sql, new
         {
             assetId = assetId.ToString(),
+            organizationId,
             typeId = request.AssetTypeId.ToString(),
             code = request.AssetTag.Trim(),
             name = request.Name.Trim(),
@@ -367,28 +404,41 @@ public class AssetRepository : BaseRepository, IAssetRepository
     // ==================== SOFT DELETE ASSET ====================
     public async Task<bool> SoftDeleteAssetAsync(Guid organizationId, Guid assetId, Guid? deletedBy)
     {
+        // FIX: removed invalid "a." alias; added organizationId param
         const string sql = @"
             UPDATE assets.assets
             SET isdeleted = true,
                 updatedat = CURRENT_TIMESTAMP
             WHERE id = @assetId
+              AND organization_id = @organizationId
               AND isdeleted = false;";
 
-        var affectedRows = await ExecuteAsync(sql, new { assetId = assetId.ToString() });
+        var affectedRows = await ExecuteAsync(sql, new
+        {
+            assetId = assetId.ToString(),
+            organizationId
+        });
         return affectedRows > 0;
     }
 
     // ==================== UPDATE ASSET STATUS ====================
     public async Task<bool> UpdateAssetStatusAsync(Guid organizationId, Guid assetId, string status, Guid? updatedBy)
     {
+        // FIX: removed invalid "a." alias; added organizationId param
         const string sql = @"
             UPDATE assets.assets
             SET status = @status,
                 updatedat = CURRENT_TIMESTAMP
             WHERE id = @assetId
+              AND organization_id = @organizationId
               AND isdeleted = false;";
 
-        var affectedRows = await ExecuteAsync(sql, new { assetId = assetId.ToString(), status });
+        var affectedRows = await ExecuteAsync(sql, new
+        {
+            assetId = assetId.ToString(),
+            organizationId,
+            status
+        });
         return affectedRows > 0;
     }
 }
