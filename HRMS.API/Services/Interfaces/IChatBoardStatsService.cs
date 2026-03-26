@@ -7,6 +7,14 @@ namespace HRMS.API.Services.Interfaces
 {
     public interface IChatBoardStatsService
     {
-        Task<ChatResponseDto> HandleNonGuidanceIntentAsync(ChatIntent intent, string module, Guid employeeId,Guid currentUserId, Guid organizationId, string ipAddress);
+        Task<ChatResponseDto> HandleNonGuidanceIntentAsync(
+            ChatIntent intent,
+            string module,
+            Guid employeeId,
+            Guid currentUserId,
+            Guid organizationId,
+            string ipAddress,
+            string userMessage,
+            string baseUrl);
     }
 }

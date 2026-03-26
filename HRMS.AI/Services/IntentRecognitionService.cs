@@ -11,6 +11,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace HRMS.AI.Services
@@ -37,6 +38,12 @@ namespace HRMS.AI.Services
 
         public async Task<IntentDetectionResult> DetectIntentAsync(string message)
         {
+          var ruleResult = DetectIntentByRules(message);
+          if (ruleResult != null)
+          {
+            return ruleResult;
+          }
+
             // not implemented yet
             //-GetPayslip:
             //     User wants to view or download payslip details including monthly salary,
@@ -58,9 +65,46 @@ namespace HRMS.AI.Services
               Global Calendar, News updates, Job postings, Expense management, or other process-related queries,
               for any question related Calendar move to global calnder.
 
+              Module mapping hints for Guidance:
+              - If user asks about holidays, holiday calendar, restricted holidays, or holiday policy, module must be HolidayManagement.
+              - If user asks about dashboard/home page/default page, module must be Dashboard.
+              - If user asks about profile details, module should be Profile.
+
              - GetPerformanceSummary:
                User wants to view performance-related information such as performance summary,
                ratings, appraisals, or last month/quarter performance review details.
+
+             - GetHolidaySummary:
+               User wants holiday information such as yearly holiday summary,
+               upcoming holidays, mandatory/restricted holiday counts, or company holidays.
+
+             - GetMyRestrictedHolidays:
+               User wants to view or manage their restricted holidays,
+               selected restricted holidays, or available restricted holidays.
+
+             - GetTimesheetStatus:
+               User wants to check timesheet status, whether timesheet is draft/finalized,
+               pending review status, or monthly timesheet progress.
+
+             - GetExpenseStatus:
+               User wants to check expense claims, claim status,
+               pending/approved/rejected expenses, or expense summary.
+
+             - GetJobsStatus:
+               User wants information about job openings, applications,
+               application status, or hiring stages.
+
+             - GetNewsUpdates:
+               User wants latest company news, announcements,
+               or recently published news items.
+
+             - GetMyAssets:
+               User wants assigned asset information,
+               active assets, or asset assignment history.
+
+             - GetSubscriptionStatus:
+               User wants details about subscription plan, billing cycle,
+               plan expiry, or whether subscription is active/expired.
 
              - GetAttendance:
                User wants to view attendance-related data including working days, present days,
@@ -81,6 +125,8 @@ namespace HRMS.AI.Services
              - LeaveApplicationDetails:
                User provides leave application details such as leave type,
                start date, end date, and reason for applying for leave.
+               If user already provided leave type and both dates in the same message,
+               classify as LeaveApplicationDetails instead of ApplyForLeave.
 
              - EmployeeInfo:
                User wants to know about their personal info only.
@@ -97,10 +143,10 @@ namespace HRMS.AI.Services
              - Unknown:
                Any request that does not clearly match HRMS guidance.
  
-If the label is Guidance, Greeting, also determine the affected module, and if related department of positions then also return EmployeeManagement. If label is Greeting then module is also Greeting. Possible modules: Greeting, EmployeeManagement, Attendance, Leave, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings, HRPolicies, AssetsManagement, AccountCreation, GlobalCalendar, NewsManagement, JobsManagement, ExpensesManagement, Other.
+If the label is Guidance, Greeting, also determine the affected module, and if related department of positions then also return EmployeeManagement. If label is Greeting then module is also Greeting. Possible modules: Greeting, Dashboard, EmployeeManagement, Attendance, Leave, HolidayManagement, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings, HRPolicies, AssetsManagement, AccountCreation, GlobalCalendar, NewsManagement, JobsManagement, ExpensesManagement, Subscription, Other.
 
         Return EXACT output in this format (no extra text):
-        Label: <Greeting|Guidance|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
+        Label: <Greeting|Guidance|GetHolidaySummary|GetMyRestrictedHolidays|GetTimesheetStatus|GetExpenseStatus|GetJobsStatus|GetNewsUpdates|GetMyAssets|GetSubscriptionStatus|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
 
         User message:
         ""{message}"".
@@ -163,6 +209,14 @@ If the label is Guidance, Greeting, also determine the affected module, and if r
                 {
                     "Greeting" => ChatIntent.Greeting,
                     "Guidance" => ChatIntent.Guidance,
+                  "GetHolidaySummary" => ChatIntent.GetHolidaySummary,
+                  "GetMyRestrictedHolidays" => ChatIntent.GetMyRestrictedHolidays,
+                  "GetTimesheetStatus" => ChatIntent.GetTimesheetStatus,
+                    "GetExpenseStatus" => ChatIntent.GetExpenseStatus,
+                    "GetJobsStatus" => ChatIntent.GetJobsStatus,
+                    "GetNewsUpdates" => ChatIntent.GetNewsUpdates,
+                    "GetMyAssets" => ChatIntent.GetMyAssets,
+                    "GetSubscriptionStatus" => ChatIntent.GetSubscriptionStatus,
                     "GetPerformanceSummary" => ChatIntent.GetPerformanceSummary,
                     "GetAttendance" => ChatIntent.GetAttendance,
                     "CheckMyShift" => ChatIntent.CheckMyShift,
@@ -190,6 +244,57 @@ If the label is Guidance, Greeting, also determine the affected module, and if r
                 _logger.LogError(ex, "Intent detection failed");
                 return new IntentDetectionResult { Intent = ChatIntent.Unknown };
             }
+        }
+
+        private IntentDetectionResult? DetectIntentByRules(string message)
+        {
+          if (string.IsNullOrWhiteSpace(message))
+          {
+            return null;
+          }
+
+          var text = message.Trim().ToLowerInvariant();
+
+          // Direct status/data queries should bypass Guidance.
+          if (text.Contains("payslip") || text.Contains("salary slip"))
+            return new IntentDetectionResult { Intent = ChatIntent.GetPayslip };
+
+          if (text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))
+            return new IntentDetectionResult { Intent = ChatIntent.GetExpenseStatus };
+
+          if ((text.Contains("job application") || text.Contains("applications")) && text.Contains("status"))
+            return new IntentDetectionResult { Intent = ChatIntent.GetJobsStatus };
+
+          if (text.Contains("latest") && text.Contains("news") || text.Contains("company news"))
+            return new IntentDetectionResult { Intent = ChatIntent.GetNewsUpdates };
+
+          if ((text.Contains("asset") || text.Contains("assets")) && (text.Contains("assigned") || text.Contains("my")))
+            return new IntentDetectionResult { Intent = ChatIntent.GetMyAssets };
+
+          if (text.Contains("subscription") && text.Contains("status"))
+            return new IntentDetectionResult { Intent = ChatIntent.GetSubscriptionStatus };
+
+          if (text.Contains("timesheet") && (text.Contains("status") || text.Contains("finalized") || text.Contains("finalised")))
+            return new IntentDetectionResult { Intent = ChatIntent.GetTimesheetStatus };
+
+          if (text.Contains("holiday summary") || text.Contains("upcoming holiday") || text.Contains("any upcoming holiday"))
+            return new IntentDetectionResult { Intent = ChatIntent.GetHolidaySummary };
+
+          if (text.Contains("my restricted holiday") || text.Contains("show my restricted holiday") || text.Contains("restricted holidays"))
+            return new IntentDetectionResult { Intent = ChatIntent.GetMyRestrictedHolidays };
+
+          if ((text.Contains("select restricted holiday") || text.Contains("how do i select restricted")) && text.Contains("holiday"))
+            return new IntentDetectionResult { Intent = ChatIntent.Guidance, Module = "HolidayManagement" };
+
+          if ((text.Contains("dashboard") || text.Contains("home page")) && (text.Contains("open") || text.Contains("go") || text.Contains("show") || text.Contains("how")))
+            return new IntentDetectionResult { Intent = ChatIntent.Guidance, Module = "Dashboard" };
+
+          // Leave application with details in one message.
+          var hasTwoDates = Regex.Matches(text, "\\b(\\d{4}-\\d{2}-\\d{2}|\\d{1,2}[/-]\\d{1,2}[/-]\\d{2,4})\\b").Count >= 2;
+          if (text.Contains("leave") && hasTwoDates && (text.Contains("from") || text.Contains("to")))
+            return new IntentDetectionResult { Intent = ChatIntent.LeaveApplicationDetails };
+
+          return null;
         }
     }
 

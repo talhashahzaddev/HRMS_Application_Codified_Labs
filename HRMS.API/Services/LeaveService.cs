@@ -179,23 +179,72 @@ public class LeaveService : ILeaveService
             throw new InvalidOperationException("An error occurred while creating the leave request", ex);
         }
     }
-    public async Task<LeaveApplicationDetails> CreateLeaveRequestByChatBotAsync(LeaveApplicationDetails request, Guid employeeId, Guid organizationId)
+    public async Task<LeaveApplicationDetails> CreateLeaveRequestByChatBotAsync(LeaveApplicationDetails request, Guid employeeId, Guid organizationId, string? baseUrl = null)
     {
         try
         {
-            var leavetypeId = await _leaveRepository.GetLeaveTypeIdByNameAsync(request.leaveType, organizationId);
-            var typeId = leavetypeId.FirstOrDefault().LeaveTypeId;
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request), "Leave request details are required.");
+            }
+
+            var startDate = request.startDate.Date;
+            var endDate = request.endDate.Date;
+            var today = DateTime.Today;
+
+            if (startDate == DateTime.MinValue || endDate == DateTime.MinValue)
+            {
+                throw new InvalidOperationException("Please provide valid start and end dates for leave application.");
+            }
+
+            if (startDate < today)
+            {
+                throw new InvalidOperationException("Leave start date must be today or a future date.");
+            }
+
+            if (endDate < startDate)
+            {
+                throw new InvalidOperationException("Leave end date must be on or after the start date.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.leaveType))
+            {
+                throw new InvalidOperationException("Please provide a valid leave type.");
+            }
+
+            var leaveTypeInput = request.leaveType.Trim();
+            var leaveTypeMatches = await _leaveRepository.GetLeaveTypeIdByNameAsync(leaveTypeInput, organizationId);
+            var leaveType = leaveTypeMatches.FirstOrDefault();
+
+            // Fallback: tolerate case and phrasing differences from AI extraction.
+            if (leaveType == null)
+            {
+                var availableTypes = await _leaveRepository.GetLeaveTypesAsync(organizationId);
+                leaveType = availableTypes.FirstOrDefault(x =>
+                    string.Equals(x.TypeName?.Trim(), leaveTypeInput, StringComparison.OrdinalIgnoreCase));
+
+                if (leaveType == null)
+                {
+                    leaveType = availableTypes.FirstOrDefault(x =>
+                        !string.IsNullOrWhiteSpace(x.TypeName) &&
+                        (x.TypeName.Contains(leaveTypeInput, StringComparison.OrdinalIgnoreCase)
+                         || leaveTypeInput.Contains(x.TypeName, StringComparison.OrdinalIgnoreCase)));
+                }
+            }
+
+            if (leaveType == null)
+            {
+                throw new InvalidOperationException($"Leave type '{request.leaveType}' was not found.");
+            }
+
             var requestDto = new CreateLeaveRequest
             {
-                LeaveTypeId = typeId,
+                LeaveTypeId = leaveType.LeaveTypeId,
                 StartDate = request.startDate,
                 EndDate = request.endDate,
                 Reason = request.reason,
                 AttachmentUrl = null
             };
-            var startDate = request.startDate.Date;
-            var endDate = request.endDate.Date;
-            var today = DateTime.Today;
             var response = await CreateLeaveRequestAsync(requestDto, employeeId,organizationId);
             var daysrequested = CalculateWorkingDays(request.startDate, request.endDate);
 
@@ -203,14 +252,9 @@ public class LeaveService : ILeaveService
             {
                 response.DaysRequested = daysrequested;
             }
-
-            if (startDate <= today)
-            {
-                throw new InvalidOperationException("Leave start date must be a future date.");
-            }
-
             if (response != null)
             {
+                var calendarUrl = BuildVerifyLink(baseUrl, "/leave/calendar");
                 return new LeaveApplicationDetails
                 {
                     leavetypeid = response.LeaveTypeId,
@@ -220,7 +264,7 @@ public class LeaveService : ILeaveService
                     reason = response.Reason,
                     status = response.Status,
                     statustext = $"✅ Your leave request from {response.StartDate:dd MMM yyyy} to {response.EndDate:dd MMM yyyy} " +
-                          $"for {response.DaysRequested} day(s) has been submitted with {response.Status} status \nfor more details check your calander https://frontend-hrms-phi.vercel.app/leave/calendar"
+                          $"for {response.DaysRequested} day(s) has been submitted with {response.Status} status.\nFor more details, check your leave calendar: {calendarUrl}"
                 };
             }
             else
@@ -251,6 +295,15 @@ public class LeaveService : ILeaveService
             };
         }
     }
+
+    private static string BuildVerifyLink(string? baseUrl, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return baseUrl ?? string.Empty;
+        var normalizedBase = (baseUrl ?? string.Empty).TrimEnd('/');
+        var normalizedPath = path.StartsWith("/") ? path : "/" + path;
+        return string.IsNullOrWhiteSpace(normalizedBase) ? normalizedPath : normalizedBase + normalizedPath;
+    }
+
     public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
     {
         if (employeeId == Guid.Empty)
