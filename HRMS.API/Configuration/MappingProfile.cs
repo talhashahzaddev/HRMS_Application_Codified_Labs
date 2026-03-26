@@ -48,11 +48,6 @@ public class MappingProfile : Profile
         CreateMap<LeaveType, LeaveTypeDto>();
         CreateMap<LeaveEntitlement, LeaveEntitlementDto>();
 
-        // Payroll mappings
-        CreateMap<PayrollPeriod, PayrollPeriodDto>();
-        CreateMap<CreatePayrollPeriodRequest, PayrollPeriod>();
-        CreateMap<PayrollEntry, PayrollEntryDto>();
-
         // Performance mappings
         CreateMap<SkillSet, SkillSetDto>();
         CreateMap<EmployeeSkill, EmployeeSkillDto>();
@@ -65,7 +60,5 @@ public class MappingProfile : Profile
 
         // Additional attendance mappings
         CreateMap<ManualAttendanceRequest, Attendance>();
-        CreateMap<SalaryComponent, SalaryComponentDto>().ReverseMap();
-        CreateMap<SalaryRule, SalaryRuleDto>().ReverseMap();
     }
 }

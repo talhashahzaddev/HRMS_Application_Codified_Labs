@@ -96,19 +96,6 @@ public class LeaveStatsDto
     public Dictionary<string, int> LeaveTypes { get; set; } = new();
 }
 
-public class PayrollStatsDto
-{
-    public decimal TotalPayroll { get; set; }
-    public decimal AverageSalary { get; set; }
-    public List<PayrollCostDto> PayrollCosts { get; set; } = new();
-}
-
-public class PayrollCostDto
-{
-    public string Month { get; set; } = string.Empty;
-    public decimal Amount { get; set; }
-}
-
 public class PerformanceStatsDto
 {
     public decimal AverageRating { get; set; }
@@ -134,7 +121,6 @@ public class OnboardingStatusDto
     public bool CreateTeam { get; set; }
     public bool DefineLeaveTypes { get; set; }
     public bool MarkAttendance { get; set; }
-    public bool ProcessPayroll { get; set; }
 }
 
 public class UpcomingEventDto

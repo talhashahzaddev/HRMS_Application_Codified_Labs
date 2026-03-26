@@ -2167,7 +2167,7 @@ public class AttendanceService : IAttendanceService
                 dto.TimesheetId, dto.EmployeeId);
             if (isPackageFinalized)
                 throw new InvalidOperationException(
-                    "Cannot override: this employee's timesheet has been fully finalized for payroll.");
+                    "Cannot override: this employee's timesheet has been fully finalized.");
         }
 
         var result = await _attendanceRepository.AdminFinalizeRecordAsync(dto, managerId, orgId);
@@ -2179,7 +2179,7 @@ public class AttendanceService : IAttendanceService
                 Receiveruserid = new List<Guid> { dto.EmployeeId },
                 Senderuserid = managerId,
                 Title = "Attendance Override",
-                Message = $"A manager has overridden your attendance record for {dto.WorkDate:yyyy-MM-dd}. The record has been updated but is not yet finalized for payroll.",
+                Message = $"A manager has overridden your attendance record for {dto.WorkDate:yyyy-MM-dd}. The record has been updated but is not yet finalized.",
                 Notificationtype = "Message",
                 moduletype = "attendance",
                 Redirecturl = "/attendance/dashboard",
