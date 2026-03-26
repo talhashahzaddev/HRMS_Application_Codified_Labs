@@ -22,7 +22,7 @@ public class PayRollController : ControllerBase
 
     [HttpGet("rules")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<PayRollRuleDto>>>> GetAllRules()
+    public async Task<ActionResult<ServiceResponse<PayRollRulesGroupedDto>>> GetAllRules()
     {
         try
         {
@@ -39,7 +39,7 @@ public class PayRollController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access while retrieving payroll rules");
-            return StatusCode(403, new ServiceResponse<IEnumerable<PayRollRuleDto>>
+            return StatusCode(403, new ServiceResponse<PayRollRulesGroupedDto>
             {
                 Success = false,
                 Message = "You do not have permission to access this resource."
@@ -48,7 +48,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving payroll rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<PayRollRuleDto>>
+            return StatusCode(500, new ServiceResponse<PayRollRulesGroupedDto>
             {
                 Success = false,
                 Message = "An error occurred while retrieving payroll rules"
@@ -56,8 +56,133 @@ public class PayRollController : ControllerBase
         }
     }
 
-    private Guid GetCurrentOrganizationId()
+    [HttpGet("overtime-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<OvertimeRuleDto>>>> GetAllOvertimeRules()
     {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllOvertimeRulesAsync(organizationId);
+
+            if (!response.Success)
+                return BadRequest(response);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving overtime rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("overtime-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<OvertimeRuleDto>>> GetOvertimeRuleById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetOvertimeRuleByIdAsync(id, organizationId);
+
+            if (!response.Success)
+                return NotFound(response);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving overtime rule by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<OvertimeRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("overtime-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<OvertimeRuleDto>>> CreateOvertimeRule([FromBody] CreateOvertimeRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateOvertimeRuleAsync(organizationId, dto);
+
+            if (!response.Success)
+                return BadRequest(response);
+
+            return CreatedAtAction(nameof(GetOvertimeRuleById), new { id = response.Data?.RuleId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating overtime rule");
+            return StatusCode(500, new ServiceResponse<OvertimeRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("overtime-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<OvertimeRuleDto>>> UpdateOvertimeRule(Guid id, [FromBody] UpdateOvertimeRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateOvertimeRuleAsync(id, organizationId, dto);
+
+            if (!response.Success)
+                return BadRequest(response);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating overtime rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<OvertimeRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("overtime-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteOvertimeRule(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.ToggleOvertimeRuleDeletionAsync(id, organizationId);
+
+            if (!response.Success)
+                return BadRequest(response);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting overtime rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPatch("overtime-rules/{id}/toggle-status")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> ToggleOvertimeRuleStatus(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.ToggleOvertimeRuleStatusAsync(id, organizationId);
+
+            if (!response.Success)
+                return BadRequest(response);
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error toggling overtime rule status: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    private Guid GetCurrentOrganizationId()    {
         var orgIdClaim = User.FindFirstValue("organizationId");
 
         if (string.IsNullOrEmpty(orgIdClaim))

@@ -4,5 +4,13 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IPayRollRepository
 {
-    Task<IEnumerable<PayRollRuleDto>> GetAllRulesAsync(Guid organizationId);
+    Task<PayRollRulesGroupedDto> GetAllRulesAsync(Guid organizationId);
+    
+    // Overtime Rules
+    Task<IEnumerable<OvertimeRuleDto>> GetAllOvertimeRulesAsync(Guid organizationId);
+    Task<OvertimeRuleDto?> GetOvertimeRuleByIdAsync(Guid ruleId, Guid organizationId);
+    Task<OvertimeRuleDto> CreateOvertimeRuleAsync(Guid organizationId, CreateOvertimeRuleDto dto);
+    Task<OvertimeRuleDto?> UpdateOvertimeRuleAsync(Guid ruleId, Guid organizationId, UpdateOvertimeRuleDto dto);
+    Task<bool> ToggleOvertimeRuleStatusAsync(Guid ruleId, Guid organizationId); // Active/Inactive
+    Task<bool> ToggleOvertimeRuleDeletionAsync(Guid ruleId, Guid organizationId); // Delete/Restore
 }
