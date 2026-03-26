@@ -1636,3 +1636,537 @@ CREATE TABLE IF NOT EXISTS auth.submenus
     CONSTRAINT sub_menus_pkey PRIMARY KEY (submenuid)
 
 );
+
+--Schema for the Payroll--
+// overtime
+create table if not exists payroll.overtimerules
+(
+    ruleid          uuid primary key default uuid_generate_v4(),
+    organizationid  uuid not null,
+    rulename        character varying(100), 
+    description     text,
+    overtimetype    character varying(20) 
+                    check (overtimetype in ('regular', 'holiday', 'weekend')),
+    fixedamount     numeric(15,2),  
+    percentage      numeric(5,2),   
+    isactive        boolean default true,
+    isdeleted       boolean default false,
+    createdat       timestamptz default current_timestamp,
+    updatedat       timestamptz default current_timestamp,
+    constraint uqruletype unique (organizationid, overtimetype)
+);
+
+create table if not exists payroll.overtimeentries
+(
+    overtimeid      uuid primary key default uuid_generate_v4(),
+    employeeid      uuid not null,
+    periodid        uuid not null,
+    ruleid          uuid references payroll.overtimerules(ruleid), 
+    hoursworked     numeric(5,2) not null,
+    finalamount     numeric(15,2), 
+    entrystatus     character varying(20) default 'pending'
+                    check (entrystatus in ('pending', 'approved', 'rejected')),
+    approvedby      uuid,
+    overtimedate    date not null, 
+    createdat       timestamptz default current_timestamp,
+    updatedat       timestamptz default current_timestamp,
+    constraint uqovertime unique (employeeid, periodid, overtimedate)
+); // overtime
+
+// attendance deduction
+create table if not exists payroll.attendancedeductionrules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    rulename            character varying(100),
+    description         text,
+    fixeddeduction      numeric(15,2),
+    percentagededuction numeric(5,2),
+    halfdaymultiplier   numeric(3,2) default 0.50,
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqorgrule unique (organizationid)
+);
+
+create table if not exists payroll.attendancesummary
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.attendancedeductionrules(ruleid),
+    shiftid             uuid,
+    scheduleddays       integer default 0,
+    totaldays           integer default 0,
+    presentdays         integer default 0,
+    absentdays          integer default 0,
+    halfdays            integer default 0,
+    effectiveabsents    numeric(6,2) default 0,
+    absentdeduction     numeric(15,2) default 0,
+    halfdaydeduction    numeric(15,2) default 0,
+    totaldeduction      numeric(15,2) default 0,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqattendance unique (periodid, employeeid)
+); // attendance deduction
+
+// late attendance
+create table if not exists payroll.lateattendancerules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    rulename            character varying(100),
+    description         text,
+    fixeddeduction      numeric(15,2),
+    percentagededuction numeric(5,2),
+    graceminutes        integer default 0,
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqorglaterule unique (organizationid)
+);
+
+create table if not exists payroll.lateattendance
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.lateattendancerules(ruleid),
+    lateminutes         integer default 0,
+    deduction           numeric(15,2) default 0,
+    isgrace             boolean default false,
+    attendancedate      date not null,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqlateattendance unique (employeeid, attendancedate)
+); // late attendance
+
+// leaves
+create table if not exists payroll.leaverules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    rulename            character varying(100),
+    description         text,
+    unpaidmultiplier    numeric(3,2) default 1.00,
+    halfpaidmultiplier  numeric(3,2) default 0.50,
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqorgleaverule unique (organizationid)
+);
+
+create table if not exists payroll.payrollleavesummary
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.leaverules(ruleid),
+    paiddays            numeric(5,2) default 0,
+    unpaiddays          numeric(5,2) default 0,
+    halfpaiddays        numeric(5,2) default 0,
+    unpaiddeduction     numeric(15,2) default 0,
+    halfpaiddeduction   numeric(15,2) default 0,
+    totalleavedays      numeric(5,2) generated always as (
+                            paiddays + unpaiddays + halfpaiddays
+                        ) stored,
+    totaldeduction      numeric(15,2),
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqleavesummary unique (periodid, employeeid)
+); // leaves
+
+// performance 
+create table if not exists payroll.performancerules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    rulename          character varying(20),
+    description         text,
+    minscore            numeric(3,2),
+    maxscore            numeric(3,2),
+    fixedamount         numeric(15,2),
+    percentage          numeric(5,2),
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqperformancebracket unique (organizationid, ratingname)
+);
+
+create table if not exists payroll.performancepay
+(
+    performancepayid    uuid primary key default uuid_generate_v4(),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.performancerules(ruleid),
+    score               numeric(5,2),
+    finalamount         numeric(15,2) not null,
+    calculatedat        timestamptz default current_timestamp,
+    createdat           timestamptz default current_timestamp,
+    constraint uqperformancepay unique (employeeid, periodid)
+); // performance
+
+// loan 
+create table if not exists payroll.loanrules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    rulename            character varying(100),
+    description         text,
+    organizationid      uuid not null,
+    maxloanamount       numeric(15,2),
+    maxinstallments     integer,
+    interestrate        numeric(5,2) default 0,
+    requiresapproval    boolean default true,
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqorgloanrule unique (organizationid)
+);
+
+create table if not exists payroll.loans
+(
+    loanid              uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    ruleid              uuid references payroll.loanrules(ruleid),
+    totalamount         numeric(15,2) not null,
+    monthlyinstallment  numeric(15,2),
+    remainingamount     numeric(15,2) not null,
+    paidamount          numeric(15,2) generated always as (
+                            totalamount - remainingamount
+                        ) stored,
+    totalinstallments   integer not null default 0,
+    paidinstallments    integer not null default 0,
+    repaymenttype       varchar(20) default 'installment',
+    requeststatus       varchar(20) default 'pending', 
+    startdate           date,
+    enddate             date,
+    loanstatus          varchar(20) default 'active',
+    description         text,
+    createdby           uuid,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp
+);
+
+create table if not exists payroll.loanpayments
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    loanid              uuid references payroll.loans(loanid),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    installmentnumber   integer not null default 0,
+    installmentamount   numeric(15,2) not null,
+    remainingamount     numeric(15,2) not null,
+    repaymenttype       varchar(20) default 'installment',
+    paymentstatus       varchar(20) default 'deducted',
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqloanpayments unique (loanid, periodid)
+); // loan
+
+// advance salary
+create table if not exists payroll.salaryadvancerules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    rulename            character varying(100),
+    description         text,
+    organizationid      uuid not null,
+    maxpercentage       numeric(5,2),
+    allowancegrace      integer,
+    requiresapproval    boolean default true,
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqorgadvancerule unique (organizationid)
+);
+
+create table if not exists payroll.salaryadvance
+(
+    advanceid           uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    ruleid              uuid references payroll.salaryadvancerules(ruleid),
+    periodid            uuid, 
+    totalamount         numeric(15,2) not null,
+    remainingamount     numeric(15,2) not null,
+    monthlydeduction    numeric(15,2) default 0,
+    reason              text,
+    advancestatus       varchar(20) default 'pending'
+                        check (advancestatus in ('pending', 'approved', 'completed', 'cancelled')),
+    approvedby          uuid,
+    createdby           uuid,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp
+);
+
+create table if not exists payroll.advancepayments
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    advanceid           uuid references payroll.salaryadvance(advanceid),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    deductionamount     numeric(15,2) not null,
+    remainingamount     numeric(15,2) not null,
+    paymentstatus       varchar(20) default 'deducted',
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqadvancepayments unique (advanceid, periodid)
+); // advance salary
+
+// pf rules
+create table if not exists payroll.pfrules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    rulename            character varying(100),
+    description         text,
+    organizationid      uuid not null,
+    defaultemployeepct  numeric(5,2) default 0,
+    defaultemployerpct  numeric(5,2) default 0,
+    mincontribution     numeric(15,2),
+    maxcontribution     numeric(15,2),
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqorgpfrule unique (organizationid)
+);
+
+create table if not exists payroll.providentfund
+(
+    pfid                uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    ruleid              uuid references payroll.pfrules(ruleid),
+    employeepct         numeric(5,2) not null,
+    employerpct         numeric(5,2) not null,
+    isenrolled          boolean default false,
+    pfstatus            varchar(20) default 'pending'
+                        check (pfstatus in ('pending', 'approved', 'completed', 'cancelled')),
+    effectivefrom       date,
+    isactive            boolean default true,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqprovidentfund unique (organizationid, employeeid)
+);
+
+create table if not exists payroll.pftransactions
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    pfid                uuid references payroll.providentfund(pfid),
+    employeeamount      numeric(15,2) not null,
+    employeramount      numeric(15,2) not null,
+    totalamount         numeric(15,2) generated always as (
+                            employeeamount + employeramount
+                        ) stored,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqpftransactions unique (employeeid, periodid)
+); // pf rules
+
+// tax slabs 
+create table if not exists payroll.taxslabs
+(
+    slabid          uuid primary key default uuid_generate_v4(),
+    organizationid  uuid not null,
+    slabrulename        character varying(100) not null,
+    description         text,
+    fiscalyear      character varying(20) not null,
+    minincome       numeric(15,2) not null,
+    maxincome       numeric(15,2),
+    fixedamount     numeric(15,2) default 0,
+    percentage      numeric(5,2) default 0,
+    isactive        boolean default true,
+    isdeleted       boolean default false,
+    createdat       timestamptz default current_timestamp,
+    updatedat       timestamptz default current_timestamp,
+    constraint uqtaxslab unique (organizationid, fiscalyear, minincome)
+);
+
+create table if not exists payroll.taxtransactions
+(
+    id              uuid primary key default uuid_generate_v4(),
+    organizationid  uuid not null,
+    employeeid      uuid not null,
+    periodid        uuid not null,
+    slabid          uuid references payroll.taxslabs(slabid),
+    annualsalary    numeric(15,2),
+    taxableincome   numeric(15,2),
+    fixedamount     numeric(15,2) default 0,
+    taxpercentage   numeric(5,2) default 0,
+    taxamount       numeric(15,2),
+    createdat       timestamptz default current_timestamp,
+    updatedat       timestamptz default current_timestamp,
+    constraint uqtaxtransaction unique (employeeid, periodid)
+);
+
+// social security
+create table if not exists payroll.socialsecurityconfig
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    configrulename          varchar(100) not null,
+    description         text,
+    employeepercentage  numeric(5,2) not null default 0,
+    employerpercentage  numeric(5,2) not null default 0,
+    maxsalarylimit      numeric(15,2),
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    effectivefrom       date,
+    effectiveto         date,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqssconfig unique (organizationid, configname)
+);
+
+create table if not exists payroll.socialsecuritytransactions
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    configid            uuid references payroll.socialsecurityconfig(id),
+    salarycapped        numeric(15,2),
+    employeeamount      numeric(15,2) default 0,
+    employeramount      numeric(15,2) default 0,
+    totalamount         numeric(15,2) generated always as (
+                            employeeamount + employeramount
+                        ) stored,
+    requeststatus       varchar(20) default 'pending', 
+    isenrolled          boolean default false,         
+    withdrawalrequest   boolean default false,         
+    withdrawalstatus    varchar(20),                   
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqsstransaction unique (employeeid, periodid)
+); // social security
+
+// gratuity
+create table if not exists payroll.gratuityconfig
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    configrulename          varchar(100) not null,
+    description         text,
+    yearsrequired       integer not null default 5,
+    calculationtype     varchar(50) not null 
+                        check (calculationtype in ('fixed', 'peryear', 'percentage')),
+    calculationvalue    numeric(10,2) not null,
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqgratuityconfig unique (organizationid, configname)
+);
+
+create table if not exists payroll.gratuitytransactions
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    periodid            uuid,
+    configid            uuid references payroll.gratuityconfig(id),
+    yearsworked         numeric(4,2) not null,
+    lastsalary          numeric(15,2),
+    totalamount         numeric(15,2) not null,
+    paymentstatus       varchar(20) default 'calculated'
+                        check (paymentstatus in ('calculated', 'approved', 'paid', 'cancelled')),
+    paidat              timestamptz,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqgratuitytransaction unique (employeeid, organizationid) 
+); // gratuity
+
+// payrolldata 
+create table if not exists payroll.payrolldata
+(
+    dataid              uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    entryid             uuid,
+
+    employeesnapshot    jsonb not null default '{}',
+
+    basicsalary         numeric(15,2) default 0,
+    earningsdetail      jsonb not null default '[]',
+    totalearnings       numeric(15,2) default 0,
+    overtimeamount      numeric(15,2) default 0,
+    bonusamount         numeric(15,2) default 0,
+    grosssalary         numeric(15,2) default 0,
+
+    scheduleddays       integer default 0,
+    presentdays         integer default 0,
+    absentdays          numeric(6,2) default 0,
+    halfdays            integer default 0,
+    latedays            integer default 0,
+    overtimehours       numeric(6,2) default 0,
+
+    absentdeduction     numeric(15,2) default 0,
+    latededuction       numeric(15,2) default 0,
+    loandeduction       numeric(15,2) default 0,
+    advancededuction    numeric(15,2) default 0,
+    taxamount           numeric(15,2) default 0,
+    pfemployee          numeric(15,2) default 0,
+    socialsecurity      numeric(15,2) default 0,
+    otherdeductions     numeric(15,2) default 0,
+    deductionsdetail    jsonb not null default '[]',
+    totaldeductions     numeric(15,2) default 0,
+
+    pfemployer          numeric(15,2) default 0,
+    ssemployer          numeric(15,2) default 0,
+
+    ytdgross            numeric(15,2) default 0,
+    ytdtax              numeric(15,2) default 0,
+    ytdnet              numeric(15,2) default 0,
+
+    netsalary           numeric(15,2) default 0,
+    currency            character varying(3) default 'pkr',
+
+    status              varchar(20) default 'draft'
+                        check (status in ('draft', 'generated', 'sent', 'viewed')),
+    generatedby         uuid,
+    generatedat         timestamptz,
+
+    emailsentat         timestamptz,
+    emailsentto         varchar(255),
+
+    payslippdfurl       text,
+    pdfgeneratedat      timestamptz,
+
+    isreissued          boolean default false,
+    reissuedby          uuid,
+    reissuedat          timestamptz,
+    reissuenote         text,
+    versionnumber       integer default 1,
+
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+
+    constraint uqpayslips unique (employeeid, periodid, versionnumber)
+);
+
+// payslipemaillog
+create table if not exists payroll.payslipemaillog
+(
+    id              uuid primary key default uuid_generate_v4(),
+    payslipid       uuid not null references payroll.payrolldata(dataid),
+    organizationid  uuid not null,
+    employeeid      uuid not null,
+    sentat          timestamptz default current_timestamp,
+    sentto          varchar(255) not null,
+    sentby          uuid,
+    status          varchar(20) default 'sent'
+                    check (status in ('sent', 'failed', 'bounced')),
+    errormessage    text
+); // payslipemaillog

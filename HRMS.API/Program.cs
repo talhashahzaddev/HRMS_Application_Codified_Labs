@@ -196,6 +196,7 @@ builder.Services.AddScoped<IJobsService, JobsService>();
 builder.Services.AddScoped<ICareerService, CareerService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IHolidayService, HolidayService>();
+builder.Services.AddScoped<IPayRollService, PayRollService>();
 builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
 
 // --- Super Admin Portal Services ---
@@ -224,6 +225,7 @@ builder.Services.AddScoped<IJobsRepository, JobsRepository>();
 builder.Services.AddScoped<ICareerRepository, CareerRepository>();
 builder.Services.AddScoped<INewsRepository, NewsRepository>();
 builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
+builder.Services.AddScoped<IPayRollRepository, PayRollRepository>();
 
 // --- Super Admin Portal Repositories ---
 builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
