@@ -188,48 +188,6 @@ public class DashboardController : ControllerBase
         }
     }
 
-    [HttpGet("payroll-stats")]
-    public async Task<ActionResult<ServiceResponse<PayrollStatsDto>>> GetPayrollStats([FromQuery] string? period = null)
-    {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            var stats = await _dashboardService.GetPayrollStatsAsync(organizationId, period);
-            
-            return Ok(new ServiceResponse<PayrollStatsDto>
-            {
-                Success = true,
-                Data = stats
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "Invalid argument for retrieving payroll stats");
-            return BadRequest(new ServiceResponse<PayrollStatsDto>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Unauthorized(new ServiceResponse<PayrollStatsDto>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving payroll stats");
-            return StatusCode(500, new ServiceResponse<PayrollStatsDto>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving payroll statistics"
-            });
-        }
-    }
-
     [HttpGet("performance-stats")]
     public async Task<ActionResult<ServiceResponse<PerformanceStatsDto>>> GetPerformanceStats()
     {
@@ -497,35 +455,6 @@ public class DashboardController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave trends"
-            });
-        }
-    }
-
-    [HttpGet("payroll-trends")]
-    public async Task<ActionResult<ServiceResponse<object>>> GetPayrollTrends([FromQuery] string period = "12m")
-    {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            // Mock implementation
-            var trends = new { 
-                months = new[] { "Jan", "Feb", "Mar" },
-                payrollCosts = new[] { 150000, 155000, 152000 }
-            };
-            
-            return Ok(new ServiceResponse<object>
-            {
-                Success = true,
-                Data = trends
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error retrieving payroll trends");
-            return StatusCode(500, new ServiceResponse<object>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving payroll trends"
             });
         }
     }

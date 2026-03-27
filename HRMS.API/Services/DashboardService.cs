@@ -82,21 +82,6 @@ public class DashboardService : IDashboardService
         return await _dashboardRepository.GetLeaveStatsAsync(organizationId, period);
     }
 
-    public async Task<PayrollStatsDto> GetPayrollStatsAsync(Guid organizationId, string period = "month")
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetPayrollStatsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        if (!IsValidStatsPeriod(period))
-        {
-            _logger.LogWarning("Invalid period {Period} for GetPayrollStatsAsync", period);
-            throw new ArgumentException("Invalid period. Allowed values: week, month, quarter, year", nameof(period));
-        }
-        return await _dashboardRepository.GetPayrollStatsAsync(organizationId, period);
-    }
-
     public async Task<PerformanceStatsDto> GetPerformanceStatsAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty)
@@ -175,21 +160,6 @@ public class DashboardService : IDashboardService
             throw new ArgumentException("Invalid period. Allowed values: 3m, 6m, 12m, 24m", nameof(period));
         }
         return await _dashboardRepository.GetLeaveTrendsAsync(organizationId, period);
-    }
-
-    public async Task<object> GetPayrollTrendsAsync(Guid organizationId, string period = "12m")
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetPayrollTrendsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        if (!IsValidGrowthPeriod(period))
-        {
-            _logger.LogWarning("Invalid period {Period} for GetPayrollTrendsAsync", period);
-            throw new ArgumentException("Invalid period. Allowed values: 3m, 6m, 12m, 24m", nameof(period));
-        }
-        return await _dashboardRepository.GetPayrollTrendsAsync(organizationId, period);
     }
 
     public async Task<List<object>> GetTopPerformersAsync(Guid organizationId, int limit = 5)
