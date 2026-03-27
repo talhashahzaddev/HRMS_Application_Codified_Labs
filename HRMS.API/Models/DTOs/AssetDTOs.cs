@@ -118,6 +118,7 @@ public class AssetAssignmentDto
     public DateTime? ReturnedAt { get; set; }
     public string Status { get; set; } = "Active";
     public string? Notes { get; set; }
+    public string? Condition { get; set; }  // ADD THIS
 }
 
 public class AssignAssetRequest
@@ -144,4 +145,5 @@ public class ReturnAssetRequest
 
     [StringLength(500)]
     public string? Notes { get; set; }
+    public string? Condition { get; set; }
 }

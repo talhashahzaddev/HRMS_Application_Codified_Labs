@@ -228,6 +228,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
                 UPDATE assets.asset_assignments
                 SET returned_at = @returnedAt,
                     status = 'Returned',
+                    condition = @Condition,
                     notes = COALESCE(@notes, notes),
                     updated_at = CURRENT_TIMESTAMP
                 WHERE assignment_id = @assignmentId
@@ -239,6 +240,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
                           assigned_at AS AssignedAt,
                           due_date AS DueDate,
                           returned_at AS ReturnedAt,
+condition AS Condition,
                           status AS Status,
                           notes AS Notes;",
                 new
@@ -247,6 +249,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
                     assignmentId = request.AssignmentId,
                     returnedAt = request.ReturnedAt ?? DateTime.UtcNow,
                     notes = request.Notes,
+                    condition = request.Condition,
                     updatedBy
                 }, transaction);
 
@@ -281,6 +284,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
                    aa.assigned_at AS AssignedAt,
                    aa.due_date AS DueDate,
                    aa.returned_at AS ReturnedAt,
+aa.condition AS Condition,
                    CASE
                        WHEN aa.status = 'Active' AND aa.due_date IS NOT NULL AND aa.due_date < NOW() THEN 'Overdue'
                        ELSE aa.status
