@@ -8,6 +8,7 @@ using Org.BouncyCastle.Asn1.Ocsp;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Linq;
+using HRMS.API.Authorization;
 
 namespace HRMS.API.Controllers;
 
@@ -121,7 +122,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("add_employee")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> CreateEmployee([FromBody] CreateEmployeeRequest request)
     {
         try
@@ -183,7 +184,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("edit_employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateEmployee(Guid id, [FromBody] UpdateEmployeeRequest request)
     {
         try
@@ -253,7 +254,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("delete_employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployee(Guid id, [FromQuery] string status)
     {
         try
@@ -322,7 +323,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPost("departments")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("add_department")]
     public async Task<ActionResult<ServiceResponse<DepartmentDto>>> CreateDepartment([FromBody] CreateDepartmentRequest request)
     {
         try
@@ -385,7 +386,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPut("departments/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("edit_department")]
     public async Task<ActionResult<ServiceResponse<DepartmentDto>>> UpdateDepartment(Guid id, [FromBody] CreateDepartmentRequest request)
     {
         try
@@ -455,7 +456,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpDelete("departments/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("delete_department")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteDepartment(Guid id)
     {
         try
@@ -527,6 +528,7 @@ public class EmployeeController : ControllerBase
   
     // GET: api/employees/positions/{positionId}/employees
     [HttpGet("positions/{positionId}/employees")]
+    [PermissionAuthorize("view_position_employees")]
     public async Task<ActionResult<ServiceResponse<PositionEmployeesMainDto>>> GetEmployeesByPosition(Guid positionId)
     {
         try
@@ -556,6 +558,7 @@ public class EmployeeController : ControllerBase
 
 
     [HttpPut("positions/{positionId}/status")]
+    [PermissionAuthorize("deactivat/activate_position")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdatePositionStatus(
     Guid positionId,
     [FromQuery] bool isActive)
@@ -599,6 +602,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPut("departments/{departmentId}/status")]
+    [PermissionAuthorize("deactivat/activate_department")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateDepartmentStatus(
     Guid departmentId,
     [FromQuery] bool isActive)
@@ -645,7 +649,7 @@ public class EmployeeController : ControllerBase
 
 
     [HttpPost("positions")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("add_position")]
     public async Task<ActionResult<ServiceResponse<PositionDto>>> CreatePosition([FromBody] CreatePositionRequest request)
     {
         try
@@ -717,7 +721,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPut("positions/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("edit_position")]
     public async Task<ActionResult<ServiceResponse<PositionDto>>> UpdatePosition(Guid id, [FromBody] CreatePositionRequest request)
     {
         try
@@ -790,7 +794,6 @@ public class EmployeeController : ControllerBase
 
 
     [HttpDelete("positions/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeletePosition(Guid id)
     {
         try
@@ -909,7 +912,7 @@ public class EmployeeController : ControllerBase
 
 
     [HttpPatch("{id}/activate")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("activate/deactivate_employee")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> ActivateEmployee(Guid id)
     {
         try
@@ -951,7 +954,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPatch("{id}/deactivate")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("activate/deactivate_employee")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> DeactivateEmployee(Guid id)
     {
         try
@@ -1126,7 +1129,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPatch("bulk/activate")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("activate/deactivate_employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> BulkActivateEmployees([FromBody] BulkEmployeeRequest request)
     {
         try
@@ -1151,7 +1154,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPatch("bulk/deactivate")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("activate/deactivate_employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> BulkDeactivateEmployees([FromBody] BulkEmployeeRequest request)
     {
         try

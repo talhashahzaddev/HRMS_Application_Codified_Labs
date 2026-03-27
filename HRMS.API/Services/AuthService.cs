@@ -832,6 +832,136 @@ public class AuthService : IAuthService
             IsSystemRole = request.IsSystemRole
         };
     }
+    public async Task<UpdateRoleResponse> UpdateRoleAsync(UpdateRoleRequest request, Guid? organizationId)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        if (request.RoleId == Guid.Empty) throw new ArgumentException("Role ID is required", nameof(request.RoleId));
+        if (string.IsNullOrWhiteSpace(request.RoleName)) throw new ArgumentException("Role name is required", nameof(request.RoleName));
+        if (organizationId == Guid.Empty) throw new ArgumentException("Organization ID is required", nameof(organizationId));
+
+        _logger.LogInformation("Updating role: {RoleId} - {RoleName} for organization: {OrganizationId}",
+            request.RoleId, request.RoleName, organizationId);
+
+        // Check if role exists
+        var existingRole = await _authRepository.GetRoleByIdAsync(request.RoleId);
+        if (existingRole == null)
+        {
+            _logger.LogWarning("Role not found: {RoleId}", request.RoleId);
+            throw new KeyNotFoundException($"Role with ID {request.RoleId} not found");
+        }
+
+        // Check if another role with the same name exists (excluding current role)
+        var roleWithSameName = await _authRepository.GetRoleByNameAsync(organizationId, request.RoleName);
+        if (roleWithSameName != null && roleWithSameName.RoleId != request.RoleId)
+        {
+            _logger.LogWarning("Another role with same name already exists: {RoleName}", request.RoleName);
+            throw new InvalidOperationException("Role name already exists in this organization");
+        }
+
+        // Prevent updating system roles if needed (optional)
+        if (existingRole.IsSystemRole == true)
+        {
+            _logger.LogWarning("Cannot convert system role to non-system role: {RoleId}", request.RoleId);
+            throw new InvalidOperationException("System role cannot be converted to non-system role");
+        }
+
+        // Validate all menu, submenu, and action IDs
+        foreach (var menu in request.Menus)
+        {
+            var menuExists = await _authRepository.MenuExistsAsync(menu.MenuId);
+            if (!menuExists)
+            {
+                _logger.LogWarning("Menu ID does not exist: {MenuId}", menu.MenuId);
+                throw new ArgumentException($"Menu ID {menu.MenuId} does not exist");
+            }
+
+            foreach (var subMenu in menu.SubMenus)
+            {
+                var subMenuExists = await _authRepository.SubMenuExistsAsync(subMenu.SubMenuId, menu.MenuId);
+                if (!subMenuExists)
+                {
+                    _logger.LogWarning("SubMenu ID does not exist: {SubMenuId} for Menu: {MenuId}",
+                        subMenu.SubMenuId, menu.MenuId);
+                    throw new ArgumentException($"SubMenu ID {subMenu.SubMenuId} does not exist or doesn't belong to the specified menu");
+                }
+
+                foreach (var action in subMenu.Actions)
+                {
+                    var actionExists = await _authRepository.ActionExistsAsync(action.ActionId, subMenu.SubMenuId);
+                    if (!actionExists)
+                    {
+                        _logger.LogWarning("Action ID does not exist: {ActionId} for SubMenu: {SubMenuId}",
+                            action.ActionId, subMenu.SubMenuId);
+                        throw new ArgumentException($"Action ID {action.ActionId} does not exist or doesn't belong to the specified submenu");
+                    }
+                }
+            }
+        }
+
+        // Update role in database
+        await _authRepository.UpdateRoleAsync(request, organizationId);
+
+        _logger.LogInformation("Role updated successfully with ID: {RoleId}", request.RoleId);
+
+        return new UpdateRoleResponse
+        {
+            RoleId = request.RoleId,
+            RoleName = request.RoleName,
+            Description = request.Description,
+            OrganizationId = organizationId,
+            IsSystemRole = request.IsSystemRole
+        };
+    }
+    public async Task<DeleteRoleResponse> DeleteRoleAsync(Guid roleId, Guid? organizationId)
+    {
+        if (roleId == Guid.Empty) throw new ArgumentException("Role ID is required", nameof(roleId));
+        if (organizationId == Guid.Empty) throw new ArgumentException("Organization ID is required", nameof(organizationId));
+
+        _logger.LogInformation("Deleting role: {RoleId} for organization: {OrganizationId}",
+            roleId, organizationId);
+
+        // Check if role exists and get its details
+        var existingRole = await _authRepository.GetRoleByIdAsync(roleId);
+        if (existingRole == null)
+        {
+            _logger.LogWarning("Role not found: {RoleId}", roleId);
+            throw new KeyNotFoundException($"Role with ID {roleId} not found");
+        }
+
+        // Prevent deletion of system roles if needed
+        if (existingRole.IsSystemRole == true)
+        {
+            _logger.LogWarning("Cannot delete system role: {RoleId}", roleId);
+            throw new InvalidOperationException("System roles cannot be deleted");
+        }
+
+        // Check if role is assigned to any users
+        var userCount = await _authRepository.GetUserCountByRoleIdAsync(roleId, organizationId);
+        if (userCount > 0)
+        {
+            _logger.LogWarning("Cannot delete role {RoleId} as it is assigned to {UserCount} users",
+                roleId, userCount);
+            throw new InvalidOperationException($"Cannot delete role '{existingRole.RoleName}' because it is assigned to {userCount} user(s). Please reassign or remove these users first.");
+        }
+
+        // Delete the role
+        var deleted = await _authRepository.DeleteRoleAsync(roleId, organizationId);
+
+        if (!deleted)
+        {
+            throw new InvalidOperationException("Failed to delete role");
+        }
+
+        _logger.LogInformation("Role deleted successfully: {RoleId} - {RoleName}",
+            roleId, existingRole.RoleName);
+
+        return new DeleteRoleResponse
+        {
+            RoleId = roleId,
+            RoleName = existingRole.RoleName,
+            Deleted = true
+        };
+    }
     public async Task<List<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId)
     {
         if (organizationId == Guid.Empty)

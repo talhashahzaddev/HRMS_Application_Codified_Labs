@@ -41,6 +41,14 @@ public class ActionDto
 }
 
 // Models/DTOs/CreateRoleRequest.cs
+public class UpdateRoleRequest
+{
+    public Guid RoleId { get; set; }
+    public string RoleName { get; set; }
+    public string Description { get; set; }
+    public bool IsSystemRole { get; set; }
+    public List<MenuPermissionDto> Menus { get; set; }
+}
 public class Create_RoleRequest
 {
     public string RoleName { get; set; }
@@ -73,6 +81,20 @@ public class CreateRoleResponse
     public string Description { get; set; }
     public Guid? OrganizationId { get; set; }
     public bool IsSystemRole { get; set; }
+}
+public class UpdateRoleResponse
+{
+    public Guid RoleId { get; set; }
+    public string RoleName { get; set; }
+    public string Description { get; set; }
+    public Guid? OrganizationId { get; set; }
+    public bool IsSystemRole { get; set; }
+}
+public class DeleteRoleResponse
+{
+    public Guid RoleId { get; set; }
+    public string RoleName { get; set; }
+    public bool Deleted { get; set; }
 }
 public class PermissionDetail
 {
