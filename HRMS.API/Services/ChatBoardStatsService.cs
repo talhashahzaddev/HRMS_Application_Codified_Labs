@@ -26,7 +26,7 @@ namespace HRMS.API.Services
         private readonly INewsRepository _newsRepository;
         private readonly IAssetRepository _assetRepository;
         private readonly IPaymentRepository _paymentRepository;
-        private readonly IPayrollRepository _payrollRepository;
+        private readonly IPayRollRepository _payrollRepository;
         private readonly IAttendanceService _attendanceService;
         private readonly ILogger<ChatBoardStatsService> _logger;
 
@@ -41,7 +41,7 @@ namespace HRMS.API.Services
             INewsRepository newsRepository,
             IAssetRepository assetRepository,
             IPaymentRepository paymentRepository,
-            IPayrollRepository payrollRepository,
+            IPayRollRepository payrollRepository,
             IAttendanceService attendanceService,
             ILogger<ChatBoardStatsService> logger)
         {
@@ -99,7 +99,12 @@ namespace HRMS.API.Services
                 case ChatIntent.ApplyForLeave:
                     return await HandleApplyForLeave(employeeId, organizationId);
                 case ChatIntent.GetPayslip:
-                    return await HandleGetPayslip(employeeId, organizationId, userMessage, baseUrl);
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.Unknown,
+                        ResponseText = "I am an HR assistant and can only help with HR-related queries.\r\nPlease ask about attendance, leave, holidays, timesheets, payroll, expenses, jobs, assets, subscription, performance, or HR policies.",
+                        Module = module
+                    };
                 case ChatIntent.EmployeeInfo:
                     return await HandleGetEmployeeInfo(employeeId, organizationId);
                 case ChatIntent.GetMySkills:
@@ -937,50 +942,50 @@ namespace HRMS.API.Services
             };
         }
 
-        private Task<ChatResponseDto> HandleGetPayslip(Guid employeeId, Guid organizationId, string userMessage, string baseUrl)
-        {
-            return HandleGetPayslipInternal(employeeId, userMessage, baseUrl);
-        }
+        //private Task<ChatResponseDto> HandleGetPayslip(Guid employeeId, Guid organizationId, string userMessage, string baseUrl)
+        //{
+        //    return HandleGetPayslipInternal(employeeId, userMessage, baseUrl);
+        //}
 
-        private async Task<ChatResponseDto> HandleGetPayslipInternal(Guid employeeId, string userMessage, string baseUrl)
-        {
-            try
-            {
-                var verifyUrl = BuildVerifyLink(baseUrl, "/payroll/payslip");
-                var result = await _payrollRepository.GetPayrollEntriesByEmployeeAsync(employeeId, 1, 1);
-                var latest = result.Data?.FirstOrDefault();
-                if (latest == null)
-                {
-                    return new ChatResponseDto
-                    {
-                        Intent = ChatIntent.GetPayslip,
-                        ResponseText = $"No, no payroll entry or payslip data is available for your profile yet. Verify here: {verifyUrl}",
-                        Module = "Payroll"
-                    };
-                }
+        //private async Task<ChatResponseDto> HandleGetPayslipInternal(Guid employeeId, string userMessage, string baseUrl)
+        //{
+        //    try
+        //    {
+        //        var verifyUrl = BuildVerifyLink(baseUrl, "/payroll/payslip");
+        //        var result = await _payrollRepository.GetPayrollEntriesByEmployeeAsync(employeeId, 1, 1);
+        //        var latest = result.Data?.FirstOrDefault();
+        //        if (latest == null)
+        //        {
+        //            return new ChatResponseDto
+        //            {
+        //                Intent = ChatIntent.GetPayslip,
+        //                ResponseText = $"No, no payroll entry or payslip data is available for your profile yet. Verify here: {verifyUrl}",
+        //                Module = "Payroll"
+        //            };
+        //        }
 
-                var message = IsYesNoQuestion(userMessage)
-                    ? $"Yes, your latest payslip is available for {latest.PeriodName}. Status: {latest.Status}. Verify here: {verifyUrl}"
-                    : $"Latest payslip: {latest.PeriodName}. Net Salary: {latest.NetSalary:0.##} {latest.Currency}. Gross: {latest.GrossSalary:0.##}, Tax: {latest.TaxAmount:0.##}. Status: {latest.Status}.\nVerify here: {verifyUrl}";
+        //        var message = IsYesNoQuestion(userMessage)
+        //            ? $"Yes, your latest payslip is available for {latest.PeriodName}. Status: {latest.Status}. Verify here: {verifyUrl}"
+        //            : $"Latest payslip: {latest.PeriodName}. Net Salary: {latest.NetSalary:0.##} {latest.Currency}. Gross: {latest.GrossSalary:0.##}, Tax: {latest.TaxAmount:0.##}. Status: {latest.Status}.\nVerify here: {verifyUrl}";
 
-                return new ChatResponseDto
-                {
-                    Intent = ChatIntent.GetPayslip,
-                    ResponseText = message,
-                    Module = "Payroll"
-                };
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to fetch payslip for employee {EmployeeId}", employeeId);
-                return new ChatResponseDto
-                {
-                    Intent = ChatIntent.GetPayslip,
-                    ResponseText = "Error fetching payslip details.",
-                    Module = "Payroll"
-                };
-            }
-        }
+        //        return new ChatResponseDto
+        //        {
+        //            Intent = ChatIntent.GetPayslip,
+        //            ResponseText = message,
+        //            Module = "Payroll"
+        //        };
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        _logger.LogError(ex, "Failed to fetch payslip for employee {EmployeeId}", employeeId);
+        //        return new ChatResponseDto
+        //        {
+        //            Intent = ChatIntent.GetPayslip,
+        //            ResponseText = "Error fetching payslip details.",
+        //            Module = "Payroll"
+        //        };
+        //    }
+        //}
 
         private async Task<ChatResponseDto> HandleGetMySkills(Guid employeeId, Guid organizationId)
         {
