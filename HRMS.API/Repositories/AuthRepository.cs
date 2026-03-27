@@ -665,6 +665,79 @@ WHERE token = @token;
             throw;
         }
     }
+    public async Task<bool> UpdateRoleAsync(UpdateRoleRequest request, Guid? organizationId)
+    {
+        const string sql = "SELECT * FROM auth.fn_update_role(@p_organizationid, @p_roleid, @p_rolename, @p_description, @p_issystemrole, @p_menus::jsonb)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organizationid", organizationId, DbType.Guid);
+        parameters.Add("p_roleid", request.RoleId, DbType.Guid);
+        parameters.Add("p_rolename", request.RoleName, DbType.String);
+        parameters.Add("p_description", request.Description, DbType.String);
+        parameters.Add("p_issystemrole", request.IsSystemRole, DbType.Boolean);
+
+        string jsonMenus = JsonConvert.SerializeObject(request.Menus);
+        parameters.Add("p_menus", jsonMenus, DbType.String);
+
+        try
+        {
+            var result = await ExecuteScalarAsync<bool?>(sql, parameters);
+
+            if (result == null || !result.Value)
+            {
+                throw new InvalidOperationException("Failed to update role");
+            }
+
+            return result.Value;
+        }
+        catch (Exception ex)
+        {
+            //_logger.LogError(ex, "Database error while updating role: {RoleId}", request.RoleId);
+            throw;
+        }
+    }
+    // Get user count by role ID
+    public async Task<int> GetUserCountByRoleIdAsync(Guid roleId, Guid? organizationId)
+    {
+        const string sql = @"
+        SELECT COUNT(*) 
+        FROM auth.users 
+        WHERE roleid = @RoleId 
+          AND (organizationid = @OrganizationId OR @OrganizationId IS NULL)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("RoleId", roleId, DbType.Guid);
+        parameters.Add("OrganizationId", organizationId, DbType.Guid);
+
+        return await ExecuteScalarAsync<int>(sql, parameters);
+    }
+
+    // Delete role
+    public async Task<bool> DeleteRoleAsync(Guid roleId, Guid? organizationId)
+    {
+        const string sql = "SELECT * FROM auth.fn_delete_role(@p_organizationid, @p_roleid)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organizationid", organizationId, DbType.Guid);
+        parameters.Add("p_roleid", roleId, DbType.Guid);
+
+        try
+        {
+            var result = await ExecuteScalarAsync<bool?>(sql, parameters);
+
+            if (result == null || !result.Value)
+            {
+                return false;
+            }
+
+            return result.Value;
+        }
+        catch (Exception ex)
+        {
+            //_logger.LogError(ex, "Database error while deleting role: {RoleId}", roleId);
+            throw;
+        }
+    }
 
     public async Task<Role> GetRoleByNameforTokenAsync(string roleName, Guid? organizationId)
     {

@@ -1085,23 +1085,24 @@ public class AttendanceService : IAttendanceService
         List<EmployeeDto> result;
 
         // Check if user is Super Admin or HR Manager
-        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+        //var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
 
-        if (isAdminOrHR)
-        {
-            // Super Admin or HR Manager: Get all employees or filtered by department
-            _logger.LogInformation("User is Super Admin or HR Manager - returning all employees");
+        //if (isAdminOrHR)
+        //{
+        //    // Super Admin or HR Manager: Get all employees or filtered by department
+        //    _logger.LogInformation("User is Super Admin or HR Manager - returning all employees");
 
-            return  await _attendanceRepository.GetEmployeeForAdminAsync(organizationId,departmentId);
-        }
-        else
-        {
-            // Manager: Get only their team's employees, optionally filtered by department
-            _logger.LogInformation("User is Manager - returning team employees for manager: {EmployeeId}", currentEmployeeId);
 
-            return await _attendanceRepository.GetManagerEmployeeAsync(currentEmployeeId, organizationId, departmentId);
-        }
-       
+        //}
+        //else
+        //{
+        //    // Manager: Get only their team's employees, optionally filtered by department
+        //    _logger.LogInformation("User is Manager - returning team employees for manager: {EmployeeId}", currentEmployeeId);
+
+        //    return await _attendanceRepository.GetManagerEmployeeAsync(currentEmployeeId, organizationId, departmentId);
+        //}
+        return await _attendanceRepository.GetEmployeeForAdminAsync(organizationId, departmentId);
+
     }
 
     private async Task<AttendanceReportDto> GetFullAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10)

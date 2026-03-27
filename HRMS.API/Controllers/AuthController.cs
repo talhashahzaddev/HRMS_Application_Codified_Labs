@@ -951,6 +951,122 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [HttpPut("update-role")]
+    public async Task<ActionResult<ServiceResponse<UpdateRoleResponse>>> UpdateRoleAsync([FromBody] UpdateRoleRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<UpdateRoleResponse>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+
+            var organizationid = GetOrganizationIdFromClaims();
+
+            var result = await _authService.UpdateRoleAsync(request, organizationid);
+
+            return Ok(new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = true,
+                Message = "Role updated successfully",
+                Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for role update");
+            return BadRequest(new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Role not found for update");
+            return NotFound(new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Role name conflict during update");
+            return Conflict(new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Role update failed for role: {RoleId}", request.RoleId);
+            return StatusCode(500, new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = false,
+                Message = "An error occurred while updating the role"
+            });
+        }
+    }
+    [HttpDelete("delete-role/{roleId}")]
+    public async Task<ActionResult<ServiceResponse<DeleteRoleResponse>>> DeleteRoleAsync(Guid roleId)
+    {
+        try
+        {
+            if (roleId == Guid.Empty)
+            {
+                return BadRequest(new ServiceResponse<DeleteRoleResponse>
+                {
+                    Success = false,
+                    Message = "Role ID is required"
+                });
+            }
+
+            var organizationid = GetOrganizationIdFromClaims();
+
+            var result = await _authService.DeleteRoleAsync(roleId, organizationid);
+
+            return Ok(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = true,
+                Message = "Role deleted successfully",
+                Data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Role not found for deletion: {RoleId}", roleId);
+            return NotFound(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Role cannot be deleted as it is assigned to users: {RoleId}", roleId);
+            return Conflict(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Role deletion failed for role: {RoleId}", roleId);
+            return StatusCode(500, new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = "An error occurred while deleting the role"
+            });
+        }
+    }
     [HttpGet("get-roles-by-organization")]
     public async Task<ActionResult<ServiceResponse<List<RoleDetailResponse>>>> GetRolesByOrganization()
     {
@@ -991,12 +1107,12 @@ public class AuthController : ControllerBase
             });
         }
     }
-    [HttpGet("get-user-permissions")]
-    public async Task<ActionResult<ServiceResponse<UserPermissionResponse>>> GetUserPermissions()
+    [HttpGet("get-user-permissions/{UserId}")]
+    public async Task<ActionResult<ServiceResponse<UserPermissionResponse>>> GetUserPermissions(Guid UserId)
     {
         try
         {
-            var userid = GetCurrentUserId();
+            //var userid = GetCurrentUserId();
             var requestingUserOrganizationId = GetOrganizationIdFromClaims();
             if (requestingUserOrganizationId == Guid.Empty)
             {
@@ -1009,7 +1125,7 @@ public class AuthController : ControllerBase
                 });
             }
 
-            var response = await _authService.GetUserPermissionsAsync(userid);
+            var response = await _authService.GetUserPermissionsAsync(UserId);
 
             if (response == null)
             {
@@ -1018,7 +1134,7 @@ public class AuthController : ControllerBase
                     Success = false,
                     Message = "User not found",
                     Data = null,
-                    Errors = new List<string> { $"User with ID {userid} not found" }
+                    Errors = new List<string> { $"User with ID {UserId} not found" }
                 });
             }
 

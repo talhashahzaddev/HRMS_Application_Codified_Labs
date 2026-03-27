@@ -78,11 +78,18 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
     public async Task<bool> UpdateEmploymentDetailCurrencyAsync(Guid employeeId, string currency)
     {
-        var sql = @"UPDATE employee.employmentdetails 
+      try
+        {
+            var sql = @"UPDATE employee.employmentdetails 
                     SET currency = @currency 
                     WHERE employeeid = @employeeId AND iscurrent = true";
-        var affectedRows = await ExecuteAsync(sql, new { employeeId, currency });
-        return affectedRows > 0;
+            var affectedRows = await ExecuteAsync(sql, new { employeeId, currency });
+            return affectedRows > 0;
+        }
+        catch(Exception ex)
+        {
+            return false;
+        }
     }
 
 

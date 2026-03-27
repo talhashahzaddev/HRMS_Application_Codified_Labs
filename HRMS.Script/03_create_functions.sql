@@ -83,11 +83,72 @@ ALTER FUNCTION auth.fn_authenticate_user(character varying, character varying)
 
 
 
--- ======================================================
--- Function: fn_create_organization
--- ======================================================
-fn_create_organization
+-- FUNCTION: auth.fn_create_organization(character varying, character varying, character varying, character varying)
 
+-- DROP FUNCTION IF EXISTS auth.fn_create_organization(character varying, character varying, character varying, character varying);
+
+CREATE OR REPLACE FUNCTION auth.fn_create_organization(
+	p_name character varying,
+	p_domain character varying DEFAULT NULL::character varying,
+	p_subscription_type character varying DEFAULT 'basic'::character varying,
+	p_currency character varying DEFAULT NULL::character varying)
+    RETURNS uuid
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    newOrgId UUID;
+    superAdminRoleId UUID;
+    permissionsCount INTEGER;
+BEGIN
+    -- Insert new organization
+    INSERT INTO auth.organizations (name, domain, subscriptionType, currency)
+    VALUES (p_name, p_domain, p_subscription_type, p_currency)
+    RETURNING organizationId INTO newOrgId;
+    
+    -- Create ONLY Super Admin role for the organization
+    INSERT INTO auth.roles (organizationId, roleName, description, isSystemRole)
+    VALUES (
+        newOrgId, 
+        'Super Admin', 
+        'System administrator with full access to all features', 
+        true
+    )
+    RETURNING roleId INTO superAdminRoleId;
+    
+    -- Bulk insert all permissions for Super Admin (NO LOOP
+    INSERT INTO auth.permissions (
+        roleId, 
+        actionId, 
+        organizationId, 
+        has_permission,
+        created_date,
+        updated_date
+    )
+    SELECT 
+        superAdminRoleId,
+        a.actionId,
+        newOrgId,
+        true,  -- Super Admin gets all permissions
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+    FROM auth.actions a
+	WHERE a.actionname != 'Employee Dashboard';
+    
+    -- Get count of inserted permissions for logging
+    GET DIAGNOSTICS permissionsCount = ROW_COUNT;
+    
+    -- Log the creation
+    RAISE NOTICE 'Organization created with ID: %, Super Admin role created with % permissions', 
+        newOrgId, permissionsCount;
+    
+    RETURN newOrgId;
+END;
+$BODY$;
+
+ALTER FUNCTION auth.fn_create_organization(character varying, character varying, character varying, character varying)
+    OWNER TO postgres;
 
 -- ======================================================
 -- Function: fn_create_user
@@ -1296,3 +1357,139 @@ BEGIN
     RETURN new_role_id;
 END;
 $$;
+-- FUNCTION: auth.fn_update_role(uuid, uuid, text, text, boolean, jsonb)
+
+-- DROP FUNCTION IF EXISTS auth.fn_update_role(uuid, uuid, text, text, boolean, jsonb);
+
+CREATE OR REPLACE FUNCTION auth.fn_update_role(
+	p_organizationid uuid,
+	p_roleid uuid,
+	p_rolename text,
+	p_description text,
+	p_issystemrole boolean,
+	p_menus jsonb)
+    RETURNS boolean
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    menu_record jsonb;
+    submenu_record jsonb;
+    action_record jsonb;
+    menu_id uuid;
+    submenu_id uuid;
+    action_id uuid;
+    v_haspermission boolean;
+BEGIN
+    -- Update role in auth.roles
+    UPDATE auth.roles
+    SET 
+        rolename = p_rolename,
+        description = p_description,
+        issystemrole = p_issystemrole
+    WHERE roleid = p_roleid 
+      AND (organizationid = p_organizationid OR (organizationid IS NULL AND p_organizationid IS NULL));
+
+    -- Check if role was updated
+    IF NOT FOUND THEN
+        RETURN false;
+    END IF;
+
+    -- Delete existing permissions for this role
+    DELETE FROM auth.permissions
+    WHERE roleid = p_roleid;
+
+    -- Insert new permissions from the menu structure
+    FOR menu_record IN SELECT * FROM jsonb_array_elements(p_menus)
+    LOOP
+        menu_id := (menu_record->>'MenuId')::uuid;
+
+        FOR submenu_record IN SELECT * FROM jsonb_array_elements(menu_record->'SubMenus')
+        LOOP
+            submenu_id := (submenu_record->>'SubMenuId')::uuid;
+
+            FOR action_record IN SELECT * FROM jsonb_array_elements(submenu_record->'Actions')
+            LOOP
+                action_id := (action_record->>'ActionId')::uuid;
+                v_haspermission := COALESCE((action_record->>'HasPermission')::boolean, false);
+
+                -- Insert permissions into auth.permissions
+                INSERT INTO auth.permissions (
+                    permissionid,
+                    roleid,
+                    actionid,
+                    organizationid,
+                    has_permission,
+                    created_date
+                )
+                VALUES (
+                    uuid_generate_v4(),
+                    p_roleid,
+                    action_id,
+                    p_organizationid,
+                    v_haspermission,
+                    CURRENT_TIMESTAMP
+                );
+            END LOOP;
+        END LOOP;
+    END LOOP;
+
+    RETURN true;
+END;
+$BODY$;
+
+ALTER FUNCTION auth.fn_update_role(uuid, uuid, text, text, boolean, jsonb)
+    OWNER TO postgres;
+
+-- FUNCTION: auth.fn_delete_role(uuid, uuid)
+
+-- DROP FUNCTION IF EXISTS auth.fn_delete_role(uuid, uuid);
+
+CREATE OR REPLACE FUNCTION auth.fn_delete_role(
+	p_organizationid uuid,
+	p_roleid uuid)
+    RETURNS boolean
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
+DECLARE
+    v_user_count integer;
+    v_role_name text;
+    v_is_system_role boolean;
+BEGIN
+    -- Get role details
+    SELECT rolename, issystemrole INTO v_role_name, v_is_system_role
+    FROM auth.roles 
+    WHERE roleid = p_roleid 
+      AND (organizationid = p_organizationid OR (organizationid IS NULL AND p_organizationid IS NULL));
+
+    -- Check if role exists
+    IF NOT FOUND THEN
+        RETURN false;
+    END IF;
+
+    -- Check if role is assigned to any users
+    SELECT COUNT(*) INTO v_user_count
+    FROM auth.users
+    WHERE roleid = p_roleid;
+
+    IF v_user_count > 0 THEN
+        RAISE EXCEPTION 'Role is assigned to % user(s) and cannot be deleted', v_user_count;
+    END IF;
+
+    -- Delete permissions first (due to foreign key constraints)
+    DELETE FROM auth.permissions
+    WHERE roleid = p_roleid;
+
+    -- Delete the role
+    DELETE FROM auth.roles
+    WHERE roleid = p_roleid;
+
+    RETURN true;
+END;
+$BODY$;
+
+ALTER FUNCTION auth.fn_delete_role(uuid, uuid)
+    OWNER TO postgres;
