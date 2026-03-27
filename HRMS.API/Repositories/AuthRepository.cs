@@ -829,7 +829,7 @@ WHERE token = @token;
     LEFT JOIN auth.roles r ON r.roleid = u.roleid
     WHERE u.userid = @userid";
 
-            var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { userid = userId });
+            var result = await QuerySingleOrDefaultAsync<UserWithRoleDto>(sql, new { userid = userId });
 
             if (result == null)
                 return (null, null);

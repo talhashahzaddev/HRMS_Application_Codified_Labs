@@ -169,3 +169,10 @@ public class UserActionPermission
     public string ActionKey { get; set; }
     public bool HasPermission { get; set; }
 }
+
+public class UserWithRoleDto
+{
+    public Guid userid { get; set; }
+    public string email { get; set; }
+    public Guid? roleid { get; set; }
+}
