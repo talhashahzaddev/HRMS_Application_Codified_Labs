@@ -1663,7 +1663,7 @@ create table if not exists payroll.overtimeentries
     periodid        uuid not null,
     ruleid          uuid references payroll.overtimerules(ruleid), 
     hoursworked     numeric(5,2) not null,
-    finalamount     numeric(15,2), 
+    finalamount     numeric(15,2),
     entrystatus     character varying(20) default 'pending'
                     check (entrystatus in ('pending', 'approved', 'rejected')),
     approvedby      uuid,

@@ -244,7 +244,29 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 createdat AS CreatedAt,
                 updatedat AS UpdatedAt
             FROM payroll.overtimerules
-            WHERE organizationid = @organizationId
+            WHERE organizationid = @organizationId AND isdeleted=false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<OvertimeRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<OvertimeRuleDto>> GetActiveOvertimeRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                overtimetype AS OvertimeType,
+                fixedamount AS FixedAmount,
+                percentage AS Percentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.overtimerules
+            WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
         return await QueryAsync<OvertimeRuleDto>(sql, new { organizationId });
@@ -266,7 +288,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 createdat AS CreatedAt,
                 updatedat AS UpdatedAt
             FROM payroll.overtimerules
-            WHERE ruleid = @ruleId AND organizationid = @organizationId;";
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted=false;";
 
         return await QuerySingleOrDefaultAsync<OvertimeRuleDto>(sql, new { ruleId, organizationId });
     }
@@ -368,5 +390,155 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             RETURNING isdeleted;";
         var result = await QuerySingleOrDefaultAsync<bool?>(sql, new { ruleId, organizationId });
         return result.HasValue;
+    }
+
+    // Overtime Entries
+    public async Task<PagedResult<OvertimeEntryDto>> GetAllOvertimeEntriesAsync(Guid organizationId, OvertimeEntryFilterDto filter)
+    {
+        var conditions = new List<string> { "e.organizationid = @organizationId" };
+        if (filter.PeriodId.HasValue) conditions.Add("oe.periodid = @PeriodId");
+        if (filter.RuleId.HasValue) conditions.Add("oe.ruleid = @RuleId");
+        if (!string.IsNullOrEmpty(filter.OvertimeType)) conditions.Add("r.overtimetype = @OvertimeType");
+        if (!string.IsNullOrEmpty(filter.EmployeeName)) conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE '%' || @EmployeeName || '%'");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.overtimeentries oe
+            JOIN employee.Employees e ON oe.employeeid = e.employeeid
+            LEFT JOIN payroll.overtimerules r ON oe.ruleid = r.ruleid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                oe.overtimeid AS OvertimeId,
+                oe.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                oe.periodid AS PeriodId,
+                oe.ruleid AS RuleId,
+                oe.hoursworked AS HoursWorked,
+                oe.finalamount AS FinalAmount,
+                oe.entrystatus AS EntryStatus,
+                r.overtimetype AS OvertimeType,
+                oe.approvedby AS ApprovedBy,
+                oe.overtimedate AS OvertimeDate,
+                oe.createdat AS CreatedAt,
+                oe.updatedat AS UpdatedAt
+            FROM payroll.overtimeentries oe
+            JOIN employee.Employees e ON oe.employeeid = e.employeeid
+            LEFT JOIN payroll.overtimerules r ON oe.ruleid = r.ruleid
+            WHERE {whereClause}
+            ORDER BY oe.overtimedate DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new
+        {
+            organizationId,
+            filter.PeriodId,
+            filter.RuleId,
+            filter.OvertimeType,
+            filter.EmployeeName,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<OvertimeEntryDto>(sql, parameters);
+
+        return new PagedResult<OvertimeEntryDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<OvertimeEntryDto?> GetOvertimeEntryByIdAsync(Guid overtimeId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                oe.overtimeid AS OvertimeId,
+                oe.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                oe.periodid AS PeriodId,
+                oe.ruleid AS RuleId,
+                oe.hoursworked AS HoursWorked,
+                oe.finalamount AS FinalAmount,
+                oe.entrystatus AS EntryStatus,
+                r.overtimetype AS OvertimeType,
+                oe.approvedby AS ApprovedBy,
+                oe.overtimedate AS OvertimeDate,
+                oe.createdat AS CreatedAt,
+                oe.updatedat AS UpdatedAt
+            FROM payroll.overtimeentries oe
+            JOIN employee.Employees e ON oe.employeeid = e.employeeid
+            LEFT JOIN payroll.overtimerules r ON oe.ruleid = r.ruleid
+            WHERE oe.overtimeid = @overtimeId AND e.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<OvertimeEntryDto>(sql, new { overtimeId, organizationId });
+    }
+
+    public async Task<OvertimeEntryDto> CreateOvertimeEntryAsync(Guid organizationId, CreateOvertimeEntryDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.overtimeentries (
+                employeeid, periodid, ruleid, hoursworked, finalamount, entrystatus, overtimedate
+            )
+            VALUES (
+                @EmployeeId, @PeriodId, @RuleId, @HoursWorked, @FinalAmount, @EntryStatus, @OvertimeDate
+            )
+            RETURNING overtimeid;";
+
+        var overtimeId = await QuerySingleAsync<Guid>(sql, dto);
+        return (await GetOvertimeEntryByIdAsync(overtimeId, organizationId))!;
+    }
+
+    public async Task<OvertimeEntryDto?> UpdateOvertimeEntryAsync(Guid overtimeId, Guid organizationId, UpdateOvertimeEntryDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.overtimeentries oe
+            SET 
+                ruleid = @RuleId,
+                hoursworked = @HoursWorked,
+                finalamount = @FinalAmount,
+                entrystatus = @EntryStatus,
+                approvedby = @ApprovedBy,
+                overtimedate = @OvertimeDate,
+                updatedat = current_timestamp
+            FROM employee.Employees e
+            WHERE oe.employeeid = e.employeeid AND oe.overtimeid = @overtimeId AND e.organizationid = @organizationId
+            RETURNING oe.overtimeid;";
+
+        var parameters = new
+        {
+            overtimeId,
+            organizationId,
+            dto.RuleId,
+            dto.HoursWorked,
+            dto.FinalAmount,
+            dto.EntryStatus,
+            dto.ApprovedBy,
+            dto.OvertimeDate
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetOvertimeEntryByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteOvertimeEntryAsync(Guid overtimeId, Guid organizationId)
+    {
+        var sql = @"
+            DELETE FROM payroll.overtimeentries oe
+            USING employee.Employees e
+            WHERE oe.employeeid = e.employeeid AND oe.overtimeid = @overtimeId AND e.organizationid = @organizationId
+            RETURNING oe.overtimeid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { overtimeId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
     }
 }
