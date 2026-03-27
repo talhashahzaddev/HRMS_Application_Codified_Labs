@@ -49,19 +49,56 @@ namespace HRMS.API.Controllers
                 string? domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationId);
                 var response = await _chatService.HandleChatAsync(request,roleName, domain);
                 var ipAddress = GetClientIp(); // add this method in ChatController
+                var tenant = !string.IsNullOrWhiteSpace(domain) ? domain.Trim().Split('.')[0] : "defaultdomain";
+                var baseUrl = $"https://{tenant}.briskpeople.com";
+                var leaveSubmittedFromApplyIntent = false;
+
+                // Fail-safe: force deterministic intent routing when model drifts to Guidance/Unknown.
+                var forcedIntent = DetectIntentOverride(request.Message);
+                if (forcedIntent.HasValue && (response.Intent == ChatIntent.Guidance || response.Intent == ChatIntent.Unknown))
+                {
+                    response.Intent = forcedIntent.Value.intent;
+                    response.Module = forcedIntent.Value.module;
+                }
 
 
                 // If intent is neither Guidance nor Greeting, delegate to ChatBoardStatsService for further handling
                 if (response.Intent != ChatIntent.Guidance && response.Intent != ChatIntent.Greeting && response.Intent != ChatIntent.LeaveApplicationDetails)
                 {
-                    response = await _chatBoardStatsService.HandleNonGuidanceIntentAsync(response.Intent, response.Module, empid, currentUserId,organizationId, ipAddress);
+                    response = await _chatBoardStatsService.HandleNonGuidanceIntentAsync(
+                        response.Intent,
+                        response.Module,
+                        empid,
+                        currentUserId,
+                        organizationId,
+                        ipAddress,
+                        request.Message,
+                        baseUrl);
                 }
 
                 if (response.Intent == ChatIntent.EmployeeInfo)
                 {
                     response = await _guidance_service.GenrateEmployeeInfoGuidance(request.Message, response.ResponseText);
                 }
-                if(response.Intent == ChatIntent.LeaveApplicationDetails)
+                if (response.Intent == ChatIntent.ApplyForLeave)
+                {
+                    var leaveTypes = await _leaveRepository.GetLeaveTypesAsync(organizationId);
+                    string leaveTypeNames = string.Join(", ", leaveTypes.Select(x => x.TypeName));
+
+                    var parsed = await _guidance_service.GenrateLeaveApplicationDetails(request.Message, leaveTypeNames);
+                    if (parsed != null
+                        && !string.IsNullOrWhiteSpace(parsed.leaveType)
+                        && parsed.startDate != DateTime.MinValue
+                        && parsed.endDate != DateTime.MinValue)
+                    {
+                        var leaveResponse = await _leaveService.CreateLeaveRequestByChatBotAsync(parsed, currentUserId, organizationId, baseUrl);
+                        response.Intent = ChatIntent.LeaveApplicationDetails;
+                        response.Module = "Leave";
+                        response.ResponseText = leaveResponse.statustext;
+                        leaveSubmittedFromApplyIntent = true;
+                    }
+                }
+                if(response.Intent == ChatIntent.LeaveApplicationDetails && !leaveSubmittedFromApplyIntent)
                 {
                     var leavetypes = await _leaveRepository.GetLeaveTypesAsync(organizationId);
                     string leaveTypeNames = string.Join(
@@ -71,7 +108,7 @@ namespace HRMS.API.Controllers
                     var leavetypedetails =  await _guidance_service.GenrateLeaveApplicationDetails(request.Message, leaveTypeNames);
                     if(leavetypedetails != null)
                     {
-                        var leaveResponse = await _leaveService.CreateLeaveRequestByChatBotAsync(leavetypedetails, currentUserId, organizationId);
+                        var leaveResponse = await _leaveService.CreateLeaveRequestByChatBotAsync(leavetypedetails, currentUserId, organizationId, baseUrl);
                         response.ResponseText = leaveResponse.statustext;
                     }
                 }
@@ -143,6 +180,42 @@ namespace HRMS.API.Controllers
                 return forwardedFor.Split(',')[0];
             }
             return HttpContext.Connection.RemoteIpAddress?.ToString() ?? "UNKNOWN";
+        }
+
+        private static (ChatIntent intent, string module)? DetectIntentOverride(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return null;
+            }
+
+            var text = message.Trim().ToLowerInvariant();
+
+            if (text.Contains("payslip") || text.Contains("salary slip"))
+                return (ChatIntent.GetPayslip, "Payroll");
+
+            if (text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))
+                return (ChatIntent.GetExpenseStatus, "ExpensesManagement");
+
+            if ((text.Contains("latest") && text.Contains("news")) || text.Contains("company news"))
+                return (ChatIntent.GetNewsUpdates, "NewsManagement");
+
+            if ((text.Contains("asset") || text.Contains("assets")) && (text.Contains("my") || text.Contains("assigned")))
+                return (ChatIntent.GetMyAssets, "AssetsManagement");
+
+            if (text.Contains("subscription") && text.Contains("status"))
+                return (ChatIntent.GetSubscriptionStatus, "Subscription");
+
+            if (text.Contains("timesheet") && (text.Contains("status") || text.Contains("finalized") || text.Contains("finalised")))
+                return (ChatIntent.GetTimesheetStatus, "Attendance");
+
+            if ((text.Contains("upcoming") || text.Contains("summary")) && text.Contains("holiday"))
+                return (ChatIntent.GetHolidaySummary, "HolidayManagement");
+
+            if (text.Contains("restricted") && text.Contains("holiday") && (text.Contains("how") || text.Contains("select")))
+                return (ChatIntent.Guidance, "HolidayManagement");
+
+            return null;
         }
 
     }

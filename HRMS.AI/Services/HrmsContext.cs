@@ -51,12 +51,30 @@ namespace HRMS.AI.Services
         "\nAttach URL with guidance." +
         "\nURLs:" +
         "\n- My Leave: /leave/dashboard" +
-        "\n- Apply for Leave: /leave/apply" +
+        "\n- Leave Calendar: /leave/calendar" +
         "\n- Team Leaves: /leave/team" +
         "\n- Leave Types: /leave/types",
 
+            ["HolidayManagement"] =
+        "Holiday Management Rules: Company holidays can be managed by Super Admin and HR Manager. Employees can view holidays and select restricted holidays where applicable." +
+        "\nHoliday Management Guidance: Users can view annual holiday summary, upcoming holidays, and restricted holiday selections. Employees can manage their own restricted holidays from My Holidays." +
+        "\nHoliday Management Steps: Open Holidays module, check annual holidays and summary, then use My Holidays to select or review restricted holidays." +
+        "\nAttach URL with guidance." +
+        "\nURLs:" +
+        "\n- Holidays: /holidays" +
+        "\n- My Restricted Holidays: /holidays/my-holidays" +
+        "\n- Global Calendar: /calendar",
+
+            ["Dashboard"] =
+        "Dashboard Guidance: Dashboard is the default landing area after login and shows role-based widgets, stats, and shortcuts." +
+        "\nDashboard Routes: Most users access /dashboard. Employees and managers can also use employee dashboard route when configured." +
+        "\nAttach URL with guidance." +
+        "\nURLs:" +
+        "\n- Main Dashboard: /dashboard" +
+        "\n- Employee Dashboard: /employee/dashboard",
+
             ["Payroll"] =
-        "Payroll Access Rules: The Payroll module is accessible only to Super Admin and HR Manager." +
+        "Payroll Access Rules: The Payroll module is accessible only to Super Admin." +
         "\nPayroll Guidance: Salary components and payroll rules are defined by the Super Admin. Payroll is processed based on approved attendance and leave data." +
         "\nPayroll Steps: To process payroll, the Super Admin or HR Manager creates a payroll cycle, navigates to Process Payroll, selects the cycle, chooses departments, defines rules and applicable positions, and processes payroll. Employees can view and download payslips from the Salary Slip section." +
         "\nAttach URL with guidance." +
@@ -106,7 +124,7 @@ namespace HRMS.AI.Services
         "\nOrganization Settings Steps: To update currency, the Super Admin navigates to Settings, selects the preferred currency, and saves changes. The selected currency is applied across the entire system." +
         "\nAttach URL with guidance." +
         "\nURLs:" +
-        "\n- Profile: /profile",
+        "\n- Settings: /settings/general",
 
             ["HRPolicies"] =
         "HR Policies Rules: All employees must follow organization-defined HR policies." +
@@ -115,7 +133,7 @@ namespace HRMS.AI.Services
         "\nPerformance is evaluated in defined cycles based on ratings and appraisals." +
         "\nPayroll is processed according to approved attendance, leave, and applicable salary rules.",
 
-            ["AssetsManagment"] =
+            ["AssetsManagement"] =
                 "Assets Management Access Rules: The Assets Management module is accessible to Super Admin, HR Manager, and Managers. " +
                 "Only Super Admin can create and manage asset types. HR Managers and Managers can create assets, assign them to employees, and view assigned assets. Employees have no access to this module." +
                 "\nAssets Management Guidance: Super Admin first creates Asset Types under Assets Types. HR Managers and Managers can then create individual assets, assign them to employees, update asset status, or reassign assets. All actions including edit, delete, and assignment are recorded." +
@@ -198,6 +216,10 @@ namespace HRMS.AI.Services
 
             // normalize keys: allow different casings and common names
             var key = module.Replace(" ", string.Empty).Replace("-", string.Empty).Replace("_", string.Empty);
+            if (string.Equals(key, "AssetsManagment", System.StringComparison.OrdinalIgnoreCase))
+            {
+                key = "AssetsManagement";
+            }
             foreach (var entry in _moduleContexts)
             {
                 var normalized = entry.Key.Replace(" ", string.Empty).Replace("-", string.Empty).Replace("_", string.Empty);
