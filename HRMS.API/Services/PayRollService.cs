@@ -63,6 +63,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<IEnumerable<OvertimeRuleDto>>> GetActiveOvertimeRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveOvertimeRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active overtime rules");
+            return new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<OvertimeRuleDto>> GetOvertimeRuleByIdAsync(Guid ruleId, Guid organizationId)
     {
         try
@@ -137,6 +151,84 @@ public class PayRollService : IPayRollService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error toggling overtime rule deletion");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<OvertimeEntryDto>>> GetAllOvertimeEntriesAsync(Guid organizationId, OvertimeEntryFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllOvertimeEntriesAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<OvertimeEntryDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting overtime entries");
+            return new ServiceResponse<PagedResult<OvertimeEntryDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<OvertimeEntryDto>> GetOvertimeEntryByIdAsync(Guid overtimeId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetOvertimeEntryByIdAsync(overtimeId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<OvertimeEntryDto> { Success = false, Message = "Overtime entry not found." };
+            }
+            return new ServiceResponse<OvertimeEntryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting overtime entry");
+            return new ServiceResponse<OvertimeEntryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<OvertimeEntryDto>> CreateOvertimeEntryAsync(Guid organizationId, CreateOvertimeEntryDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateOvertimeEntryAsync(organizationId, dto);
+            return new ServiceResponse<OvertimeEntryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating overtime entry");
+            return new ServiceResponse<OvertimeEntryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<OvertimeEntryDto>> UpdateOvertimeEntryAsync(Guid overtimeId, Guid organizationId, UpdateOvertimeEntryDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateOvertimeEntryAsync(overtimeId, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<OvertimeEntryDto> { Success = false, Message = "Overtime entry not found." };
+            }
+            return new ServiceResponse<OvertimeEntryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating overtime entry");
+            return new ServiceResponse<OvertimeEntryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteOvertimeEntryAsync(Guid overtimeId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteOvertimeEntryAsync(overtimeId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Entry not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting overtime entry");
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }

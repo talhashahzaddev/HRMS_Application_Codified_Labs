@@ -64,3 +64,51 @@ public class UpdateOvertimeRuleDto
     public decimal? FixedAmount { get; set; }
     public decimal? Percentage { get; set; }
 }
+
+public class OvertimeEntryDto
+{
+    public Guid OvertimeId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal HoursWorked { get; set; }
+    public decimal? FinalAmount { get; set; }
+    public string EntryStatus { get; set; } = string.Empty;
+    public string OvertimeType { get; set; } = string.Empty;
+    public Guid? ApprovedBy { get; set; }
+    public DateTime OvertimeDate { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateOvertimeEntryDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal HoursWorked { get; set; }
+    public decimal? FinalAmount { get; set; }
+    public string EntryStatus { get; set; } = "pending";
+    public DateTime OvertimeDate { get; set; }
+}
+
+public class UpdateOvertimeEntryDto
+{
+    public Guid? RuleId { get; set; }
+    public decimal HoursWorked { get; set; }
+    public decimal? FinalAmount { get; set; }
+    public string EntryStatus { get; set; } = "pending";
+    public Guid? ApprovedBy { get; set; }
+    public DateTime OvertimeDate { get; set; }
+}
+
+public class OvertimeEntryFilterDto
+{
+    public Guid? PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? OvertimeType { get; set; }
+    public string? EmployeeName { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
