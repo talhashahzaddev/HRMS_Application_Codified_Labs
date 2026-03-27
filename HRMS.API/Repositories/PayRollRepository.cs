@@ -244,7 +244,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 createdat AS CreatedAt,
                 updatedat AS UpdatedAt
             FROM payroll.overtimerules
-            WHERE organizationid = @organizationId
+            WHERE organizationid = @organizationId AND isdeleted=false
             ORDER BY createdat DESC;";
 
         return await QueryAsync<OvertimeRuleDto>(sql, new { organizationId });
@@ -266,7 +266,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 createdat AS CreatedAt,
                 updatedat AS UpdatedAt
             FROM payroll.overtimerules
-            WHERE ruleid = @ruleId AND organizationid = @organizationId;";
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted=false;";
 
         return await QuerySingleOrDefaultAsync<OvertimeRuleDto>(sql, new { ruleId, organizationId });
     }
