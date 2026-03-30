@@ -544,7 +544,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Payroll Periods
-    public async Task<PagedResult<PayrollPeriodDto>> GetAllPayrollPeriodsAsync(Guid organizationId, PayrollPeriodFilterDto filter)
+    public async Task<PayrollPeriodPagedResult> GetAllPayrollPeriodsAsync(Guid organizationId, PayrollPeriodFilterDto filter)
     {
         filter ??= new PayrollPeriodFilterDto();
         if (filter.PageSize <= 0) filter.PageSize = 10;
@@ -576,7 +576,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             {whereClause};";
 
         var summary = await QuerySingleAsync<dynamic>(countSql, parameters);
-        var totalCount = (int)summary.TotalCount;
+        var totalCount = Convert.ToInt32(summary.totalcount ?? 0);
+        var openCount = Convert.ToInt32(summary.opencount ?? 0);
+        var processedCount = Convert.ToInt32(summary.processedcount ?? 0);
+        var lockedCount = Convert.ToInt32(summary.lockedcount ?? 0);
 
         var sql = $@"
             SELECT 
@@ -610,9 +613,9 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             TotalCount = totalCount, 
             Page = filter.Page, 
             PageSize = filter.PageSize,
-            OpenCount = (int)summary.OpenCount,
-            ProcessedCount = (int)summary.ProcessedCount,
-            LockedCount = (int)summary.LockedCount
+            OpenCount = openCount,
+            ProcessedCount = processedCount,
+            LockedCount = lockedCount
         };
     }
 
