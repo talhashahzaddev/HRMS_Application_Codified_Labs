@@ -1638,6 +1638,22 @@ CREATE TABLE IF NOT EXISTS auth.submenus
 );
 
 --Schema for the Payroll--
+create table if not exists payroll.payrollperiods
+(
+    periodid        uuid primary key default uuid_generate_v4(),
+    organizationid  uuid not null,
+    periodname      character varying(100) not null,  -- e.g. 'July 2025', 'August 2025'
+    startdate       date not null,
+    enddate         date not null,
+    paymentdate     date,                             -- actual salary disbursement date
+    status          character varying(20) not null default 'Open'
+    description     text,
+    isactive        boolean default true,
+    isdeleted       boolean default false,
+    createdby       uuid,
+    createdat       timestamptz default current_timestamp,
+    updatedat       timestamptz default current_timestamp,
+);
 // overtime
 create table if not exists payroll.overtimerules
 (

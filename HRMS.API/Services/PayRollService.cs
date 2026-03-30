@@ -232,4 +232,83 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }
+
+    // Payroll Periods
+    public async Task<ServiceResponse<PayrollPeriodPagedResult>> GetAllPayrollPeriodsAsync(Guid organizationId, PayrollPeriodFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllPayrollPeriodsAsync(organizationId, filter);
+            return new ServiceResponse<PayrollPeriodPagedResult> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting payroll periods");
+            return new ServiceResponse<PayrollPeriodPagedResult> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollPeriodDto>> GetPayrollPeriodByIdAsync(Guid periodId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetPayrollPeriodByIdAsync(periodId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<PayrollPeriodDto> { Success = false, Message = "Payroll period not found." };
+            }
+            return new ServiceResponse<PayrollPeriodDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting payroll period by ID");
+            return new ServiceResponse<PayrollPeriodDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollPeriodDto>> CreatePayrollPeriodAsync(Guid organizationId, Guid employeeId, CreatePayrollPeriodDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreatePayrollPeriodAsync(organizationId, employeeId, dto);
+            return new ServiceResponse<PayrollPeriodDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating payroll period");
+            return new ServiceResponse<PayrollPeriodDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollPeriodDto>> UpdatePayrollPeriodAsync(Guid periodId, Guid organizationId, UpdatePayrollPeriodDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdatePayrollPeriodAsync(periodId, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<PayrollPeriodDto> { Success = false, Message = "Payroll period not found." };
+            }
+            return new ServiceResponse<PayrollPeriodDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating payroll period");
+            return new ServiceResponse<PayrollPeriodDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeletePayrollPeriodAsync(Guid periodId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeletePayrollPeriodAsync(periodId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Period not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting payroll period");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
 }
