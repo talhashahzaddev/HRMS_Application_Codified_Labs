@@ -5,6 +5,7 @@ using HRMS.API.Services.Interfaces;
 using Mailjet.Client;
 using Mailjet.Client.Resources;
 using Newtonsoft.Json.Linq;
+using static HRMS.API.Models.DTOs.HelpDeskDto;
 using static HRMS.API.Models.DTOs.NewsDTOs;
 
 namespace HRMS.API.Services;
@@ -853,6 +854,109 @@ public class EmailService : IEmailService
          </body>
           </html>";
 
+        foreach (var email in receiverEmails)
+        {
+            await SendEmailAsync(email, subject, body);
+        }
+
+        return true;
+    }
+
+    public async Task<bool> SendHelpDeskChatAsync(List<string> receiverEmails,TicketMessageRequest request,Guid organizationId, string ticketTitle)
+    {
+        if (receiverEmails == null || !receiverEmails.Any())
+            return false; // no recipients
+
+        // Get domain for the organization
+        var domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationId);
+        var cleanDomain = domain.Trim().ToLower()
+            .Replace("http://", "")
+            .Replace("https://", "")
+            .Replace(".com", "");
+
+        var ticketUrl = $"http://{cleanDomain}.briskpeople.com/helpdesk/tickets/view/{request.TicketId}";
+        var subject = $"New HelpDesk Message for Ticket: {ticketTitle}";
+
+        // Clean message content (remove HTML if any)
+        var messageContent = string.IsNullOrWhiteSpace(request.Message)
+            ? ""
+            : System.Text.RegularExpressions.Regex.Replace(request.Message, "<.*?>", "");
+
+        var body = $@"<!DOCTYPE html>
+<html>
+<head>
+<meta charset='UTF-8'>
+</head>
+<body style='margin:0; padding:0; background-color:#f4f6f8; font-family:Arial, Helvetica, sans-serif;'>
+<table width='100%' cellpadding='0' cellspacing='0' style='padding:30px 0;'>
+<tr>
+<td align='center'>
+<table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff; border-radius:8px; overflow:hidden;'>
+
+<tr>
+<td align='center' style='padding:30px; background:#ffffff;'>
+    <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
+        <tr>
+            <td style='vertical-align:middle; padding-right:10px;'>
+                <img src='https://www.briskpeople.com/hub.png' 
+                     alt='BriskPeople' 
+                     style='height:40px; display:block;' />
+            </td>
+            <td style='vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;'>
+                BriskPeople
+            </td>
+        </tr>
+    </table>
+</td>
+</tr>
+
+<tr>
+<td style='padding:30px; color:#333333; font-size:14px; line-height:1.7;'>
+    <p style='margin-top:0;'>Hi,</p>
+
+    <p>
+        You have a new message on ticket <strong>{ticketTitle}</strong>:
+    </p>
+
+    <p style='padding:10px; background:#f1f3f5; border-left:4px solid #1f4fd8;'>
+        {messageContent}
+    </p>
+
+    <p style='text-align:center; margin:25px 0;'>
+        <a href='{ticketUrl}'
+           style='background:#1f4fd8; 
+                  color:#ffffff; 
+                  padding:14px 28px; 
+                  text-decoration:none; 
+                  border-radius:6px; 
+                  font-size:14px; 
+                  font-weight:bold; 
+                  display:inline-block;'>
+            View Ticket
+        </a>
+    </p>
+
+    <p style='margin-bottom:0;'>
+        Best regards,<br/>
+        <strong>BriskPeople Team</strong>
+    </p>
+</td>
+</tr>
+
+<tr>
+<td align='center' style='padding:20px; background:#f4f6f8; font-size:12px; color:#777777;'>
+    © {DateTime.UtcNow.Year} BriskPeople. All rights reserved.
+</td>
+</tr>
+
+</table>
+</td>
+</tr>
+</table>
+</body>
+</html>";
+
+        // Send email to all recipients individually
         foreach (var email in receiverEmails)
         {
             await SendEmailAsync(email, subject, body);

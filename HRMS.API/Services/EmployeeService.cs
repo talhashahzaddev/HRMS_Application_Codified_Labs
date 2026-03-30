@@ -400,6 +400,13 @@ public class EmployeeService : IEmployeeService
         return _mapper.Map<DepartmentDto>(createdDepartment);
     }
 
+    public async Task<List<Employee>> GetSelectedEmployeesByIdsAsync(List<Guid> employeeIds)
+    {
+       
+        var employee = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(employeeIds);
+        return employee;
+    }
+
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,
     string? status = null)
     {

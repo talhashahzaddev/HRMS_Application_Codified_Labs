@@ -1,4 +1,5 @@
 using HRMS.API.Models.Entities;
+using static HRMS.API.Models.DTOs.HelpDeskDto;
 using static HRMS.API.Models.DTOs.NewsDTOs;
 
 namespace HRMS.API.Services.Interfaces;
@@ -14,4 +15,5 @@ public interface IEmailService
     Task<bool> SendNewsEmailAsync(List<string> receiverEmails, NewsRequest request,Guid OrganizationId,Guid? newsId);
     Task<bool> SendDemoEmailAsync(string toEmail, string fullName, string companyName, string fromEmail);
     Task<bool> SendAssignShiftEmailAsync(List<string> receiverEmails, string message, Guid organizationId);
+    Task<bool> SendHelpDeskChatAsync(List<string> receiverEmails, TicketMessageRequest request, Guid organizationId, string ticketTitle);
 }
