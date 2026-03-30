@@ -1,10 +1,12 @@
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Asn1.Ocsp;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Linq;
@@ -138,7 +140,7 @@ public class EmployeeController : ControllerBase
             }
             var organizationId = GetCurrentOrganizationId();
             var employee = await _employeeService.CreateEmployeeAsync(request, organizationId);
-            
+
             return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, new ServiceResponse<EmployeeDto>
             {
                 Success = true,
@@ -179,6 +181,40 @@ public class EmployeeController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while creating employee"
+            });
+        }
+    }
+    [HttpPost("get-selected-employees")]
+    public async Task<ActionResult<ServiceResponse<List<Employee>>>> GetEmployeesByIds([FromBody] List<Guid> recipientIds)
+    {
+        try
+        {
+            if (recipientIds == null || !recipientIds.Any())
+            {
+                return BadRequest(new ServiceResponse<List<Employee>>
+                {
+                    Success = false,
+                    Message = "RecipientIds are required"
+                });
+            }
+
+            var employees = await _employeeService.GetSelectedEmployeesByIdsAsync(recipientIds);
+
+            return Ok(new ServiceResponse<List<Employee>>
+            {
+                Success = true,
+                Message = "Employees fetched successfully",
+                Data = employees
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employees");
+
+            return StatusCode(500, new ServiceResponse<List<Employee>>
+            {
+                Success = false,
+                Message = "Error fetching employees"
             });
         }
     }

@@ -198,6 +198,7 @@ builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IHolidayService, HolidayService>();
 builder.Services.AddScoped<IPayRollService, PayRollService>();
 builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
+builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 
 // --- Super Admin Portal Services ---
 builder.Services.AddScoped<IPlatformAdminAuthService, PlatformAdminAuthService>();
@@ -226,6 +227,7 @@ builder.Services.AddScoped<ICareerRepository, CareerRepository>();
 builder.Services.AddScoped<INewsRepository, NewsRepository>();
 builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 builder.Services.AddScoped<IPayRollRepository, PayRollRepository>();
+builder.Services.AddScoped<IHelpDeskRepository, HelpDeskRepository>();
 
 // --- Super Admin Portal Repositories ---
 builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
