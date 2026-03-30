@@ -1,4 +1,5 @@
 using HRMS.API.Models.DTOs;
+using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,9 +14,11 @@ public class PayRollController : ControllerBase
 {
     private readonly IPayRollService _payRollService;
     private readonly ILogger<PayRollController> _logger;
+    private readonly IAttendanceService _attendanceService ;
 
-    public PayRollController(IPayRollService payRollService, ILogger<PayRollController> logger)
+    public PayRollController(IPayRollService payRollService, ILogger<PayRollController> logger,IAttendanceService attendanceService)
     {
+        _attendanceService = attendanceService;
         _payRollService = payRollService;
         _logger = logger;
     }
@@ -291,6 +294,114 @@ public class PayRollController : ControllerBase
             _logger.LogError(ex, "Error deleting overtime entry: {Id}", id);
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
+    }
+
+    // Payroll Periods
+    [HttpGet("periods")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollPeriodPagedResult>>> GetAllPayrollPeriods([FromQuery] PayrollPeriodFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllPayrollPeriodsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payroll periods");
+            return StatusCode(500, new ServiceResponse<PayrollPeriodPagedResult> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("periods/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> GetPayrollPeriodById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetPayrollPeriodByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payroll period by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<PayrollPeriodDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("periods")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> CreatePayrollPeriod([FromBody] CreatePayrollPeriodDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.CreatePayrollPeriodAsync(organizationId, employeeId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetPayrollPeriodById), new { id = response.Data?.PeriodId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating payroll period");
+            return StatusCode(500, new ServiceResponse<PayrollPeriodDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("periods/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> UpdatePayrollPeriod(Guid id, [FromBody] UpdatePayrollPeriodDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdatePayrollPeriodAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating payroll period: {Id}", id);
+            return StatusCode(500, new ServiceResponse<PayrollPeriodDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("periods/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeletePayrollPeriod(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeletePayrollPeriodAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting payroll period: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+    private async Task<Guid> GetCurrentEmployeeId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim))
+        {
+            _logger.LogError("User ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("User ID not found in token");
+        }
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
+            throw new UnauthorizedAccessException("Invalid user ID format");
+        }
+        var employeeId = await _attendanceService.GetEmployeeFromTable(userId);
+        return employeeId;
     }
 
     private Guid GetCurrentOrganizationId()    {

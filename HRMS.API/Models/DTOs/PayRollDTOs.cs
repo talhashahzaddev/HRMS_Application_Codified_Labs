@@ -112,3 +112,54 @@ public class OvertimeEntryFilterDto
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
+public class PayrollPeriodDto
+{
+    public Guid PeriodId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public DateTime? PaymentDate { get; set; }
+    public string Status { get; set; } = "open";
+    public string? Description { get; set; }
+    public bool IsActive { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public string? CreatedByEmployeeName { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreatePayrollPeriodDto
+{
+    public string PeriodName { get; set; } = string.Empty;
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public DateTime? PaymentDate { get; set; }
+    public string Status { get; set; } = "open";
+    public string? Description { get; set; }
+}
+
+public class UpdatePayrollPeriodDto
+{
+    public string PeriodName { get; set; } = string.Empty;
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public DateTime? PaymentDate { get; set; }
+    public string Status { get; set; } = "open";
+    public string? Description { get; set; }
+    public bool IsActive { get; set; }
+}
+public class PayrollPeriodPagedResult : PagedResult<PayrollPeriodDto>
+{
+    public int OpenCount { get; set; }
+    public int ProcessedCount { get; set; }
+    public int LockedCount { get; set; }
+}
+
+public class PayrollPeriodFilterDto
+{
+    public string? PeriodName { get; set; }
+    public string? Status { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}

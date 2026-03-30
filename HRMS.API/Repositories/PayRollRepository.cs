@@ -1,6 +1,7 @@
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
+using Dapper;
 
 namespace HRMS.API.Repositories;
 
@@ -174,7 +175,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 WHERE g.organizationid = @organizationId
             ) x
             ORDER BY x.createdat DESC;";
-        
+
         var rows = await QueryAsync<PayRollRuleQueryDto>(sql, new { organizationId });
 
         var grouped = new PayRollRulesGroupedDto
@@ -539,6 +540,189 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             RETURNING oe.overtimeid;";
 
         var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { overtimeId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Payroll Periods
+    public async Task<PayrollPeriodPagedResult> GetAllPayrollPeriodsAsync(Guid organizationId, PayrollPeriodFilterDto filter)
+    {
+        filter ??= new PayrollPeriodFilterDto();
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+        if (filter.Page <= 0) filter.Page = 1;
+
+        var whereClause = "WHERE p.organizationid = @organizationId AND p.isdeleted = false";
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (!string.IsNullOrWhiteSpace(filter.PeriodName))
+        {
+            whereClause += " AND p.periodname ILIKE @PeriodName";
+            parameters.Add("PeriodName", $"%{filter.PeriodName}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status) && filter.Status != "All")
+        {
+            whereClause += " AND p.status = @Status";
+            parameters.Add("Status", filter.Status);
+        }
+
+        var countSql = $@"
+            SELECT 
+                COUNT(*) AS TotalCount,
+                COUNT(CASE WHEN p.status = 'Open' THEN 1 END) AS OpenCount,
+                COUNT(CASE WHEN p.status = 'Processed' THEN 1 END) AS ProcessedCount,
+                COUNT(CASE WHEN p.status = 'Locked' OR p.status = 'Closed' THEN 1 END) AS LockedCount
+            FROM payroll.payrollperiods p 
+            {whereClause};";
+
+        var summary = await QuerySingleAsync<dynamic>(countSql, parameters);
+        var totalCount = Convert.ToInt32(summary.totalcount ?? 0);
+        var openCount = Convert.ToInt32(summary.opencount ?? 0);
+        var processedCount = Convert.ToInt32(summary.processedcount ?? 0);
+        var lockedCount = Convert.ToInt32(summary.lockedcount ?? 0);
+
+        var sql = $@"
+            SELECT 
+                p.periodid AS PeriodId,
+                p.organizationid AS OrganizationId,
+                p.periodname AS PeriodName,
+                p.startdate AS StartDate,
+                p.enddate AS EndDate,
+                p.paymentdate AS PaymentDate,
+                p.status AS Status,
+                p.description AS Description,
+                p.isactive AS IsActive,
+                p.createdby AS CreatedBy,
+                e.firstname || ' ' || e.lastname AS CreatedByEmployeeName,
+                p.createdat AS CreatedAt,
+                p.updatedat AS UpdatedAt
+            FROM payroll.payrollperiods p
+            LEFT JOIN employee.Employees e ON p.createdby = e.employeeid
+            {whereClause}
+            ORDER BY p.startdate DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var data = await QueryAsync<PayrollPeriodDto>(sql, parameters);
+        
+        return new PayrollPeriodPagedResult 
+        { 
+            Data = data.ToList(), 
+            TotalCount = totalCount, 
+            Page = filter.Page, 
+            PageSize = filter.PageSize,
+            OpenCount = openCount,
+            ProcessedCount = processedCount,
+            LockedCount = lockedCount
+        };
+    }
+
+    public async Task<PayrollPeriodDto?> GetPayrollPeriodByIdAsync(Guid periodId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT 
+                p.periodid AS PeriodId,
+                p.organizationid AS OrganizationId,
+                p.periodname AS PeriodName,
+                p.startdate AS StartDate,
+                p.enddate AS EndDate,
+                p.paymentdate AS PaymentDate,
+                p.status AS Status,
+                p.description AS Description,
+                p.isactive AS IsActive,
+                p.createdby AS CreatedBy,
+                e.firstname || ' ' || e.lastname AS CreatedByEmployeeName,
+                p.createdat AS CreatedAt,
+                p.updatedat AS UpdatedAt
+            FROM payroll.payrollperiods p
+            LEFT JOIN employee.Employees e ON p.createdby = e.employeeid
+            WHERE p.periodid = @periodId AND p.organizationid = @organizationId AND p.isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<PayrollPeriodDto>(sql, new { periodId, organizationId });
+    }
+
+    public async Task<PayrollPeriodDto> CreatePayrollPeriodAsync(Guid organizationId, Guid employeeId, CreatePayrollPeriodDto dto)
+    {
+        try
+        {
+            var sql = @"
+            INSERT INTO payroll.payrollperiods (
+                organizationid, periodname, startdate, enddate, paymentdate, status, description, createdby, isactive, isdeleted
+            )
+            VALUES (
+                @organizationId, @PeriodName, @StartDate, @EndDate, @PaymentDate, @Status, @Description, @employeeId, true, false
+            )
+            RETURNING periodid;";
+
+            var parameters = new
+            {
+                organizationId,
+                employeeId,
+                dto.PeriodName,
+                dto.StartDate,
+                dto.EndDate,
+                dto.PaymentDate,
+                dto.Status,
+                dto.Description
+            };
+
+            var periodId = await QuerySingleAsync<Guid>(sql, parameters);
+            return (await GetPayrollPeriodByIdAsync(periodId, organizationId))!;
+
+        }
+        catch(Exception ex){
+            throw new Exception(ex.Message);
+        }
+
+    }
+
+    public async Task<PayrollPeriodDto?> UpdatePayrollPeriodAsync(Guid periodId, Guid organizationId, UpdatePayrollPeriodDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.payrollperiods
+            SET 
+                periodname = @PeriodName,
+                startdate = @StartDate,
+                enddate = @EndDate,
+                paymentdate = @PaymentDate,
+                status = @Status,
+                description = @Description,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE periodid = @periodId AND organizationid = @organizationId
+            RETURNING periodid;";
+
+        var parameters = new
+        {
+            periodId,
+            organizationId,
+            dto.PeriodName,
+            dto.StartDate,
+            dto.EndDate,
+            dto.PaymentDate,
+            dto.Status,
+            dto.Description,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetPayrollPeriodByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeletePayrollPeriodAsync(Guid periodId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.payrollperiods
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE periodid = @periodId AND organizationid = @organizationId
+            RETURNING periodid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { periodId, organizationId });
         return deletedId != null && deletedId != Guid.Empty;
     }
 }
