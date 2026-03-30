@@ -2023,7 +2023,8 @@ public class AttendanceService : IAttendanceService
     Guid? targetEmployeeId = null)
     {
 
-        bool isGlobalViewer = await _attendanceRepository.IsAdminOrHRAsync(currentUserId, organizationId);
+        //bool isGlobalViewer = await _attendanceRepository.IsAdminOrHRAsync(currentUserId, organizationId);
+        bool isGlobalViewer = true;
         var today = DateTime.Today;
 
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);

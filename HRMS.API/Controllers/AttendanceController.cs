@@ -1,4 +1,5 @@
 ﻿using DocumentFormat.OpenXml.Bibliography;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -25,6 +26,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-in")]
+    [PermissionAuthorize("time_tracket_clock_in")]
     public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockIn([FromBody] ClockInOutRequest request)
     {
         try
@@ -91,6 +93,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-out")]
+    [PermissionAuthorize("time_tracket_clock_out")]
     public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockOut([FromBody] ClockInOutRequest request)
     {
         try
@@ -258,7 +261,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("department/{departmentId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("team_attendance_view_details")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceDto>>>> GetDepartmentAttendance(Guid departmentId, [FromQuery] DateTime? date = null)
     {
         try
@@ -678,6 +681,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("my-summary")]
+    [PermissionAuthorize("my_attendance_summary")]
     public async Task<ActionResult<ServiceResponse<AttendanceSummaryDto>>> GetMyAttendanceSummary([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
         try
@@ -834,6 +838,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPost("shift")]
+    [PermissionAuthorize("shifts_create_shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> CreateShift([FromBody] CreateShiftDto request)
     {
         try
@@ -896,6 +901,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("assign-shift")]
+    [PermissionAuthorize("shifts_assign_shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> AssignShift([FromBody] AssignShiftDto request)
     {
         try
@@ -1000,6 +1006,7 @@ public class AttendanceController : ControllerBase
     //Shift swap Create
 
     [HttpPost("shiftswap")]
+    [PermissionAuthorize("shifts_swap_shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> CreateShiftSwapRequest([FromBody] CreateShiftSwapRequestDto requestDto)
     {
         try
@@ -1255,6 +1262,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("shifts")]
+    [PermissionAuthorize("all_shifts")]
     public async Task<ActionResult<ServiceResponse<List<ShiftDto>>>> GetAllShifts()
     {
         try
@@ -1293,6 +1301,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPut("shift/{shiftId}")]
+    [PermissionAuthorize("shifts_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateShift(Guid shiftId, [FromBody] UpdateShiftDto request)
     {
         try
@@ -1358,6 +1367,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpDelete("shift/{shiftId}")]
+    [PermissionAuthorize("shifts_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteShift(Guid shiftId)
     {
         try
@@ -1479,7 +1489,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("daily-stats")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<DailyAttendanceStatsDto>>> GetDailyAttendanceStats([FromQuery] DateTime? date)
     {
         try
@@ -1515,7 +1525,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("reports")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("reports_genrate_report")]
     public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
         try
@@ -1580,7 +1590,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("reports_export")]
     public async Task<IActionResult> ExportAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] string format = "xlsx")
     {
         try
@@ -1729,7 +1739,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("timesheet/finalize-batch")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("finalize_timesheet")]
     public async Task<IActionResult> FinalizeBatch([FromBody] FinalizeBatchRequestDto request)
     {
         var orgId = GetCurrentOrganizationId();
@@ -1739,6 +1749,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("timesheet/finalized/{timesheetId}")]
+    [PermissionAuthorize("timesheet_dashboard_view_details")]
     public async Task<IActionResult> GetFinalizedTimesheet(Guid timesheetId)
     {
         var empId = await GetCurrentEmployeeId();
@@ -1747,7 +1758,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("timesheet/snapshot")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("timesheet_create_new_snapshot")]
     public async Task<IActionResult> CreateSnapshot([FromBody] MonthlyTimesheetCreateDto dto)
     {
         var orgId = GetCurrentOrganizationId();
@@ -1756,7 +1767,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("timesheet/details")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("timesheet_view_details")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeTimesheetDto>>>> GetTimesheetDetails([FromQuery] Guid timesheetId)
     {
         try
@@ -1855,7 +1866,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPut("manual")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("team_attendance_edit_record")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateManualAttendance([FromBody] ManualAttendanceUpdateDto updateDto)
     {
         try
@@ -1902,7 +1913,6 @@ public class AttendanceController : ControllerBase
         return Ok(result);
     }
     [HttpGet("pending-requests")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeSubmissionPackage>>>> GetPendingRequests()
     {
         var orgId = GetCurrentOrganizationId();
@@ -1911,7 +1921,7 @@ public class AttendanceController : ControllerBase
         return Ok(result);
     }
     [HttpGet("timesheet/review-dashboard")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard(
     [FromQuery] Guid timesheetId,
     [FromQuery] Guid? employeeId = null) 
@@ -1927,7 +1937,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("admin-override")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("edit_or_override_attendace_recored")]
     public async Task<IActionResult> AdminOverride([FromBody] ManualAttendanceUpdateDto dto)
     {
         try
@@ -1954,7 +1964,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("timesheet/org-progress")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<IActionResult> GetOrgSubmissionProgress(
     [FromQuery] int month,
     [FromQuery] int year)

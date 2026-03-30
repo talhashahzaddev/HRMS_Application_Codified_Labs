@@ -33,8 +33,14 @@
 -- Timesheet
 ('ca06162c-1a55-45fe-bd96-fa7306368fae', 'Create New Snapshot', 'timesheet_create_new_snapshot', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ca06162c-1a55-45fe-bd96-fa7306368fae', 'View TimeSheet Details', 'timesheet_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ca06162c-1a55-45fe-bd96-fa7306368fae', 'Edit Or Over Ride Attendance Recored', 'edit_or_override_attendace_recored', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ca06162c-1a55-45fe-bd96-fa7306368fae', 'Finalize Timesheet', 'finalize_timesheet', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Timesheet Dashboard
 ('7f25c4f1-d4d8-4c3e-b170-3eb3bf6a7a2b', 'Finalize TimeSheet', 'timesheet_dashboard_finalize', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('7f25c4f1-d4d8-4c3e-b170-3eb3bf6a7a2b', 'View TimeSheet Details', 'timesheet_dashboard_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('7f25c4f1-d4d8-4c3e-b170-3eb3bf6a7a2b', 'Edit Timesheet Records', 'edit_timesheet_records_in_dashboard', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('7f25c4f1-d4d8-4c3e-b170-3eb3bf6a7a2b', 'Approve Updated Time Sheet', 'approve_updated_timesheet', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Reports
 ('08e17d63-4516-44a6-acb4-617502fa09a1', 'Genrate Attendance Report', 'reports_genrate_report', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
