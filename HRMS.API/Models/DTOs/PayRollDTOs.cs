@@ -163,3 +163,84 @@ public class PayrollPeriodFilterDto
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
+
+public class AttendanceDeductionRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string? RuleName { get; set; }
+    public string? Description { get; set; }
+    public decimal? FixedDeduction { get; set; }
+    public decimal? PercentageDeduction { get; set; }
+    public decimal HalfDayMultiplier { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateAttendanceDeductionRuleDto
+{
+    public string? RuleName { get; set; }
+    public string? Description { get; set; }
+    public decimal? FixedDeduction { get; set; }
+    public decimal? PercentageDeduction { get; set; }
+    public decimal HalfDayMultiplier { get; set; } = 0.50m;
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateAttendanceDeductionRuleDto : CreateAttendanceDeductionRuleDto
+{
+}
+
+public class PayrollAttendanceSummaryDto
+{
+    public Guid Id { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string? EmployeeName { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public Guid? ShiftId { get; set; }
+    public string? ShiftName { get; set; }
+    public int ScheduledDays { get; set; }
+    public int TotalDays { get; set; }
+    public int PresentDays { get; set; }
+    public int AbsentDays { get; set; }
+    public int HalfDays { get; set; }
+    public decimal EffectiveAbsents { get; set; }
+    public decimal AbsentDeduction { get; set; }
+    public decimal HalfDayDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreatePayrollAttendanceSummaryDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public Guid? ShiftId { get; set; }
+    public int ScheduledDays { get; set; }
+    public int TotalDays { get; set; }
+    public int PresentDays { get; set; }
+    public int AbsentDays { get; set; }
+    public int HalfDays { get; set; }
+    public decimal EffectiveAbsents { get; set; }
+    public decimal AbsentDeduction { get; set; }
+    public decimal HalfDayDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
+}
+
+public class UpdatePayrollAttendanceSummaryDto : CreatePayrollAttendanceSummaryDto
+{
+}
+
+public class PayrollAttendanceSummaryFilterDto
+{
+    public string? EmployeeName { get; set; }
+    public Guid? PeriodId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
