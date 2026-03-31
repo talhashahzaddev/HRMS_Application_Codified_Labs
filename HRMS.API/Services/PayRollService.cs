@@ -7,11 +7,16 @@ namespace HRMS.API.Services;
 public class PayRollService : IPayRollService
 {
     private readonly IPayRollRepository _payRollRepository;
+    private readonly IAttendanceRepository _attendanceRepository;
     private readonly ILogger<PayRollService> _logger;
 
-    public PayRollService(IPayRollRepository payRollRepository, ILogger<PayRollService> logger)
+    public PayRollService(
+        IPayRollRepository payRollRepository,
+        IAttendanceRepository attendanceRepository,
+        ILogger<PayRollService> logger)
     {
         _payRollRepository = payRollRepository;
+        _attendanceRepository = attendanceRepository;
         _logger = logger;
     }
 
@@ -308,6 +313,222 @@ public class PayRollService : IPayRollService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting payroll period");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Attendance Deduction Rules
+    public async Task<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>> GetAllAttendanceDeductionRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllAttendanceDeductionRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting attendance deduction rules");
+            return new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<AttendanceDeductionRuleDto>> GetAttendanceDeductionRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAttendanceDeductionRuleByIdAsync(ruleId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<AttendanceDeductionRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<AttendanceDeductionRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting attendance deduction rule");
+            return new ServiceResponse<AttendanceDeductionRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<AttendanceDeductionRuleDto>> CreateAttendanceDeductionRuleAsync(Guid organizationId, CreateAttendanceDeductionRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateAttendanceDeductionRuleAsync(organizationId, dto);
+            return new ServiceResponse<AttendanceDeductionRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating attendance deduction rule");
+            return new ServiceResponse<AttendanceDeductionRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<AttendanceDeductionRuleDto>> UpdateAttendanceDeductionRuleAsync(Guid ruleId, Guid organizationId, UpdateAttendanceDeductionRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateAttendanceDeductionRuleAsync(ruleId, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<AttendanceDeductionRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<AttendanceDeductionRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating attendance deduction rule");
+            return new ServiceResponse<AttendanceDeductionRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteAttendanceDeductionRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteAttendanceDeductionRuleAsync(ruleId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Rule not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting attendance deduction rule");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Attendance Summary
+    public async Task<ServiceResponse<PagedResult<PayrollAttendanceSummaryDto>>> GetAllAttendanceSummariesAsync(Guid organizationId, PayrollAttendanceSummaryFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllAttendanceSummariesAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<PayrollAttendanceSummaryDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting attendance summaries");
+            return new ServiceResponse<PagedResult<PayrollAttendanceSummaryDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollAttendanceSummaryDto>> GetAttendanceSummaryByIdAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAttendanceSummaryByIdAsync(id, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = false, Message = "Summary row not found." };
+            }
+            return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting attendance summary row");
+            return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollAttendanceSummaryDto>> CreateAttendanceSummaryAsync(Guid organizationId, CreatePayrollAttendanceSummaryDto dto)
+    {
+        try
+        {
+            // 1. Fetch the employee's current shift
+            var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(dto.EmployeeId);
+            if (shift == null)
+            {
+                return new ServiceResponse<PayrollAttendanceSummaryDto>
+                {
+                    Success = false,
+                    Message = "No active shift found for the specified employee."
+                };
+            }
+
+            // 2. Fetch the payroll period to get start/end dates
+            var period = await _payRollRepository.GetPayrollPeriodByIdAsync(dto.PeriodId, organizationId);
+            if (period == null)
+            {
+                return new ServiceResponse<PayrollAttendanceSummaryDto>
+                {
+                    Success = false,
+                    Message = "Payroll period not found."
+                };
+            }
+
+            // 3. Build a HashSet of the shift's working day-of-week numbers
+            //    DaysOfWeek: 1=Monday ... 7=Sunday (matching ISO standard)
+            var workingDays = new HashSet<int>(shift.DaysOfWeek ?? Array.Empty<int>());
+
+            // 4. Count total calendar days and scheduled working days in the period
+            var startDate = period.StartDate.Date;
+            var endDate   = period.EndDate.Date;
+            int totalDays = (endDate - startDate).Days + 1;
+            int scheduledDays = 0;
+
+            for (var date = startDate; date <= endDate; date = date.AddDays(1))
+            {
+                // DayOfWeek: Sunday=0, Monday=1 ... Saturday=6
+                // Map to ISO: Monday=1 ... Sunday=7
+                int iso = date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
+                if (workingDays.Contains(iso))
+                    scheduledDays++;
+            }
+
+            // 5. Build an enriched DTO that includes the auto-computed fields
+            var enrichedDto = new CreatePayrollAttendanceSummaryDto
+            {
+                EmployeeId        = dto.EmployeeId,
+                PeriodId          = dto.PeriodId,
+                RuleId            = dto.RuleId,
+                PresentDays       = dto.PresentDays,
+                AbsentDays        = dto.AbsentDays,
+                HalfDays          = dto.HalfDays,
+                EffectiveAbsents  = dto.EffectiveAbsents,
+                AbsentDeduction   = dto.AbsentDeduction,
+                HalfDayDeduction  = dto.HalfDayDeduction,
+                TotalDeduction    = dto.TotalDeduction
+            };
+
+            var result = await _payRollRepository.CreateAttendanceSummaryAsync(
+                organizationId, enrichedDto, shift.ShiftId, scheduledDays, totalDays);
+
+            return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating attendance summary row");
+            return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollAttendanceSummaryDto>> UpdateAttendanceSummaryAsync(Guid id, Guid organizationId, UpdatePayrollAttendanceSummaryDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateAttendanceSummaryAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = false, Message = "Summary row not found." };
+            }
+            return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating attendance summary row");
+            return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteAttendanceSummaryAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteAttendanceSummaryAsync(id, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Summary row not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting attendance summary row");
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }

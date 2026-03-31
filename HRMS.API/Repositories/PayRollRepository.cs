@@ -725,4 +725,311 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { periodId, organizationId });
         return deletedId != null && deletedId != Guid.Empty;
     }
+
+    // Attendance Deduction Rules
+    public async Task<IEnumerable<AttendanceDeductionRuleDto>> GetAllAttendanceDeductionRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                fixeddeduction AS FixedDeduction,
+                percentagededuction AS PercentageDeduction,
+                halfdaymultiplier AS HalfDayMultiplier,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.attendancedeductionrules
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<AttendanceDeductionRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<AttendanceDeductionRuleDto?> GetAttendanceDeductionRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                fixeddeduction AS FixedDeduction,
+                percentagededuction AS PercentageDeduction,
+                halfdaymultiplier AS HalfDayMultiplier,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.attendancedeductionrules
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<AttendanceDeductionRuleDto>(sql, new { ruleId, organizationId });
+    }
+
+    public async Task<AttendanceDeductionRuleDto> CreateAttendanceDeductionRuleAsync(Guid organizationId, CreateAttendanceDeductionRuleDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.attendancedeductionrules (
+                organizationid, rulename, description, fixeddeduction, 
+                percentagededuction, halfdaymultiplier, isactive, isdeleted
+            )
+            VALUES (
+                @organizationId, @RuleName, @Description, @FixedDeduction, 
+                @PercentageDeduction, @HalfDayMultiplier, @IsActive, false
+            )
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.FixedDeduction,
+            dto.PercentageDeduction,
+            dto.HalfDayMultiplier,
+            dto.IsActive
+        };
+
+        var ruleId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetAttendanceDeductionRuleByIdAsync(ruleId, organizationId))!;
+    }
+
+    public async Task<AttendanceDeductionRuleDto?> UpdateAttendanceDeductionRuleAsync(Guid ruleId, Guid organizationId, UpdateAttendanceDeductionRuleDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.attendancedeductionrules 
+            SET 
+                rulename = @RuleName,
+                description = @Description,
+                fixeddeduction = @FixedDeduction,
+                percentagededuction = @PercentageDeduction,
+                halfdaymultiplier = @HalfDayMultiplier,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            ruleId,
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.FixedDeduction,
+            dto.PercentageDeduction,
+            dto.HalfDayMultiplier,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetAttendanceDeductionRuleByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteAttendanceDeductionRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.attendancedeductionrules
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { ruleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Attendance Summary
+    public async Task<PagedResult<PayrollAttendanceSummaryDto>> GetAllAttendanceSummariesAsync(Guid organizationId, PayrollAttendanceSummaryFilterDto filter)
+    {
+        var conditions = new List<string> { "e.organizationid = @organizationId" };
+        if (filter.PeriodId.HasValue) conditions.Add("as.periodid = @PeriodId");
+        if (!string.IsNullOrEmpty(filter.EmployeeName)) conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @EmployeeName");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.attendancesummary AS as
+            JOIN employee.Employees e ON as.employeeid = e.employeeid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                as.id AS Id,
+                as.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                as.periodid AS PeriodId,
+                as.ruleid AS RuleId,
+                adr.rulename AS RuleName,
+                as.shiftid AS ShiftId,
+                s.shiftname AS ShiftName,
+                as.scheduleddays AS ScheduledDays,
+                as.totaldays AS TotalDays,
+                as.presentdays AS PresentDays,
+                as.absentdays AS AbsentDays,
+                as.halfdays AS HalfDays,
+                as.effectiveabsents AS EffectiveAbsents,
+                as.absentdeduction AS AbsentDeduction,
+                as.halfdaydeduction AS HalfDayDeduction,
+                as.totaldeduction AS TotalDeduction,
+                as.createdat AS CreatedAt,
+                as.updatedat AS UpdatedAt
+            FROM payroll.attendancesummary AS as
+            JOIN employee.Employees e ON as.employeeid = e.employeeid
+            LEFT JOIN payroll.attendancedeductionrules adr ON as.ruleid = adr.ruleid
+            LEFT JOIN attendance.shifts s ON as.shiftid = s.shiftid
+            WHERE {whereClause}
+            ORDER BY as.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("PeriodId", filter.PeriodId);
+        parameters.Add("EmployeeName", $"%{filter.EmployeeName}%");
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<PayrollAttendanceSummaryDto>(sql, parameters);
+
+        return new PagedResult<PayrollAttendanceSummaryDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<PayrollAttendanceSummaryDto?> GetAttendanceSummaryByIdAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                as.id AS Id,
+                as.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                as.periodid AS PeriodId,
+                as.ruleid AS RuleId,
+                adr.rulename AS RuleName,
+                as.shiftid AS ShiftId,
+                s.shiftname AS ShiftName,
+                as.scheduleddays AS ScheduledDays,
+                as.totaldays AS TotalDays,
+                as.presentdays AS PresentDays,
+                as.absentdays AS AbsentDays,
+                as.halfdays AS HalfDays,
+                as.effectiveabsents AS EffectiveAbsents,
+                as.absentdeduction AS AbsentDeduction,
+                as.halfdaydeduction AS HalfDayDeduction,
+                as.totaldeduction AS TotalDeduction,
+                as.createdat AS CreatedAt,
+                as.updatedat AS UpdatedAt
+            FROM payroll.attendancesummary AS as
+            JOIN employee.Employees e ON as.employeeid = e.employeeid
+            LEFT JOIN payroll.attendancedeductionrules adr ON as.ruleid = adr.ruleid
+            LEFT JOIN attendance.shifts s ON as.shiftid = s.shiftid
+            WHERE as.id = @id AND e.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<PayrollAttendanceSummaryDto>(sql, new { id, organizationId });
+    }
+
+    public async Task<PayrollAttendanceSummaryDto> CreateAttendanceSummaryAsync(
+        Guid organizationId,
+        CreatePayrollAttendanceSummaryDto dto,
+        Guid? shiftId,
+        int scheduledDays,
+        int totalDays)
+    {
+        var sql = @"
+            INSERT INTO payroll.attendancesummary (
+                employeeid, periodid, ruleid, shiftid, scheduleddays, 
+                totaldays, presentdays, absentdays, halfdays, effectiveabsents, 
+                absentdeduction, halfdaydeduction, totaldeduction
+            )
+            VALUES (
+                @EmployeeId, @PeriodId, @RuleId, @ShiftId, @ScheduledDays, 
+                @TotalDays, @PresentDays, @AbsentDays, @HalfDays, @EffectiveAbsents, 
+                @AbsentDeduction, @HalfDayDeduction, @TotalDeduction
+            )
+            RETURNING id;";
+
+        var parameters = new
+        {
+            dto.EmployeeId,
+            dto.PeriodId,
+            dto.RuleId,
+            ShiftId       = shiftId,
+            ScheduledDays = scheduledDays,
+            TotalDays     = totalDays,
+            dto.PresentDays,
+            dto.AbsentDays,
+            dto.HalfDays,
+            dto.EffectiveAbsents,
+            dto.AbsentDeduction,
+            dto.HalfDayDeduction,
+            dto.TotalDeduction
+        };
+
+        var id = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetAttendanceSummaryByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<PayrollAttendanceSummaryDto?> UpdateAttendanceSummaryAsync(Guid id, Guid organizationId, UpdatePayrollAttendanceSummaryDto dto)
+    {
+        // Note: shiftid, scheduleddays, totaldays are intentionally NOT updated here;
+        // they are auto-computed at creation time from the employee's shift assignment and the period dates.
+        var sql = @"
+            UPDATE payroll.attendancesummary AS as
+            SET 
+                ruleid = @RuleId,
+                presentdays = @PresentDays,
+                absentdays = @AbsentDays,
+                halfdays = @HalfDays,
+                effectiveabsents = @EffectiveAbsents,
+                absentdeduction = @AbsentDeduction,
+                halfdaydeduction = @HalfDayDeduction,
+                totaldeduction = @TotalDeduction,
+                updatedat = current_timestamp
+            FROM employee.Employees e
+            WHERE as.employeeid = e.employeeid AND as.id = @id AND e.organizationid = @organizationId
+            RETURNING as.id;";
+
+        var parameters = new
+        {
+            id,
+            organizationId,
+            dto.RuleId,
+            dto.PresentDays,
+            dto.AbsentDays,
+            dto.HalfDays,
+            dto.EffectiveAbsents,
+            dto.AbsentDeduction,
+            dto.HalfDayDeduction,
+            dto.TotalDeduction
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetAttendanceSummaryByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteAttendanceSummaryAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            DELETE FROM payroll.attendancesummary AS as
+            USING employee.Employees e
+            WHERE as.employeeid = e.employeeid AND as.id = @id AND e.organizationid = @organizationId
+            RETURNING as.id;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
 }

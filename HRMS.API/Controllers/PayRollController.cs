@@ -387,6 +387,188 @@ public class PayRollController : ControllerBase
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
     }
+
+    // Attendance Deduction Rules
+    [HttpGet("attendance-deduction-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>>> GetAllAttendanceDeductionRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllAttendanceDeductionRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving attendance deduction rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("attendance-deduction-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<AttendanceDeductionRuleDto>>> GetAttendanceDeductionRuleById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAttendanceDeductionRuleByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving attendance deduction rule by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<AttendanceDeductionRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("attendance-deduction-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<AttendanceDeductionRuleDto>>> CreateAttendanceDeductionRule([FromBody] CreateAttendanceDeductionRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateAttendanceDeductionRuleAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetAttendanceDeductionRuleById), new { id = response.Data?.RuleId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating attendance deduction rule");
+            return StatusCode(500, new ServiceResponse<AttendanceDeductionRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("attendance-deduction-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<AttendanceDeductionRuleDto>>> UpdateAttendanceDeductionRule(Guid id, [FromBody] UpdateAttendanceDeductionRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateAttendanceDeductionRuleAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating attendance deduction rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<AttendanceDeductionRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("attendance-deduction-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteAttendanceDeductionRule(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteAttendanceDeductionRuleAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting attendance deduction rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // Attendance Summary
+    [HttpGet("attendance-summaries")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<PayrollAttendanceSummaryDto>>>> GetAllAttendanceSummaries([FromQuery] PayrollAttendanceSummaryFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllAttendanceSummariesAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving attendance summaries");
+            return StatusCode(500, new ServiceResponse<PagedResult<PayrollAttendanceSummaryDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("attendance-summaries/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollAttendanceSummaryDto>>> GetAttendanceSummaryById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAttendanceSummaryByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving attendance summary by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<PayrollAttendanceSummaryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("attendance-summaries")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollAttendanceSummaryDto>>> CreateAttendanceSummary([FromBody] CreatePayrollAttendanceSummaryDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateAttendanceSummaryAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetAttendanceSummaryById), new { id = response.Data?.Id }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating attendance summary row");
+            return StatusCode(500, new ServiceResponse<PayrollAttendanceSummaryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("attendance-summaries/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollAttendanceSummaryDto>>> UpdateAttendanceSummary(Guid id, [FromBody] UpdatePayrollAttendanceSummaryDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateAttendanceSummaryAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating attendance summary row: {Id}", id);
+            return StatusCode(500, new ServiceResponse<PayrollAttendanceSummaryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("attendance-summaries/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteAttendanceSummary(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteAttendanceSummaryAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting attendance summary row: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
     private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
