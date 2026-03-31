@@ -939,7 +939,12 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return await QuerySingleOrDefaultAsync<PayrollAttendanceSummaryDto>(sql, new { id, organizationId });
     }
 
-    public async Task<PayrollAttendanceSummaryDto> CreateAttendanceSummaryAsync(Guid organizationId, CreatePayrollAttendanceSummaryDto dto)
+    public async Task<PayrollAttendanceSummaryDto> CreateAttendanceSummaryAsync(
+        Guid organizationId,
+        CreatePayrollAttendanceSummaryDto dto,
+        Guid? shiftId,
+        int scheduledDays,
+        int totalDays)
     {
         var sql = @"
             INSERT INTO payroll.attendancesummary (
@@ -959,9 +964,9 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             dto.EmployeeId,
             dto.PeriodId,
             dto.RuleId,
-            dto.ShiftId,
-            dto.ScheduledDays,
-            dto.TotalDays,
+            ShiftId       = shiftId,
+            ScheduledDays = scheduledDays,
+            TotalDays     = totalDays,
             dto.PresentDays,
             dto.AbsentDays,
             dto.HalfDays,
@@ -977,13 +982,12 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
     public async Task<PayrollAttendanceSummaryDto?> UpdateAttendanceSummaryAsync(Guid id, Guid organizationId, UpdatePayrollAttendanceSummaryDto dto)
     {
+        // Note: shiftid, scheduleddays, totaldays are intentionally NOT updated here;
+        // they are auto-computed at creation time from the employee's shift assignment and the period dates.
         var sql = @"
             UPDATE payroll.attendancesummary AS as
             SET 
                 ruleid = @RuleId,
-                shiftid = @ShiftId,
-                scheduleddays = @ScheduledDays,
-                totaldays = @TotalDays,
                 presentdays = @PresentDays,
                 absentdays = @AbsentDays,
                 halfdays = @HalfDays,
@@ -1001,9 +1005,6 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             id,
             organizationId,
             dto.RuleId,
-            dto.ShiftId,
-            dto.ScheduledDays,
-            dto.TotalDays,
             dto.PresentDays,
             dto.AbsentDays,
             dto.HalfDays,

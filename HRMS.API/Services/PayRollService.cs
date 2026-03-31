@@ -7,11 +7,16 @@ namespace HRMS.API.Services;
 public class PayRollService : IPayRollService
 {
     private readonly IPayRollRepository _payRollRepository;
+    private readonly IAttendanceRepository _attendanceRepository;
     private readonly ILogger<PayRollService> _logger;
 
-    public PayRollService(IPayRollRepository payRollRepository, ILogger<PayRollService> logger)
+    public PayRollService(
+        IPayRollRepository payRollRepository,
+        IAttendanceRepository attendanceRepository,
+        ILogger<PayRollService> logger)
     {
         _payRollRepository = payRollRepository;
+        _attendanceRepository = attendanceRepository;
         _logger = logger;
     }
 
@@ -428,7 +433,65 @@ public class PayRollService : IPayRollService
     {
         try
         {
-            var result = await _payRollRepository.CreateAttendanceSummaryAsync(organizationId, dto);
+            // 1. Fetch the employee's current shift
+            var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(dto.EmployeeId);
+            if (shift == null)
+            {
+                return new ServiceResponse<PayrollAttendanceSummaryDto>
+                {
+                    Success = false,
+                    Message = "No active shift found for the specified employee."
+                };
+            }
+
+            // 2. Fetch the payroll period to get start/end dates
+            var period = await _payRollRepository.GetPayrollPeriodByIdAsync(dto.PeriodId, organizationId);
+            if (period == null)
+            {
+                return new ServiceResponse<PayrollAttendanceSummaryDto>
+                {
+                    Success = false,
+                    Message = "Payroll period not found."
+                };
+            }
+
+            // 3. Build a HashSet of the shift's working day-of-week numbers
+            //    DaysOfWeek: 1=Monday ... 7=Sunday (matching ISO standard)
+            var workingDays = new HashSet<int>(shift.DaysOfWeek ?? Array.Empty<int>());
+
+            // 4. Count total calendar days and scheduled working days in the period
+            var startDate = period.StartDate.Date;
+            var endDate   = period.EndDate.Date;
+            int totalDays = (endDate - startDate).Days + 1;
+            int scheduledDays = 0;
+
+            for (var date = startDate; date <= endDate; date = date.AddDays(1))
+            {
+                // DayOfWeek: Sunday=0, Monday=1 ... Saturday=6
+                // Map to ISO: Monday=1 ... Sunday=7
+                int iso = date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int)date.DayOfWeek;
+                if (workingDays.Contains(iso))
+                    scheduledDays++;
+            }
+
+            // 5. Build an enriched DTO that includes the auto-computed fields
+            var enrichedDto = new CreatePayrollAttendanceSummaryDto
+            {
+                EmployeeId        = dto.EmployeeId,
+                PeriodId          = dto.PeriodId,
+                RuleId            = dto.RuleId,
+                PresentDays       = dto.PresentDays,
+                AbsentDays        = dto.AbsentDays,
+                HalfDays          = dto.HalfDays,
+                EffectiveAbsents  = dto.EffectiveAbsents,
+                AbsentDeduction   = dto.AbsentDeduction,
+                HalfDayDeduction  = dto.HalfDayDeduction,
+                TotalDeduction    = dto.TotalDeduction
+            };
+
+            var result = await _payRollRepository.CreateAttendanceSummaryAsync(
+                organizationId, enrichedDto, shift.ShiftId, scheduledDays, totalDays);
+
             return new ServiceResponse<PayrollAttendanceSummaryDto> { Success = true, Data = result };
         }
         catch (Exception ex)

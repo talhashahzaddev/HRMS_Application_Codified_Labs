@@ -221,9 +221,7 @@ public class CreatePayrollAttendanceSummaryDto
     public Guid EmployeeId { get; set; }
     public Guid PeriodId { get; set; }
     public Guid? RuleId { get; set; }
-    public Guid? ShiftId { get; set; }
-    public int ScheduledDays { get; set; }
-    public int TotalDays { get; set; }
+    // ShiftId, ScheduledDays, TotalDays are auto-computed in the service from EmployeeId + PeriodId
     public int PresentDays { get; set; }
     public int AbsentDays { get; set; }
     public int HalfDays { get; set; }
@@ -233,8 +231,17 @@ public class CreatePayrollAttendanceSummaryDto
     public decimal TotalDeduction { get; set; }
 }
 
-public class UpdatePayrollAttendanceSummaryDto : CreatePayrollAttendanceSummaryDto
+public class UpdatePayrollAttendanceSummaryDto
 {
+    public Guid? RuleId { get; set; }
+    // ShiftId, ScheduledDays, TotalDays are NOT updated via this DTO
+    public int PresentDays { get; set; }
+    public int AbsentDays { get; set; }
+    public int HalfDays { get; set; }
+    public decimal EffectiveAbsents { get; set; }
+    public decimal AbsentDeduction { get; set; }
+    public decimal HalfDayDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
 }
 
 public class PayrollAttendanceSummaryFilterDto
