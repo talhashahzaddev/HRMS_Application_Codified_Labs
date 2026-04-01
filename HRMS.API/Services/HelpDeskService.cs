@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
+using HRMS.API.Models.Entities;
 using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using static HRMS.API.Models.DTOs.HelpDeskDto;
+using static HRMS.API.Models.DTOs.NotificationDto;
 
 namespace HRMS.API.Services
 {
@@ -12,11 +14,12 @@ namespace HRMS.API.Services
         private readonly IHelpDeskRepository _helpDeskRepository;
         private readonly IAttendanceRepository _attendanceRepository;
         private readonly IEmployeeRepository _employeeRepository;
+        private readonly INotificationRepository _notificationRepository;
         private readonly IEmailService _emailService;
         private readonly IMapper _mapper;
         private readonly ILogger<HelpDeskService> _logger;
 
-        public HelpDeskService(IHelpDeskRepository helpDeskRepository, IMapper mapper, IAttendanceRepository attendanceRepository, ILogger<HelpDeskService> logger, IEmailService emailService, IEmployeeRepository employeeRepository)
+        public HelpDeskService(IHelpDeskRepository helpDeskRepository, IMapper mapper, IAttendanceRepository attendanceRepository, ILogger<HelpDeskService> logger, IEmailService emailService, IEmployeeRepository employeeRepository,INotificationRepository notificationRepository)
         {
             _helpDeskRepository = helpDeskRepository;
             _mapper = mapper;
@@ -24,10 +27,9 @@ namespace HRMS.API.Services
             _logger = logger;
             _emailService = emailService;
             _employeeRepository = employeeRepository;
+            _notificationRepository = notificationRepository;
+
         }
-
-
-
         public async Task<TicketDto> CreateTicketAsync(TicketRequest request, Guid organizationId, Guid employeeId)
         {
             if (request == null)
@@ -39,9 +41,56 @@ namespace HRMS.API.Services
             // Call repository method
             var ticket = await _helpDeskRepository.CreateTicketAsync(request, organizationId, employeeId);
 
-            // Map to DTO
-            //return _mapper.Map<TicketDto>(ticket);
-            // Create DTO manually
+            //Implementing notification
+            //first gettig employeeInfo who creates notification
+            var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+            var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
+
+            var ticketInof = await _helpDeskRepository.GetTicketByIdAsync(organizationId, ticket);
+            //Sendindg notification of create  time employees
+            if (request.assignedGroup != null)
+            {
+                //get employees og group from groupid
+                var groupEmp = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, request.assignedGroup);
+                var GroupEmpid = new List<string>();
+
+                //GroupEmpid = groupEmp.Where(e => e.employeeid != null).Select(e => e.employeeid.value).ToList();
+                var groupEmpIds = groupEmp?.EmployeeIds?.ToList() ?? new List<Guid>();
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = groupEmpIds,
+                    Senderuserid = employee.EmployeeId,
+                    Title = "Help Desk Ticket",
+                    Message = $"You have assigned ticket {request.TicketTitle} created by {employee.FirstName}",
+                    Notificationtype = "Message",
+                    Createdby = employeeId,
+                    moduletype = "help desk",
+                    Redirecturl = "/attendance/shift",
+                    RequestId = ticket,
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+            }
+            if (ticket != Guid.Empty)
+            {
+
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = new List<Guid> { reportingmangerid },
+                    Senderuserid = employee.EmployeeId,
+                    Title = "Help Desk Ticket",
+                    Message = $"A new help-desk {request.TicketTitle} created by {employee.FirstName} {employee.LastName}",
+                    Notificationtype = "Message",
+                    Createdby = employeeId,
+                    moduletype = "help desk",
+                    Redirecturl = "/attendance/shift",
+                    RequestId = ticket,
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+            }
             var ticketDto = new TicketDto
             {
                 Ticketid = ticket,
@@ -56,18 +105,14 @@ namespace HRMS.API.Services
             return ticketDto;
         }
 
-
         public async Task<List<TicketDto>> GetAllTicketsAsync(Guid organizationId, Guid employeeId, TicketSearchModel searchModel)
         {
-            // Validation
             if (organizationId == Guid.Empty)
                 throw new ArgumentException("OrganizationId cannot be empty", nameof(organizationId));
             if (employeeId == Guid.Empty)
                 throw new ArgumentException("EmployeeId cannot be empty", nameof(employeeId));
-            // Check role
             var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(employeeId, organizationId);
             List<TicketDto> tickets;
-
             if (isAdminOrHR)
             {
                 // Admin/HR → all tickets
@@ -79,10 +124,7 @@ namespace HRMS.API.Services
                 tickets = await _helpDeskRepository.GetAllTicketsCreatedByEmployeeAsync(organizationId, employeeId, searchModel);
             }
             return tickets ?? new List<TicketDto>();
-
-
         }
-
         public async Task<bool> UpdateTicketAsync(UpdateTicketRequest request, Guid organizationId, Guid currentEmployeeId)
         {
             // 🔹 validations
@@ -101,9 +143,70 @@ namespace HRMS.API.Services
             // ✅ STEP 2: update assignment (group + employees)
             var result = await _helpDeskRepository.UpdateTicketAssignmentsAsync(request, currentEmployeeId);
 
+            //Implementing notification
+            //first gettig employeeInfo who creates notification
+            var employee = await _employeeRepository.GetEmployeeByIdAsync(currentEmployeeId);
+            var ticketInof = await _helpDeskRepository.GetTicketByIdAsync(organizationId, request.TicketId);
+    
+            //get employees of group from groupid
+            var groupEmp = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, request.GroupId);
+            var GroupEmpid = new List<string>();
+            var groupEmpIds = groupEmp?.EmployeeIds?.ToList() ?? new List<Guid>();
+            var manualEmpIds = request.AssignedEmployees?.ToList() ?? new List<Guid>();
+            // 🔥 Merge both + remove duplicates
+            var receiverEmpIds = groupEmpIds.Concat(manualEmpIds).Distinct().ToList();
+            var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = receiverEmpIds,
+                    Senderuserid = employee.EmployeeId,
+                    Title = "Help Desk Ticket",
+                    Message = $"You have assigned ticket {request.TicketTitle} created by {employee.FirstName}{employee.LastName} ",
+                    Notificationtype = "Message",
+                    Createdby = currentEmployeeId,
+                    moduletype = "help desk",
+                    Redirecturl = "/help-desk/ticket-invlovement",
+                    RequestId = request.TicketId,
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+            //Implementing Email
+            var ReciverEmails = new List<string>();
+            var selectedEmployees = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(receiverEmpIds);
+            ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
+             var EmailMessage = new TicketMessageRequest
+            {
+                TicketId=request.TicketId,
+                Message=notification.Message,
+                MessageType="Email",
+                Subject=request.TicketTitle,
+             };
+            await _emailService.SendHelpDeskChatAsync(ReciverEmails, EmailMessage, organizationId, request.TicketTitle);
+
             return result;
         }
+        public async Task<bool> UpdateTicketGroupAsync(Guid organizationId, UpdateTicketGroupRequest request)
+        {
+            // 🔹 Validations
+            if (organizationId == Guid.Empty)
+                throw new ArgumentException("OrganizationId cannot be empty");
 
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            if (request.GroupId == Guid.Empty)
+                throw new ArgumentException("GroupId is required");
+            // Get the old group details from the repository before update
+            var oldGroupDetails = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, request.GroupId);
+
+            // Convert old group EmployeeIds array to a List<Guid> safely
+            var oldGroupEmployeeIds = oldGroupDetails?.EmployeeIds?.ToList() ?? new List<Guid>();
+            // ✅ STEP 1: Update group main data (title, department, category)
+            await _helpDeskRepository.UpdateTicketGroupAsync(organizationId, request);
+
+            // ✅ STEP 2: Update group employees (remove old + insert new)
+          var result=  await _helpDeskRepository.UpdateGroupEmployeesAsync(request.GroupId, request.EmployeeIds,oldGroupEmployeeIds);
+            return true ;
+        }
         public async Task<List<TicketDto>> GetAllAssignedTicket(Guid organizationId, Guid employeeId, TicketSearchModel searchModel)
         {
             // Validation
@@ -117,31 +220,21 @@ namespace HRMS.API.Services
 
             if (isAdminOrHR)
             {
-                // Admin/HR → all tickets
                 tickets = await _helpDeskRepository.GetAllTicketsAsync(organizationId, searchModel);
-
             }
             else
             {
-                // Employee → only their tickets
                 tickets = await _helpDeskRepository.GetAllEmployeeAssignedTickets(organizationId, employeeId, searchModel);
             }
             return tickets ?? new List<TicketDto>();
-
-
         }
-
-
         public async Task<TicketDto?> GetTicketByIdAsync(Guid organizationId, Guid employeeId, Guid ticketId)
         {
             try
             {
-                // Call repository to get ticket
                 var ticket = await _helpDeskRepository.GetTicketByIdAsync(organizationId, ticketId);
-
                 if (ticket == null)
-                    return null;
-
+                return null;
                 return ticket;
             }
             catch (Exception ex)
@@ -150,27 +243,46 @@ namespace HRMS.API.Services
                 throw;
             }
         }
+        public async Task<bool> DeleteTicketAsync(Guid organizationId, Guid ticketId)
+        {
+            try
+            {
+                // Step 1: Check if ticket exists
+                var ticket = await _helpDeskRepository.GetTicketByIdAsync(organizationId, ticketId);
+                if (ticket == null)
+                {
+                    _logger.LogWarning("Ticket {TicketId} not found in organization {OrganizationId}", ticketId, organizationId);
+                    return false;
+                }
+                var deleted = await _helpDeskRepository.DeleteTicketByIdAsync(organizationId, ticketId);
+                if (deleted)
+                {
+                    _logger.LogInformation("Ticket {TicketId} deleted successfully from organization {OrganizationId}", ticketId, organizationId);
+                }
+                else
+                {
+                    _logger.LogWarning("Failed to delete ticket {TicketId} from organization {OrganizationId}", ticketId, organizationId);
+                }
+                return deleted;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting ticket {TicketId} from organization {OrganizationId}", ticketId, organizationId);
+                throw;
+            }
+        }
 
         public async Task<TicketGroupDto> CreateTicketGroupAsync(Guid organizationId, CreateTicketGroupRequest request)
         {
-            // 🔹 Validation (same pattern you used everywhere)
             if (organizationId == Guid.Empty)
                 throw new ArgumentException("OrganizationId cannot be empty", nameof(organizationId));
-
             if (request == null)
                 throw new ArgumentNullException(nameof(request), "Request cannot be null");
-
             if (string.IsNullOrWhiteSpace(request.GroupTitle))
                 throw new ArgumentException("Group title is required", nameof(request.GroupTitle));
-
-            // Optional: ensure employee list is not empty
             if (request.EmployeeIds == null || !request.EmployeeIds.Any())
                 throw new ArgumentException("At least one employee must be assigned to group");
-
-            // 🔹 Call repository
             var group = await _helpDeskRepository.CreateTicketGroupAsync(organizationId, request);
-
-            // 🔹 Return result (no mapping needed if repo already returns DTO)
             return group;
         }
         //Get all Agents/Ticket Group
@@ -178,9 +290,7 @@ namespace HRMS.API.Services
         {
             try
             {
-                // Call repository to fetch all active groups in this organization
                 var groups = await _helpDeskRepository.GetAllTicketGroupsAsync(organizationId, search, departmentId,categoryId);
-
                 return groups;
             }
             catch (Exception ex)
@@ -195,12 +305,10 @@ namespace HRMS.API.Services
         {
             try
             {
-                // Call repository to get the group
                 var group = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, groupId);
-
                 if (group == null)
                 {
-                    return null; // Group not found
+                    return null; 
                 }
                 return group;
             }
@@ -210,29 +318,32 @@ namespace HRMS.API.Services
                 throw;
             }
         }
-
-        //Delete Group
         public async Task<bool> DeleteTicketGroupAsync(Guid organizationId, Guid groupId)
         {
-            try
-            {
-                // Optional: check if the group exists before deletion
-                var group = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, groupId);
-                if (group == null)
-                {
-                    return false; // Group does not exist
-                }
+           
+            if (organizationId == Guid.Empty)
+                throw new ArgumentException("OrganizationId cannot be empty");
+            if (groupId == Guid.Empty)
+                throw new ArgumentException("GroupId is required");
+           // Get old group details
+            var oldGroupDetails = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, groupId);
 
-                // Call repository to delete the group (soft delete recommended)
-                var deleted = await _helpDeskRepository.DeleteTicketGroupAsync(organizationId, groupId);
+            // Safely convert EmployeeIds array to a List<Guid>
+            var oldGroupEmployeeIds = oldGroupDetails.EmployeeIds?.ToList() ?? new List<Guid>();
+            var AssignmentidsBelongtoGroupId = await _helpDeskRepository.GetAssignmentsByGroupIdAsync(groupId);
 
-                return deleted;
-            }
-            catch (Exception ex)
+            //Delete the group 
+            var deleted = await _helpDeskRepository.DeleteTicketGroupAsync(organizationId, groupId);
+            if (!deleted)
             {
-                _logger.LogError(ex, "Error deleting ticket group {GroupId} for organization {OrganizationId}", groupId, organizationId);
-                throw;
+                return false; 
             }
+            // Remove old group employees from ticket_assigned_employees
+            if (oldGroupEmployeeIds.Any())
+            {
+                await _helpDeskRepository.DeleteOldGroupEmployeesFromAssignmentsAsync(oldGroupEmployeeIds, AssignmentidsBelongtoGroupId);
+            }
+            return true;
         }
 
         public async Task<bool> AssignTicketAsync(AssignTicketRequest request, Guid assignedBy)
@@ -283,13 +394,9 @@ namespace HRMS.API.Services
         {
             if (organizationId == Guid.Empty)
                 throw new ArgumentException("OrganizationId cannot be empty", nameof(organizationId));
-
             if (employeeId == Guid.Empty)
                 throw new ArgumentException("EmployeeId cannot be empty", nameof(employeeId));
-
             var messages = await _helpDeskRepository.GetMessagesByTicketIdAsync(organizationId, ticketId);
-
-            // Optional: any business logic, e.g., filtering, sorting, marking read status, etc.
             return messages;
         }
 
@@ -300,7 +407,6 @@ namespace HRMS.API.Services
                 throw new ArgumentException("OrganizationId cannot be empty", nameof(organizationId));
             var categories = await _helpDeskRepository.CreateCategoriesAsync(organizationId, CurrentEmployeeId, request);
             return categories;
-
         }
 
         public async Task<List<CategoryDto>> GetCategoriesAsync(Guid organizationId, searchCateogry? search)
@@ -313,7 +419,7 @@ namespace HRMS.API.Services
             return categories;
         }
 
-        public async Task<bool> UpdateCategoryAsync(Guid organizationId, UpdateCategoryRequest request)
+        public async Task<bool> UpdateCategoryAsync(Guid organizationId, UpdateCategoryRequest request,Guid empId)
         {
             if (organizationId == Guid.Empty)
                 throw new ArgumentException("OrganizationId cannot be empty", nameof(organizationId));
@@ -328,7 +434,7 @@ namespace HRMS.API.Services
                 throw new ArgumentException("Category name cannot be empty", nameof(request.CategoryName));
 
             // ✅ Repository call
-            var result = await _helpDeskRepository.UpdateCategoryAsync(organizationId, request);
+            var result = await _helpDeskRepository.UpdateCategoryAsync(organizationId, request,empId);
             return result;
         }
 

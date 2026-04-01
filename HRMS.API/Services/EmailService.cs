@@ -775,7 +775,7 @@ public class EmailService : IEmailService
             .Replace("https://", "")
             .Replace(".com", "");
 
-        var dashboardUrl = $"http://{cleanDomain}.briskpeople.com/attendance/shift";
+        var dashboardUrl = $"http://{cleanDomain}.briskpeople.com/help-desk/ticket-invlovement";
 
         var body = $@"<!DOCTYPE html>
                   <html>
