@@ -36,7 +36,7 @@ namespace HRMS.API.Models.DTOs
             public string TicketTitle { get; set; } = string.Empty;
             public string? TicketType { get; set; }
             public Guid? CategoryId { get; set; }
-            public Guid? assignedGroup { get; set; }
+            public Guid assignedGroup { get; set; }
             public string? Priority { get; set; }
             public string? Description { get; set; } = string.Empty;
             public string? Attachment { get; set; }
@@ -54,7 +54,7 @@ namespace HRMS.API.Models.DTOs
 
             //public string? Category { get; set; }
             public Guid? CategoryId { get; set; }
-            public Guid? GroupId { get; set; }
+            public Guid GroupId { get; set; }
 
             public Guid[] AssignedEmployees { get; set; } = Array.Empty<Guid>();
 
@@ -84,6 +84,14 @@ namespace HRMS.API.Models.DTOs
             public string GroupTitle { get; set; } = string.Empty;
             public Guid departmentId { get; set; }
             public Guid? categoryId { get; set; }
+            public List<Guid> EmployeeIds { get; set; } = new();
+        }
+        public class UpdateTicketGroupRequest
+        {
+            public Guid GroupId { get; set; }  
+            public string GroupTitle { get; set; } = string.Empty;
+            public Guid DepartmentId { get; set; }
+            public Guid? CategoryId { get; set; }
             public List<Guid> EmployeeIds { get; set; } = new();
         }
 
@@ -131,7 +139,9 @@ namespace HRMS.API.Models.DTOs
             public string MessageType { get; set; } // 'chat' | 'email' | 'system'
             public string? Subject { get; set; } // optional, for email only
             public List<Guid>? RecipientIds { get; set; } // for sending to multiple recipients
+            public string?  attachment { get; set; }
         }
+
 
         // Response DTO
         public class TicketMessageDto
@@ -145,6 +155,7 @@ namespace HRMS.API.Models.DTOs
             public DateTime CreatedAt { get; set; }
             public Guid[]? RecipientIds { get; set; }
             // New fields
+            public string? attachmentUrl { get; set; }
             public string SenderFullName { get; set; } = string.Empty;
             public string SenderEmail { get; set; } = string.Empty;
         }

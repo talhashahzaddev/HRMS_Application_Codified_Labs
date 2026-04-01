@@ -18,9 +18,11 @@ namespace HRMS.API.Services.Interfaces
         Task<List<TicketMessageDto>> GetMessagesByEmployeeIdAsync(Guid organizationId, Guid employeeId, Guid ticketId);
         Task<bool> CreateCategoriesAsync(Guid organizationId, Guid CurrentEmployeeId, CreateCategoryRequest request);
         Task<List<CategoryDto>> GetCategoriesAsync(Guid organizationId, searchCateogry? search);
-        Task<bool> UpdateCategoryAsync(Guid organizationId, UpdateCategoryRequest request);
+        Task<bool> UpdateCategoryAsync(Guid organizationId, UpdateCategoryRequest request,Guid empId);
         Task<bool> DeleteCategoryAsync(Guid organizationId, Guid categoryId);
         Task<CategoryDto?> GetCategoryByIdAsync(Guid organizationId, Guid categoryId);
+        Task<bool> UpdateTicketGroupAsync(Guid organizationId, UpdateTicketGroupRequest request);
+        Task<bool> DeleteTicketAsync(Guid organizationId, Guid ticketId);
 
 
     }

@@ -20,8 +20,13 @@ namespace HRMS.API.Repositories.Interfaces
         Task<List<TicketMessageDto>> GetMessagesByTicketIdAsync(Guid organizationId, Guid ticketId);
         Task<bool> CreateCategoriesAsync(Guid organizationId, Guid createdBy, CreateCategoryRequest request);
         Task<List<CategoryDto>> GetCategoriesAsync(Guid organizationId, searchCateogry? search);
-        Task<bool> UpdateCategoryAsync(Guid organizationId, UpdateCategoryRequest request);
+        Task<bool> UpdateCategoryAsync(Guid organizationId, UpdateCategoryRequest request,Guid empId);
         Task<bool> DeleteCategoryAsync(Guid organizationId, Guid categoryId);
         Task<CategoryDto?> GetCategoryByIdAsync(Guid organizationId, Guid categoryId);
+        Task<bool> UpdateTicketGroupAsync(Guid organizationId, UpdateTicketGroupRequest request);
+        Task<bool> UpdateGroupEmployeesAsync(Guid groupId, List<Guid> employeeIds, List<Guid> oldGroupEmpId);
+        Task<bool> DeleteTicketByIdAsync(Guid organizationId, Guid ticketId);
+        Task<List<Guid>> GetAssignmentsByGroupIdAsync(Guid groupId);
+        Task<bool> DeleteOldGroupEmployeesFromAssignmentsAsync(List<Guid> oldGroupEmployeeIds, List<Guid> assignmentIds);
     }
 }

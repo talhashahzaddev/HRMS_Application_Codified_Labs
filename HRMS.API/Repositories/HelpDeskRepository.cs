@@ -13,9 +13,7 @@ namespace HRMS.API.Repositories
         {
             _logger = logger;
         }
-
-
-        public async Task<Guid> CreateTicketAsync(TicketRequest request, Guid organizationId, Guid employeeId)
+    public async Task<Guid> CreateTicketAsync(TicketRequest request, Guid organizationId, Guid employeeId)
         {
             try
             {
@@ -59,7 +57,7 @@ namespace HRMS.API.Repositories
             try
             {
                 var sql = @"
-    SELECT 
+        SELECT 
         t.ticketid              AS TicketId,
         t.departmentid          AS DepartmentId,
         COALESCE(d.departmentname, 'N/A') AS DepartmentName,
@@ -81,7 +79,6 @@ namespace HRMS.API.Repositories
         ta.groupid              AS GroupId,   -- ✅ added
 
         COALESCE(emp_list.employeeids, '{}') AS AssignedEmployees
-
     FROM helpdesk.tickets t
 
     -- Department join
@@ -173,150 +170,25 @@ namespace HRMS.API.Repositories
                 throw;
             }
         }
-
-        //        public async Task<List<TicketDto>> GetAllTicketsCreatedByEmployeeAsync(
-        //    Guid organizationId,
-        //    Guid employeeId,
-        //    TicketSearchModel search)
-        //        {
-        //            try
-        //            {
-        //                var sql = @"
-        //        SELECT 
-        //            t.ticketid        AS TicketId,
-        //            t.departmentid    AS DepartmentId,
-        //            d.departmentname  AS DepartmentName,   -- ✅ added
-        //            t.title           AS TicketTitle,
-        //            t.tickettype      AS TicketType,
-        //            t.category        AS Category,
-        //            t.priority        AS Priority,
-        //            t.description     AS Description,
-        //            t.attachment      AS Attachment,
-        //            t.status          AS Status,           -- ✅ added (was missing)
-        //            t.createdat       AS CreatedAt,        -- ✅ fixed casing
-        //            tg.grouptitle     AS GroupName,
-
-        //            COALESCE(emp_list.employeeids, '{}') AS AssignedEmployees
-
-        //        FROM helpdesk.tickets t
-
-        //        -- ✅ Department join
-        //        LEFT JOIN employee.departments d
-        //            ON t.departmentid = d.departmentid
-        //            AND d.isactive = true
-
-        //        LEFT JOIN helpdesk.ticket_assignments ta 
-        //            ON t.ticketid = ta.ticketid
-
-        //        LEFT JOIN helpdesk.ticket_group tg 
-        //            ON ta.groupid = tg.groupid
-
-        //        -- ✅ Aggregate employees
-        //        LEFT JOIN LATERAL (
-        //            SELECT ARRAY(
-        //                SELECT DISTINCT emp_id
-        //                FROM (
-        //                    -- Directly assigned employees
-        //                    SELECT tae.employeeid AS emp_id
-        //                    FROM helpdesk.ticket_assigned_employees tae
-        //                    WHERE tae.ticketid = t.ticketid
-
-        //                    UNION
-
-        //                    -- Employees from group
-        //                    SELECT UNNEST(tg2.employeeids)
-        //                    FROM helpdesk.ticket_group tg2
-        //                    WHERE tg2.groupid = ta.groupid
-
-        //                    UNION
-
-        //                    -- Manual assigned_employees array
-        //                    SELECT UNNEST(ta.assigned_employees)
-        //                ) AS all_employees
-        //            ) AS employeeids
-        //        ) emp_list ON TRUE
-
-        //        WHERE t.organizationid = @OrganizationId
-        //          AND t.isactive = true
-        //          AND t.employeeid = @EmployeeId
-
-        //          -- ✅ Search filter
-        //          AND (
-        //                @SearchTerm IS NULL
-        //                OR t.title ILIKE '%' || @SearchTerm || '%'
-        //                OR t.description ILIKE '%' || @SearchTerm || '%'
-        //          )
-
-        //          -- ✅ Department filter
-        //          AND (
-        //                @DepartmentId IS NULL
-        //                OR t.departmentid = @DepartmentId
-        //          )
-        //-- Status filter (case-insensitive)
-        //AND (
-        //      @Status IS NULL
-        //      OR t.status ILIKE @Status
-        //)
-
-        //        ORDER BY
-        //            CASE WHEN @SortBy = 'title' AND @SortOrder = 'asc' THEN t.title END ASC,
-        //            CASE WHEN @SortBy = 'title' AND @SortOrder = 'desc' THEN t.title END DESC,
-        //            t.createdat DESC
-
-        //        LIMIT @PageSize
-        //        OFFSET (@Page - 1) * @PageSize;
-        //        ";
-
-        //                var parameters = new
-        //                {
-        //                    OrganizationId = organizationId,
-        //                    EmployeeId = employeeId,
-        //                    SearchTerm = string.IsNullOrWhiteSpace(search.SearchTerm) ? null : search.SearchTerm,
-        //                    DepartmentId = search.DepartmentId,
-        //                    Page = search.Page <= 0 ? 1 : search.Page,
-        //                    PageSize = search.PageSize <= 0 ? 10 : search.PageSize,
-        //                    SortBy = search.SortBy?.ToLower(),
-        //                    SortOrder = search.SortOrder?.ToLower(),
-        //                    Status = search.Status
-        //                };
-
-        //                var tickets = await QueryAsync<TicketDto>(sql, parameters);
-
-        //                return tickets.ToList();
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                _logger.LogError(ex, "Error fetching tickets created by Employee {EmployeeId}", employeeId);
-        //                throw;
-        //            }
-        //        }
-
-        public async Task<List<TicketDto>> GetAllTicketsCreatedByEmployeeAsync(
-    Guid organizationId,
-    Guid employeeId,
-    TicketSearchModel search)
+    public async Task<List<TicketDto>> GetAllTicketsCreatedByEmployeeAsync(Guid organizationId, Guid employeeId, TicketSearchModel search)
         {
             try
             {
                 var sql = @"
-    SELECT 
+        SELECT 
         t.ticketid        AS TicketId,
         t.departmentid    AS DepartmentId,
         d.departmentname  AS DepartmentName,
-
         t.title           AS TicketTitle,
         t.tickettype      AS TicketType,
-
         -- ✅ Category (UPDATED)
         t.categoryid      AS CategoryId,
         COALESCE(c.name, 'N/A') AS Category,
-
         t.priority        AS Priority,
         t.description     AS Description,
         t.attachment      AS Attachment,
         t.status          AS Status,
         t.createdat       AS CreatedAt,
-
         tg.grouptitle     AS GroupName,
         ta.groupid        AS GroupId,   -- (optional but good, matches DTO)
 
@@ -392,7 +264,6 @@ namespace HRMS.API.Repositories
     LIMIT @PageSize
     OFFSET (@Page - 1) * @PageSize;
     ";
-
                 var parameters = new
                 {
                     OrganizationId = organizationId,
@@ -417,13 +288,11 @@ namespace HRMS.API.Repositories
             }
         }
 
-
         //Get ticket by id
-
-        public async Task<TicketDto?> GetTicketByIdAsync(Guid organizationId, Guid ticketId)
+    public async Task<TicketDto?> GetTicketByIdAsync(Guid organizationId, Guid ticketId)
         {
             var sql = @"
-SELECT 
+    SELECT 
     t.ticketid        AS TicketId,
     t.departmentid    AS DepartmentId,
     COALESCE(d.departmentname, 'N/A') AS DepartmentName,
@@ -452,29 +321,25 @@ SELECT
 
     creator.firstname || ' ' || creator.lastname AS CreatedByName
 
-FROM helpdesk.tickets t
-
-LEFT JOIN employee.departments d
+    FROM helpdesk.tickets t
+    LEFT JOIN employee.departments d
     ON d.departmentid = t.departmentid
-
--- ✅ Category join (NEW)
-LEFT JOIN helpdesk.categories c
+    -- ✅ Category join (NEW)
+   LEFT JOIN helpdesk.categories c
     ON t.categoryid = c.categoryid
-
-LEFT JOIN helpdesk.ticket_assignments ta 
+    LEFT JOIN helpdesk.ticket_assignments ta 
     ON t.ticketid = ta.ticketid
-
-LEFT JOIN helpdesk.ticket_group tg 
+    LEFT JOIN helpdesk.ticket_group tg 
     ON ta.groupid = tg.groupid
 
--- ✅ Manual Assigned Employees
-LEFT JOIN LATERAL (
+    -- ✅ Manual Assigned Employees
+    LEFT JOIN LATERAL (
     SELECT 
         ARRAY_AGG(DISTINCT e.employeeid) AS employeeids,
         ARRAY_AGG(DISTINCT e.firstname || ' ' || e.lastname) AS employeenames
-    FROM employee.employees e
-    WHERE e.employeeid = ANY(ta.assigned_employees)
-) manual_emp ON TRUE
+     FROM employee.employees e
+     WHERE e.employeeid = ANY(ta.assigned_employees)
+     ) manual_emp ON TRUE
 
 -- ✅ Group Employees
 LEFT JOIN LATERAL (
@@ -492,17 +357,15 @@ WHERE t.organizationid = @OrganizationId
   AND t.ticketid = @TicketId
   AND t.isactive = true;
 ";
-
             var parameters = new
             {
                 OrganizationId = organizationId,
                 TicketId = ticketId
             };
-
             return (await QueryAsync<TicketDto>(sql, parameters)).FirstOrDefault();
         }
 
-        public async Task<bool> UpdateTicketDataAsync(Guid organizationId, UpdateTicketRequest request)
+    public async Task<bool> UpdateTicketDataAsync(Guid organizationId, UpdateTicketRequest request)
         {
             try
             {
@@ -662,139 +525,143 @@ WHERE t.organizationid = @OrganizationId
             }
         }
 
+    public async Task<bool> DeleteTicketByIdAsync(Guid organizationId, Guid ticketId)
+        {
+            var sql = @"
+            DELETE FROM helpdesk.tickets
+            WHERE organizationid = @OrganizationId
+            AND ticketid = @TicketId
+            ";
+
+            var parameters = new
+            {
+                OrganizationId = organizationId,
+                TicketId = ticketId
+            };
+
+            var rowsAffected = await ExecuteAsync(sql, parameters);
+
+            // Return true if a row was deleted, false otherwise
+            return rowsAffected > 0;
+        }
 
 
 
-
-
-        //Get all assigned tickets
-
-
-        //        public async Task<List<TicketDto>> GetAllEmployeeAssignedTickets(
-        //    Guid organizationId,
-        //    Guid employeeId,
-        //    TicketSearchModel search)
-        //        {
-        //            try
-        //            {
-        //                var sql = @"
-        //    SELECT 
-        //        t.ticketid              AS TicketId,
-        //        t.departmentid          AS DepartmentId,
-        //        COALESCE(d.departmentname, 'N/A') AS DepartmentName,
-        //        t.title                 AS TicketTitle,
-        //        t.tickettype            AS TicketType,
-        //        t.category              AS Category,
-        //        t.priority              AS Priority,
-        //        t.description           AS Description,
-        //        t.attachment            AS Attachment,
-        //        t.status                AS Status,
-        //        tg.grouptitle           AS GroupName,
-        //        COALESCE(emp_list.employeeids, '{}') AS AssignedEmployees
-
-        //    FROM helpdesk.tickets t
-
-        //    -- Join to get department name
-        //    LEFT JOIN employee.departments d
-        //        ON t.departmentid = d.departmentid
-        //        AND d.isactive = true
-
-        //    LEFT JOIN helpdesk.ticket_assignments ta 
-        //        ON t.ticketid = ta.ticketid
-
-        //    LEFT JOIN helpdesk.ticket_group tg 
-        //        ON ta.groupid = tg.groupid
-
-        //    -- Aggregate all assigned employees into one array per ticket
-        //    LEFT JOIN LATERAL (
-        //        SELECT ARRAY(
-        //            SELECT DISTINCT emp_id
-        //            FROM (
-        //                -- Direct assigned employees
-        //                SELECT tae.employeeid AS emp_id
-        //                FROM helpdesk.ticket_assigned_employees tae
-        //                WHERE tae.ticketid = t.ticketid
-
-        //                UNION
-
-        //                -- Employees in assigned group
-        //                SELECT UNNEST(tg2.employeeids)
-        //                FROM helpdesk.ticket_group tg2
-        //                WHERE tg2.groupid = ta.groupid
-
-        //                UNION
-
-        //                -- Manual assigned_employees array
-        //                SELECT UNNEST(ta.assigned_employees)
-        //            ) AS all_employees
-        //        ) AS employeeids
-        //    ) emp_list ON TRUE
-
-        //    WHERE t.organizationid = @OrganizationId
-        //      AND t.isactive = true
-
-        //      -- Only tickets where employee is assigned (exclude tickets they created)
-        //      AND @EmployeeId = ANY(emp_list.employeeids)
-
-        //      -- Search filter
-        //      AND (
-        //            @SearchTerm IS NULL
-        //            OR t.title ILIKE '%' || @SearchTerm || '%'
-        //            OR t.description ILIKE '%' || @SearchTerm || '%'
-        //      )
-
-        //      -- Department filter
-        //      AND (
-        //            @DepartmentId IS NULL
-        //            OR t.departmentid = @DepartmentId
-        //      )
-        //AND (
-        //      @Status IS NULL
-        //      OR t.status ILIKE @Status
-        //)
-
-        //    ORDER BY
-        //        CASE WHEN @SortBy = 'title' AND @SortOrder = 'asc' THEN t.title END ASC,
-        //        CASE WHEN @SortBy = 'title' AND @SortOrder = 'desc' THEN t.title END DESC,
-        //        t.createdat DESC
-
-        //    LIMIT @PageSize
-        //    OFFSET (@Page - 1) * @PageSize;
-        //    ";
-
-        //                var parameters = new
-        //                {
-        //                    OrganizationId = organizationId,
-        //                    EmployeeId = employeeId,
-        //                    SearchTerm = string.IsNullOrWhiteSpace(search.SearchTerm) ? null : search.SearchTerm,
-        //                    DepartmentId = search.DepartmentId,
-        //                    Status = search.Status,
-        //                    Page = search.Page <= 0 ? 1 : search.Page,
-        //                    PageSize = search.PageSize <= 0 ? 10 : search.PageSize,
-        //                    SortBy = search.SortBy?.ToLower(),
-        //                    SortOrder = search.SortOrder?.ToLower()
-        //                };
-
-        //                var tickets = await QueryAsync<TicketDto>(sql, parameters);
-        //                return tickets.ToList();
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                _logger.LogError(ex, "Error fetching assigned tickets for Employee {EmployeeId}", employeeId);
-        //                throw;
-        //            }
-        //        }
-
-
-        public async Task<List<TicketDto>> GetAllEmployeeAssignedTickets(
-    Guid organizationId,
-    Guid employeeId,
-    TicketSearchModel search)
+    public async Task<bool> UpdateTicketGroupAsync(Guid organizationId, UpdateTicketGroupRequest request)
         {
             try
             {
                 var sql = @"
-SELECT 
+            UPDATE helpdesk.ticket_group
+            SET
+            grouptitle = @GroupTitle,
+            departmentid = @DepartmentId,
+            employeeids=@EmployeeIds::uuid[],
+            categoryid = @CategoryId,
+            updatedat = CURRENT_TIMESTAMP
+            WHERE groupid = @GroupId
+            AND organizationid = @OrganizationId
+            AND isactive = true;
+            ";
+
+                var parameters = new
+                {
+                    GroupId = request.GroupId,
+                    OrganizationId = organizationId,
+                    GroupTitle = request.GroupTitle,
+                    employeeIds= request.EmployeeIds.ToArray(),
+                    DepartmentId = request.DepartmentId,
+                    CategoryId = request.CategoryId
+                };
+
+                var rowsAffected = await ExecuteAsync(sql, parameters);
+
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating ticket group");
+                throw;
+            }
+        }
+    public async Task<bool> UpdateGroupEmployeesAsync(Guid groupId, List<Guid> newEmployeeIds, List<Guid> oldGroupEmpIds)
+        {
+            try
+            {
+                if (groupId == Guid.Empty)
+                    throw new ArgumentException("GroupId is required");
+
+                newEmployeeIds = newEmployeeIds ?? new List<Guid>();
+                var distinctEmployees = newEmployeeIds.Distinct().ToList();
+
+                oldGroupEmpIds = oldGroupEmpIds ?? new List<Guid>();
+
+                // 🔹 STEP 1: Get all assignments linked to this group
+                var assignmentIds = (await QueryAsync<Guid>(
+                    @"SELECT assignmentid
+              FROM helpdesk.ticket_assignments
+              WHERE groupid = @GroupId;",
+                    new { GroupId = groupId }
+                )).ToList();
+
+                // 🔹 STEP 2: Update normalized employees for each assignment
+                foreach (var assignmentId in assignmentIds)
+                {
+                    // Get ticketid for this assignment
+                    var ticketId = await ExecuteScalarAsync<Guid>(
+                        @"SELECT ticketid 
+                  FROM helpdesk.ticket_assignments 
+                  WHERE assignmentid = @AssignmentId;",
+                        new { AssignmentId = assignmentId });
+
+                    // Delete only old group employees from assignment (manual employees stay untouched)
+                    if (oldGroupEmpIds.Any())
+                    {
+                        await ExecuteAsync(@"
+                    DELETE FROM helpdesk.ticket_assigned_employees
+                    WHERE assignmentid = @AssignmentId
+                    AND employeeid = ANY(@OldEmployeeIds);",
+                            new { AssignmentId = assignmentId, OldEmployeeIds = oldGroupEmpIds });
+                    }
+
+                    // Insert updated group employees into normalized table if not already present
+                    if (distinctEmployees.Any())
+                    {
+                        var insertSql = @"
+                    INSERT INTO helpdesk.ticket_assigned_employees 
+                    (id, ticketid, employeeid, assignmentid)
+                    VALUES (@Id, @TicketId, @EmployeeId, @AssignmentId)
+                    ON CONFLICT (ticketid, employeeid) DO NOTHING;"; // Prevent duplicates
+
+                        foreach (var empId in distinctEmployees)
+                        {
+                            await ExecuteAsync(insertSql, new
+                            {
+                                Id = Guid.NewGuid(),
+                                TicketId = ticketId,
+                                EmployeeId = empId,
+                                AssignmentId = assignmentId
+                            });
+                        }
+                    }
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating ticket assignment employees for group");
+                throw;
+            }
+        }
+
+
+    public async Task<List<TicketDto>> GetAllEmployeeAssignedTickets(Guid organizationId,Guid employeeId,TicketSearchModel search)
+        {
+            try
+            {
+                var sql = @"
+                SELECT 
     t.ticketid              AS TicketId,
     t.departmentid          AS DepartmentId,
     COALESCE(d.departmentname, 'N/A') AS DepartmentName,
@@ -1042,12 +909,10 @@ WHERE organizationid = @OrganizationId
         public async Task<bool> DeleteTicketGroupAsync(Guid organizationId, Guid groupId)
         {
             var sql = @"
-UPDATE helpdesk.ticket_group
-SET isactive = false,
-    updatedat = NOW()
+delete FROM helpdesk.ticket_group
 WHERE organizationid = @OrganizationId
   AND groupid = @GroupId
-  AND isactive = true;";
+";
 
             var parameters = new
             {
@@ -1164,8 +1029,53 @@ WHERE ticketid = @TicketId;
                 throw;
             }
         }
+        public async Task<List<Guid>> GetAssignmentsByGroupIdAsync(Guid groupId)
+        {
+            if (groupId == Guid.Empty)
+                throw new ArgumentException("GroupId is required");
 
+            var sql = @"
+        SELECT assignmentid
+        FROM helpdesk.ticket_assignments
+        WHERE groupid = @GroupId;
+    ";
 
+            var assignmentIds = (await QueryAsync<Guid>(sql, new { GroupId = groupId })).ToList();
+            return assignmentIds;
+        }
+
+        public async Task<bool> DeleteOldGroupEmployeesFromAssignmentsAsync(List<Guid> oldGroupEmployeeIds, List<Guid> assignmentIds)
+        {
+            try
+            {
+                if (oldGroupEmployeeIds == null || !oldGroupEmployeeIds.Any())
+                    return false;
+
+                if (assignmentIds == null || !assignmentIds.Any())
+                    return false;
+
+                // 🔹 Delete old group employees from the provided assignments
+                var sql = @"
+DELETE FROM helpdesk.ticket_assigned_employees
+WHERE assignmentid = ANY(@AssignmentIds)
+  AND employeeid = ANY(@OldEmployeeIds);
+";
+
+                var parameters = new
+                {
+                    AssignmentIds = assignmentIds.ToArray(),
+                    OldEmployeeIds = oldGroupEmployeeIds.ToArray()
+                };
+
+                var rowsAffected = await ExecuteAsync(sql, parameters);
+                return rowsAffected > 0;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting old group employees from ticket assignments");
+                throw;
+            }
+        }
 
         public async Task<bool> CreateMessageAsync(Guid organizationId, TicketMessageRequest request)
         {
@@ -1179,6 +1089,7 @@ WHERE ticketid = @TicketId;
         message_type,
         subject,
         organizationid,
+        attachment_url,
         created_at
     )
     VALUES
@@ -1189,6 +1100,7 @@ WHERE ticketid = @TicketId;
         @MessageType,
         @Subject,
         @OrganizationId,
+        @attachmenturl,
         CURRENT_TIMESTAMP
     )";
 
@@ -1200,7 +1112,8 @@ WHERE ticketid = @TicketId;
                 Message = request.Message,
                 MessageType = request.MessageType,
                 Subject = request.Subject,
-                OrganizationId = organizationId
+                OrganizationId = organizationId,
+                attachmenturl=request.attachment
             });
 
             // If message was inserted and recipients exist, insert into ticket_message_recipients
@@ -1236,43 +1149,6 @@ WHERE ticketid = @TicketId;
 
             return affectedRows > 0;
         }
-
-
-        //        public async Task<List<TicketMessageDto>> GetMessagesByTicketIdAsync(Guid organizationId, Guid ticketId)
-        //        {
-        //            var sql = @"SELECT
-        //    m.message_id AS MessageId,
-        //    m.ticket_id AS TicketId,
-        //    m.sender_id AS SenderId,
-        //    m.message AS Message,
-        //    m.message_type AS MessageType,
-        //    m.subject AS Subject,
-        //    m.created_at AS CreatedAt,
-        //    ARRAY(
-        //        SELECT r.recipient_id
-        //        FROM helpdesk.ticket_message_recipients r
-        //        WHERE r.message_id = m.message_id
-        //    ) AS RecipientIds,
-        //    COALESCE(e.firstname || ' ' || e.lastname, 'Unknown Sender') AS SenderFullName,
-        //    e.email AS SenderEmail
-        //FROM helpdesk.ticket_messages m
-        //LEFT JOIN employee.employees e
-        //    ON e.employeeid = m.sender_id
-        //WHERE m.organizationid = @OrganizationId
-        //  AND m.ticket_id = @TicketId
-        //ORDER BY m.created_at ASC";
-
-        //            // Execute the query
-        //            var result = await QueryAsync<TicketMessageDto>(sql, new
-        //            {
-        //                OrganizationId = organizationId,
-        //                TicketId = ticketId
-        //            });
-
-        //            // Ensure we return a list even if result is null
-        //            return result?.ToList() ?? new List<TicketMessageDto>();
-        //        }
-
         public async Task<List<TicketMessageDto>> GetMessagesByTicketIdAsync(
     Guid organizationId,
     Guid ticketId)
@@ -1287,6 +1163,7 @@ SELECT
     m.message AS Message,
     m.message_type AS MessageType,
     m.subject AS Subject,
+    m.attachment_url  AS  attachmentUrl,
     m.created_at AS CreatedAt,
 
     ARRAY(
@@ -1330,9 +1207,6 @@ ORDER BY m.created_at ASC;
                 throw;
             }
         }
-
-
-
         public async Task<bool> CreateCategoriesAsync(Guid organizationId, Guid createdBy, CreateCategoryRequest request)
         {
             try
@@ -1405,7 +1279,6 @@ LEFT JOIN employee.departments d
 WHERE c.organizationid = @OrganizationId
   AND (@DepartmentId IS NULL OR c.departmentid = @DepartmentId)
   AND (@SearchTerm IS NULL OR LOWER(c.name) LIKE '%' || LOWER(@SearchTerm) || '%')
-  AND c.status = true
 ORDER BY c.createdat DESC
 OFFSET @Offset ROWS
 FETCH NEXT @PageSize ROWS ONLY;
@@ -1435,7 +1308,7 @@ FETCH NEXT @PageSize ROWS ONLY;
         }
 
 
-        public async Task<bool> UpdateCategoryAsync(Guid organizationId, UpdateCategoryRequest request)
+        public async Task<bool> UpdateCategoryAsync(Guid organizationId, UpdateCategoryRequest request, Guid empId)
         {
             try
             {
@@ -1443,12 +1316,12 @@ FETCH NEXT @PageSize ROWS ONLY;
 UPDATE helpdesk.categories
 SET
     departmentid = @DepartmentId,
+    employeeid = @EmployeeId,
     name = @CategoryName,
     status = @Status,
     updatedat = CURRENT_TIMESTAMP
 WHERE categoryid = @CategoryId
-  AND organizationid = @OrganizationId
-  AND isactive = true;
+  AND organizationid = @OrganizationId;
 ";
 
                 var parameters = new
@@ -1456,6 +1329,7 @@ WHERE categoryid = @CategoryId
                     CategoryId = request.CategoryId,
                     OrganizationId = organizationId,
                     DepartmentId = request.DepartmentId,
+                    EmployeeId = empId, // ✅ now used
                     CategoryName = request.CategoryName,
                     Status = request.Status
                 };

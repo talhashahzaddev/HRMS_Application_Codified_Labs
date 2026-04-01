@@ -25,8 +25,6 @@ namespace HRMS.API.Controllers
             _helpDeskService = helpDeskService;
         }
 
-
-
         [HttpPost("create-ticket")]
         public async Task<ActionResult<ServiceResponse<TicketDto>>> CreateTicket([FromBody] TicketRequest ticketRequest)
         {
@@ -160,7 +158,6 @@ namespace HRMS.API.Controllers
         }
 
         //Getting all tickets for employee and admin
-
         [HttpGet("get-allTicket")]
         public async Task<ActionResult<ServiceResponse<List<TicketDto>>>> GetAllTickets([FromQuery] TicketSearchModel? searchModel)
         {
@@ -168,9 +165,7 @@ namespace HRMS.API.Controllers
             {
                 var organizationId = GetCurrentOrganizationId();
                 var currentEmployeeId = await GetCurrentEmployeeId();
-
                 var tickets = await _helpDeskService.GetAllTicketsAsync(organizationId, currentEmployeeId, searchModel);
-
                 return Ok(new ServiceResponse<List<TicketDto>>
                 {
                     Success = true,
@@ -208,7 +203,6 @@ namespace HRMS.API.Controllers
 
                 // Fetch the ticket using the service
                 var ticket = await _helpDeskService.GetTicketByIdAsync(organizationId, currentEmployeeId, ticketId);
-
                 if (ticket == null)
                 {
                     return NotFound(new ServiceResponse<TicketDto>
@@ -217,7 +211,6 @@ namespace HRMS.API.Controllers
                         Message = "Ticket not found"
                     });
                 }
-
                 return Ok(new ServiceResponse<TicketDto>
                 {
                     Success = true,
@@ -245,7 +238,6 @@ namespace HRMS.API.Controllers
         }
 
         //Get Assigned tickets to employee and there own tickets too
-
         [HttpGet("get-AssignedTickets")]
         public async Task<ActionResult<ServiceResponse<List<TicketDto>>>> GetAssignedTickets([FromQuery] TicketSearchModel? searchModel)
         {
@@ -253,9 +245,7 @@ namespace HRMS.API.Controllers
             {
                 var organizationId = GetCurrentOrganizationId();
                 var currentEmployeeId = await GetCurrentEmployeeId();
-
                 var tickets = await _helpDeskService.GetAllAssignedTicket(organizationId, currentEmployeeId, searchModel);
-
                 return Ok(new ServiceResponse<List<TicketDto>>
                 {
                     Success = true,
@@ -282,7 +272,44 @@ namespace HRMS.API.Controllers
             }
         }
 
-
+        [HttpDelete("delete-ticket/{ticketId}")]
+        public async Task<ActionResult<ServiceResponse<bool>>> DeleteTicket(Guid ticketId)
+        {
+            try
+            {
+                if (ticketId == Guid.Empty)
+                    throw new ArgumentException("TicketId is required");
+                var organizationId = GetCurrentOrganizationId();
+                // Call your service to delete the ticket
+                var result = await _helpDeskService.DeleteTicketAsync(organizationId, ticketId);
+                return Ok(new ServiceResponse<bool>
+                {
+                    Success = result,
+                    Data = result,
+                    Message = result ? "Ticket deleted successfully" : "Failed to delete ticket"
+                });
+            }
+            catch (ArgumentException ex)
+            {
+                _logger.LogWarning(ex, "Invalid argument while deleting ticket");
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Data = false,
+                    Message = ex.Message
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error deleting ticket");
+                return StatusCode(500, new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Data = false,
+                    Message = "An error occurred while deleting the ticket"
+                });
+            }
+        }
 
         [HttpPost("create-group")]
         public async Task<ActionResult<ServiceResponse<TicketGroupDto>>> CreateGroup([FromBody] CreateTicketGroupRequest request)
@@ -297,11 +324,8 @@ namespace HRMS.API.Controllers
                         Message = "Group title is required"
                     });
                 }
-
                 var organizationId = GetCurrentOrganizationId();
-
                 var result = await _helpDeskService.CreateTicketGroupAsync(organizationId, request);
-
                 return Ok(new ServiceResponse<TicketGroupDto>
                 {
                     Success = true,
@@ -312,7 +336,6 @@ namespace HRMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error creating ticket group");
-
                 return StatusCode(500, new ServiceResponse<TicketGroupDto>
                 {
                     Success = false,
@@ -320,6 +343,51 @@ namespace HRMS.API.Controllers
                 });
             }
         }
+
+        [HttpPut("update-group")]
+        public async Task<ActionResult<ServiceResponse<bool>>> UpdateGroup([FromBody] UpdateTicketGroupRequest request)
+        {
+            try
+            {
+                // 🔹 Validation
+                if (request == null || request.GroupId == Guid.Empty)
+                {
+                    return BadRequest(new ServiceResponse<bool>
+                    {
+                        Success = false,
+                        Message = "GroupId is required"
+                    });
+                }
+                if (string.IsNullOrWhiteSpace(request.GroupTitle))
+                {
+                    return BadRequest(new ServiceResponse<bool>
+                    {
+                        Success = false,
+                        Message = "Group title is required"
+                    });
+                }
+                var organizationId = GetCurrentOrganizationId();
+                // 🔹 Call service
+                var result = await _helpDeskService.UpdateTicketGroupAsync(organizationId, request);
+                return Ok(new ServiceResponse<bool>
+                {
+                    Success = true,
+                    Message = "Group updated successfully",
+                    Data = result
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error updating ticket group");
+
+                return StatusCode(500, new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Error updating group"
+                });
+            }
+        }
+
         [HttpGet("get-all-groups")]
         public async Task<ActionResult<ServiceResponse<List<TicketGroupDto>>>> GetAllGroups([FromQuery] string? search = null,[FromQuery] Guid? departmentId = null,[FromQuery] Guid? categoryId=null)
         {
@@ -329,7 +397,6 @@ namespace HRMS.API.Controllers
 
                 // Call service to fetch all groups for the organization
                 var groups = await _helpDeskService.GetAllTicketGroupsAsync(organizationId, search,departmentId,categoryId);
-
                 return Ok(new ServiceResponse<List<TicketGroupDto>>
                 {
                     Success = true,
@@ -389,10 +456,8 @@ namespace HRMS.API.Controllers
             try
             {
                 var organizationId = GetCurrentOrganizationId();
-
                 // Call service to delete the group
                 var result = await _helpDeskService.DeleteTicketGroupAsync(organizationId, groupId);
-
                 if (!result)
                 {
                     return NotFound(new ServiceResponse<bool>
@@ -482,7 +547,6 @@ namespace HRMS.API.Controllers
                     request.SenderId = currentEmployeeId;
 
                 var createdMessage = await _helpDeskService.CreateChatAsync(request,organizationId);
-
                 return Ok(new ServiceResponse<bool>
                 {
                     Success = true,
@@ -535,7 +599,6 @@ namespace HRMS.API.Controllers
             {
                 var currentEmployeeId = await GetCurrentEmployeeId();
                 var organizationId = GetCurrentOrganizationId();
-
                 if (currentEmployeeId == Guid.Empty || organizationId == Guid.Empty)
                 {
                     return BadRequest(new ServiceResponse<List<TicketMessageDto>>
@@ -544,7 +607,6 @@ namespace HRMS.API.Controllers
                         Message = "Unable to determine current employee or organization."
                     });
                 }
-
                 // Fetch messages sent or received by current employee
                 var messages = await _helpDeskService.GetMessagesByEmployeeIdAsync(organizationId, currentEmployeeId, ticketId);
 
@@ -581,13 +643,11 @@ namespace HRMS.API.Controllers
                         Message = "Invalid category data"
                     });
                 }
-
                 // (Optional) Get logged-in employee if needed
                 var CurrentEmpid = await GetCurrentEmployeeId();
                 var oganizationId = GetCurrentOrganizationId();
                 // ✅ Call service
                 await _helpDeskService.CreateCategoriesAsync(oganizationId,CurrentEmpid, request );
-
                 return Ok(new ServiceResponse<bool>
                 {
                     Success = true,
@@ -650,8 +710,9 @@ namespace HRMS.API.Controllers
                 }
 
                 var organizationId = GetCurrentOrganizationId();
+                var currentEmpid = await GetCurrentEmployeeId();
 
-                await _helpDeskService.UpdateCategoryAsync(organizationId, request);
+                await _helpDeskService.UpdateCategoryAsync(organizationId, request,currentEmpid);
 
                 return Ok(new ServiceResponse<bool>
                 {
@@ -754,14 +815,6 @@ namespace HRMS.API.Controllers
                 });
             }
         }
-
-
-
-
-
-
-
-
         private async Task<Guid> GetCurrentEmployeeId()
         {
             var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
