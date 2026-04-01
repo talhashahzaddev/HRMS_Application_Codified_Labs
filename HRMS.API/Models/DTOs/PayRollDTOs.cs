@@ -281,3 +281,48 @@ public class PayrollAttendanceSummaryFilterDto
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
+
+public class LateAttendanceDto
+{
+    public Guid Id { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public int LateMinutes { get; set; }
+    public decimal Deduction { get; set; }
+    public bool IsGrace { get; set; }
+    public DateTime AttendanceDate { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateLateAttendanceDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public int LateMinutes { get; set; }
+    public decimal Deduction { get; set; }
+    public bool IsGrace { get; set; }
+    public DateTime AttendanceDate { get; set; }
+}
+
+public class UpdateLateAttendanceDto
+{
+    public Guid? RuleId { get; set; }
+    public int LateMinutes { get; set; }
+    public decimal Deduction { get; set; }
+    public bool IsGrace { get; set; }
+    public DateTime AttendanceDate { get; set; }
+}
+
+public class LateAttendanceFilterDto
+{
+    public string? EmployeeName { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}

@@ -639,4 +639,83 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }
+
+    // Late Attendance
+    public async Task<ServiceResponse<PagedResult<LateAttendanceDto>>> GetAllLateAttendanceAsync(Guid organizationId, LateAttendanceFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllLateAttendanceAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<LateAttendanceDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching late attendance records");
+            return new ServiceResponse<PagedResult<LateAttendanceDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LateAttendanceDto>> GetLateAttendanceByIdAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLateAttendanceByIdAsync(id, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<LateAttendanceDto> { Success = false, Message = "Late attendance record not found." };
+            }
+            return new ServiceResponse<LateAttendanceDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching late attendance record by ID");
+            return new ServiceResponse<LateAttendanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LateAttendanceDto>> CreateLateAttendanceAsync(Guid organizationId, CreateLateAttendanceDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateLateAttendanceAsync(organizationId, dto);
+            return new ServiceResponse<LateAttendanceDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating late attendance record");
+            return new ServiceResponse<LateAttendanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LateAttendanceDto>> UpdateLateAttendanceAsync(Guid id, Guid organizationId, UpdateLateAttendanceDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateLateAttendanceAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<LateAttendanceDto> { Success = false, Message = "Late attendance record not found." };
+            }
+            return new ServiceResponse<LateAttendanceDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating late attendance record");
+            return new ServiceResponse<LateAttendanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteLateAttendanceAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteLateAttendanceAsync(id, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Late attendance record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting late attendance record");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
 }

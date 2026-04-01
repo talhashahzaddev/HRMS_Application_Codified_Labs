@@ -606,6 +606,97 @@ public class PayRollController : ControllerBase
         }
     }
 
+    // Late Attendance
+    [HttpGet("late-attendance")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<LateAttendanceDto>>>> GetAllLateAttendance([FromQuery] LateAttendanceFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllLateAttendanceAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving late attendance records");
+            return StatusCode(500, new ServiceResponse<PagedResult<LateAttendanceDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("late-attendance/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<LateAttendanceDto>>> GetLateAttendanceById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetLateAttendanceByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving late attendance record by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<LateAttendanceDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("late-attendance")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<LateAttendanceDto>>> CreateLateAttendance([FromBody] CreateLateAttendanceDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateLateAttendanceAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetLateAttendanceById), new { id = response.Data?.Id }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating late attendance record");
+            return StatusCode(500, new ServiceResponse<LateAttendanceDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("late-attendance/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<LateAttendanceDto>>> UpdateLateAttendance(Guid id, [FromBody] UpdateLateAttendanceDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateLateAttendanceAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating late attendance record: {Id}", id);
+            return StatusCode(500, new ServiceResponse<LateAttendanceDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("late-attendance/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteLateAttendance(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteLateAttendanceAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting late attendance record: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     // Attendance Summary
     [HttpGet("attendance-summaries")]
     [Authorize(Roles = "Super Admin,HR Manager")]

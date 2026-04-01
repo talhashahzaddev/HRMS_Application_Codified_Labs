@@ -51,4 +51,11 @@ public interface IPayRollRepository
     Task<PayrollAttendanceSummaryDto> CreateAttendanceSummaryAsync(Guid organizationId, CreatePayrollAttendanceSummaryDto dto, Guid? shiftId, int scheduledDays, int totalDays);
     Task<PayrollAttendanceSummaryDto?> UpdateAttendanceSummaryAsync(Guid id, Guid organizationId, UpdatePayrollAttendanceSummaryDto dto);
     Task<bool> DeleteAttendanceSummaryAsync(Guid id, Guid organizationId);
+
+    // Late Attendance
+    Task<PagedResult<LateAttendanceDto>> GetAllLateAttendanceAsync(Guid organizationId, LateAttendanceFilterDto filter);
+    Task<LateAttendanceDto?> GetLateAttendanceByIdAsync(Guid id, Guid organizationId);
+    Task<LateAttendanceDto> CreateLateAttendanceAsync(Guid organizationId, CreateLateAttendanceDto dto);
+    Task<LateAttendanceDto?> UpdateLateAttendanceAsync(Guid id, Guid organizationId, UpdateLateAttendanceDto dto);
+    Task<bool> DeleteLateAttendanceAsync(Guid id, Guid organizationId);
 }

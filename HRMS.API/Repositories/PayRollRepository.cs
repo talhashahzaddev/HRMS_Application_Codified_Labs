@@ -1212,4 +1212,146 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
         return deletedId != null && deletedId != Guid.Empty;
     }
+
+    // Late Attendance
+    public async Task<PagedResult<LateAttendanceDto>> GetAllLateAttendanceAsync(Guid organizationId, LateAttendanceFilterDto filter)
+    {
+        var conditions = new List<string> { "e.organizationid = @organizationId" };
+        if (filter.PeriodId.HasValue) conditions.Add("la.periodid = @PeriodId");
+        if (filter.RuleId.HasValue) conditions.Add("la.ruleid = @RuleId");
+        if (!string.IsNullOrEmpty(filter.EmployeeName)) conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @EmployeeName");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.lateattendance la
+            JOIN employee.Employees e ON la.employeeid = e.employeeid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                la.id AS Id,
+                la.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                la.periodid AS PeriodId,
+                la.ruleid AS RuleId,
+                lar.rulename AS RuleName,
+                la.lateminutes AS LateMinutes,
+                la.deduction AS Deduction,
+                la.isgrace AS IsGrace,
+                la.attendancedate AS AttendanceDate,
+                la.createdat AS CreatedAt,
+                la.updatedat AS UpdatedAt
+            FROM payroll.lateattendance la
+            JOIN employee.Employees e ON la.employeeid = e.employeeid
+            LEFT JOIN payroll.lateattendancerules lar ON la.ruleid = lar.ruleid
+            WHERE {whereClause}
+            ORDER BY la.attendancedate DESC, la.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("PeriodId", filter.PeriodId);
+        parameters.Add("RuleId", filter.RuleId);
+        parameters.Add("EmployeeName", $"%{filter.EmployeeName}%");
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<LateAttendanceDto>(sql, parameters);
+
+        return new PagedResult<LateAttendanceDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<LateAttendanceDto?> GetLateAttendanceByIdAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                la.id AS Id,
+                la.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                la.periodid AS PeriodId,
+                la.ruleid AS RuleId,
+                lar.rulename AS RuleName,
+                la.lateminutes AS LateMinutes,
+                la.deduction AS Deduction,
+                la.isgrace AS IsGrace,
+                la.attendancedate AS AttendanceDate,
+                la.createdat AS CreatedAt,
+                la.updatedat AS UpdatedAt
+            FROM payroll.lateattendance la
+            JOIN employee.Employees e ON la.employeeid = e.employeeid
+            LEFT JOIN payroll.lateattendancerules lar ON la.ruleid = lar.ruleid
+            WHERE la.id = @id AND e.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<LateAttendanceDto>(sql, new { id, organizationId });
+    }
+
+    public async Task<LateAttendanceDto> CreateLateAttendanceAsync(Guid organizationId, CreateLateAttendanceDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.lateattendance (
+                employeeid, periodid, ruleid, lateminutes, 
+                deduction, isgrace, attendancedate
+            )
+            VALUES (
+                @EmployeeId, @PeriodId, @RuleId, @LateMinutes, 
+                @Deduction, @IsGrace, @AttendanceDate
+            )
+            RETURNING id;";
+
+        var id = await QuerySingleAsync<Guid>(sql, dto);
+        return (await GetLateAttendanceByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<LateAttendanceDto?> UpdateLateAttendanceAsync(Guid id, Guid organizationId, UpdateLateAttendanceDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.lateattendance la
+            SET 
+                ruleid = @RuleId,
+                lateminutes = @LateMinutes,
+                deduction = @Deduction,
+                isgrace = @IsGrace,
+                attendancedate = @AttendanceDate,
+                updatedat = current_timestamp
+            FROM employee.Employees e
+            WHERE la.employeeid = e.employeeid AND la.id = @id AND e.organizationid = @organizationId
+            RETURNING la.id;";
+
+        var parameters = new
+        {
+            id,
+            organizationId,
+            dto.RuleId,
+            dto.LateMinutes,
+            dto.Deduction,
+            dto.IsGrace,
+            dto.AttendanceDate
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null) return null;
+
+        return await GetLateAttendanceByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteLateAttendanceAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            DELETE FROM payroll.lateattendance la
+            USING employee.Employees e
+            WHERE la.employeeid = e.employeeid AND la.id = @id AND e.organizationid = @organizationId
+            RETURNING la.id;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
 }
