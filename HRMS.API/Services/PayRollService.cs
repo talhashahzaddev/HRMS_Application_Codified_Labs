@@ -332,6 +332,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>> GetActiveAttendanceDeductionRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveAttendanceDeductionRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active attendance deduction rules");
+            return new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<AttendanceDeductionRuleDto>> GetAttendanceDeductionRuleByIdAsync(Guid ruleId, Guid organizationId)
     {
         try
@@ -392,6 +406,99 @@ public class PayRollService : IPayRollService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting attendance deduction rule");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Late Arrival Rules
+    public async Task<ServiceResponse<IEnumerable<LateArrivalRuleDto>>> GetAllLateArrivalRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllLateArrivalRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting late arrival rules");
+            return new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<LateArrivalRuleDto>>> GetActiveLateArrivalRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveLateArrivalRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active late arrival rules");
+            return new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LateArrivalRuleDto>> GetLateArrivalRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLateArrivalRuleByIdAsync(ruleId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<LateArrivalRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<LateArrivalRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting late arrival rule");
+            return new ServiceResponse<LateArrivalRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LateArrivalRuleDto>> CreateLateArrivalRuleAsync(Guid organizationId, CreateLateArrivalRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateLateArrivalRuleAsync(organizationId, dto);
+            return new ServiceResponse<LateArrivalRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating late arrival rule");
+            return new ServiceResponse<LateArrivalRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LateArrivalRuleDto>> UpdateLateArrivalRuleAsync(Guid ruleId, Guid organizationId, UpdateLateArrivalRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateLateArrivalRuleAsync(ruleId, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<LateArrivalRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<LateArrivalRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating late arrival rule");
+            return new ServiceResponse<LateArrivalRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteLateArrivalRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteLateArrivalRuleAsync(ruleId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Rule not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting late arrival rule");
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }

@@ -179,6 +179,35 @@ public class AttendanceDeductionRuleDto
     public DateTime UpdatedAt { get; set; }
 }
 
+public class LateArrivalRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal? FixedDeduction { get; set; }
+    public decimal? PercentageDeduction { get; set; }
+    public int GraceMinutes { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateLateArrivalRuleDto
+{
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal? FixedDeduction { get; set; }
+    public decimal? PercentageDeduction { get; set; }
+    public int GraceMinutes { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateLateArrivalRuleDto : CreateLateArrivalRuleDto
+{
+}
+
 public class CreateAttendanceDeductionRuleDto
 {
     public string? RuleName { get; set; }
@@ -248,6 +277,7 @@ public class PayrollAttendanceSummaryFilterDto
 {
     public string? EmployeeName { get; set; }
     public Guid? PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
