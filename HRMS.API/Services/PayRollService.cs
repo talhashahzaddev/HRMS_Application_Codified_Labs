@@ -890,4 +890,98 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }
+
+
+    // Performance Rules
+    public async Task<ServiceResponse<IEnumerable<PerformanceRuleDto>>> GetAllPerformanceRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllPerformanceRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting performance rules");
+            return new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<PerformanceRuleDto>>> GetActivePerformanceRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActivePerformanceRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active performance rules");
+            return new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PerformanceRuleDto>> GetPerformanceRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetPerformanceRuleByIdAsync(ruleId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<PerformanceRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<PerformanceRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting performance rule by ID");
+            return new ServiceResponse<PerformanceRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PerformanceRuleDto>> CreatePerformanceRuleAsync(Guid organizationId, CreatePerformanceRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreatePerformanceRuleAsync(organizationId, dto);
+            return new ServiceResponse<PerformanceRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating performance rule");
+            return new ServiceResponse<PerformanceRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PerformanceRuleDto>> UpdatePerformanceRuleAsync(Guid ruleId, Guid organizationId, UpdatePerformanceRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdatePerformanceRuleAsync(ruleId, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<PerformanceRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<PerformanceRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating performance rule");
+            return new ServiceResponse<PerformanceRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeletePerformanceRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeletePerformanceRuleAsync(ruleId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Rule not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting performance rule");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
 }

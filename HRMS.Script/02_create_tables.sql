@@ -1803,22 +1803,22 @@ create table if not exists payroll.payrollleavesummary
 ); // leaves
 
 // performance 
-create table if not exists payroll.performancerules
+CREATE TABLE IF NOT EXISTS payroll.performancerules
 (
-    ruleid              uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    rulename          character varying(20),
-    description         text,
-    minscore            numeric(3,2),
-    maxscore            numeric(3,2),
-    fixedamount         numeric(15,2),
-    percentage          numeric(5,2),
-    isactive            boolean default true,
-    isdeleted           boolean default false,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqperformancebracket unique (organizationid, ratingname)
-);
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    rulename character varying(20) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    minscore numeric(3,2),
+    maxscore numeric(3,2),
+    fixedamount numeric(15,2),
+    percentage numeric(5,2),
+    isactive boolean DEFAULT true,
+    isdeleted boolean DEFAULT false,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT performancerules_pkey PRIMARY KEY (ruleid)
+)
 
 create table if not exists payroll.performancepay
 (

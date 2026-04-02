@@ -406,3 +406,34 @@ public class LeaveSummaryFilterDto
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
+
+public class PerformanceRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal MinScore { get; set; }
+    public decimal MaxScore { get; set; }
+    public decimal? FixedAmount { get; set; }
+    public decimal? Percentage { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreatePerformanceRuleDto
+{
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal MinScore { get; set; }
+    public decimal MaxScore { get; set; }
+    public decimal? FixedAmount { get; set; }
+    public decimal? Percentage { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdatePerformanceRuleDto : CreatePerformanceRuleDto
+{
+}

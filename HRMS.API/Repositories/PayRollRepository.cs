@@ -1659,4 +1659,151 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
         return deletedId != null && deletedId != Guid.Empty;
     }
+
+
+    // Performance Rules
+    public async Task<IEnumerable<PerformanceRuleDto>> GetAllPerformanceRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                minscore AS MinScore,
+                maxscore AS MaxScore,
+                fixedamount AS FixedAmount,
+                percentage AS Percentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.performancerules
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<PerformanceRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<PerformanceRuleDto>> GetActivePerformanceRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                minscore AS MinScore,
+                maxscore AS MaxScore,
+                fixedamount AS FixedAmount,
+                percentage AS Percentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.performancerules
+            WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<PerformanceRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<PerformanceRuleDto?> GetPerformanceRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                minscore AS MinScore,
+                maxscore AS MaxScore,
+                fixedamount AS FixedAmount,
+                percentage AS Percentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.performancerules
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<PerformanceRuleDto>(sql, new { ruleId, organizationId });
+    }
+
+    public async Task<PerformanceRuleDto> CreatePerformanceRuleAsync(Guid organizationId, CreatePerformanceRuleDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.performancerules (
+                organizationid, rulename, description, minscore, maxscore, 
+                fixedamount, percentage, isactive, isdeleted
+            )
+            VALUES (
+                @organizationId, @RuleName, @Description, @MinScore, @MaxScore, 
+                @FixedAmount, @Percentage, @IsActive, false
+            )
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.MinScore,
+            dto.MaxScore,
+            dto.FixedAmount,
+            dto.Percentage,
+            dto.IsActive
+        };
+
+        var ruleId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetPerformanceRuleByIdAsync(ruleId, organizationId))!;
+    }
+
+    public async Task<PerformanceRuleDto?> UpdatePerformanceRuleAsync(Guid ruleId, Guid organizationId, UpdatePerformanceRuleDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.performancerules
+            SET 
+                rulename = @RuleName,
+                description = @Description,
+                minscore = @MinScore,
+                maxscore = @MaxScore,
+                fixedamount = @FixedAmount,
+                percentage = @Percentage,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            ruleId,
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.MinScore,
+            dto.MaxScore,
+            dto.FixedAmount,
+            dto.Percentage,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetPerformanceRuleByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeletePerformanceRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.performancerules
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { ruleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
 }
