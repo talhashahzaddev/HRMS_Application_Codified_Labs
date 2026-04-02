@@ -208,6 +208,33 @@ public class UpdateLateArrivalRuleDto : CreateLateArrivalRuleDto
 {
 }
 
+public class LeaveRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal UnpaidMultiplier { get; set; }
+    public decimal HalfPaidMultiplier { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateLeaveRuleDto
+{
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal UnpaidMultiplier { get; set; } = 1.00m;
+    public decimal HalfPaidMultiplier { get; set; } = 0.50m;
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateLeaveRuleDto : CreateLeaveRuleDto
+{
+}
+
 public class CreateAttendanceDeductionRuleDto
 {
     public string? RuleName { get; set; }
@@ -325,4 +352,88 @@ public class LateAttendanceFilterDto
     public Guid? RuleId { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
+}
+
+public class LeaveSummaryDto
+{
+    public Guid Id { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public decimal PaidDays { get; set; }
+    public decimal UnpaidDays { get; set; }
+    public decimal HalfPaidDays { get; set; }
+    public decimal UnpaidDeduction { get; set; }
+    public decimal HalfPaidDeduction { get; set; }
+    public decimal TotalLeaveDays { get; set; }
+    public decimal TotalDeduction { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateLeaveSummaryDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal PaidDays { get; set; }
+    public decimal UnpaidDays { get; set; }
+    public decimal HalfPaidDays { get; set; }
+    public decimal UnpaidDeduction { get; set; }
+    public decimal HalfPaidDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
+}
+
+public class UpdateLeaveSummaryDto
+{
+    public Guid? RuleId { get; set; }
+    public decimal PaidDays { get; set; }
+    public decimal UnpaidDays { get; set; }
+    public decimal HalfPaidDays { get; set; }
+    public decimal UnpaidDeduction { get; set; }
+    public decimal HalfPaidDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
+}
+
+public class LeaveSummaryFilterDto
+{
+    public string? EmployeeName { get; set; }
+    public Guid? RuleId { get; set; }
+    public Guid? PeriodId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class PerformanceRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal MinScore { get; set; }
+    public decimal MaxScore { get; set; }
+    public decimal? FixedAmount { get; set; }
+    public decimal? Percentage { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreatePerformanceRuleDto
+{
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal MinScore { get; set; }
+    public decimal MaxScore { get; set; }
+    public decimal? FixedAmount { get; set; }
+    public decimal? Percentage { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdatePerformanceRuleDto : CreatePerformanceRuleDto
+{
 }

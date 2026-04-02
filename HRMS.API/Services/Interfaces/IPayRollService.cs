@@ -43,6 +43,14 @@ public interface IPayRollService
     Task<ServiceResponse<LateArrivalRuleDto>> UpdateLateArrivalRuleAsync(Guid ruleId, Guid organizationId, UpdateLateArrivalRuleDto dto);
     Task<ServiceResponse<bool>> DeleteLateArrivalRuleAsync(Guid ruleId, Guid organizationId);
 
+    // Leave Rules
+    Task<ServiceResponse<IEnumerable<LeaveRuleDto>>> GetAllLeaveRulesAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<LeaveRuleDto>>> GetActiveLeaveRulesAsync(Guid organizationId);
+    Task<ServiceResponse<LeaveRuleDto>> GetLeaveRuleByIdAsync(Guid ruleId, Guid organizationId);
+    Task<ServiceResponse<LeaveRuleDto>> CreateLeaveRuleAsync(Guid organizationId, CreateLeaveRuleDto dto);
+    Task<ServiceResponse<LeaveRuleDto>> UpdateLeaveRuleAsync(Guid ruleId, Guid organizationId, UpdateLeaveRuleDto dto);
+    Task<ServiceResponse<bool>> DeleteLeaveRuleAsync(Guid ruleId, Guid organizationId);
+
     // Attendance Summary
     Task<ServiceResponse<PagedResult<PayrollAttendanceSummaryDto>>> GetAllAttendanceSummariesAsync(Guid organizationId, PayrollAttendanceSummaryFilterDto filter);
     Task<ServiceResponse<PayrollAttendanceSummaryDto>> GetAttendanceSummaryByIdAsync(Guid id, Guid organizationId);
@@ -56,4 +64,18 @@ public interface IPayRollService
     Task<ServiceResponse<LateAttendanceDto>> CreateLateAttendanceAsync(Guid organizationId, CreateLateAttendanceDto dto);
     Task<ServiceResponse<LateAttendanceDto>> UpdateLateAttendanceAsync(Guid id, Guid organizationId, UpdateLateAttendanceDto dto);
     Task<ServiceResponse<bool>> DeleteLateAttendanceAsync(Guid id, Guid organizationId);
+
+    // Leave Summary
+    Task<ServiceResponse<PagedResult<LeaveSummaryDto>>> GetLeaveSummariesAsync(Guid organizationId, LeaveSummaryFilterDto filter);
+    Task<ServiceResponse<LeaveSummaryDto>> GetLeaveSummaryByIdAsync(Guid id, Guid organizationId);
+    Task<ServiceResponse<LeaveSummaryDto>> CreateLeaveSummaryAsync(Guid organizationId, CreateLeaveSummaryDto dto);
+    Task<ServiceResponse<LeaveSummaryDto>> UpdateLeaveSummaryAsync(Guid id, Guid organizationId, UpdateLeaveSummaryDto dto);
+    Task<ServiceResponse<bool>> DeleteLeaveSummaryAsync(Guid id, Guid organizationId);
+    // Performance Rules
+    Task<ServiceResponse<IEnumerable<PerformanceRuleDto>>> GetAllPerformanceRulesAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<PerformanceRuleDto>>> GetActivePerformanceRulesAsync(Guid organizationId);
+    Task<ServiceResponse<PerformanceRuleDto>> GetPerformanceRuleByIdAsync(Guid ruleId, Guid organizationId);
+    Task<ServiceResponse<PerformanceRuleDto>> CreatePerformanceRuleAsync(Guid organizationId, CreatePerformanceRuleDto dto);
+    Task<ServiceResponse<PerformanceRuleDto>> UpdatePerformanceRuleAsync(Guid ruleId, Guid organizationId, UpdatePerformanceRuleDto dto);
+    Task<ServiceResponse<bool>> DeletePerformanceRuleAsync(Guid ruleId, Guid organizationId);
 }
