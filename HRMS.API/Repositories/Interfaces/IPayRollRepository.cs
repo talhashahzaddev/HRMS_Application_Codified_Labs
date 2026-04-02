@@ -45,6 +45,14 @@ public interface IPayRollRepository
     Task<LateArrivalRuleDto?> UpdateLateArrivalRuleAsync(Guid ruleId, Guid organizationId, UpdateLateArrivalRuleDto dto);
     Task<bool> DeleteLateArrivalRuleAsync(Guid ruleId, Guid organizationId);
 
+    // Leave Rules
+    Task<IEnumerable<LeaveRuleDto>> GetAllLeaveRulesAsync(Guid organizationId);
+    Task<IEnumerable<LeaveRuleDto>> GetActiveLeaveRulesAsync(Guid organizationId);
+    Task<LeaveRuleDto?> GetLeaveRuleByIdAsync(Guid ruleId, Guid organizationId);
+    Task<LeaveRuleDto> CreateLeaveRuleAsync(Guid organizationId, CreateLeaveRuleDto dto);
+    Task<LeaveRuleDto?> UpdateLeaveRuleAsync(Guid ruleId, Guid organizationId, UpdateLeaveRuleDto dto);
+    Task<bool> DeleteLeaveRuleAsync(Guid ruleId, Guid organizationId);
+
     // Attendance Summary
     Task<PagedResult<PayrollAttendanceSummaryDto>> GetAllAttendanceSummariesAsync(Guid organizationId, PayrollAttendanceSummaryFilterDto filter);
     Task<PayrollAttendanceSummaryDto?> GetAttendanceSummaryByIdAsync(Guid id, Guid organizationId);
@@ -58,4 +66,11 @@ public interface IPayRollRepository
     Task<LateAttendanceDto> CreateLateAttendanceAsync(Guid organizationId, CreateLateAttendanceDto dto);
     Task<LateAttendanceDto?> UpdateLateAttendanceAsync(Guid id, Guid organizationId, UpdateLateAttendanceDto dto);
     Task<bool> DeleteLateAttendanceAsync(Guid id, Guid organizationId);
+
+    // Leave Summary
+    Task<PagedResult<LeaveSummaryDto>> GetLeaveSummariesAsync(Guid organizationId, LeaveSummaryFilterDto filter);
+    Task<LeaveSummaryDto?> GetLeaveSummaryByIdAsync(Guid id, Guid organizationId);
+    Task<LeaveSummaryDto> CreateLeaveSummaryAsync(Guid organizationId, CreateLeaveSummaryDto dto);
+    Task<LeaveSummaryDto?> UpdateLeaveSummaryAsync(Guid id, Guid organizationId, UpdateLeaveSummaryDto dto);
+    Task<bool> DeleteLeaveSummaryAsync(Guid id, Guid organizationId);
 }

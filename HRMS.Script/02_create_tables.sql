@@ -1655,56 +1655,59 @@ create table if not exists payroll.payrollperiods
     updatedat       timestamptz default current_timestamp,
 );
 // overtime
-create table if not exists payroll.overtimerules
+CREATE TABLE IF NOT EXISTS payroll.overtimerules
 (
-    ruleid          uuid primary key default uuid_generate_v4(),
-    organizationid  uuid not null,
-    rulename        character varying(100), 
-    description     text,
-    overtimetype    character varying(20) 
-                    check (overtimetype in ('regular', 'holiday', 'weekend')),
-    fixedamount     numeric(15,2),  
-    percentage      numeric(5,2),   
-    isactive        boolean default true,
-    isdeleted       boolean default false,
-    createdat       timestamptz default current_timestamp,
-    updatedat       timestamptz default current_timestamp,
-    constraint uqruletype unique (organizationid, overtimetype)
-);
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    rulename character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    overtimetype character varying(20) COLLATE pg_catalog."default",
+    fixedamount numeric(15,2),
+    percentage numeric(5,2),
+    isactive boolean DEFAULT true,
+    isdeleted boolean DEFAULT false,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT overtimerules_pkey PRIMARY KEY (ruleid)
+)
 
-create table if not exists payroll.overtimeentries
+CREATE TABLE IF NOT EXISTS payroll.overtimeentries
 (
-    overtimeid      uuid primary key default uuid_generate_v4(),
-    employeeid      uuid not null,
-    periodid        uuid not null,
-    ruleid          uuid references payroll.overtimerules(ruleid), 
-    hoursworked     numeric(5,2) not null,
-    finalamount     numeric(15,2),
-    entrystatus     character varying(20) default 'pending'
-                    check (entrystatus in ('pending', 'approved', 'rejected')),
-    approvedby      uuid,
-    overtimedate    date not null, 
-    createdat       timestamptz default current_timestamp,
-    updatedat       timestamptz default current_timestamp,
-    constraint uqovertime unique (employeeid, periodid, overtimedate)
-); // overtime
+    overtimeid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    employeeid uuid NOT NULL,
+    periodid uuid NOT NULL,
+    ruleid uuid,
+    hoursworked numeric(5,2) NOT NULL,
+    finalamount numeric(15,2),
+    entrystatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    approvedby uuid,
+    overtimedate date NOT NULL,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT overtimeentries_pkey PRIMARY KEY (overtimeid),
+    CONSTRAINT overtimeentries_ruleid_fkey FOREIGN KEY (ruleid)
+        REFERENCES payroll.overtimerules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT overtimeentries_entrystatus_check CHECK (entrystatus::text = ANY (ARRAY['pending'::character varying::text, 'approved'::character varying::text, 'rejected'::character varying::text]))
+) // overtime
 
 // attendance deduction
-create table if not exists payroll.attendancedeductionrules
+CREATE TABLE IF NOT EXISTS payroll.attendancedeductionrules
 (
-    ruleid              uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    rulename            character varying(100),
-    description         text,
-    fixeddeduction      numeric(15,2),
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    rulename character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    fixeddeduction numeric(15,2),
     percentagededuction numeric(5,2),
-    halfdaymultiplier   numeric(3,2) default 0.50,
-    isactive            boolean default true,
-    isdeleted           boolean default false,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqorgrule unique (organizationid)
-);
+    halfdaymultiplier numeric(3,2) DEFAULT 0.50,
+    isactive boolean DEFAULT true,
+    isdeleted boolean DEFAULT false,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT attendancedeductionrules_pkey PRIMARY KEY (ruleid)
+)
 
 create table if not exists payroll.attendancesummary
 (
@@ -1728,52 +1731,56 @@ create table if not exists payroll.attendancesummary
 ); // attendance deduction
 
 // late attendance
-create table if not exists payroll.lateattendancerules
+CREATE TABLE IF NOT EXISTS payroll.lateattendancerules
 (
-    ruleid              uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    rulename            character varying(100),
-    description         text,
-    fixeddeduction      numeric(15,2),
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    rulename character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    fixeddeduction numeric(15,2),
     percentagededuction numeric(5,2),
-    graceminutes        integer default 0,
-    isactive            boolean default true,
-    isdeleted           boolean default false,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqorglaterule unique (organizationid)
-);
+    graceminutes integer DEFAULT 0,
+    isactive boolean DEFAULT true,
+    isdeleted boolean DEFAULT false,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT lateattendancerules_pkey PRIMARY KEY (ruleid)
+)
 
-create table if not exists payroll.lateattendance
+CREATE TABLE IF NOT EXISTS payroll.lateattendance
 (
-    id                  uuid primary key default uuid_generate_v4(),
-    employeeid          uuid not null,
-    periodid            uuid not null,
-    ruleid              uuid references payroll.lateattendancerules(ruleid),
-    lateminutes         integer default 0,
-    deduction           numeric(15,2) default 0,
-    isgrace             boolean default false,
-    attendancedate      date not null,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqlateattendance unique (employeeid, attendancedate)
-); // late attendance
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
+    employeeid uuid NOT NULL,
+    periodid uuid NOT NULL,
+    ruleid uuid,
+    lateminutes integer DEFAULT 0,
+    deduction numeric(15,2) DEFAULT 0,
+    isgrace boolean DEFAULT false,
+    attendancedate date NOT NULL,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT lateattendance_pkey PRIMARY KEY (id),
+    CONSTRAINT lateattendance_ruleid_fkey FOREIGN KEY (ruleid)
+        REFERENCES payroll.lateattendancerules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) // late attendance
 
 // leaves
-create table if not exists payroll.leaverules
+CREATE TABLE IF NOT EXISTS payroll.leaverules
 (
-    ruleid              uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    rulename            character varying(100),
-    description         text,
-    unpaidmultiplier    numeric(3,2) default 1.00,
-    halfpaidmultiplier  numeric(3,2) default 0.50,
-    isactive            boolean default true,
-    isdeleted           boolean default false,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqorgleaverule unique (organizationid)
-);
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    rulename character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    unpaidmultiplier numeric(3,2) DEFAULT 1.00,
+    halfpaidmultiplier numeric(3,2) DEFAULT 0.50,
+    isactive boolean DEFAULT true,
+    isdeleted boolean DEFAULT false,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT leaverules_pkey PRIMARY KEY (ruleid)
+)
 
 create table if not exists payroll.payrollleavesummary
 (

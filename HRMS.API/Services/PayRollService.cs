@@ -503,6 +503,99 @@ public class PayRollService : IPayRollService
         }
     }
 
+    // Leave Rules
+    public async Task<ServiceResponse<IEnumerable<LeaveRuleDto>>> GetAllLeaveRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllLeaveRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting leave rules");
+            return new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<LeaveRuleDto>>> GetActiveLeaveRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveLeaveRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active leave rules");
+            return new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LeaveRuleDto>> GetLeaveRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLeaveRuleByIdAsync(ruleId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<LeaveRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<LeaveRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting leave rule by ID");
+            return new ServiceResponse<LeaveRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LeaveRuleDto>> CreateLeaveRuleAsync(Guid organizationId, CreateLeaveRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateLeaveRuleAsync(organizationId, dto);
+            return new ServiceResponse<LeaveRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating leave rule");
+            return new ServiceResponse<LeaveRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LeaveRuleDto>> UpdateLeaveRuleAsync(Guid ruleId, Guid organizationId, UpdateLeaveRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateLeaveRuleAsync(ruleId, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<LeaveRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<LeaveRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating leave rule");
+            return new ServiceResponse<LeaveRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteLeaveRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteLeaveRuleAsync(ruleId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Rule not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting leave rule");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     // Attendance Summary
     public async Task<ServiceResponse<PagedResult<PayrollAttendanceSummaryDto>>> GetAllAttendanceSummariesAsync(Guid organizationId, PayrollAttendanceSummaryFilterDto filter)
     {
@@ -715,6 +808,85 @@ public class PayRollService : IPayRollService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting late attendance record");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Leave Summary
+    public async Task<ServiceResponse<PagedResult<LeaveSummaryDto>>> GetLeaveSummariesAsync(Guid organizationId, LeaveSummaryFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLeaveSummariesAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<LeaveSummaryDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting leave summaries");
+            return new ServiceResponse<PagedResult<LeaveSummaryDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LeaveSummaryDto>> GetLeaveSummaryByIdAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLeaveSummaryByIdAsync(id, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<LeaveSummaryDto> { Success = false, Message = "Leave summary not found." };
+            }
+            return new ServiceResponse<LeaveSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting leave summary by id");
+            return new ServiceResponse<LeaveSummaryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LeaveSummaryDto>> CreateLeaveSummaryAsync(Guid organizationId, CreateLeaveSummaryDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateLeaveSummaryAsync(organizationId, dto);
+            return new ServiceResponse<LeaveSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating leave summary");
+            return new ServiceResponse<LeaveSummaryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LeaveSummaryDto>> UpdateLeaveSummaryAsync(Guid id, Guid organizationId, UpdateLeaveSummaryDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateLeaveSummaryAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<LeaveSummaryDto> { Success = false, Message = "Leave summary not found." };
+            }
+            return new ServiceResponse<LeaveSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating leave summary");
+            return new ServiceResponse<LeaveSummaryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteLeaveSummaryAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteLeaveSummaryAsync(id, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Leave summary not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting leave summary");
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }

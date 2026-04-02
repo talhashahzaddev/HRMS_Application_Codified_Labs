@@ -1006,6 +1006,155 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return deletedId != null && deletedId != Guid.Empty;
     }
 
+    // Leave Rules
+    public async Task<IEnumerable<LeaveRuleDto>> GetAllLeaveRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                unpaidmultiplier AS UnpaidMultiplier,
+                halfpaidmultiplier AS HalfPaidMultiplier,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.leaverules
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<LeaveRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<LeaveRuleDto>> GetActiveLeaveRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                unpaidmultiplier AS UnpaidMultiplier,
+                halfpaidmultiplier AS HalfPaidMultiplier,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.leaverules
+            WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<LeaveRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<LeaveRuleDto?> GetLeaveRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                unpaidmultiplier AS UnpaidMultiplier,
+                halfpaidmultiplier AS HalfPaidMultiplier,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.leaverules
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<LeaveRuleDto>(sql, new { ruleId, organizationId });
+    }
+
+    public async Task<LeaveRuleDto> CreateLeaveRuleAsync(Guid organizationId, CreateLeaveRuleDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.leaverules (
+                organizationid, rulename, description, unpaidmultiplier, 
+                halfpaidmultiplier, isactive, isdeleted
+            )
+            VALUES (
+                @organizationId, @RuleName, @Description, @UnpaidMultiplier, 
+                @HalfPaidMultiplier, @IsActive, false
+            )
+            RETURNING 
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                unpaidmultiplier AS UnpaidMultiplier,
+                halfpaidmultiplier AS HalfPaidMultiplier,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.UnpaidMultiplier,
+            dto.HalfPaidMultiplier,
+            dto.IsActive
+        };
+
+        return await QuerySingleAsync<LeaveRuleDto>(sql, parameters);
+    }
+
+    public async Task<LeaveRuleDto?> UpdateLeaveRuleAsync(Guid ruleId, Guid organizationId, UpdateLeaveRuleDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.leaverules
+            SET 
+                rulename = @RuleName,
+                description = @Description,
+                unpaidmultiplier = @UnpaidMultiplier,
+                halfpaidmultiplier = @HalfPaidMultiplier,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING 
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                unpaidmultiplier AS UnpaidMultiplier,
+                halfpaidmultiplier AS HalfPaidMultiplier,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        var parameters = new
+        {
+            ruleId,
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.UnpaidMultiplier,
+            dto.HalfPaidMultiplier,
+            dto.IsActive
+        };
+
+        return await QuerySingleOrDefaultAsync<LeaveRuleDto>(sql, parameters);
+    }
+
+    public async Task<bool> DeleteLeaveRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.leaverules
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { ruleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
     // Attendance Summary
     public async Task<PagedResult<PayrollAttendanceSummaryDto>> GetAllAttendanceSummariesAsync(Guid organizationId, PayrollAttendanceSummaryFilterDto filter)
     {
@@ -1350,6 +1499,162 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             USING employee.Employees e
             WHERE la.employeeid = e.employeeid AND la.id = @id AND e.organizationid = @organizationId
             RETURNING la.id;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Leave Summary
+    public async Task<PagedResult<LeaveSummaryDto>> GetLeaveSummariesAsync(Guid organizationId, LeaveSummaryFilterDto filter)
+    {
+        var conditions = new List<string> { "e.organizationid = @organizationId" };
+        if (filter.PeriodId.HasValue) conditions.Add("ls.periodid = @PeriodId");
+        if (filter.RuleId.HasValue) conditions.Add("ls.ruleid = @RuleId");
+        if (!string.IsNullOrEmpty(filter.EmployeeName)) conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @EmployeeName");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.payrollleavesummary ls
+            JOIN employee.Employees e ON ls.employeeid = e.employeeid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                ls.id AS Id,
+                ls.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                ls.periodid AS PeriodId,
+                ls.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                ls.paiddays AS PaidDays,
+                ls.unpaiddays AS UnpaidDays,
+                ls.halfpaiddays AS HalfPaidDays,
+                ls.unpaiddeduction AS UnpaidDeduction,
+                ls.halfpaiddeduction AS HalfPaidDeduction,
+                ls.totalleavedays AS TotalLeaveDays,
+                ls.totaldeduction AS TotalDeduction,
+                ls.createdat AS CreatedAt,
+                ls.updatedat AS UpdatedAt
+            FROM payroll.payrollleavesummary ls
+            JOIN employee.Employees e ON ls.employeeid = e.employeeid
+            LEFT JOIN payroll.leaverules lr ON ls.ruleid = lr.ruleid
+            WHERE {whereClause}
+            ORDER BY ls.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("PeriodId", filter.PeriodId);
+        parameters.Add("RuleId", filter.RuleId);
+        parameters.Add("EmployeeName", $"%{filter.EmployeeName}%");
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<LeaveSummaryDto>(sql, parameters);
+
+        return new PagedResult<LeaveSummaryDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<LeaveSummaryDto?> GetLeaveSummaryByIdAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ls.id AS Id,
+                ls.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                ls.periodid AS PeriodId,
+                ls.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                ls.paiddays AS PaidDays,
+                ls.unpaiddays AS UnpaidDays,
+                ls.halfpaiddays AS HalfPaidDays,
+                ls.unpaiddeduction AS UnpaidDeduction,
+                ls.halfpaiddeduction AS HalfPaidDeduction,
+                ls.totalleavedays AS TotalLeaveDays,
+                ls.totaldeduction AS TotalDeduction,
+                ls.createdat AS CreatedAt,
+                ls.updatedat AS UpdatedAt
+            FROM payroll.payrollleavesummary ls
+            JOIN employee.Employees e ON ls.employeeid = e.employeeid
+            LEFT JOIN payroll.leaverules lr ON ls.ruleid = lr.ruleid
+            WHERE ls.id = @id AND e.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<LeaveSummaryDto>(sql, new { id, organizationId });
+    }
+
+    public async Task<LeaveSummaryDto> CreateLeaveSummaryAsync(Guid organizationId, CreateLeaveSummaryDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.payrollleavesummary (
+                employeeid, periodid, ruleid, paiddays, 
+                unpaiddays, halfpaiddays, unpaiddeduction, 
+                halfpaiddeduction, totaldeduction
+            )
+            VALUES (
+                @EmployeeId, @PeriodId, @RuleId, @PaidDays, 
+                @UnpaidDays, @HalfPaidDays, @UnpaidDeduction, 
+                @HalfPaidDeduction, @TotalDeduction
+            )
+            RETURNING id;";
+
+        var id = await QuerySingleAsync<Guid>(sql, dto);
+        return (await GetLeaveSummaryByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<LeaveSummaryDto?> UpdateLeaveSummaryAsync(Guid id, Guid organizationId, UpdateLeaveSummaryDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.payrollleavesummary ls
+            SET 
+                ruleid = @RuleId,
+                paiddays = @PaidDays,
+                unpaiddays = @UnpaidDays,
+                halfpaiddays = @HalfPaidDays,
+                unpaiddeduction = @UnpaidDeduction,
+                halfpaiddeduction = @HalfPaidDeduction,
+                totaldeduction = @TotalDeduction,
+                updatedat = current_timestamp
+            FROM employee.Employees e
+            WHERE ls.employeeid = e.employeeid AND ls.id = @id AND e.organizationid = @organizationId
+            RETURNING ls.id;";
+
+        var parameters = new
+        {
+            id,
+            organizationId,
+            dto.RuleId,
+            dto.PaidDays,
+            dto.UnpaidDays,
+            dto.HalfPaidDays,
+            dto.UnpaidDeduction,
+            dto.HalfPaidDeduction,
+            dto.TotalDeduction
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null) return null;
+
+        return await GetLeaveSummaryByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteLeaveSummaryAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            DELETE FROM payroll.payrollleavesummary ls
+            USING employee.Employees e
+            WHERE ls.employeeid = e.employeeid AND ls.id = @id AND e.organizationid = @organizationId
+            RETURNING ls.id;";
 
         var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
         return deletedId != null && deletedId != Guid.Empty;
