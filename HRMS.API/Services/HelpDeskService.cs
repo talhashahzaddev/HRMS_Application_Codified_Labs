@@ -438,7 +438,7 @@ namespace HRMS.API.Services
                     Receiveruserid = request.RecipientIds,
                     Senderuserid = request.SenderId,
                     Title = "Help Desk Ticket",
-                    Message = $"{employee?.FirstName} {employee.LastName} invloved you in HelpDesk ticket  {Ticket.TicketTitle} ",
+                    Message = $"{employee?.FirstName} {employee.LastName} send you a message on helpdesk ticket {Ticket.TicketTitle} ",
                     Notificationtype = "Message",
                     Createdby = request.SenderId,
                     moduletype = "help desk",
