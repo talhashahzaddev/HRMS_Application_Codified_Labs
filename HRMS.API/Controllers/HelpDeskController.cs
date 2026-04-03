@@ -500,8 +500,9 @@ namespace HRMS.API.Controllers
                     });
                 }
                 var assignedBy = await GetCurrentEmployeeId();
+                var organizationId = GetCurrentOrganizationId();
 
-                await _helpDeskService.AssignTicketAsync(request, assignedBy);
+                await _helpDeskService.AssignTicketAsync(request, assignedBy,organizationId);
 
                 return Ok(new ServiceResponse<bool>
                 {

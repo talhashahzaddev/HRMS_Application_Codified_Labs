@@ -7,7 +7,7 @@ namespace HRMS.API.Services.Interfaces
         Task<TicketDto> CreateTicketAsync(TicketRequest request, Guid organizationId, Guid employeeId);
         Task<TicketGroupDto> CreateTicketGroupAsync(Guid organizationId, CreateTicketGroupRequest request);
         Task<List<TicketDto>> GetAllTicketsAsync(Guid organizationId, Guid employeeId, TicketSearchModel searchModel);
-        Task<bool> AssignTicketAsync(AssignTicketRequest request, Guid assignedBy);
+        Task<bool> AssignTicketAsync(AssignTicketRequest request, Guid assignedBy,Guid organizationId);
         Task<TicketDto?> GetTicketByIdAsync(Guid organizationId, Guid employeeId, Guid ticketId);
         Task<List<TicketDto>> GetAllAssignedTicket(Guid organizationId, Guid employeeId, TicketSearchModel searchModel);
         Task<TicketGroupDto?> GetTicketGroupByIdAsync(Guid organizationId, Guid groupId);

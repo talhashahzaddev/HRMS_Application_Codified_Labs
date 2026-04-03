@@ -874,7 +874,7 @@ public class EmailService : IEmailService
             .Replace("https://", "")
             .Replace(".com", "");
 
-        var ticketUrl = $"http://{cleanDomain}.briskpeople.com/helpdesk/tickets/view/{request.TicketId}";
+        var ticketUrl = $"http://{cleanDomain}.briskpeople.com/help-desk/tickets/view/{request.TicketId}";
         var subject = $"New HelpDesk Message for Ticket: {ticketTitle}";
 
         // Clean message content (remove HTML if any)
@@ -915,7 +915,7 @@ public class EmailService : IEmailService
     <p style='margin-top:0;'>Hi,</p>
 
     <p>
-        You have a new message on ticket <strong>{ticketTitle}</strong>:
+        You have a new message on HelpDesk ticket <strong>{ticketTitle}</strong>:
     </p>
 
     <p style='padding:10px; background:#f1f3f5; border-left:4px solid #1f4fd8;'>

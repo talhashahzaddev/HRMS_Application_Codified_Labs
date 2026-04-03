@@ -42,55 +42,82 @@ namespace HRMS.API.Services
             var ticket = await _helpDeskRepository.CreateTicketAsync(request, organizationId, employeeId);
 
             //Implementing notification
-            //first gettig employeeInfo who creates notification
             var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
             var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
-
+            var reportingManagerDetails = await _employeeRepository.GetEmployeeByIdAsync(reportingmangerid);
             var ticketInof = await _helpDeskRepository.GetTicketByIdAsync(organizationId, ticket);
-            //Sendindg notification of create  time employees
-            if (request.assignedGroup != null)
-            {
+                      
                 //get employees og group from groupid
                 var groupEmp = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, request.assignedGroup);
                 var GroupEmpid = new List<string>();
-
-                //GroupEmpid = groupEmp.Where(e => e.employeeid != null).Select(e => e.employeeid.value).ToList();
-                var groupEmpIds = groupEmp?.EmployeeIds?.ToList() ?? new List<Guid>();
+            var groupEmpIds = groupEmp?.EmployeeIds?.ToList() ?? new List<Guid>();
+            //Implementing Notification to Group employee that are assigend in ticket 
+          
+            
                 var notification = new NotificationCreateDto
                 {
                     Receiveruserid = groupEmpIds,
                     Senderuserid = employee.EmployeeId,
                     Title = "Help Desk Ticket",
-                    Message = $"You have assigned ticket {request.TicketTitle} created by {employee.FirstName}",
+                    Message = $"You have assigned HelpDesk ticket {request.TicketTitle} created by {employee.FirstName} {employee.LastName}",
                     Notificationtype = "Message",
                     Createdby = employeeId,
                     moduletype = "help desk",
-                    Redirecturl = "/attendance/shift",
+                    Redirecturl = $"/help-desk/tickets/view/{ticket}",
                     RequestId = ticket,
                     organizationId = organizationId
                 };
                 await _notificationRepository.CreateNotificationAsync(organizationId, notification);
 
-            }
-            if (ticket != Guid.Empty)
-            {
+      
+          
 
-                var notification = new NotificationCreateDto
+            //Sending Mails to group Employees
+            var ReciverEmails = new List<string>();
+            var selectedEmployees = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(groupEmpIds);
+            ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
+            var EmailMessage = new TicketMessageRequest
+            {
+                TicketId = ticket,
+                Message = notification.Message,
+                MessageType = "Email",
+                Subject = request.TicketTitle,
+            };
+            await _emailService.SendHelpDeskChatAsync(ReciverEmails, EmailMessage, organizationId, request.TicketTitle);
+
+            //Creating mail for reporting manager that New Ticket is created
+            if (reportingManagerDetails != null)
+            {
+                var MailForReportngManager = new TicketMessageRequest
+                {
+                    TicketId = ticket,
+                    Message = $"New  HelpDesk  ticket {request.TicketTitle} is created {employee.FirstName} {employee.LastName}",
+                    MessageType = "Email",
+                    Subject = request.TicketTitle,
+                };
+                ReciverEmails = new List<string> { reportingManagerDetails?.Email };
+                //Sending Mail to reporting Manaager
+                await _emailService.SendHelpDeskChatAsync(ReciverEmails, MailForReportngManager, organizationId, request.TicketTitle);
+
+
+
+                var ManagerNotification = new NotificationCreateDto
                 {
                     Receiveruserid = new List<Guid> { reportingmangerid },
                     Senderuserid = employee.EmployeeId,
                     Title = "Help Desk Ticket",
-                    Message = $"A new help-desk {request.TicketTitle} created by {employee.FirstName} {employee.LastName}",
+                    Message = $"A new HelpDesk  {request.TicketTitle} ticket is  created by {employee.FirstName} {employee.LastName}",
                     Notificationtype = "Message",
                     Createdby = employeeId,
                     moduletype = "help desk",
-                    Redirecturl = "/attendance/shift",
+                    Redirecturl = $"/help-desk/tickets/view/{ticket}",
                     RequestId = ticket,
                     organizationId = organizationId
                 };
-                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+                await _notificationRepository.CreateNotificationAsync(organizationId, ManagerNotification);
 
             }
+          
             var ticketDto = new TicketDto
             {
                 Ticketid = ticket,
@@ -145,42 +172,42 @@ namespace HRMS.API.Services
 
             //Implementing notification
             //first gettig employeeInfo who creates notification
-            var employee = await _employeeRepository.GetEmployeeByIdAsync(currentEmployeeId);
-            var ticketInof = await _helpDeskRepository.GetTicketByIdAsync(organizationId, request.TicketId);
+            //var employee = await _employeeRepository.GetEmployeeByIdAsync(currentEmployeeId);
+            //var ticketInof = await _helpDeskRepository.GetTicketByIdAsync(organizationId, request.TicketId);
     
-            //get employees of group from groupid
-            var groupEmp = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, request.GroupId);
-            var GroupEmpid = new List<string>();
-            var groupEmpIds = groupEmp?.EmployeeIds?.ToList() ?? new List<Guid>();
-            var manualEmpIds = request.AssignedEmployees?.ToList() ?? new List<Guid>();
-            // 🔥 Merge both + remove duplicates
-            var receiverEmpIds = groupEmpIds.Concat(manualEmpIds).Distinct().ToList();
-            var notification = new NotificationCreateDto
-                {
-                    Receiveruserid = receiverEmpIds,
-                    Senderuserid = employee.EmployeeId,
-                    Title = "Help Desk Ticket",
-                    Message = $"You have assigned ticket {request.TicketTitle} created by {employee.FirstName}{employee.LastName} ",
-                    Notificationtype = "Message",
-                    Createdby = currentEmployeeId,
-                    moduletype = "help desk",
-                    Redirecturl = "/help-desk/ticket-invlovement",
-                    RequestId = request.TicketId,
-                    organizationId = organizationId
-                };
-                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
-            //Implementing Email
-            var ReciverEmails = new List<string>();
-            var selectedEmployees = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(receiverEmpIds);
-            ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
-             var EmailMessage = new TicketMessageRequest
-            {
-                TicketId=request.TicketId,
-                Message=notification.Message,
-                MessageType="Email",
-                Subject=request.TicketTitle,
-             };
-            await _emailService.SendHelpDeskChatAsync(ReciverEmails, EmailMessage, organizationId, request.TicketTitle);
+            ////get employees of group from groupid
+            //var groupEmp = await _helpDeskRepository.GetTicketGroupByIdAsync(organizationId, request.GroupId);
+            //var GroupEmpid = new List<string>();
+            //var groupEmpIds = groupEmp?.EmployeeIds?.ToList() ?? new List<Guid>();
+            //var manualEmpIds = request.AssignedEmployees?.ToList() ?? new List<Guid>();
+            //// Merge both + remove duplicates
+            //var receiverEmpIds = groupEmpIds.Concat(manualEmpIds).Distinct().ToList();
+            //var notification = new NotificationCreateDto
+            //    {
+            //        Receiveruserid = receiverEmpIds,
+            //        Senderuserid = employee.EmployeeId,
+            //        Title = "Help Desk Ticket",
+            //        Message = $"You have assigned ticket {request.TicketTitle} created by {employee.FirstName} {employee.LastName} ",
+            //        Notificationtype = "Message",
+            //        Createdby = currentEmployeeId,
+            //        moduletype = "help desk",
+            //        Redirecturl = "/help-desk/ticket-invlovement",
+            //        RequestId = request.TicketId,
+            //        organizationId = organizationId
+            //    };
+            //    await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+            ////Implementing Email
+            //var ReciverEmails = new List<string>();
+            //var selectedEmployees = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(receiverEmpIds);
+            //ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
+            // var EmailMessage = new TicketMessageRequest
+            //{
+            //    TicketId=request.TicketId,
+            //    Message=notification.Message,
+            //    MessageType="Email",
+            //    Subject=request.TicketTitle,
+            // };
+            //await _emailService.SendHelpDeskChatAsync(ReciverEmails, EmailMessage, organizationId, request.TicketTitle);
 
             return result;
         }
@@ -346,7 +373,7 @@ namespace HRMS.API.Services
             return true;
         }
 
-        public async Task<bool> AssignTicketAsync(AssignTicketRequest request, Guid assignedBy)
+        public async Task<bool> AssignTicketAsync(AssignTicketRequest request, Guid assignedBy,Guid organizationId)
         {
             // ✅ Validations
             if (request == null)
@@ -354,22 +381,72 @@ namespace HRMS.API.Services
 
             if (request.TicketId == Guid.Empty)
                 throw new ArgumentException("TicketId is required", nameof(request.TicketId));
-
-            // ✅ Call repository
             var result = await _helpDeskRepository.AssignTicketAsync(request, assignedBy);
+            //Get assigned Employee Information
+            var employee = await _employeeRepository.GetEmployeeByIdAsync(assignedBy);
+            //Get Ticket information
+            var Ticket = await _helpDeskRepository.GetTicketByIdAsync(organizationId, request.TicketId);
+            if (Ticket != null)
+            {
+                //Involving Ticket
+                var ManagerNotification = new NotificationCreateDto
+                {
+                    Receiveruserid = request.AssignedEmployees,
+                    Senderuserid = assignedBy,
+                    Title = "Help Desk Ticket",
+                    Message = $"{employee?.FirstName} {employee?.LastName} invloved you in HelpDesk ticket  {Ticket.TicketTitle} ",
+                    Notificationtype = "Message",
+                    Createdby = assignedBy,
+                    moduletype = "help desk",
+                    Redirecturl = $"/help-desk/tickets/view/{request.TicketId}",
+                    RequestId = request.TicketId,
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, ManagerNotification);
+            }
+            //Implementing Email
 
+            var ReciverEmails = new List<string>();
+            var selectedEmployees = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(request.AssignedEmployees);
+            ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
+            var EmailMessage = new TicketMessageRequest
+            {
+                TicketId = request.TicketId,
+                Message = $"{employee?.FirstName} {employee?.LastName} {employee?.LastName} invloved you in HelpDesk ticket  {Ticket.TicketTitle}",
+                MessageType = "Email",
+                Subject = Ticket.TicketTitle,
+            };
+            await _emailService.SendHelpDeskChatAsync(ReciverEmails, EmailMessage, organizationId, Ticket.TicketTitle);
             return result;
 
-        }
-
-      
+        } 
         public async Task<bool> CreateChatAsync(TicketMessageRequest request, Guid organizationId)
         {
             try
             {
-                
+
                 //First sending request into repo
                 var result = await _helpDeskRepository.CreateMessageAsync(organizationId, request);
+                //Get employee information who creates message
+                var employee = await _employeeRepository.GetEmployeeByIdAsync(request.SenderId);
+                //Get Ticket information
+                var Ticket = await _helpDeskRepository.GetTicketByIdAsync(organizationId, request.TicketId);
+
+                //Implementing notification
+                var ManagerNotification = new NotificationCreateDto
+                {
+                    Receiveruserid = request.RecipientIds,
+                    Senderuserid = request.SenderId,
+                    Title = "Help Desk Ticket",
+                    Message = $"{employee?.FirstName} {employee.LastName} invloved you in HelpDesk ticket  {Ticket.TicketTitle} ",
+                    Notificationtype = "Message",
+                    Createdby = request.SenderId,
+                    moduletype = "help desk",
+                    Redirecturl = $"/help-desk/tickets/view/{request.TicketId}",
+                    RequestId = request.TicketId,
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, ManagerNotification);
 
                 //Implementing Email and sending email
                 var ReciverEmails = new List<string>();
@@ -378,6 +455,7 @@ namespace HRMS.API.Services
                 ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
                 var ticket = await _helpDeskRepository.GetTicketByIdAsync(organizationId, request.TicketId);
                 await _emailService.SendHelpDeskChatAsync(ReciverEmails, request, organizationId, ticket.TicketTitle);
+
 
                 return true;
 
