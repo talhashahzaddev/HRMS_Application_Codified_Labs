@@ -987,40 +987,6 @@ public class PayRollController : ControllerBase
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
     }
-    private async Task<Guid> GetCurrentEmployeeId()
-    {
-        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userIdClaim))
-        {
-            _logger.LogError("User ID claim not found in JWT token");
-            throw new UnauthorizedAccessException("User ID not found in token");
-        }
-        if (!Guid.TryParse(userIdClaim, out var userId))
-        {
-            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
-            throw new UnauthorizedAccessException("Invalid user ID format");
-        }
-        var employeeId = await _attendanceService.GetEmployeeFromTable(userId);
-        return employeeId;
-    }
-
-    private Guid GetCurrentOrganizationId()    {
-        var orgIdClaim = User.FindFirstValue("organizationId");
-
-        if (string.IsNullOrEmpty(orgIdClaim))
-        {
-            _logger.LogError("Organization ID claim not found in JWT token");
-            throw new UnauthorizedAccessException("Organization ID not found in token");
-        }
-
-        if (!Guid.TryParse(orgIdClaim, out var organizationId))
-        {
-            _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
-            throw new UnauthorizedAccessException("Invalid organization ID format");
-        }
-
-        return organizationId;
-    }
 
 
     // Performance Rules
@@ -1130,5 +1096,330 @@ public class PayRollController : ControllerBase
             _logger.LogError(ex, "Error deleting performance rule: {Id}", id);
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
+    }
+
+    // Bonus Rules
+    [HttpGet("bonus-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<BonusRuleDto>>>> GetAllBonusRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllBonusRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving bonus rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("bonus-rules/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<BonusRuleDto>>>> GetActiveBonusRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveBonusRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active bonus rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("bonus-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<BonusRuleDto>>> GetBonusRuleById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetBonusRuleByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving bonus rule by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<BonusRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("bonus-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<BonusRuleDto>>> CreateBonusRule([FromBody] CreateBonusRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateBonusRuleAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetBonusRuleById), new { id = response.Data?.RuleId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating bonus rule");
+            return StatusCode(500, new ServiceResponse<BonusRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("bonus-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<BonusRuleDto>>> UpdateBonusRule(Guid id, [FromBody] UpdateBonusRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateBonusRuleAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating bonus rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<BonusRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("bonus-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteBonusRule(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteBonusRuleAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting bonus rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // Performance Pay (entries)
+    [HttpGet("performance-pay")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<PerformancePayDto>>>> GetAllPerformancePay([FromQuery] PerformancePayFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllPerformancePayAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving performance pay records");
+            return StatusCode(500, new ServiceResponse<PagedResult<PerformancePayDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("performance-pay/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PerformancePayDto>>> GetPerformancePayById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetPerformancePayByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving performance pay by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<PerformancePayDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("performance-pay")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PerformancePayDto>>> CreatePerformancePay([FromBody] CreatePerformancePayDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreatePerformancePayAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetPerformancePayById), new { id = response.Data?.PerformancePayId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating performance pay");
+            return StatusCode(500, new ServiceResponse<PerformancePayDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("performance-pay/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PerformancePayDto>>> UpdatePerformancePay(Guid id, [FromBody] UpdatePerformancePayDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdatePerformancePayAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating performance pay: {Id}", id);
+            return StatusCode(500, new ServiceResponse<PerformancePayDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("performance-pay/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeletePerformancePay(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeletePerformancePayAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting performance pay: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // Bonus Entries
+    [HttpGet("bonus-entries")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<BonusEntryDto>>>> GetAllBonusEntries([FromQuery] BonusEntryFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllBonusEntriesAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving bonus entries");
+            return StatusCode(500, new ServiceResponse<PagedResult<BonusEntryDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("bonus-entries/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<BonusEntryDto>>> GetBonusEntryById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetBonusEntryByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving bonus entry by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<BonusEntryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("bonus-entries")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<BonusEntryDto>>> CreateBonusEntry([FromBody] CreateBonusEntryDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateBonusEntryAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetBonusEntryById), new { id = response.Data?.BonusId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating bonus entry");
+            return StatusCode(500, new ServiceResponse<BonusEntryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("bonus-entries/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<BonusEntryDto>>> UpdateBonusEntry(Guid id, [FromBody] UpdateBonusEntryDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateBonusEntryAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating bonus entry: {Id}", id);
+            return StatusCode(500, new ServiceResponse<BonusEntryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("bonus-entries/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteBonusEntry(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteBonusEntryAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting bonus entry: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+    private async Task<Guid> GetCurrentEmployeeId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim))
+        {
+            _logger.LogError("User ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("User ID not found in token");
+        }
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
+            throw new UnauthorizedAccessException("Invalid user ID format");
+        }
+        var employeeId = await _attendanceService.GetEmployeeFromTable(userId);
+        return employeeId;
+    }
+
+    private Guid GetCurrentOrganizationId()    {
+        var orgIdClaim = User.FindFirstValue("organizationId");
+
+        if (string.IsNullOrEmpty(orgIdClaim))
+        {
+            _logger.LogError("Organization ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("Organization ID not found in token");
+        }
+
+        if (!Guid.TryParse(orgIdClaim, out var organizationId))
+        {
+            _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
+            throw new UnauthorizedAccessException("Invalid organization ID format");
+        }
+
+        return organizationId;
     }
 }
