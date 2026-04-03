@@ -1833,6 +1833,34 @@ create table if not exists payroll.performancepay
     constraint uqperformancepay unique (employeeid, periodid)
 ); // performance
 
+//Bonous
+create table if not exists payroll.bonusrules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    rulename            character varying(100) not null,
+    description         text,
+    bonustype           varchar(50) not null
+                        check (bonustype in ('fixed', 'percentage')),
+    bonusamount         numeric(15,2),        -- used when bonustype = 'fixed'
+    bonuspercentage     numeric(5,2),         -- used when bonustype = 'percentage'
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+);
+create table if not exists payroll.bonusentries
+(
+    bonusid             uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.bonusrules(ruleid),
+    Bonousamount         numeric(15,2) not null,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqbonusentry unique (employeeid, periodid, ruleid)
+);
 // loan 
 create table if not exists payroll.loanrules
 (

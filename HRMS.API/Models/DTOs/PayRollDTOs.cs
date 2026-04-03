@@ -30,6 +30,7 @@ public class PayRollRulesGroupedDto
     public PayRollPolicySectionDto IncomeTaxPolicy { get; set; } = new();
     public PayRollPolicySectionDto SocialSecurityPolicy { get; set; } = new();
     public PayRollPolicySectionDto GratuityPolicy { get; set; } = new();
+    public PayRollPolicySectionDto BonusPolicy { get; set; } = new();
 }
 
 public class OvertimeRuleDto
@@ -436,4 +437,112 @@ public class CreatePerformanceRuleDto
 
 public class UpdatePerformanceRuleDto : CreatePerformanceRuleDto
 {
+}
+
+public class BonusRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string BonusType { get; set; } = string.Empty;
+    public decimal? BonusAmount { get; set; }
+    public decimal? BonusPercentage { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateBonusRuleDto
+{
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string BonusType { get; set; } = string.Empty;
+    public decimal? BonusAmount { get; set; }
+    public decimal? BonusPercentage { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateBonusRuleDto : CreateBonusRuleDto
+{
+}
+
+public class PerformancePayDto
+{
+    public Guid PerformancePayId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public decimal? Score { get; set; }
+    public decimal FinalAmount { get; set; }
+    public DateTime? CalculatedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CreatePerformancePayDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal? Score { get; set; }
+    public decimal FinalAmount { get; set; }
+}
+
+public class UpdatePerformancePayDto
+{
+    public Guid? RuleId { get; set; }
+    public decimal? Score { get; set; }
+    public decimal FinalAmount { get; set; }
+}
+
+public class PerformancePayFilterDto
+{
+    public string? EmployeeName { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class BonusEntryDto
+{
+    public Guid BonusId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public string? RuleDescription { get; set; }
+    public decimal BonusAmount { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateBonusEntryDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal BonusAmount { get; set; }
+}
+
+public class UpdateBonusEntryDto
+{
+    public Guid? RuleId { get; set; }
+    public decimal BonusAmount { get; set; }
+}
+
+public class BonusEntryFilterDto
+{
+    public string? EmployeeName { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid? RuleId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
 }

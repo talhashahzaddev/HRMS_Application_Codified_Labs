@@ -78,4 +78,26 @@ public interface IPayRollService
     Task<ServiceResponse<PerformanceRuleDto>> CreatePerformanceRuleAsync(Guid organizationId, CreatePerformanceRuleDto dto);
     Task<ServiceResponse<PerformanceRuleDto>> UpdatePerformanceRuleAsync(Guid ruleId, Guid organizationId, UpdatePerformanceRuleDto dto);
     Task<ServiceResponse<bool>> DeletePerformanceRuleAsync(Guid ruleId, Guid organizationId);
+
+    // Bonus Rules
+    Task<ServiceResponse<IEnumerable<BonusRuleDto>>> GetAllBonusRulesAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<BonusRuleDto>>> GetActiveBonusRulesAsync(Guid organizationId);
+    Task<ServiceResponse<BonusRuleDto>> GetBonusRuleByIdAsync(Guid ruleId, Guid organizationId);
+    Task<ServiceResponse<BonusRuleDto>> CreateBonusRuleAsync(Guid organizationId, CreateBonusRuleDto dto);
+    Task<ServiceResponse<BonusRuleDto>> UpdateBonusRuleAsync(Guid ruleId, Guid organizationId, UpdateBonusRuleDto dto);
+    Task<ServiceResponse<bool>> DeleteBonusRuleAsync(Guid ruleId, Guid organizationId);
+
+    // Performance Pay
+    Task<ServiceResponse<PagedResult<PerformancePayDto>>> GetAllPerformancePayAsync(Guid organizationId, PerformancePayFilterDto filter);
+    Task<ServiceResponse<PerformancePayDto>> GetPerformancePayByIdAsync(Guid performancePayId, Guid organizationId);
+    Task<ServiceResponse<PerformancePayDto>> CreatePerformancePayAsync(Guid organizationId, CreatePerformancePayDto dto);
+    Task<ServiceResponse<PerformancePayDto>> UpdatePerformancePayAsync(Guid performancePayId, Guid organizationId, UpdatePerformancePayDto dto);
+    Task<ServiceResponse<bool>> DeletePerformancePayAsync(Guid performancePayId, Guid organizationId);
+
+    // Bonus Entries
+    Task<ServiceResponse<PagedResult<BonusEntryDto>>> GetAllBonusEntriesAsync(Guid organizationId, BonusEntryFilterDto filter);
+    Task<ServiceResponse<BonusEntryDto>> GetBonusEntryByIdAsync(Guid bonusId, Guid organizationId);
+    Task<ServiceResponse<BonusEntryDto>> CreateBonusEntryAsync(Guid organizationId, CreateBonusEntryDto dto);
+    Task<ServiceResponse<BonusEntryDto>> UpdateBonusEntryAsync(Guid bonusId, Guid organizationId, UpdateBonusEntryDto dto);
+    Task<ServiceResponse<bool>> DeleteBonusEntryAsync(Guid bonusId, Guid organizationId);
 }

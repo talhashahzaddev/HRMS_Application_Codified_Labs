@@ -81,4 +81,26 @@ public interface IPayRollRepository
     Task<PerformanceRuleDto> CreatePerformanceRuleAsync(Guid organizationId, CreatePerformanceRuleDto dto);
     Task<PerformanceRuleDto?> UpdatePerformanceRuleAsync(Guid ruleId, Guid organizationId, UpdatePerformanceRuleDto dto);
     Task<bool> DeletePerformanceRuleAsync(Guid ruleId, Guid organizationId);
+
+    // Bonus Rules
+    Task<IEnumerable<BonusRuleDto>> GetAllBonusRulesAsync(Guid organizationId);
+    Task<IEnumerable<BonusRuleDto>> GetActiveBonusRulesAsync(Guid organizationId);
+    Task<BonusRuleDto?> GetBonusRuleByIdAsync(Guid ruleId, Guid organizationId);
+    Task<BonusRuleDto> CreateBonusRuleAsync(Guid organizationId, CreateBonusRuleDto dto);
+    Task<BonusRuleDto?> UpdateBonusRuleAsync(Guid ruleId, Guid organizationId, UpdateBonusRuleDto dto);
+    Task<bool> DeleteBonusRuleAsync(Guid ruleId, Guid organizationId);
+
+    // Performance Pay
+    Task<PagedResult<PerformancePayDto>> GetAllPerformancePayAsync(Guid organizationId, PerformancePayFilterDto filter);
+    Task<PerformancePayDto?> GetPerformancePayByIdAsync(Guid performancePayId, Guid organizationId);
+    Task<PerformancePayDto> CreatePerformancePayAsync(Guid organizationId, CreatePerformancePayDto dto);
+    Task<PerformancePayDto?> UpdatePerformancePayAsync(Guid performancePayId, Guid organizationId, UpdatePerformancePayDto dto);
+    Task<bool> DeletePerformancePayAsync(Guid performancePayId, Guid organizationId);
+
+    // Bonus Entries
+    Task<PagedResult<BonusEntryDto>> GetAllBonusEntriesAsync(Guid organizationId, BonusEntryFilterDto filter);
+    Task<BonusEntryDto?> GetBonusEntryByIdAsync(Guid bonusId, Guid organizationId);
+    Task<BonusEntryDto> CreateBonusEntryAsync(Guid organizationId, CreateBonusEntryDto dto);
+    Task<BonusEntryDto?> UpdateBonusEntryAsync(Guid bonusId, Guid organizationId, UpdateBonusEntryDto dto);
+    Task<bool> DeleteBonusEntryAsync(Guid bonusId, Guid organizationId);
 }

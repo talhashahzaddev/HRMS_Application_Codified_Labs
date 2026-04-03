@@ -984,4 +984,247 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }
+
+    // Bonus Rules
+    public async Task<ServiceResponse<IEnumerable<BonusRuleDto>>> GetAllBonusRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllBonusRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting bonus rules");
+            return new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<BonusRuleDto>>> GetActiveBonusRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveBonusRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active bonus rules");
+            return new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<BonusRuleDto>> GetBonusRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetBonusRuleByIdAsync(ruleId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<BonusRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<BonusRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting bonus rule by ID");
+            return new ServiceResponse<BonusRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<BonusRuleDto>> CreateBonusRuleAsync(Guid organizationId, CreateBonusRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateBonusRuleAsync(organizationId, dto);
+            return new ServiceResponse<BonusRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating bonus rule");
+            return new ServiceResponse<BonusRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<BonusRuleDto>> UpdateBonusRuleAsync(Guid ruleId, Guid organizationId, UpdateBonusRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateBonusRuleAsync(ruleId, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<BonusRuleDto> { Success = false, Message = "Rule not found." };
+            }
+            return new ServiceResponse<BonusRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating bonus rule");
+            return new ServiceResponse<BonusRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteBonusRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteBonusRuleAsync(ruleId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Rule not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting bonus rule");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Performance Pay
+    public async Task<ServiceResponse<PagedResult<PerformancePayDto>>> GetAllPerformancePayAsync(Guid organizationId, PerformancePayFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllPerformancePayAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<PerformancePayDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting performance pay records");
+            return new ServiceResponse<PagedResult<PerformancePayDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PerformancePayDto>> GetPerformancePayByIdAsync(Guid performancePayId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetPerformancePayByIdAsync(performancePayId, organizationId);
+            if (result == null)
+                return new ServiceResponse<PerformancePayDto> { Success = false, Message = "Performance pay record not found." };
+            return new ServiceResponse<PerformancePayDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting performance pay by ID");
+            return new ServiceResponse<PerformancePayDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PerformancePayDto>> CreatePerformancePayAsync(Guid organizationId, CreatePerformancePayDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreatePerformancePayAsync(organizationId, dto);
+            return new ServiceResponse<PerformancePayDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating performance pay");
+            return new ServiceResponse<PerformancePayDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PerformancePayDto>> UpdatePerformancePayAsync(Guid performancePayId, Guid organizationId, UpdatePerformancePayDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdatePerformancePayAsync(performancePayId, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<PerformancePayDto> { Success = false, Message = "Performance pay record not found." };
+            return new ServiceResponse<PerformancePayDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating performance pay");
+            return new ServiceResponse<PerformancePayDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeletePerformancePayAsync(Guid performancePayId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeletePerformancePayAsync(performancePayId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting performance pay");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Bonus Entries
+    public async Task<ServiceResponse<PagedResult<BonusEntryDto>>> GetAllBonusEntriesAsync(Guid organizationId, BonusEntryFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllBonusEntriesAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<BonusEntryDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting bonus entries");
+            return new ServiceResponse<PagedResult<BonusEntryDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<BonusEntryDto>> GetBonusEntryByIdAsync(Guid bonusId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetBonusEntryByIdAsync(bonusId, organizationId);
+            if (result == null)
+                return new ServiceResponse<BonusEntryDto> { Success = false, Message = "Bonus entry not found." };
+            return new ServiceResponse<BonusEntryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting bonus entry by ID");
+            return new ServiceResponse<BonusEntryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<BonusEntryDto>> CreateBonusEntryAsync(Guid organizationId, CreateBonusEntryDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateBonusEntryAsync(organizationId, dto);
+            return new ServiceResponse<BonusEntryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating bonus entry");
+            return new ServiceResponse<BonusEntryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<BonusEntryDto>> UpdateBonusEntryAsync(Guid bonusId, Guid organizationId, UpdateBonusEntryDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateBonusEntryAsync(bonusId, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<BonusEntryDto> { Success = false, Message = "Bonus entry not found." };
+            return new ServiceResponse<BonusEntryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating bonus entry");
+            return new ServiceResponse<BonusEntryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteBonusEntryAsync(Guid bonusId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteBonusEntryAsync(bonusId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting bonus entry");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
 }

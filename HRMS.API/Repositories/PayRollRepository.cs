@@ -173,6 +173,20 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                     'GratuityPolicy' AS policyname
                 FROM payroll.gratuityconfig g
                 WHERE g.organizationid = @organizationId
+
+                UNION ALL
+
+                SELECT
+                    b.ruleid AS id,
+                    b.organizationid,
+                    b.rulename,
+                    b.description,
+                    b.isactive,
+                    b.isdeleted,
+                    b.createdat,
+                    'BonusPolicy' AS policyname
+                FROM payroll.bonusrules b
+                WHERE b.organizationid = @organizationId
             ) x
             ORDER BY x.createdat DESC;";
 
@@ -190,7 +204,8 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             ProvidentFundPolicy = BuildPolicySection(rows, "ProvidentFundPolicy"),
             IncomeTaxPolicy = BuildPolicySection(rows, "IncomeTaxPolicy"),
             SocialSecurityPolicy = BuildPolicySection(rows, "SocialSecurityPolicy"),
-            GratuityPolicy = BuildPolicySection(rows, "GratuityPolicy")
+            GratuityPolicy = BuildPolicySection(rows, "GratuityPolicy"),
+            BonusPolicy = BuildPolicySection(rows, "BonusPolicy")
         };
 
         return grouped;
@@ -1804,6 +1819,472 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             RETURNING ruleid;";
 
         var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { ruleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Bonus Rules
+    public async Task<IEnumerable<BonusRuleDto>> GetAllBonusRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                bonustype AS BonusType,
+                bonusamount AS BonusAmount,
+                bonuspercentage AS BonusPercentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.bonusrules
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<BonusRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<BonusRuleDto>> GetActiveBonusRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                bonustype AS BonusType,
+                bonusamount AS BonusAmount,
+                bonuspercentage AS BonusPercentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.bonusrules
+            WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<BonusRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<BonusRuleDto?> GetBonusRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                bonustype AS BonusType,
+                bonusamount AS BonusAmount,
+                bonuspercentage AS BonusPercentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.bonusrules
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<BonusRuleDto>(sql, new { ruleId, organizationId });
+    }
+
+    public async Task<BonusRuleDto> CreateBonusRuleAsync(Guid organizationId, CreateBonusRuleDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.bonusrules (
+                organizationid, rulename, description, bonustype, 
+                bonusamount, bonuspercentage, isactive, isdeleted
+            )
+            VALUES (
+                @organizationId, @RuleName, @Description, @BonusType, 
+                @BonusAmount, @BonusPercentage, @IsActive, false
+            )
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.BonusType,
+            dto.BonusAmount,
+            dto.BonusPercentage,
+            dto.IsActive
+        };
+
+        var ruleId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetBonusRuleByIdAsync(ruleId, organizationId))!;
+    }
+
+    public async Task<BonusRuleDto?> UpdateBonusRuleAsync(Guid ruleId, Guid organizationId, UpdateBonusRuleDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.bonusrules
+            SET 
+                rulename = @RuleName,
+                description = @Description,
+                bonustype = @BonusType,
+                bonusamount = @BonusAmount,
+                bonuspercentage = @BonusPercentage,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            ruleId,
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.BonusType,
+            dto.BonusAmount,
+            dto.BonusPercentage,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetBonusRuleByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteBonusRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.bonusrules
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { ruleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Performance Pay
+    public async Task<PagedResult<PerformancePayDto>> GetAllPerformancePayAsync(Guid organizationId, PerformancePayFilterDto filter)
+    {
+        filter ??= new PerformancePayFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var conditions = new List<string>
+        {
+            "e.organizationid = @organizationId",
+            "per.organizationid = @organizationId"
+        };
+        if (filter.PeriodId.HasValue) conditions.Add("pp.periodid = @PeriodId");
+        if (filter.RuleId.HasValue) conditions.Add("pp.ruleid = @RuleId");
+        if (!string.IsNullOrWhiteSpace(filter.EmployeeName))
+            conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE '%' || @EmployeeName || '%'");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.performancepay pp
+            JOIN employee.Employees e ON pp.employeeid = e.employeeid
+            JOIN payroll.payrollperiods per ON pp.periodid = per.periodid
+            LEFT JOIN payroll.performancerules pr ON pp.ruleid = pr.ruleid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                pp.performancepayid AS PerformancePayId,
+                pp.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                pp.periodid AS PeriodId,
+                per.periodname AS PeriodName,
+                pp.ruleid AS RuleId,
+                pr.rulename AS RuleName,
+                pp.score AS Score,
+                pp.finalamount AS FinalAmount,
+                pp.calculatedat AS CalculatedAt,
+                pp.createdat AS CreatedAt
+            FROM payroll.performancepay pp
+            JOIN employee.Employees e ON pp.employeeid = e.employeeid
+            JOIN payroll.payrollperiods per ON pp.periodid = per.periodid
+            LEFT JOIN payroll.performancerules pr ON pp.ruleid = pr.ruleid
+            WHERE {whereClause}
+            ORDER BY pp.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new
+        {
+            organizationId,
+            filter.PeriodId,
+            filter.RuleId,
+            filter.EmployeeName,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<PerformancePayDto>(sql, parameters);
+
+        return new PagedResult<PerformancePayDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<PerformancePayDto?> GetPerformancePayByIdAsync(Guid performancePayId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                pp.performancepayid AS PerformancePayId,
+                pp.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                pp.periodid AS PeriodId,
+                per.periodname AS PeriodName,
+                pp.ruleid AS RuleId,
+                pr.rulename AS RuleName,
+                pp.score AS Score,
+                pp.finalamount AS FinalAmount,
+                pp.calculatedat AS CalculatedAt,
+                pp.createdat AS CreatedAt
+            FROM payroll.performancepay pp
+            JOIN employee.Employees e ON pp.employeeid = e.employeeid
+            JOIN payroll.payrollperiods per ON pp.periodid = per.periodid
+            LEFT JOIN payroll.performancerules pr ON pp.ruleid = pr.ruleid
+            WHERE pp.performancepayid = @performancePayId
+              AND e.organizationid = @organizationId
+              AND per.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<PerformancePayDto>(sql, new { performancePayId, organizationId });
+    }
+
+    public async Task<PerformancePayDto> CreatePerformancePayAsync(Guid organizationId, CreatePerformancePayDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.performancepay (
+                employeeid, periodid, ruleid, score, finalamount
+            )
+            VALUES (
+                @EmployeeId, @PeriodId, @RuleId, @Score, @FinalAmount
+            )
+            RETURNING performancepayid;";
+
+        var parameters = new
+        {
+            dto.EmployeeId,
+            dto.PeriodId,
+            dto.RuleId,
+            dto.Score,
+            dto.FinalAmount
+        };
+
+        var id = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetPerformancePayByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<PerformancePayDto?> UpdatePerformancePayAsync(Guid performancePayId, Guid organizationId, UpdatePerformancePayDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.performancepay pp
+            SET
+                ruleid = @RuleId,
+                score = @Score,
+                finalamount = @FinalAmount,
+                calculatedat = current_timestamp
+            FROM employee.Employees e
+            WHERE pp.employeeid = e.employeeid
+              AND pp.performancepayid = @performancePayId
+              AND e.organizationid = @organizationId
+            RETURNING pp.performancepayid;";
+
+        var parameters = new
+        {
+            performancePayId,
+            organizationId,
+            dto.RuleId,
+            dto.Score,
+            dto.FinalAmount
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetPerformancePayByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeletePerformancePayAsync(Guid performancePayId, Guid organizationId)
+    {
+        var sql = @"
+            DELETE FROM payroll.performancepay pp
+            USING employee.Employees e
+            WHERE pp.employeeid = e.employeeid
+              AND pp.performancepayid = @performancePayId
+              AND e.organizationid = @organizationId
+            RETURNING pp.performancepayid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { performancePayId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Bonus Entries
+    public async Task<PagedResult<BonusEntryDto>> GetAllBonusEntriesAsync(Guid organizationId, BonusEntryFilterDto filter)
+    {
+        filter ??= new BonusEntryFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var conditions = new List<string>
+        {
+            "be.organizationid = @organizationId",
+            "e.organizationid = @organizationId",
+            "per.organizationid = @organizationId"
+        };
+        if (filter.PeriodId.HasValue) conditions.Add("be.periodid = @PeriodId");
+        if (filter.RuleId.HasValue) conditions.Add("be.ruleid = @RuleId");
+        if (!string.IsNullOrWhiteSpace(filter.EmployeeName))
+            conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE '%' || @EmployeeName || '%'");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.bonusentries be
+            JOIN employee.Employees e ON be.employeeid = e.employeeid
+            JOIN payroll.payrollperiods per ON be.periodid = per.periodid
+            LEFT JOIN payroll.bonusrules br ON be.ruleid = br.ruleid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                be.bonusid AS BonusId,
+                be.organizationid AS OrganizationId,
+                be.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                be.periodid AS PeriodId,
+                per.periodname AS PeriodName,
+                be.ruleid AS RuleId,
+                br.rulename AS RuleName,
+                br.description AS RuleDescription,
+                be.bonousamount AS BonusAmount,
+                be.createdat AS CreatedAt,
+                be.updatedat AS UpdatedAt
+            FROM payroll.bonusentries be
+            JOIN employee.Employees e ON be.employeeid = e.employeeid
+            JOIN payroll.payrollperiods per ON be.periodid = per.periodid
+            LEFT JOIN payroll.bonusrules br ON be.ruleid = br.ruleid
+            WHERE {whereClause}
+            ORDER BY be.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new
+        {
+            organizationId,
+            filter.PeriodId,
+            filter.RuleId,
+            filter.EmployeeName,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<BonusEntryDto>(sql, parameters);
+
+        return new PagedResult<BonusEntryDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<BonusEntryDto?> GetBonusEntryByIdAsync(Guid bonusId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                be.bonusid AS BonusId,
+                be.organizationid AS OrganizationId,
+                be.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                be.periodid AS PeriodId,
+                per.periodname AS PeriodName,
+                be.ruleid AS RuleId,
+                br.rulename AS RuleName,
+                br.description AS RuleDescription,
+                be.bonousamount AS BonusAmount,
+                be.createdat AS CreatedAt,
+                be.updatedat AS UpdatedAt
+            FROM payroll.bonusentries be
+            JOIN employee.Employees e ON be.employeeid = e.employeeid
+            JOIN payroll.payrollperiods per ON be.periodid = per.periodid
+            LEFT JOIN payroll.bonusrules br ON be.ruleid = br.ruleid
+            WHERE be.bonusid = @bonusId
+              AND be.organizationid = @organizationId
+              AND e.organizationid = @organizationId
+              AND per.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<BonusEntryDto>(sql, new { bonusId, organizationId });
+    }
+
+    public async Task<BonusEntryDto> CreateBonusEntryAsync(Guid organizationId, CreateBonusEntryDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.bonusentries (
+                organizationid, employeeid, periodid, ruleid, bonousamount
+            )
+            VALUES (
+                @organizationId, @EmployeeId, @PeriodId, @RuleId, @BonusAmount
+            )
+            RETURNING bonusid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.EmployeeId,
+            dto.PeriodId,
+            dto.RuleId,
+            dto.BonusAmount
+        };
+
+        var id = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetBonusEntryByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<BonusEntryDto?> UpdateBonusEntryAsync(Guid bonusId, Guid organizationId, UpdateBonusEntryDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.bonusentries
+            SET
+                ruleid = @RuleId,
+                bonousamount = @BonusAmount,
+                updatedat = current_timestamp
+            WHERE bonusid = @bonusId AND organizationid = @organizationId
+            RETURNING bonusid;";
+
+        var parameters = new
+        {
+            bonusId,
+            organizationId,
+            dto.RuleId,
+            dto.BonusAmount
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetBonusEntryByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteBonusEntryAsync(Guid bonusId, Guid organizationId)
+    {
+        var sql = @"
+            DELETE FROM payroll.bonusentries
+            WHERE bonusid = @bonusId AND organizationid = @organizationId
+            RETURNING bonusid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { bonusId, organizationId });
         return deletedId != null && deletedId != Guid.Empty;
     }
 }
