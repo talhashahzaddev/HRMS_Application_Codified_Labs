@@ -1490,12 +1490,17 @@ public class AttendanceService : IAttendanceService
                     if (employeeHolidayDates.Contains(r.WorkDate.Date))
                         return "holiday";
 
-                    if (!string.IsNullOrWhiteSpace(r.Status))
-                        return r.Status.Trim().ToLowerInvariant();
+                    var normalized = r.Status?.Trim().ToLowerInvariant();
 
-                    var dow = r.WorkDate.DayOfWeek;
-                    if (dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday)
+                    if (!r.IsShiftWorkingDay
+                        && (string.IsNullOrWhiteSpace(normalized)
+                            || normalized is "absent" or "weekend" or "no_record"))
+                    {
                         return "weekend";
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(normalized))
+                        return normalized;
 
                     if (r.WorkDate.Date > todayDate)
                         return "no_record";
@@ -1511,12 +1516,19 @@ public class AttendanceService : IAttendanceService
                     CheckOutTime = r.CheckOutTime,
                     Status = EffectiveStatus(r, today),
                     TotalHours = r.TotalHours,
+                    OvertimeHours = r.OvertimeHours,
+                    LateHours = r.LateHours,
                     IsFinalized = r.IsFinalized,
                     HasPendingRequest = r.HasPendingRequest,
                     HasDraftRequest = r.HasDraftRequest,
+                    HasApprovedRequest = r.HasApprovedRequest,
+                    HasRejectedRequest = r.HasRejectedRequest,
                     RequestedCheckIn = r.RequestedCheckIn,
                     RequestedCheckOut = r.RequestedCheckOut,
                     RequestedStatus = r.RequestedStatus,
+                    RequestedNotes = r.RequestedNotes,
+                    RejectionReason = r.RejectionReason,
+                    RequestStatus = r.RequestStatus,
                     IsManagerOverride = r.IsManagerOverride
                 }).OrderBy(d => d.Date).ToList();
 
@@ -1586,6 +1598,12 @@ public class AttendanceService : IAttendanceService
             }
 
             var result = await _attendanceRepository.ProcessUpdateRequestAsync(dto.RequestId, actionedBy, dto.IsApproved, dto.RejectionReason);
+
+            if (result && dto.IsApproved && requestDetails.EmployeeId.HasValue)
+            {
+                await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(requestDetails.EmployeeId.Value, requestDetails.WorkDate);
+                await _attendanceRepository.UpdateOvertimeHoursAsync(requestDetails.EmployeeId.Value, requestDetails.WorkDate);
+            }
 
             if (result && requestDetails.EmployeeId.HasValue)
             {
@@ -1665,6 +1683,180 @@ public class AttendanceService : IAttendanceService
         var data = await _attendanceRepository.GetFinalizedRecordsAsync(timesheetId, filterEmployeeId);
 
         return new ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>> { Success = true, Data = data };
+    }
+
+    public async Task<ServiceResponse<FinalizedPayrollCalculationDto>> GetFinalizedPayrollCalculationAsync(
+        Guid timesheetId,
+        Guid organizationId,
+        Guid currentUserEmployeeId,
+        string role,
+        Guid? targetEmployeeId = null)
+    {
+        if (timesheetId == Guid.Empty)
+        {
+            return new ServiceResponse<FinalizedPayrollCalculationDto>
+            {
+                Success = false,
+                Message = "Timesheet ID is required."
+            };
+        }
+
+        try
+        {
+            var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
+            if (snapshot == null)
+            {
+                return new ServiceResponse<FinalizedPayrollCalculationDto>
+                {
+                    Success = false,
+                    Message = "Timesheet snapshot not found."
+                };
+            }
+
+            var isEmployeeRole = string.Equals(role, "Employee", StringComparison.OrdinalIgnoreCase);
+            var effectiveEmployeeId = isEmployeeRole
+                ? currentUserEmployeeId
+                : (targetEmployeeId ?? currentUserEmployeeId);
+
+            var detailsResponse = await GetTimesheetDetailsByIdAsync(timesheetId, organizationId, currentUserEmployeeId);
+            if (!detailsResponse.Success || detailsResponse.Data == null)
+            {
+                return new ServiceResponse<FinalizedPayrollCalculationDto>
+                {
+                    Success = false,
+                    Message = detailsResponse.Message ?? "Unable to read timesheet details for payroll calculation."
+                };
+            }
+
+            var employee = detailsResponse.Data.FirstOrDefault(e => e.EmployeeId == effectiveEmployeeId);
+            if (employee == null)
+            {
+                return new ServiceResponse<FinalizedPayrollCalculationDto>
+                {
+                    Success = false,
+                    Message = "Employee is not available in this timesheet scope."
+                };
+            }
+
+            var finalizedRows = (await _attendanceRepository.GetFinalizedRecordsAsync(timesheetId, effectiveEmployeeId)).ToList();
+
+            var payrollScopeRecords = (employee.DailyRecords ?? new List<DailyAttendanceRecord>())
+                .Where(IsPayrollScopeRecord)
+                .ToList();
+
+            var expectedWorkDays = payrollScopeRecords.Count;
+            var finalizedWorkDays = payrollScopeRecords.Count(r => r.IsFinalized);
+            var pendingWorkDays = Math.Max(0, expectedWorkDays - finalizedWorkDays);
+            var pendingRequestDays = payrollScopeRecords.Count(r => r.HasPendingRequest && !r.IsFinalized);
+
+            var totalHours = finalizedRows.Sum(r => r.FinalTotalHours);
+            var overtimeHours = finalizedRows.Sum(r => r.FinalOvertimeHours);
+            var lateHours = finalizedRows.Sum(r => r.FinalLateHours);
+            if (lateHours <= 0)
+            {
+                lateHours = payrollScopeRecords
+                    .Where(r => r.IsFinalized)
+                    .Sum(r => r.LateHours);
+            }
+            var regularHours = finalizedRows.Sum(r => Math.Max(0m, r.FinalTotalHours - r.FinalOvertimeHours));
+
+            var statusBreakdown = finalizedRows
+                .GroupBy(r => NormalizePayrollStatus(r.FinalStatus), StringComparer.OrdinalIgnoreCase)
+                .Select(g => new FinalizedPayrollStatusBreakdownDto
+                {
+                    Status = g.Key,
+                    Days = g.Count(),
+                    Hours = Math.Round(g.Sum(x => x.FinalTotalHours), 2)
+                })
+                .OrderByDescending(x => x.Days)
+                .ThenBy(x => x.Status)
+                .ToList();
+
+            var unpaidDays = finalizedRows.Count(r => IsUnpaidPayrollStatus(r.FinalStatus));
+            var payableDays = Math.Max(0, finalizedRows.Count - unpaidDays);
+
+            var blockers = new List<string>();
+
+            if (expectedWorkDays == 0)
+            {
+                blockers.Add("No payroll-eligible workdays were found for this employee.");
+            }
+
+            if (pendingWorkDays > 0)
+            {
+                blockers.Add($"{pendingWorkDays} workday(s) are not finalized.");
+            }
+
+            if (pendingRequestDays > 0)
+            {
+                blockers.Add($"{pendingRequestDays} workday(s) still have pending correction requests.");
+            }
+
+            if (finalizedRows.Count == 0)
+            {
+                blockers.Add("No finalized records are available to compute payroll.");
+            }
+
+            var payrollReady = blockers.Count == 0 && employee.IsFinalized;
+
+            if (!employee.IsFinalized && expectedWorkDays > 0)
+            {
+                blockers.Add("Employee package is not fully finalized.");
+            }
+
+            var blockedReason = blockers.Count > 0
+                ? string.Join(" ", blockers.Distinct(StringComparer.OrdinalIgnoreCase))
+                : null;
+
+            var calculation = new FinalizedPayrollCalculationDto
+            {
+                TimesheetId = timesheetId,
+                EmployeeId = employee.EmployeeId,
+                EmployeeName = employee.EmployeeName ?? string.Empty,
+                EmployeeCode = employee.EmployeeCode ?? string.Empty,
+                Month = snapshot.Month,
+                Year = snapshot.Year,
+                ExpectedWorkDays = expectedWorkDays,
+                FinalizedWorkDays = finalizedWorkDays,
+                PendingWorkDays = pendingWorkDays,
+                PendingRequestDays = pendingRequestDays,
+                PayableDays = payableDays,
+                UnpaidDays = unpaidDays,
+                TotalHours = Math.Round(totalHours, 2),
+                RegularHours = Math.Round(regularHours, 2),
+                OvertimeHours = Math.Round(overtimeHours, 2),
+                LateHours = Math.Round(lateHours, 2),
+                AttendancePercentage = expectedWorkDays > 0
+                    ? Math.Round((decimal)payableDays / expectedWorkDays * 100m, 2)
+                    : 0m,
+                PayrollReady = payrollReady,
+                BlockedReason = blockedReason,
+                GeneratedAt = DateTime.UtcNow,
+                StatusBreakdown = statusBreakdown
+            };
+
+            return new ServiceResponse<FinalizedPayrollCalculationDto>
+            {
+                Success = true,
+                Message = payrollReady
+                    ? "Finalized payroll calculation is ready."
+                    : "Timesheet is not payroll-ready yet.",
+                Data = calculation
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error generating finalized payroll calculation for Timesheet {TimesheetId}, Employee {EmployeeId}",
+                timesheetId,
+                targetEmployeeId);
+
+            return new ServiceResponse<FinalizedPayrollCalculationDto>
+            {
+                Success = false,
+                Message = "An error occurred while generating payroll calculation output."
+            };
+        }
     }
 
     public async Task<ServiceResponse<bool>> CreateTimesheetSnapshotAsync(Guid organizationId, Guid currentUserEmployeeId, MonthlyTimesheetCreateDto dto)
@@ -1772,11 +1964,18 @@ public class AttendanceService : IAttendanceService
                     && empHolidayDates.Contains(r.WorkDate.Date))
                     return "holiday";
 
-                if (!string.IsNullOrWhiteSpace(r.Status))
-                    return r.Status.Trim().ToLowerInvariant();
+                var normalized = r.Status?.Trim().ToLowerInvariant();
 
-                var dow = r.WorkDate.DayOfWeek;
-                if (dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday) return "weekend";
+                if (!r.IsShiftWorkingDay
+                    && (string.IsNullOrWhiteSpace(normalized)
+                        || normalized is "absent" or "weekend" or "no_record"))
+                {
+                    return "weekend";
+                }
+
+                if (!string.IsNullOrWhiteSpace(normalized))
+                    return normalized;
+
                 if (r.WorkDate.Date > todayDate) return "no_record";
                 return "absent";
             }
@@ -1794,25 +1993,9 @@ public class AttendanceService : IAttendanceService
 
             snapshot.TotalHoursWorked = allRosterData.Sum(r => r.TotalHours);
 
-            decimal totalExpectedManDays = 0;
-            foreach (var empId in allRosterData.Select(r => r.EmployeeId).Distinct())
-            {
-                holidayDatesByEmployee.TryGetValue(empId, out var empHolidayDates);
-                empHolidayDates ??= new HashSet<DateTime>();
-
-                int expectedForEmployee = Enumerable
-                    .Range(0, (end - start).Days + 1)
-                    .Count(offset =>
-                    {
-                        var d = start.AddDays(offset).Date;
-                        return d <= today
-                            && d.DayOfWeek != DayOfWeek.Saturday
-                            && d.DayOfWeek != DayOfWeek.Sunday
-                            && !empHolidayDates.Contains(d);
-                    });
-
-                totalExpectedManDays += expectedForEmployee;
-            }
+            decimal totalExpectedManDays = allRosterData.Count(r =>
+                r.WorkDate.Date <= today
+                && EffectiveStatus(r, today) is not "weekend" and not "holiday" and not "no_record");
 
             snapshot.AttendancePercentage = totalExpectedManDays > 0
                 ? Math.Round((snapshot.TotalPresentDays / totalExpectedManDays) * 100m, 1)
@@ -1928,6 +2111,12 @@ public class AttendanceService : IAttendanceService
 
             var result = await _attendanceRepository.UpdateManualAttendanceAsync(attendanceRecord, audit);
 
+            if (result)
+            {
+                await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(updateDto.EmployeeId, attendanceRecord.WorkDate);
+                await _attendanceRepository.UpdateOvertimeHoursAsync(updateDto.EmployeeId, attendanceRecord.WorkDate);
+            }
+
             return new ServiceResponse<bool>
             {
                 Success = result,
@@ -1973,7 +2162,36 @@ public class AttendanceService : IAttendanceService
     }
     public async Task<ServiceResponse<int>> ApproveAllPendingAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid orgId)
     {
+        var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
+        if (snapshot == null)
+        {
+            return new ServiceResponse<int>
+            {
+                Success = false,
+                Data = 0,
+                Message = "Timesheet not found."
+            };
+        }
+
+        var approvedCandidates = (await _attendanceRepository
+                .GetAllReviewableRequestsAsync(orgId, null))
+            .Where(r => string.Equals(r.Status, "pending", StringComparison.OrdinalIgnoreCase))
+            .Where(r => !targetEmployeeId.HasValue || r.EmployeeId == targetEmployeeId.Value)
+            .Where(r => r.WorkDate.Month == snapshot.Month && r.WorkDate.Year == snapshot.Year)
+            .Select(r => new { r.EmployeeId, WorkDate = r.WorkDate.Date })
+            .Distinct()
+            .ToList();
+
         int count = await _attendanceRepository.ApproveAllBatchAsync(timesheetId, targetEmployeeId, managerId, orgId);
+
+        if (count > 0)
+        {
+            foreach (var row in approvedCandidates)
+            {
+                await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(row.EmployeeId, row.WorkDate);
+                await _attendanceRepository.UpdateOvertimeHoursAsync(row.EmployeeId, row.WorkDate);
+            }
+        }
 
         if (count == 0)
         {
@@ -2023,8 +2241,7 @@ public class AttendanceService : IAttendanceService
     Guid? targetEmployeeId = null)
     {
 
-        //bool isGlobalViewer = await _attendanceRepository.IsAdminOrHRAsync(currentUserId, organizationId);
-        bool isGlobalViewer = true;
+        bool isGlobalViewer = await _attendanceRepository.IsAdminOrHRAsync(currentUserId, organizationId);
         var today = DateTime.Today;
 
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
@@ -2057,6 +2274,7 @@ public class AttendanceService : IAttendanceService
         var log = g.FirstOrDefault(x => x.WorkDate.Date == currentDay.Date);
         var req = pendingReqs?.FirstOrDefault(r => r.WorkDate.Date == currentDay.Date &&
                         r.EmployeeId == g.Key.EmployeeId);
+        var resolvedRequestStatus = (req?.Status ?? log?.RequestStatus ?? "none").Trim().ToLowerInvariant();
         string calculatedStatus;
         var employeeHolidayDates = holidayDatesByEmployee.TryGetValue(g.Key.EmployeeId, out var dates)
             ? dates
@@ -2066,6 +2284,15 @@ public class AttendanceService : IAttendanceService
         {
             calculatedStatus = "holiday";
         }
+        else if (log != null
+                 && !log.IsShiftWorkingDay
+                 && (string.IsNullOrWhiteSpace(log.Status)
+                     || string.Equals(log.Status, "absent", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(log.Status, "weekend", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(log.Status, "no_record", StringComparison.OrdinalIgnoreCase)))
+        {
+            calculatedStatus = "weekend";
+        }
         else if (log != null && !string.IsNullOrWhiteSpace(log.Status))
         {
             calculatedStatus = log.Status; 
@@ -2073,10 +2300,6 @@ public class AttendanceService : IAttendanceService
         else if (currentDay.Date > today)
         {
             calculatedStatus = "no_record"; 
-        }
-        else if (currentDay.DayOfWeek == DayOfWeek.Saturday || currentDay.DayOfWeek == DayOfWeek.Sunday)
-        {
-            calculatedStatus = "weekend"; 
         }
         else
         {
@@ -2091,18 +2314,24 @@ public class AttendanceService : IAttendanceService
             CheckOutTime = log?.CheckOutTime,
             Status = calculatedStatus,
             TotalHours = log?.TotalHours ?? 0,
-            RequestStatus = req?.Status ?? "none",
-            RequestedCheckIn = req?.RequestedCheckIn,
-            RequestedCheckOut = req?.RequestedCheckOut,
-            RequestedStatus = req?.RequestedStatus,
+            OvertimeHours = log?.OvertimeHours ?? 0,
+            LateHours = log?.LateHours ?? 0,
+            RequestStatus = resolvedRequestStatus,
+            RequestedCheckIn = req?.RequestedCheckIn ?? log?.RequestedCheckIn,
+            RequestedCheckOut = req?.RequestedCheckOut ?? log?.RequestedCheckOut,
+            RequestedStatus = req?.RequestedStatus ?? log?.RequestedStatus,
+            RequestedNotes = req?.RequestedNotes ?? log?.RequestedNotes,
             ReasonForEdit = req?.ReasonForEdit,
+            RejectionReason = req?.RejectionReason ?? log?.RejectionReason,
             IsFinalized = log?.IsFinalized ?? false,
-            HasPendingRequest = (req != null && req.Status == "pending")
-                    || (log?.HasPendingRequest ?? false),
-            HasDraftRequest = (req != null && req.Status == "Draft")
-                    || (log?.HasDraftRequest ?? false),
-            HasApprovedRequest = (req != null && req.Status == "approved") 
-        || (log?.HasApprovedRequest ?? false),
+            HasPendingRequest = resolvedRequestStatus == "pending"
+                || (req == null && (log?.HasPendingRequest ?? false)),
+            HasDraftRequest = resolvedRequestStatus == "draft"
+                || (req == null && (log?.HasDraftRequest ?? false)),
+            HasApprovedRequest = resolvedRequestStatus == "approved"
+        || (req == null && (log?.HasApprovedRequest ?? false)),
+            HasRejectedRequest = resolvedRequestStatus == "rejected"
+                || (req == null && (log?.HasRejectedRequest ?? false)),
             IsManagerOverride = log?.IsManagerOverride ?? false
         };
     }).ToList()
@@ -2190,5 +2419,44 @@ public class AttendanceService : IAttendanceService
         }
 
         return result;
+    }
+
+    private static bool IsPayrollScopeRecord(DailyAttendanceRecord record)
+    {
+        if (record == null)
+        {
+            return false;
+        }
+
+        var status = NormalizePayrollStatus(record.Status);
+        if (status is "weekend" or "holiday" or "no_record")
+        {
+            return false;
+        }
+
+        return record.Date.Date <= DateTime.Today;
+    }
+
+    private static bool IsUnpaidPayrollStatus(string? status)
+    {
+        var normalized = NormalizePayrollStatus(status);
+        return normalized is "absent" or "no_record";
+    }
+
+    private static string NormalizePayrollStatus(string? status)
+    {
+        var normalized = (status ?? string.Empty)
+            .Trim()
+            .ToLowerInvariant()
+            .Replace(" ", "_");
+
+        return normalized switch
+        {
+            "" => "no_record",
+            "norecord" => "no_record",
+            "onleave" => "on_leave",
+            "halfday" => "half_day",
+            _ => normalized
+        };
     }
 }

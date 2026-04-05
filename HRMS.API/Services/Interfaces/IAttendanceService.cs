@@ -53,6 +53,12 @@ public interface IAttendanceService
     Task<ServiceResponse<bool>> ProcessAttendanceUpdateRequestAsync(ProcessAttendanceRequestDto dto, Guid actionedBy, Guid organizationId);
     Task<ServiceResponse<int>> FinalizeTimesheetBatchAsync(Guid timesheetId, Guid organizationId, Guid managerEmployeeId, Guid? employeeId = null);
         Task<ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>>> GetApprovedTimesheetAsync(Guid timesheetId, Guid currentUserEmployeeId, string role);
+    Task<ServiceResponse<FinalizedPayrollCalculationDto>> GetFinalizedPayrollCalculationAsync(
+        Guid timesheetId,
+        Guid organizationId,
+        Guid currentUserEmployeeId,
+        string role,
+        Guid? targetEmployeeId = null);
     Task<ServiceResponse<bool>> CreateTimesheetSnapshotAsync(Guid organizationId, Guid currentUserEmployeeId, MonthlyTimesheetCreateDto dto);
     Task<ServiceResponse<Guid>> RequestAttendanceUpdateAsync(Guid employeeId, Guid organizationId, AttendanceUpdateRequestDto dto);
     Task<ServiceResponse<IEnumerable<Attendance>>> GetManualAttendanceAsync(ManualAttendanceSearchDto searchDto, Guid currentUserEmployeeId, string currentUserRole, Guid organizationId);

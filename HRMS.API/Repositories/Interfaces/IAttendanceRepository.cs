@@ -13,8 +13,8 @@ public interface IAttendanceRepository
     Task<List<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId);
     Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(Guid organizationId, Guid? departmentId);
     Task<List<EmployeeSimpleDto>> GetManagerEmployeeAsync(Guid managerId,Guid organizationId, Guid? departmentId);
-    Task<Attendance?> UpdateOvertimeHoursAsync(Guid employeeId);
-    Task<Attendance?> UpdateTodayAttendanceLateStatusAsync(Guid employeeId);
+    Task<Attendance?> UpdateOvertimeHoursAsync(Guid employeeId, DateTime? date = null);
+    Task<Attendance?> UpdateTodayAttendanceLateStatusAsync(Guid employeeId, DateTime? date = null);
     Task<Attendance?> UpdateTodayAttendanceFromSessionsAsync(Guid employeeId);
     Task<Guid?> GetAttendanceIdAsync(Guid employeeId, DateTime? date);
     Task<List<AttendanceSessionDto>> GetTodaySessionAsync(Guid? attendanceId);
@@ -76,5 +76,6 @@ public interface IAttendanceRepository
     Task<bool> AdminFinalizeRecordAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId);
     Task<int> FlipDraftsToPendingAsync(Guid employeeId, int month, int year, Guid timesheetId);
     Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId);
+    Task SyncPayrollCalculationsAsync(Guid employeeId, DateTime date);
 
 }

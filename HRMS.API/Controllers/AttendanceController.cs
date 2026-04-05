@@ -1739,7 +1739,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("timesheet/finalize-batch")]
-    [PermissionAuthorize("finalize_timesheet")]
+    [PermissionAuthorize("finalize_timesheet", "timesheet_dashboard_finalize")]
     public async Task<IActionResult> FinalizeBatch([FromBody] FinalizeBatchRequestDto request)
     {
         var orgId = GetCurrentOrganizationId();
@@ -1755,6 +1755,29 @@ public class AttendanceController : ControllerBase
         var empId = await GetCurrentEmployeeId();
         var role = User.FindFirstValue(ClaimTypes.Role);
         return Ok(await _attendanceService.GetApprovedTimesheetAsync(timesheetId, empId, role));
+    }
+
+    [HttpGet("timesheet/finalized-calculation/{timesheetId}")]
+    [PermissionAuthorize("timesheet_dashboard_view_details")]
+    public async Task<IActionResult> GetFinalizedPayrollCalculation(Guid timesheetId, [FromQuery] Guid? employeeId = null)
+    {
+        var orgId = GetCurrentOrganizationId();
+        var currentEmployeeId = await GetCurrentEmployeeId();
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+
+        var response = await _attendanceService.GetFinalizedPayrollCalculationAsync(
+            timesheetId,
+            orgId,
+            currentEmployeeId,
+            role,
+            employeeId);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
     }
 
     [HttpPost("timesheet/snapshot")]
@@ -1786,6 +1809,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("request-update")]
+    [PermissionAuthorize("timesheet_view_details")]
     public async Task<IActionResult> RequestUpdate([FromBody] AttendanceUpdateRequestDto dto)
     {
         var empId = await GetCurrentEmployeeId();
@@ -1794,7 +1818,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("process-request")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("approve_updated_timesheet")]
     public async Task<IActionResult> ProcessUpdate([FromBody] ProcessAttendanceRequestDto dto)
     {
         var actionedBy = await GetCurrentEmployeeId();
@@ -1811,7 +1835,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("timesheet")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("timesheet_view_details")]
     public async Task<ActionResult<ServiceResponse<List<MonthlyTimesheetSummary>>>> GetCreatedTimesheets(
     [FromQuery] DateTime? startDate = null,
     [FromQuery] DateTime? endDate = null)
@@ -1836,6 +1860,36 @@ public class AttendanceController : ControllerBase
             {
                 Success = false,
                 Message = "Internal server error while fetching timesheets"
+            });
+        }
+    }
+
+    [HttpGet("timesheet/dashboard-snapshots")]
+    [PermissionAuthorize("timesheet_dashboard_view_details")]
+    public async Task<ActionResult<ServiceResponse<List<MonthlyTimesheetSummary>>>> GetDashboardTimesheets(
+    [FromQuery] DateTime? startDate = null,
+    [FromQuery] DateTime? endDate = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetMonthlyTimesheetSnapshotsAsync(
+                organizationId,
+                startDate,
+                endDate,
+                currentEmployeeId);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving timesheet dashboard snapshots");
+            return StatusCode(500, new ServiceResponse<List<MonthlyTimesheetSummary>>
+            {
+                Success = false,
+                Message = "Internal server error while fetching dashboard snapshots"
             });
         }
     }
@@ -1892,7 +1946,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("timesheet/submit-approvals")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("timesheet_view_details")]
     public async Task<IActionResult> SubmitApprovals([FromBody] FinalizeBatchRequestDto request) 
     {
         var orgId = GetCurrentOrganizationId();
@@ -1903,7 +1957,7 @@ public class AttendanceController : ControllerBase
         return Ok(response);
     }
     [HttpPost("timesheet/approve-all")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("approve_updated_timesheet")]
     public async Task<IActionResult> ApproveAllRequests([FromBody] ApproveAllRequestDto dto)
     {
         var managerId = await GetCurrentEmployeeId();
@@ -1913,6 +1967,7 @@ public class AttendanceController : ControllerBase
         return Ok(result);
     }
     [HttpGet("pending-requests")]
+    [PermissionAuthorize("timesheet_dashboard_view_details")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeSubmissionPackage>>>> GetPendingRequests()
     {
         var orgId = GetCurrentOrganizationId();
@@ -1921,7 +1976,7 @@ public class AttendanceController : ControllerBase
         return Ok(result);
     }
     [HttpGet("timesheet/review-dashboard")]
-    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("timesheet_dashboard_view_details")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard(
     [FromQuery] Guid timesheetId,
     [FromQuery] Guid? employeeId = null) 
@@ -1964,7 +2019,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("timesheet/org-progress")]
-    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("timesheet_dashboard_view_details")]
     public async Task<IActionResult> GetOrgSubmissionProgress(
     [FromQuery] int month,
     [FromQuery] int year)

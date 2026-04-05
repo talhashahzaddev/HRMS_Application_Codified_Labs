@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
@@ -200,27 +200,350 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     }
     public async Task<int> BatchFinalizeMonthAsync(Guid timesheetId, Guid organizationId, Guid actionedBy)
     {
-        var snapshot = await QuerySingleOrDefaultAsync<(int Month, int Year)>(
-            "SELECT month, year FROM attendance.monthly_timesheets WHERE timesheet_id = @timesheetId",
-            new { timesheetId });
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
 
-        if (snapshot == default) return 0;
-
-        const string sql = @"
-        SELECT (fn_result).finalized_count
-        FROM (
-            SELECT attendance.fn_batch_finalize_month(
-                @timesheetId, @organizationId, @month, @year
-            ) AS fn_result
-        ) t";
-
-        return await ExecuteScalarAsync<int>(sql, new
+        try
         {
-            timesheetId,
-            organizationId,
-            month = snapshot.Month,
-            year = snapshot.Year
-        });
+            var snapshot = await connection.QuerySingleOrDefaultAsync<(int Month, int Year)>(
+                "SELECT month, year FROM attendance.monthly_timesheets WHERE timesheet_id = @timesheetId",
+                new { timesheetId },
+                transaction);
+
+            if (snapshot == default) return 0;
+
+            var startDate = new DateTime(snapshot.Year, snapshot.Month, 1);
+            var endDate = startDate.AddMonths(1).AddDays(-1);
+            var cutoffDate = DateTime.UtcNow.Date.AddDays(-1);
+
+            var parameters = new
+            {
+                timesheetId,
+                organizationId,
+                actionedBy,
+                startDate = startDate.Date,
+                endDate = endDate.Date,
+                cutoffDate
+            };
+
+            const string step1 = @"
+            INSERT INTO attendance.finalized_timesheet_records
+                (record_id, timesheet_id, employee_id, organization_id,
+                 attendance_id, work_date, final_checkin, final_checkout,
+                 final_total_hours, final_overtime_hours, final_late_hours, final_status,
+                 approved_by, approved_at, record_status)
+            SELECT
+                gen_random_uuid(),
+                @timesheetId::uuid,
+                a.employeeid,
+                @organizationId::uuid,
+                a.attendanceid,
+                a.workdate,
+                a.checkintime,
+                a.checkouttime,
+                COALESCE(a.totalhours, 0),
+                COALESCE(a.overtimehours, 0),
+                CASE
+                    WHEN a.checkintime IS NULL THEN 0
+                    WHEN LOWER(COALESCE(a.status, 'absent')) IN ('absent', 'leave', 'holiday', 'weekend') THEN 0
+                    WHEN s.starttime IS NULL THEN 0
+                    WHEN GREATEST(
+                        EXTRACT(EPOCH FROM ((a.checkintime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 60,
+                        0
+                    ) > COALESCE(
+                        CASE
+                            WHEN COALESCE(s.applymarginhours, FALSE)
+                            THEN COALESCE(s.marginhours, 0) * 60
+                            ELSE NULL
+                        END,
+                        COALESCE(lar.graceminutes, 0)
+                    )
+                    THEN ROUND(
+                        GREATEST(
+                            EXTRACT(EPOCH FROM ((a.checkintime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 3600.0,
+                            0
+                        ),
+                        2
+                    )
+                    ELSE 0
+                END,
+                COALESCE(a.status, 'absent'),
+                @actionedBy::uuid,
+                NOW(),
+                CASE WHEN ftr_ex.record_status = 'overridden' THEN 'overridden' ELSE 'finalized' END
+            FROM attendance.attendance a
+            JOIN employee.employees e
+                ON e.employeeid = a.employeeid
+               AND e.organizationid = @organizationId::uuid
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = a.employeeid
+                  AND ed.effectivedate <= a.workdate
+                  AND (ed.enddate IS NULL OR ed.enddate >= a.workdate)
+                ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) eff_ed ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = a.employeeid
+                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) curr_ed ON TRUE
+            LEFT JOIN attendance.shifts s
+                ON s.shiftid = COALESCE(eff_ed.shiftid, curr_ed.shiftid)
+            LEFT JOIN payroll.lateattendancerules lar
+                ON lar.organizationid = @organizationId::uuid
+               AND lar.isactive = true
+               AND lar.isdeleted = false
+            LEFT JOIN attendance.finalized_timesheet_records ftr_ex
+                ON ftr_ex.attendance_id = a.attendanceid
+            WHERE a.workdate >= @startDate::date
+              AND a.workdate <= @endDate::date
+            ON CONFLICT (attendance_id) WHERE attendance_id IS NOT NULL
+            DO UPDATE SET
+                timesheet_id = EXCLUDED.timesheet_id,
+                final_checkin = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_checkin
+                    ELSE EXCLUDED.final_checkin
+                END,
+                final_checkout = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_checkout
+                    ELSE EXCLUDED.final_checkout
+                END,
+                final_total_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_total_hours
+                    ELSE EXCLUDED.final_total_hours
+                END,
+                final_overtime_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_overtime_hours
+                    ELSE EXCLUDED.final_overtime_hours
+                END,
+                final_late_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_late_hours
+                    ELSE EXCLUDED.final_late_hours
+                END,
+                final_status = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_status
+                    ELSE EXCLUDED.final_status
+                END,
+                approved_by = EXCLUDED.approved_by,
+                approved_at = NOW(),
+                record_status = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden' THEN 'overridden'
+                    ELSE 'finalized'
+                END;";
+
+            const string step2 = @"
+            INSERT INTO attendance.finalized_timesheet_records
+                (record_id, timesheet_id, employee_id, organization_id,
+                 attendance_id, work_date, final_checkin, final_checkout,
+                 final_total_hours, final_overtime_hours, final_late_hours, final_status,
+                 approved_by, approved_at, record_status)
+            SELECT DISTINCT ON (r.employee_id, r.workdate)
+                gen_random_uuid(),
+                @timesheetId::uuid,
+                r.employee_id,
+                @organizationId::uuid,
+                NULL::uuid,
+                r.workdate,
+                r.requested_checkin,
+                r.requested_checkout,
+                CASE
+                    WHEN LOWER(COALESCE(r.requested_status, 'absent')) = 'absent' THEN 0
+                    WHEN r.requested_checkin IS NOT NULL AND r.requested_checkout IS NOT NULL
+                    THEN ROUND(EXTRACT(EPOCH FROM (r.requested_checkout - r.requested_checkin)) / 3600.0, 2)
+                    ELSE 0
+                END,
+                0,
+                CASE
+                    WHEN r.requested_checkin IS NULL THEN 0
+                    WHEN LOWER(COALESCE(r.requested_status, 'absent')) IN ('absent', 'leave', 'holiday', 'weekend') THEN 0
+                    WHEN s.starttime IS NULL THEN 0
+                    WHEN GREATEST(
+                        EXTRACT(EPOCH FROM ((r.requested_checkin AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 60,
+                        0
+                    ) > COALESCE(
+                        CASE
+                            WHEN COALESCE(s.applymarginhours, FALSE)
+                            THEN COALESCE(s.marginhours, 0) * 60
+                            ELSE NULL
+                        END,
+                        COALESCE(lar.graceminutes, 0)
+                    )
+                    THEN ROUND(
+                        GREATEST(
+                            EXTRACT(EPOCH FROM ((r.requested_checkin AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 3600.0,
+                            0
+                        ),
+                        2
+                    )
+                    ELSE 0
+                END,
+                COALESCE(r.requested_status, 'absent'),
+                @actionedBy::uuid,
+                NOW(),
+                CASE WHEN ftr_ex.record_status = 'overridden' THEN 'overridden' ELSE 'finalized' END
+            FROM attendance.attendance_update_requests r
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = r.employee_id
+                  AND ed.effectivedate <= r.workdate
+                  AND (ed.enddate IS NULL OR ed.enddate >= r.workdate)
+                ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) eff_ed ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = r.employee_id
+                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) curr_ed ON TRUE
+            LEFT JOIN attendance.shifts s
+                ON s.shiftid = COALESCE(eff_ed.shiftid, curr_ed.shiftid)
+            LEFT JOIN payroll.lateattendancerules lar
+                ON lar.organizationid = @organizationId::uuid
+               AND lar.isactive = true
+               AND lar.isdeleted = false
+            LEFT JOIN attendance.finalized_timesheet_records ftr_ex
+                ON ftr_ex.employee_id = r.employee_id
+               AND ftr_ex.work_date = r.workdate
+               AND ftr_ex.attendance_id IS NULL
+            WHERE r.organization_id = @organizationId::uuid
+              AND r.status = 'approved'
+              AND r.attendance_id IS NULL
+              AND r.workdate >= @startDate::date
+              AND r.workdate <= @endDate::date
+            ORDER BY r.employee_id, r.workdate, r.submitted_at DESC
+            ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
+            DO UPDATE SET
+                timesheet_id = EXCLUDED.timesheet_id,
+                final_checkin = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_checkin
+                    ELSE EXCLUDED.final_checkin
+                END,
+                final_checkout = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_checkout
+                    ELSE EXCLUDED.final_checkout
+                END,
+                final_total_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_total_hours
+                    ELSE EXCLUDED.final_total_hours
+                END,
+                final_overtime_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_overtime_hours
+                    ELSE EXCLUDED.final_overtime_hours
+                END,
+                final_late_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_late_hours
+                    ELSE EXCLUDED.final_late_hours
+                END,
+                final_status = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_status
+                    ELSE EXCLUDED.final_status
+                END,
+                approved_by = EXCLUDED.approved_by,
+                approved_at = NOW(),
+                record_status = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden' THEN 'overridden'
+                    ELSE 'finalized'
+                END;";
+
+            const string step3 = @"
+            INSERT INTO attendance.finalized_timesheet_records
+                (record_id, timesheet_id, employee_id, organization_id,
+                 attendance_id, work_date, final_total_hours, final_overtime_hours, final_late_hours,
+                 final_status, approved_by, approved_at, record_status)
+            SELECT
+                gen_random_uuid(),
+                @timesheetId::uuid,
+                e.employeeid,
+                @organizationId::uuid,
+                NULL::uuid,
+                gs.work_day::date,
+                0,
+                0,
+                0,
+                'absent',
+                @actionedBy::uuid,
+                NOW(),
+                'finalized'
+            FROM employee.employees e
+            CROSS JOIN generate_series(
+                @startDate::date,
+                LEAST(@endDate::date, @cutoffDate::date),
+                '1 day'::interval
+            ) AS gs(work_day)
+                        LEFT JOIN LATERAL (
+                                SELECT ed.shiftid
+                                FROM employee.employmentdetails ed
+                                WHERE ed.employeeid = e.employeeid
+                                    AND ed.effectivedate <= gs.work_day::date
+                                    AND (ed.enddate IS NULL OR ed.enddate >= gs.work_day::date)
+                                ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                                LIMIT 1
+                        ) eff_ed ON TRUE
+                        LEFT JOIN LATERAL (
+                                SELECT ed.shiftid
+                                FROM employee.employmentdetails ed
+                                WHERE ed.employeeid = e.employeeid
+                                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                                LIMIT 1
+                        ) curr_ed ON TRUE
+                        LEFT JOIN attendance.shifts s
+                                ON s.shiftid = COALESCE(eff_ed.shiftid, curr_ed.shiftid)
+            WHERE e.organizationid = @organizationId::uuid
+              AND e.status != 'deleted'
+                            AND COALESCE(s.daysofweek, ARRAY[1,2,3,4,5]) @> ARRAY[EXTRACT(DOW FROM gs.work_day)::int]
+              AND NOT EXISTS (
+                  SELECT 1 FROM attendance.attendance a
+                  WHERE a.employeeid = e.employeeid
+                    AND a.workdate = gs.work_day::date
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM attendance.attendance_update_requests r
+                  WHERE r.employee_id = e.employeeid
+                    AND r.workdate = gs.work_day::date
+                    AND r.status = 'approved'
+                    AND r.attendance_id IS NULL
+              )
+            ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
+            DO NOTHING;";
+
+            const string step4 = @"
+            UPDATE attendance.monthly_timesheets
+            SET status = 'Finalized'
+            WHERE timesheet_id = @timesheetId::uuid;";
+
+            var c1 = await connection.ExecuteAsync(step1, parameters, transaction);
+            var c2 = await connection.ExecuteAsync(step2, parameters, transaction);
+            var c3 = await connection.ExecuteAsync(step3, parameters, transaction);
+            await connection.ExecuteAsync(step4, new { timesheetId }, transaction);
+
+            transaction.Commit();
+            return c1 + c2 + c3;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
     public async Task<int> BatchFinalizeForEmployeeAsync(Guid employeeId, Guid timesheetId)
     {
@@ -256,7 +579,9 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             const string step1 = @"
             INSERT INTO attendance.finalized_timesheet_records
                 (record_id, timesheet_id, employee_id, organization_id,
-                 attendance_id, work_date, record_status, approved_at)
+                 attendance_id, work_date, final_checkin, final_checkout,
+                 final_total_hours, final_overtime_hours, final_late_hours, final_status,
+                 record_status, approved_at)
             SELECT DISTINCT ON (a.workdate)
                 gen_random_uuid(),
                 @timesheetId::uuid,
@@ -264,9 +589,60 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 @orgId::uuid,
                 a.attendanceid,
                 a.workdate,
+                a.checkintime,
+                a.checkouttime,
+                COALESCE(a.totalhours, 0),
+                COALESCE(a.overtimehours, 0),
+                CASE
+                    WHEN a.checkintime IS NULL THEN 0
+                    WHEN LOWER(COALESCE(a.status, 'absent')) IN ('absent', 'leave', 'holiday', 'weekend') THEN 0
+                    WHEN s.starttime IS NULL THEN 0
+                    WHEN GREATEST(
+                        EXTRACT(EPOCH FROM ((a.checkintime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 60,
+                        0
+                    ) > COALESCE(
+                        CASE
+                            WHEN COALESCE(s.applymarginhours, FALSE)
+                            THEN COALESCE(s.marginhours, 0) * 60
+                            ELSE NULL
+                        END,
+                        COALESCE(lar.graceminutes, 0)
+                    )
+                    THEN ROUND(
+                        GREATEST(
+                            EXTRACT(EPOCH FROM ((a.checkintime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 3600.0,
+                            0
+                        ),
+                        2
+                    )
+                    ELSE 0
+                END,
+                COALESCE(a.status, 'absent'),
                 CASE WHEN ftr.record_status = 'overridden' THEN 'overridden' ELSE 'finalized' END,
                 NOW()
             FROM attendance.attendance a
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = a.employeeid
+                  AND ed.effectivedate <= a.workdate
+                  AND (ed.enddate IS NULL OR ed.enddate >= a.workdate)
+                ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) eff_ed ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = a.employeeid
+                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) curr_ed ON TRUE
+            LEFT JOIN attendance.shifts s
+                ON s.shiftid = COALESCE(eff_ed.shiftid, curr_ed.shiftid)
+            LEFT JOIN payroll.lateattendancerules lar
+                ON lar.organizationid = @orgId::uuid
+               AND lar.isactive = true
+               AND lar.isdeleted = false
             LEFT JOIN attendance.finalized_timesheet_records ftr
                 ON ftr.attendance_id = a.attendanceid
             WHERE a.employeeid = @employeeId::uuid
@@ -275,6 +651,37 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             ORDER BY a.workdate, a.attendanceid
             ON CONFLICT (attendance_id) WHERE attendance_id IS NOT NULL
             DO UPDATE SET
+                timesheet_id = EXCLUDED.timesheet_id,
+                final_checkin = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_checkin
+                    ELSE EXCLUDED.final_checkin
+                END,
+                final_checkout = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_checkout
+                    ELSE EXCLUDED.final_checkout
+                END,
+                final_total_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_total_hours
+                    ELSE EXCLUDED.final_total_hours
+                END,
+                final_overtime_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_overtime_hours
+                    ELSE EXCLUDED.final_overtime_hours
+                END,
+                final_late_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_late_hours
+                    ELSE EXCLUDED.final_late_hours
+                END,
+                final_status = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_status
+                    ELSE EXCLUDED.final_status
+                END,
                 record_status = CASE
                     WHEN attendance.finalized_timesheet_records.record_status = 'overridden' THEN 'overridden'
                     ELSE 'finalized'
@@ -285,7 +692,9 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             const string step2 = @"
             INSERT INTO attendance.finalized_timesheet_records
                 (record_id, timesheet_id, employee_id, organization_id,
-                 attendance_id, work_date, record_status, approved_at)
+                 attendance_id, work_date, final_checkin, final_checkout,
+                 final_total_hours, final_overtime_hours, final_late_hours, final_status,
+                 record_status, approved_at)
             SELECT DISTINCT ON (r.workdate)
                 gen_random_uuid(),
                 @timesheetId::uuid,
@@ -293,9 +702,65 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 @orgId::uuid,
                 NULL::uuid,
                 r.workdate,
+                r.requested_checkin,
+                r.requested_checkout,
+                CASE
+                    WHEN LOWER(COALESCE(r.requested_status, 'absent')) = 'absent' THEN 0
+                    WHEN r.requested_checkin IS NOT NULL AND r.requested_checkout IS NOT NULL
+                    THEN ROUND(EXTRACT(EPOCH FROM (r.requested_checkout - r.requested_checkin)) / 3600.0, 2)
+                    ELSE 0
+                END,
+                0,
+                CASE
+                    WHEN r.requested_checkin IS NULL THEN 0
+                    WHEN LOWER(COALESCE(r.requested_status, 'absent')) IN ('absent', 'leave', 'holiday', 'weekend') THEN 0
+                    WHEN s.starttime IS NULL THEN 0
+                    WHEN GREATEST(
+                        EXTRACT(EPOCH FROM ((r.requested_checkin AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 60,
+                        0
+                    ) > COALESCE(
+                        CASE
+                            WHEN COALESCE(s.applymarginhours, FALSE)
+                            THEN COALESCE(s.marginhours, 0) * 60
+                            ELSE NULL
+                        END,
+                        COALESCE(lar.graceminutes, 0)
+                    )
+                    THEN ROUND(
+                        GREATEST(
+                            EXTRACT(EPOCH FROM ((r.requested_checkin AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 3600.0,
+                            0
+                        ),
+                        2
+                    )
+                    ELSE 0
+                END,
+                COALESCE(r.requested_status, 'absent'),
                 'finalized',
                 NOW()
             FROM attendance.attendance_update_requests r
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = r.employee_id
+                  AND ed.effectivedate <= r.workdate
+                  AND (ed.enddate IS NULL OR ed.enddate >= r.workdate)
+                ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) eff_ed ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = r.employee_id
+                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) curr_ed ON TRUE
+            LEFT JOIN attendance.shifts s
+                ON s.shiftid = COALESCE(eff_ed.shiftid, curr_ed.shiftid)
+            LEFT JOIN payroll.lateattendancerules lar
+                ON lar.organizationid = @orgId::uuid
+               AND lar.isactive = true
+               AND lar.isdeleted = false
             WHERE r.employee_id  = @employeeId::uuid
               AND r.status        = 'approved'
               AND r.attendance_id IS NULL
@@ -306,7 +771,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                                     FROM attendance.company_holidays ch
                                     LEFT JOIN employee.employmentdetails ed
                                         ON ed.employeeid = @employeeId::uuid
-                                     AND ed.iscurrent = true
+                                     AND ed.effectivedate <= r.workdate::date
+                                     AND (ed.enddate IS NULL OR ed.enddate >= r.workdate::date)
                                     LEFT JOIN attendance.holiday_employee_assignments hea
                                         ON hea.holiday_id = ch.holidayid
                                      AND hea.employee_id = @employeeId::uuid
@@ -322,13 +788,50 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                             )
             ORDER BY r.workdate, r.submitted_at DESC
             ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
-            DO UPDATE SET record_status = 'finalized', approved_at = NOW();";
+            DO UPDATE SET
+                timesheet_id = EXCLUDED.timesheet_id,
+                final_checkin = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_checkin
+                    ELSE EXCLUDED.final_checkin
+                END,
+                final_checkout = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_checkout
+                    ELSE EXCLUDED.final_checkout
+                END,
+                final_total_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_total_hours
+                    ELSE EXCLUDED.final_total_hours
+                END,
+                final_overtime_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_overtime_hours
+                    ELSE EXCLUDED.final_overtime_hours
+                END,
+                final_late_hours = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_late_hours
+                    ELSE EXCLUDED.final_late_hours
+                END,
+                final_status = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden'
+                    THEN attendance.finalized_timesheet_records.final_status
+                    ELSE EXCLUDED.final_status
+                END,
+                record_status = CASE
+                    WHEN attendance.finalized_timesheet_records.record_status = 'overridden' THEN 'overridden'
+                    ELSE 'finalized'
+                END,
+                approved_at = NOW();";
 
             // Step 3: Finalize truly absent days (no attendance row, no request at all, elapsed weekday)
             const string step3 = @"
             INSERT INTO attendance.finalized_timesheet_records
                 (record_id, timesheet_id, employee_id, organization_id,
-                 attendance_id, work_date, record_status, approved_at)
+                 attendance_id, work_date, final_total_hours, final_overtime_hours, final_late_hours,
+                 final_status, record_status, approved_at)
             SELECT
                 gen_random_uuid(),
                 @timesheetId::uuid,
@@ -336,6 +839,10 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 @orgId::uuid,
                 NULL::uuid,
                 gs.d::date,
+                0,
+                0,
+                0,
+                'absent',
                 'finalized',
                 NOW()
             FROM generate_series(
@@ -343,13 +850,32 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 LEAST(@endDate::date, CURRENT_DATE - 1),
                 '1 day'::interval
             ) AS gs(d)
-            WHERE EXTRACT(DOW FROM gs.d) NOT IN (0, 6)
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = @employeeId::uuid
+                  AND ed.effectivedate <= gs.d::date
+                  AND (ed.enddate IS NULL OR ed.enddate >= gs.d::date)
+                ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) eff_ed ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = @employeeId::uuid
+                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) curr_ed ON TRUE
+            LEFT JOIN attendance.shifts s
+                ON s.shiftid = COALESCE(eff_ed.shiftid, curr_ed.shiftid)
+            WHERE COALESCE(s.daysofweek, ARRAY[1,2,3,4,5]) @> ARRAY[EXTRACT(DOW FROM gs.d)::int]
                             AND NOT EXISTS (
                                     SELECT 1
                                     FROM attendance.company_holidays ch
                                     LEFT JOIN employee.employmentdetails ed
                                         ON ed.employeeid = @employeeId::uuid
-                                     AND ed.iscurrent = true
+                                     AND ed.effectivedate <= gs.d::date
+                                     AND (ed.enddate IS NULL OR ed.enddate >= gs.d::date)
                                     LEFT JOIN attendance.holiday_employee_assignments hea
                                         ON hea.holiday_id = ch.holidayid
                                      AND hea.employee_id = @employeeId::uuid
@@ -371,19 +897,13 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
             DO NOTHING;";
 
-            // Step 4: Mark timesheet as Finalized
-            const string step4 = @"
-            UPDATE attendance.monthly_timesheets
-            SET status = 'Finalized'
-            WHERE timesheet_id = @timesheetId::uuid;";
+            var c1 = await connection.ExecuteAsync(step1, parameters, transaction);
+            var c2 = await connection.ExecuteAsync(step2, parameters, transaction);
+            var c3 = await connection.ExecuteAsync(step3, parameters, transaction);
 
-            await connection.ExecuteAsync(step1, parameters, transaction);
-            await connection.ExecuteAsync(step2, parameters, transaction);
-            await connection.ExecuteAsync(step3, parameters, transaction);
-            await connection.ExecuteAsync(step4, new { timesheetId = timesheetId.ToString() }, transaction);
-
+            // Employee-scoped finalization should not mark the whole monthly timesheet as finalized.
             transaction.Commit();
-            return 1;
+            return c1 + c2 + c3;
         }
         catch
         {
@@ -397,10 +917,40 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         SELECT 
             f.record_id AS RecordId, f.timesheet_id AS TimesheetId, f.employee_id AS EmployeeId, 
             f.work_date AS WorkDate, f.final_checkin AS FinalCheckIn, f.final_checkout AS FinalCheckOut, 
-            f.final_total_hours AS FinalTotalHours, f.final_status AS FinalStatus,
-            e.firstname || ' ' || e.lastname AS EmployeeName
+            f.final_total_hours AS FinalTotalHours, f.final_overtime_hours AS FinalOvertimeHours,
+            f.final_late_hours AS FinalLateHours,
+            f.final_status AS FinalStatus,
+            e.firstname || ' ' || e.lastname AS EmployeeName,
+            COALESCE(rejected_req.has_rejected_request, FALSE) AS HasRejectedRequest,
+            rejected_req.rejection_reason AS RejectionReason,
+            latest_req.status AS LastRequestStatus
         FROM attendance.finalized_timesheet_records f
         JOIN employee.employees e ON f.employee_id = e.employeeid
+        LEFT JOIN LATERAL (
+            SELECT
+                TRUE AS has_rejected_request,
+                r.rejection_reason
+            FROM attendance.attendance_update_requests r
+            WHERE r.employee_id = f.employee_id
+              AND r.workdate = f.work_date
+              AND r.status = 'rejected'
+            ORDER BY COALESCE(r.actioned_at, r.submitted_at) DESC,
+                     r.submitted_at DESC,
+                     r.request_id DESC
+            LIMIT 1
+        ) rejected_req ON TRUE
+        LEFT JOIN LATERAL (
+            SELECT
+                r.status,
+                r.rejection_reason
+            FROM attendance.attendance_update_requests r
+            WHERE r.employee_id = f.employee_id
+              AND r.workdate = f.work_date
+            ORDER BY COALESCE(r.actioned_at, r.submitted_at) DESC,
+                     r.submitted_at DESC,
+                     r.request_id DESC
+            LIMIT 1
+        ) latest_req ON TRUE
         WHERE f.timesheet_id = @timesheetId
         AND (@employeeId IS NULL OR f.employee_id = @employeeId)
         ORDER BY f.work_date DESC, EmployeeName ASC";
@@ -473,22 +1023,244 @@ SELECT
     ed.departmentname,
     v.attendanceid          AS AttendanceId,
     ed.workdate,
-    v.checkintime,
-    v.checkouttime,
-    v.status,
-    COALESCE(v.totalhours, 0)           AS totalhours,
+    COALESCE(s.daysofweek, ARRAY[1,2,3,4,5]) @> ARRAY[EXTRACT(DOW FROM ed.workdate)::int] AS ""IsShiftWorkingDay"",
+    COALESCE(
+        final_pick.final_checkin,
+        CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_checkin END,
+        v.checkintime
+    ) AS checkintime,
+    COALESCE(
+        final_pick.final_checkout,
+        CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_checkout END,
+        v.checkouttime
+    ) AS checkouttime,
+    COALESCE(
+        final_pick.final_status,
+        CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_status END,
+        v.status
+    ) AS status,
+    COALESCE(
+        final_pick.final_total_hours,
+        CASE
+            WHEN latest_req.status = 'approved' THEN
+                CASE
+                                        WHEN COALESCE(final_pick.final_checkin, latest_req.requested_checkin, v.checkintime) IS NULL
+                                            OR COALESCE(final_pick.final_checkout, latest_req.requested_checkout, v.checkouttime) IS NULL THEN COALESCE(v.totalhours, 0)
+                                        WHEN LOWER(COALESCE(final_pick.final_status, latest_req.requested_status, v.status, '')) IN ('absent', 'leave', 'holiday', 'weekend', 'no_record') THEN 0
+                    ELSE ROUND(
+                        GREATEST(
+                            EXTRACT(EPOCH FROM (
+                                                                COALESCE(final_pick.final_checkout, latest_req.requested_checkout, v.checkouttime)
+                                                                - COALESCE(final_pick.final_checkin, latest_req.requested_checkin, v.checkintime)
+                            )) / 3600.0,
+                            0
+                        )::numeric,
+                        2
+                    )
+                END
+            ELSE v.totalhours
+        END,
+        v.totalhours,
+        0
+    ) AS totalhours,
+    COALESCE(
+        final_pick.final_overtime_hours,
+        CASE
+            WHEN latest_req.status = 'approved' THEN
+                CASE
+                    WHEN COALESCE(final_pick.final_checkin, latest_req.requested_checkin, v.checkintime) IS NULL
+                      OR COALESCE(final_pick.final_checkout, latest_req.requested_checkout, v.checkouttime) IS NULL THEN 0
+                    WHEN LOWER(COALESCE(final_pick.final_status, latest_req.requested_status, v.status, '')) IN ('absent', 'leave', 'holiday', 'weekend', 'no_record') THEN 0
+                    ELSE ROUND(
+                        (
+                            CASE
+                                WHEN COALESCE(s.maxovertimeinminutes, 0) > 0 THEN LEAST(
+                                    GREATEST(
+                                        EXTRACT(EPOCH FROM (((COALESCE(final_pick.final_checkout, latest_req.requested_checkout, v.checkouttime) AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - COALESCE(s.overtimestarttime, s.endtime)))) / 60,
+                                        0
+                                    ),
+                                    COALESCE(s.maxovertimeinminutes, 0)
+                                )
+                                ELSE GREATEST(
+                                    EXTRACT(EPOCH FROM (((COALESCE(final_pick.final_checkout, latest_req.requested_checkout, v.checkouttime) AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - COALESCE(s.overtimestarttime, s.endtime)))) / 60,
+                                    0
+                                )
+                            END
+                        ) / 60.0,
+                        2
+                    )
+                END
+            ELSE a.overtimehours
+        END,
+        a.overtimehours,
+        0
+    ) AS OvertimeHours,
+    COALESCE(
+        CASE
+            WHEN final_pick.final_late_hours IS NULL THEN NULL
+            WHEN final_pick.final_late_hours > 0 THEN final_pick.final_late_hours
+            WHEN LOWER(COALESCE(final_pick.final_status, '')) = 'late'
+                 AND COALESCE(
+                    final_pick.final_checkin,
+                    CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_checkin END,
+                    v.checkintime
+                 ) IS NOT NULL
+                 AND s.starttime IS NOT NULL
+            THEN ROUND(
+                GREATEST(
+                    EXTRACT(EPOCH FROM (((COALESCE(
+                        final_pick.final_checkin,
+                        CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_checkin END,
+                        v.checkintime
+                    ) AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime))) / 3600.0,
+                    0
+                )::numeric,
+                2
+            )
+            ELSE final_pick.final_late_hours
+        END,
+        CASE
+            WHEN COALESCE(
+                final_pick.final_checkin,
+                CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_checkin END,
+                v.checkintime
+            ) IS NULL THEN 0
+            WHEN LOWER(COALESCE(
+                final_pick.final_status,
+                CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_status END,
+                v.status,
+                ''
+            )) IN ('absent', 'leave', 'holiday', 'weekend', 'no_record') THEN 0
+            WHEN s.starttime IS NULL THEN 0
+            WHEN GREATEST(
+                EXTRACT(EPOCH FROM (((COALESCE(
+                    final_pick.final_checkin,
+                    CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_checkin END,
+                    v.checkintime
+                ) AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime))) / 60.0,
+                0
+            ) > COALESCE(
+                CASE
+                    WHEN COALESCE(s.applymarginhours, FALSE)
+                    THEN COALESCE(s.marginhours, 0) * 60
+                    ELSE NULL
+                END,
+                COALESCE(lar.graceminutes, 0)
+            )
+            OR LOWER(COALESCE(
+                final_pick.final_status,
+                CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_status END,
+                v.status,
+                ''
+            )) = 'late'
+            THEN ROUND(
+                GREATEST(
+                    EXTRACT(EPOCH FROM (((COALESCE(
+                        final_pick.final_checkin,
+                        CASE WHEN latest_req.status = 'approved' THEN latest_req.requested_checkin END,
+                        v.checkintime
+                    ) AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime))) / 3600.0,
+                    0
+                )::numeric,
+                2
+            )
+            ELSE 0
+        END,
+        0
+    ) AS LateHours,
     COALESCE(v.is_finalized,   FALSE)   AS ""IsFinalized"",
-    COALESCE(v.is_manager_override, FALSE) AS ""IsManagerOverride"",
-    COALESCE(v.has_pending_request, FALSE) AS ""HasPendingRequest"",
-    COALESCE(v.has_draft_request,   FALSE) AS ""HasDraftRequest"",
-    COALESCE(v.has_approved_request,FALSE) AS ""HasApprovedRequest"",
-    v.requested_checkin  AS ""RequestedCheckIn"",
-    v.requested_checkout AS ""RequestedCheckOut"",
-    v.requested_status   AS ""RequestedStatus""
+    (COALESCE(v.is_manager_override, FALSE) OR COALESCE(final_pick.record_status = 'overridden', FALSE)) AS ""IsManagerOverride"",
+    CASE WHEN latest_req.status = 'pending'  THEN TRUE ELSE COALESCE(v.has_pending_request, FALSE) END AS ""HasPendingRequest"",
+    CASE WHEN latest_req.status = 'draft'    THEN TRUE ELSE COALESCE(v.has_draft_request, FALSE) END AS ""HasDraftRequest"",
+    CASE WHEN latest_req.status = 'approved' THEN TRUE ELSE COALESCE(v.has_approved_request,FALSE) END AS ""HasApprovedRequest"",
+    COALESCE(rejected_req.has_rejected_request, FALSE) AS ""HasRejectedRequest"",
+    COALESCE(v.requested_checkin,  latest_req.requested_checkin)  AS ""RequestedCheckIn"",
+    COALESCE(v.requested_checkout, latest_req.requested_checkout) AS ""RequestedCheckOut"",
+    COALESCE(v.requested_status,   latest_req.requested_status)   AS ""RequestedStatus"",
+    latest_req.requested_notes  AS ""RequestedNotes"",
+    rejected_req.rejection_reason AS ""RejectionReason"",
+    latest_req.status           AS ""RequestStatus""
 FROM emp_dates ed
 LEFT JOIN attendance.vw_employee_timesheet_details v
        ON v.employeeid = ed.employeeid
       AND v.workdate   = ed.workdate
+LEFT JOIN attendance.attendance a
+             ON a.employeeid = ed.employeeid
+            AND a.workdate = ed.workdate
+LEFT JOIN LATERAL (
+    SELECT emp_ed.shiftid
+    FROM employee.employmentdetails emp_ed
+    WHERE emp_ed.employeeid = ed.employeeid
+      AND emp_ed.effectivedate <= ed.workdate
+      AND (emp_ed.enddate IS NULL OR emp_ed.enddate >= ed.workdate)
+    ORDER BY emp_ed.effectivedate DESC, emp_ed.createdat DESC, emp_ed.detailid DESC
+    LIMIT 1
+) effective_ed ON TRUE
+LEFT JOIN LATERAL (
+    SELECT emp_ed.shiftid
+    FROM employee.employmentdetails emp_ed
+    WHERE emp_ed.employeeid = ed.employeeid
+    ORDER BY emp_ed.iscurrent DESC, emp_ed.effectivedate DESC, emp_ed.createdat DESC, emp_ed.detailid DESC
+    LIMIT 1
+) current_ed ON TRUE
+LEFT JOIN attendance.shifts s
+         ON s.shiftid = COALESCE(effective_ed.shiftid, current_ed.shiftid)
+LEFT JOIN LATERAL (
+        SELECT r.graceminutes
+        FROM payroll.lateattendancerules r
+        WHERE r.organizationid = @orgStr::UUID
+            AND r.isactive = TRUE
+            AND r.isdeleted = FALSE
+        ORDER BY r.updatedat DESC NULLS LAST, r.createdat DESC NULLS LAST
+        LIMIT 1
+) lar ON TRUE
+LEFT JOIN LATERAL (
+        SELECT
+        f.final_checkin,
+        f.final_checkout,
+        f.final_total_hours,
+                f.final_overtime_hours,
+        f.final_late_hours,
+        f.final_status,
+        f.record_status
+        FROM attendance.finalized_timesheet_records f
+        WHERE f.employee_id = ed.employeeid
+            AND f.work_date = ed.workdate
+            AND f.record_status IN ('finalized', 'overridden')
+        ORDER BY CASE WHEN f.record_status = 'overridden' THEN 0 ELSE 1 END,
+                         f.approved_at DESC,
+                         f.record_id DESC
+        LIMIT 1
+) final_pick ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT
+                    TRUE AS has_rejected_request,
+                    rr.rejection_reason
+                FROM attendance.attendance_update_requests rr
+                WHERE rr.employee_id = ed.employeeid
+                  AND rr.workdate = ed.workdate
+                  AND rr.status = 'rejected'
+                ORDER BY COALESCE(rr.actioned_at, rr.submitted_at) DESC,
+                     rr.submitted_at DESC,
+                     rr.request_id DESC
+                LIMIT 1
+            ) rejected_req ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT
+                    rr.status,
+                    rr.requested_checkin,
+                    rr.requested_checkout,
+                    rr.requested_status,
+                    rr.requested_notes,
+                    rr.rejection_reason
+                FROM attendance.attendance_update_requests rr
+                WHERE rr.employee_id = ed.employeeid
+                  AND rr.workdate = ed.workdate
+                ORDER BY COALESCE(rr.actioned_at, rr.submitted_at) DESC,
+                     rr.submitted_at DESC,
+                     rr.request_id DESC
+                LIMIT 1
+            ) latest_req ON TRUE
 ORDER BY ed.employeename, ed.workdate ASC";
 
             var result = await QueryAsync<AttendanceDto>(sql, new
@@ -571,7 +1343,25 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 ),
                 '1 day'::interval
             ) AS gs(d)
-            WHERE EXTRACT(DOW FROM gs.d) NOT IN (0, 6)
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = @employeeId
+                  AND ed.effectivedate <= gs.d::date
+                  AND (ed.enddate IS NULL OR ed.enddate >= gs.d::date)
+                ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) eff_ed ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = @employeeId
+                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) curr_ed ON TRUE
+            LEFT JOIN attendance.shifts s
+                ON s.shiftid = COALESCE(eff_ed.shiftid, curr_ed.shiftid)
+            WHERE COALESCE(s.daysofweek, ARRAY[1,2,3,4,5]) @> ARRAY[EXTRACT(DOW FROM gs.d)::int]
         ),
         finalized_days AS (
             SELECT COUNT(DISTINCT work_date)::int AS finalized_count
@@ -596,43 +1386,76 @@ ORDER BY ed.employeename, ed.workdate ASC";
         {
             const string sql = @"
         WITH
-        -- All employee-timesheet enrollments for this org + period
         enrollments AS (
-    SELECT
-        mt.timesheet_id AS timesheetid,
-        e.employeeid
-    FROM attendance.monthly_timesheets mt
-    JOIN employee.employees e ON e.organizationid = mt.organization_id
-    WHERE mt.organization_id = @orgId::uuid
-      AND mt.month = @month
-      AND mt.year  = @year
-     ),
-        -- Elapsed working days in the month up to yesterday (Mon–Fri only)
-        elapsed_month_workdays AS (
-    SELECT COUNT(gs.d)::int AS total_elapsed
-    FROM generate_series(
-        make_date(@year, @month, 1),
-        LEAST(
-            (make_date(@year, @month, 1) + INTERVAL '1 month - 1 day')::date,
-            CURRENT_DATE - 1
+            SELECT
+                mt.timesheet_id AS timesheetid,
+                e.employeeid
+            FROM attendance.monthly_timesheets mt
+            JOIN employee.employees e ON e.organizationid = mt.organization_id
+            WHERE mt.organization_id = @orgId::uuid
+              AND mt.month = @month
+              AND mt.year  = @year
         ),
-        '1 day'::interval
-        ) AS gs(d)
-        WHERE EXTRACT(DOW FROM gs.d) NOT IN (0, 6)
+        period_bounds AS (
+            SELECT
+                make_date(@year, @month, 1)::date AS start_date,
+                LEAST(
+                    (make_date(@year, @month, 1) + INTERVAL '1 month - 1 day')::date,
+                    CURRENT_DATE - 1
+                )::date AS end_date
+        ),
+        expected_workdays_per_employee AS (
+            SELECT
+                en.employeeid,
+                COUNT(gs.d)::int AS expected_days
+            FROM (SELECT DISTINCT employeeid FROM enrollments) en
+            CROSS JOIN period_bounds pb
+            CROSS JOIN generate_series(
+                pb.start_date,
+                pb.end_date,
+                '1 day'::interval
+            ) AS gs(d)
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = en.employeeid
+                  AND ed.effectivedate <= gs.d::date
+                  AND (ed.enddate IS NULL OR ed.enddate >= gs.d::date)
+                ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) eff_ed ON TRUE
+            LEFT JOIN LATERAL (
+                SELECT ed.shiftid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = en.employeeid
+                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                LIMIT 1
+            ) curr_ed ON TRUE
+            LEFT JOIN attendance.shifts s
+                ON s.shiftid = COALESCE(eff_ed.shiftid, curr_ed.shiftid)
+            WHERE COALESCE(s.daysofweek, ARRAY[1,2,3,4,5]) @> ARRAY[EXTRACT(DOW FROM gs.d)::int]
+            GROUP BY en.employeeid
+        ),
+        finalized_days AS (
+            SELECT
+                f.employee_id AS employeeid,
+                COUNT(DISTINCT f.work_date)::int AS finalized_days
+            FROM attendance.finalized_timesheet_records f
+            INNER JOIN attendance.monthly_timesheets mt
+                ON mt.timesheet_id = f.timesheet_id
+            WHERE mt.organization_id = @orgId::uuid
+              AND mt.month           = @month
+              AND mt.year            = @year
+              AND f.record_status    IN ('finalized', 'overridden')
+            GROUP BY f.employee_id
         ),
         fully_finalized AS (
-      SELECT f.employee_id AS employeeid
-      FROM attendance.finalized_timesheet_records f
-      INNER JOIN attendance.monthly_timesheets mt
-        ON mt.timesheet_id = f.timesheet_id
-    WHERE mt.organization_id = @orgId::uuid
-      AND mt.month           = @month
-      AND mt.year            = @year
-      AND f.record_status   IN ('finalized', 'overridden')
-    GROUP BY f.employee_id
-    HAVING COUNT(DISTINCT f.work_date) >= (SELECT total_elapsed FROM elapsed_month_workdays)
-),
-        -- Submitted: has at least one PENDING request (not finalized)
+            SELECT ew.employeeid
+            FROM expected_workdays_per_employee ew
+            LEFT JOIN finalized_days fd ON fd.employeeid = ew.employeeid
+            WHERE ew.expected_days > 0
+              AND COALESCE(fd.finalized_days, 0) >= ew.expected_days
+        ),
         pending_employees AS (
             SELECT DISTINCT aur.employee_id AS employeeid
             FROM attendance.attendance_update_requests aur
@@ -642,8 +1465,6 @@ ORDER BY ed.employeename, ed.workdate ASC";
             WHERE aur.status = 'pending'
               AND aur.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
         ),
-
-        -- Draft: has drafts but no pending (not finalized)
         draft_employees AS (
             SELECT DISTINCT aur.employee_id AS employeeid
             FROM attendance.attendance_update_requests aur
@@ -654,8 +1475,6 @@ ORDER BY ed.employeename, ed.workdate ASC";
               AND aur.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
               AND aur.employee_id NOT IN (SELECT employeeid FROM pending_employees)
         ),
-
-        -- Rejected: has rejected requests but no pending (not finalized)
         rejected_employees AS (
             SELECT DISTINCT aur.employee_id AS employeeid
             FROM attendance.attendance_update_requests aur
@@ -666,45 +1485,45 @@ ORDER BY ed.employeename, ed.workdate ASC";
               AND aur.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
               AND aur.employee_id NOT IN (SELECT employeeid FROM pending_employees)
         ),
-       in_progress_employees AS (
-      SELECT DISTINCT f.employee_id AS employeeid
-      FROM attendance.finalized_timesheet_records f
-      INNER JOIN attendance.monthly_timesheets mt
-        ON mt.timesheet_id = f.timesheet_id
-      WHERE mt.organization_id = @orgId::uuid
-      AND mt.month           = @month
-      AND mt.year            = @year
-      AND f.record_status   IN ('finalized', 'overridden')
-      AND f.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
+        in_progress_employees AS (
+            SELECT DISTINCT f.employee_id AS employeeid
+            FROM attendance.finalized_timesheet_records f
+            INNER JOIN attendance.monthly_timesheets mt
+                ON mt.timesheet_id = f.timesheet_id
+            WHERE mt.organization_id = @orgId::uuid
+              AND mt.month           = @month
+              AND mt.year            = @year
+              AND f.record_status    IN ('finalized', 'overridden')
+              AND f.employee_id NOT IN (SELECT employeeid FROM fully_finalized)
         ),
         all_employees AS (
             SELECT DISTINCT employeeid FROM enrollments
         )
-             SELECT
-    COUNT(DISTINCT ae.employeeid)              AS total_employees,
-    COUNT(DISTINCT ff.employeeid)              AS finalized_count,
-    COUNT(DISTINCT pe.employeeid)              AS submitted_count,
-    COUNT(DISTINCT de.employeeid)              AS draft_count,
-    COUNT(DISTINCT re.employeeid)              AS rejected_count,
-    COUNT(DISTINCT ip.employeeid)              AS in_progress_count,
-    COUNT(DISTINCT ae.employeeid)
-        - COUNT(DISTINCT ff.employeeid)
-        - COUNT(DISTINCT pe.employeeid)
-        - COUNT(DISTINCT de.employeeid)
-        - COUNT(DISTINCT re.employeeid)
-        - COUNT(DISTINCT ip.employeeid)        AS untouched_count,
-         CASE WHEN COUNT(DISTINCT ae.employeeid) = 0 THEN 0
-         ELSE ROUND(
-             COUNT(DISTINCT ff.employeeid) * 100.0
-             / COUNT(DISTINCT ae.employeeid)
-             )
-            END     AS finalization_percentage
-               FROM all_employees ae
-                 LEFT JOIN fully_finalized     ff ON ff.employeeid = ae.employeeid
-                 LEFT JOIN pending_employees   pe ON pe.employeeid = ae.employeeid
-                 LEFT JOIN draft_employees     de ON de.employeeid = ae.employeeid
-                 LEFT JOIN rejected_employees  re ON re.employeeid = ae.employeeid
-                 LEFT JOIN in_progress_employees ip ON ip.employeeid = ae.employeeid";
+        SELECT
+            COUNT(DISTINCT ae.employeeid) AS total_employees,
+            COUNT(DISTINCT ff.employeeid) AS finalized_count,
+            COUNT(DISTINCT pe.employeeid) AS submitted_count,
+            COUNT(DISTINCT de.employeeid) AS draft_count,
+            COUNT(DISTINCT re.employeeid) AS rejected_count,
+            COUNT(DISTINCT ip.employeeid) AS in_progress_count,
+            COUNT(DISTINCT ae.employeeid)
+                - COUNT(DISTINCT ff.employeeid)
+                - COUNT(DISTINCT pe.employeeid)
+                - COUNT(DISTINCT de.employeeid)
+                - COUNT(DISTINCT re.employeeid)
+                - COUNT(DISTINCT ip.employeeid) AS untouched_count,
+            CASE WHEN COUNT(DISTINCT ae.employeeid) = 0 THEN 0
+                 ELSE ROUND(
+                     COUNT(DISTINCT ff.employeeid) * 100.0
+                     / COUNT(DISTINCT ae.employeeid)
+                 )
+            END AS finalization_percentage
+        FROM all_employees ae
+        LEFT JOIN fully_finalized ff ON ff.employeeid = ae.employeeid
+        LEFT JOIN pending_employees pe ON pe.employeeid = ae.employeeid
+        LEFT JOIN draft_employees de ON de.employeeid = ae.employeeid
+        LEFT JOIN rejected_employees re ON re.employeeid = ae.employeeid
+        LEFT JOIN in_progress_employees ip ON ip.employeeid = ae.employeeid";
 
             using var conn = CreateConnection();
             var row = await conn.QuerySingleAsync(sql, new
@@ -739,7 +1558,8 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 ComplianceRate = total > 0 ? Math.Round((decimal)finalized * 100m / total, 2) : 0
             };
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             throw ex;
         }
     }
@@ -765,6 +1585,9 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 work_date,
                 final_checkin,
                 final_checkout,
+                final_total_hours,
+                final_overtime_hours,
+                final_late_hours,
                 final_status,
                 approved_by,
                 approved_at,
@@ -780,6 +1603,59 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 @WorkDate,
                 @CheckInTime,
                 @CheckOutTime,
+                CASE
+                    WHEN @CheckInTime IS NOT NULL AND @CheckOutTime IS NOT NULL
+                    THEN ROUND(EXTRACT(EPOCH FROM (@CheckOutTime - @CheckInTime)) / 3600.0, 2)
+                    ELSE 0
+                END,
+                COALESCE((SELECT a.overtimehours FROM attendance.attendance a WHERE a.attendanceid = @AttendanceId), 0),
+                COALESCE((
+                    SELECT CASE
+                        WHEN @CheckInTime IS NULL THEN 0
+                        WHEN LOWER(COALESCE(@Status, 'absent')) IN ('absent', 'leave', 'holiday', 'weekend') THEN 0
+                        WHEN s.starttime IS NULL THEN 0
+                        WHEN GREATEST(
+                            EXTRACT(EPOCH FROM ((@CheckInTime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 60,
+                            0
+                        ) > COALESCE(
+                            CASE
+                                WHEN COALESCE(s.applymarginhours, FALSE)
+                                THEN COALESCE(s.marginhours, 0) * 60
+                                ELSE NULL
+                            END,
+                            COALESCE(lar.graceminutes, 0)
+                        )
+                        THEN ROUND(
+                            GREATEST(
+                                EXTRACT(EPOCH FROM ((@CheckInTime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 3600.0,
+                                0
+                            ),
+                            2
+                        )
+                        ELSE 0
+                    END
+                    FROM employee.employmentdetails ed
+                    LEFT JOIN attendance.shifts s ON s.shiftid = ed.shiftid
+                    LEFT JOIN payroll.lateattendancerules lar
+                        ON lar.organizationid = @OrgId
+                       AND lar.isactive = true
+                       AND lar.isdeleted = false
+                    WHERE ed.employeeid = @EmployeeId
+                                            AND (
+                                                        (ed.effectivedate <= @WorkDate::date AND (ed.enddate IS NULL OR ed.enddate >= @WorkDate::date))
+                                                        OR ed.iscurrent = true
+                                                    )
+                                        ORDER BY
+                                                CASE
+                                                        WHEN ed.effectivedate <= @WorkDate::date
+                                                                 AND (ed.enddate IS NULL OR ed.enddate >= @WorkDate::date) THEN 0
+                                                        ELSE 1
+                                                END,
+                                                ed.effectivedate DESC,
+                                                ed.createdat DESC,
+                                                ed.detailid DESC
+                    LIMIT 1
+                ), 0),
                 @Status,
                 @ManagerId,
                 NOW(),
@@ -791,6 +1667,9 @@ ORDER BY ed.employeename, ed.workdate ASC";
             DO UPDATE SET
                 final_checkin   = EXCLUDED.final_checkin,
                 final_checkout  = EXCLUDED.final_checkout,
+                final_total_hours = EXCLUDED.final_total_hours,
+                final_overtime_hours = EXCLUDED.final_overtime_hours,
+                final_late_hours = EXCLUDED.final_late_hours,
                 final_status    = EXCLUDED.final_status,
                 approved_by     = EXCLUDED.approved_by,
                 approved_at     = NOW(),
@@ -809,6 +1688,9 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 work_date,
                 final_checkin,
                 final_checkout,
+                final_total_hours,
+                final_overtime_hours,
+                final_late_hours,
                 final_status,
                 approved_by,
                 approved_at,
@@ -824,6 +1706,59 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 @WorkDate,
                 @CheckInTime,
                 @CheckOutTime,
+                CASE
+                    WHEN @CheckInTime IS NOT NULL AND @CheckOutTime IS NOT NULL
+                    THEN ROUND(EXTRACT(EPOCH FROM (@CheckOutTime - @CheckInTime)) / 3600.0, 2)
+                    ELSE 0
+                END,
+                0,
+                COALESCE((
+                    SELECT CASE
+                        WHEN @CheckInTime IS NULL THEN 0
+                        WHEN LOWER(COALESCE(@Status, 'absent')) IN ('absent', 'leave', 'holiday', 'weekend') THEN 0
+                        WHEN s.starttime IS NULL THEN 0
+                        WHEN GREATEST(
+                            EXTRACT(EPOCH FROM ((@CheckInTime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 60,
+                            0
+                        ) > COALESCE(
+                            CASE
+                                WHEN COALESCE(s.applymarginhours, FALSE)
+                                THEN COALESCE(s.marginhours, 0) * 60
+                                ELSE NULL
+                            END,
+                            COALESCE(lar.graceminutes, 0)
+                        )
+                        THEN ROUND(
+                            GREATEST(
+                                EXTRACT(EPOCH FROM ((@CheckInTime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 3600.0,
+                                0
+                            ),
+                            2
+                        )
+                        ELSE 0
+                    END
+                    FROM employee.employmentdetails ed
+                    LEFT JOIN attendance.shifts s ON s.shiftid = ed.shiftid
+                    LEFT JOIN payroll.lateattendancerules lar
+                        ON lar.organizationid = @OrgId
+                       AND lar.isactive = true
+                       AND lar.isdeleted = false
+                    WHERE ed.employeeid = @EmployeeId
+                                            AND (
+                                                        (ed.effectivedate <= @WorkDate::date AND (ed.enddate IS NULL OR ed.enddate >= @WorkDate::date))
+                                                        OR ed.iscurrent = true
+                                                    )
+                                        ORDER BY
+                                                CASE
+                                                        WHEN ed.effectivedate <= @WorkDate::date
+                                                                 AND (ed.enddate IS NULL OR ed.enddate >= @WorkDate::date) THEN 0
+                                                        ELSE 1
+                                                END,
+                                                ed.effectivedate DESC,
+                                                ed.createdat DESC,
+                                                ed.detailid DESC
+                    LIMIT 1
+                ), 0),
                 @Status,
                 @ManagerId,
                 NOW(),
@@ -835,6 +1770,9 @@ ORDER BY ed.employeename, ed.workdate ASC";
             DO UPDATE SET
                 final_checkin   = EXCLUDED.final_checkin,
                 final_checkout  = EXCLUDED.final_checkout,
+                final_total_hours = EXCLUDED.final_total_hours,
+                final_overtime_hours = EXCLUDED.final_overtime_hours,
+                final_late_hours = EXCLUDED.final_late_hours,
                 final_status    = EXCLUDED.final_status,
                 approved_by     = EXCLUDED.approved_by,
                 approved_at     = NOW(),
@@ -855,7 +1793,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 dto.CheckInTime,
                 dto.CheckOutTime,
                 dto.Status,
-                Reason = dto.Notes
+                Reason = dto.Reason ?? dto.Notes
             }) > 0;
         }
         catch (Exception ex)
@@ -880,7 +1818,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
             using var connection = CreateConnection();
 
             if (connection == null)
-                throw new Exception("❌ Database connection could not be established.");
+                throw new Exception("âŒ Database connection could not be established.");
 
             return await connection.ExecuteAsync(sql, new { employeeId, timesheetId, month, year });
         }
@@ -913,31 +1851,60 @@ ORDER BY ed.employeename, ed.workdate ASC";
         }
     }
 
-    public async Task<Attendance?> UpdateTodayAttendanceLateStatusAsync(Guid employeeId)
+    public async Task<Attendance?> UpdateTodayAttendanceLateStatusAsync(Guid employeeId, DateTime? date = null)
     {
         try
         {
+            var targetDate = date?.Date ?? DateTime.UtcNow.Date;
             var sql = @"
         UPDATE attendance.attendance a
         SET 
             islate = CASE
                         WHEN a.checkintime IS NULL THEN false
-                        WHEN a.checkintime::time >= s.starttime + INTERVAL '1 hour' THEN true
+                        WHEN LOWER(COALESCE(a.status, 'absent')) IN ('absent', 'leave', 'holiday', 'weekend') THEN false
+                                                WHEN LOWER(COALESCE(a.status, '')) = 'late' THEN true
+                        WHEN GREATEST(
+                            EXTRACT(EPOCH FROM ((a.checkintime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - s.starttime)) / 60,
+                            0
+                        ) > COALESCE(
+                            CASE
+                                WHEN COALESCE(s.applymarginhours, FALSE)
+                                THEN COALESCE(s.marginhours, 0) * 60
+                                ELSE NULL
+                            END,
+                            COALESCE(lar.graceminutes, 0)
+                        ) THEN true
                         ELSE false
                      END,
             updatedat = NOW() AT TIME ZONE 'UTC'
-        FROM employee.employmentdetails e
-        JOIN attendance.shifts s ON e.shiftid = s.shiftid
-        WHERE a.employeeid = e.employeeid
+                FROM employee.employees emp
+                LEFT JOIN LATERAL (
+                        SELECT ed.shiftid
+                        FROM employee.employmentdetails ed
+                        WHERE ed.employeeid = a.employeeid
+                            AND ed.effectivedate <= a.workdate
+                            AND (ed.enddate IS NULL OR ed.enddate >= a.workdate)
+                        ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                        LIMIT 1
+                ) effective_ed ON TRUE
+                LEFT JOIN LATERAL (
+                        SELECT ed.shiftid
+                        FROM employee.employmentdetails ed
+                        WHERE ed.employeeid = a.employeeid
+                        ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                        LIMIT 1
+                ) current_ed ON TRUE
+                LEFT JOIN attendance.shifts s ON s.shiftid = COALESCE(effective_ed.shiftid, current_ed.shiftid)
+                LEFT JOIN payroll.lateattendancerules lar ON lar.organizationid = emp.organizationid AND lar.isactive = true AND lar.isdeleted = false
+                WHERE a.employeeid = emp.employeeid
           AND a.employeeid = @employeeId
-          AND e.iscurrent = true
-          AND a.workdate = (NOW() AT TIME ZONE 'UTC')::date
+          AND a.workdate = @targetDate
         RETURNING a.*;
         ";
 
             return await QuerySingleOrDefaultAsync<Attendance>(
                 sql,
-                new { employeeId }
+                new { employeeId, targetDate }
             );
         }
         catch (Exception ex)
@@ -951,26 +1918,64 @@ ORDER BY ed.employeename, ed.workdate ASC";
         }
     }
 
-    public async Task<Attendance?> UpdateOvertimeHoursAsync(Guid employeeId)
+    public async Task<Attendance?> UpdateOvertimeHoursAsync(Guid employeeId, DateTime? date = null)
     {
         try
         {
+            var targetDate = date?.Date ?? DateTime.UtcNow.Date;
             var sql = @"
-        UPDATE attendance.attendance
+        UPDATE attendance.attendance a
         SET 
             overtimehours = CASE
-                                WHEN totalhours > 8 THEN totalhours - 8
-                                ELSE 0
+                                WHEN a.checkintime IS NULL OR a.checkouttime IS NULL THEN 0
+                                WHEN LOWER(COALESCE(a.status, 'absent')) IN ('absent', 'leave', 'holiday', 'weekend') THEN 0
+                                ELSE ROUND(
+                                    (
+                                        CASE
+                                            WHEN COALESCE(s.maxovertimeinminutes, 0) > 0 THEN LEAST(
+                                                GREATEST(
+                                                    EXTRACT(EPOCH FROM ((a.checkouttime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - COALESCE(s.overtimestarttime, s.endtime))) / 60,
+                                                    0
+                                                ),
+                                                COALESCE(s.maxovertimeinminutes, 0)
+                                            )
+                                            ELSE GREATEST(
+                                                EXTRACT(EPOCH FROM ((a.checkouttime AT TIME ZONE COALESCE(NULLIF(s.timezone, ''), 'UTC'))::time - COALESCE(s.overtimestarttime, s.endtime))) / 60,
+                                                0
+                                            )
+                                        END
+                                    ) / 60.0,
+                                    2
+                                )
                             END,
             updatedat = NOW() AT TIME ZONE 'UTC'
-        WHERE employeeid = @employeeId
-          AND workdate = (NOW() AT TIME ZONE 'UTC')::date
-        RETURNING *;
+                FROM employee.employees emp
+                LEFT JOIN LATERAL (
+                        SELECT ed.shiftid
+                        FROM employee.employmentdetails ed
+                        WHERE ed.employeeid = a.employeeid
+                            AND ed.effectivedate <= a.workdate
+                            AND (ed.enddate IS NULL OR ed.enddate >= a.workdate)
+                        ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                        LIMIT 1
+                ) effective_ed ON TRUE
+                LEFT JOIN LATERAL (
+                        SELECT ed.shiftid
+                        FROM employee.employmentdetails ed
+                        WHERE ed.employeeid = a.employeeid
+                        ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                        LIMIT 1
+                ) current_ed ON TRUE
+                LEFT JOIN attendance.shifts s ON s.shiftid = COALESCE(effective_ed.shiftid, current_ed.shiftid)
+                WHERE a.employeeid = emp.employeeid
+          AND a.employeeid = @employeeId
+          AND a.workdate = @targetDate
+        RETURNING a.*;
         ";
 
             return await QuerySingleOrDefaultAsync<Attendance>(
                 sql,
-                new { employeeId }
+                new { employeeId, targetDate }
             );
         }
         catch (Exception ex)
@@ -1524,19 +2529,87 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
         try
         {
-            var sql = @"
-        UPDATE employee.employmentdetails
-        SET shiftid = @ShiftId
-        WHERE employeeid = ANY(@EmployeeIds::uuid[])
-    ";
+            var assignedDate = request.AssignedDate.Date;
+
+            using var connection = CreateConnection();
+            connection.Open();
+            using var transaction = connection.BeginTransaction();
+
+            var archiveSql = @"
+        INSERT INTO employee.employmentdetails (
+            detailid,
+            employeeid,
+            departmentid,
+            positionid,
+            shiftid,
+            employmenttype,
+            paytype,
+            basicsalary,
+            currency,
+            worklocation,
+            reportingmanagerid,
+            effectivedate,
+            enddate,
+            iscurrent,
+            createdat
+        )
+        SELECT
+            uuid_generate_v4(),
+            ed.employeeid,
+            ed.departmentid,
+            ed.positionid,
+            ed.shiftid,
+            ed.employmenttype,
+            ed.paytype,
+            ed.basicsalary,
+            ed.currency,
+            ed.worklocation,
+            ed.reportingmanagerid,
+            ed.effectivedate,
+            (@AssignedDate::date - INTERVAL '1 day')::date,
+            FALSE,
+            NOW()
+        FROM employee.employmentdetails ed
+        WHERE ed.employeeid = ANY(@EmployeeIds::uuid[])
+          AND ed.iscurrent = true
+          AND ed.shiftid IS DISTINCT FROM @ShiftId::uuid
+          AND ed.effectivedate < @AssignedDate::date
+          AND EXISTS (
+              SELECT 1
+              FROM employee.employees e
+              WHERE e.employeeid = ed.employeeid
+                AND e.organizationid = @OrganizationId::uuid
+          );";
+
+            var updateSql = @"
+        UPDATE employee.employmentdetails ed
+        SET
+            shiftid = @ShiftId::uuid,
+            effectivedate = @AssignedDate::date,
+            enddate = NULL,
+            iscurrent = true
+        WHERE ed.employeeid = ANY(@EmployeeIds::uuid[])
+          AND ed.iscurrent = true
+          AND ed.shiftid IS DISTINCT FROM @ShiftId::uuid
+          AND EXISTS (
+              SELECT 1
+              FROM employee.employees e
+              WHERE e.employeeid = ed.employeeid
+                AND e.organizationid = @OrganizationId::uuid
+          );";
 
             var parameters = new
             {
+                OrganizationId = organizationId,
                 ShiftId = request.ShiftId,
+                AssignedDate = assignedDate,
                 EmployeeIds = request.SelectedEmployees
             };
 
-            var rowsAffected = await ExecuteAsync(sql, parameters);
+            await connection.ExecuteAsync(archiveSql, parameters, transaction);
+            var rowsAffected = await connection.ExecuteAsync(updateSql, parameters, transaction);
+
+            transaction.Commit();
             return rowsAffected > 0;
         }
         catch (Exception ex)
@@ -2198,7 +3271,7 @@ WHERE ed.employeeid = @EmployeeId
             WHERE e.organizationid = @organizationId
               AND e.status = 'active'
         ),
-        -- Cross join employees � dates to create full calendar
+        -- Cross join employees ï¿½ dates to create full calendar
         calendar AS (
             SELECT dr.workdate, e.employeeid, e.departmentid, e.worklocation
             FROM date_range dr
@@ -3069,4 +4142,317 @@ WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
             throw new Exception($"Error getting team employee IDs for manager {managerEmployeeId} in organization {organizationId}", ex);
         }
     }
+
+    public async Task SyncPayrollCalculationsAsync(Guid employeeId, DateTime date)
+    {
+        try
+        {
+            var dateOnly = date.Date;
+            var sql = @"
+            -- Delete existing auto-calculated pending entries for this date
+            DELETE FROM payroll.lateattendance WHERE employeeid = @employeeId AND attendancedate = @dateOnly;
+            DELETE FROM payroll.overtimeentries WHERE employeeid = @employeeId AND overtimedate = @dateOnly AND entrystatus = 'pending';
+
+            -- 1. Insert Late Attendance based on rules
+            WITH latest_final AS (
+                SELECT DISTINCT ON (f.employee_id, f.work_date)
+                    f.employee_id,
+                    f.work_date,
+                    f.final_checkin,
+                    f.final_checkout,
+                    f.final_total_hours,
+                    f.final_overtime_hours,
+                    f.final_status,
+                    f.record_status,
+                    f.approved_at,
+                    f.record_id
+                FROM attendance.finalized_timesheet_records f
+                WHERE f.employee_id = @employeeId
+                  AND f.work_date = @dateOnly
+                  AND f.record_status IN ('finalized', 'overridden')
+                ORDER BY
+                    f.employee_id,
+                    f.work_date,
+                    CASE WHEN f.record_status = 'overridden' THEN 0 ELSE 1 END,
+                    f.approved_at DESC,
+                    f.record_id DESC
+            ),
+            effective_attendance AS (
+                SELECT
+                    emp.employeeid AS employeeid,
+                    @dateOnly::date AS workdate,
+                    COALESCE(lf.final_checkin, a.checkintime) AS checkintime,
+                    COALESCE(lf.final_checkout, a.checkouttime) AS checkouttime,
+                    COALESCE(
+                        lf.final_total_hours,
+                        a.totalhours,
+                        CASE
+                            WHEN COALESCE(lf.final_checkin, a.checkintime) IS NOT NULL
+                             AND COALESCE(lf.final_checkout, a.checkouttime) IS NOT NULL
+                            THEN ROUND(EXTRACT(EPOCH FROM (COALESCE(lf.final_checkout, a.checkouttime) - COALESCE(lf.final_checkin, a.checkintime))) / 3600.0, 2)
+                            ELSE 0
+                        END
+                    )::numeric(10,2) AS totalhours,
+                    COALESCE(lf.final_overtime_hours, a.overtimehours, 0)::numeric(10,2) AS overtimehours,
+                    LOWER(COALESCE(lf.final_status, a.status, 'absent')) AS status,
+                    emp.organizationid AS organizationid,
+                    COALESCE(NULLIF(s.timezone, ''), 'UTC') AS timezone,
+                    s.starttime,
+                    COALESCE(s.overtimestarttime, s.endtime) AS overtime_starttime,
+                    COALESCE(s.maxovertimeinminutes, 0) AS maxovertimeinminutes,
+                    COALESCE(
+                        CASE
+                            WHEN COALESCE(s.applymarginhours, FALSE)
+                            THEN COALESCE(s.marginhours, 0) * 60
+                            ELSE NULL
+                        END,
+                        COALESCE(lar.graceminutes, 0)
+                    ) AS latethresholdminutes,
+                    lar.ruleid AS lateruleid,
+                    COALESCE(lar.fixeddeduction, 0) AS latefixeddeduction,
+                    pr.periodid,
+                    orule.ruleid AS overtimeruleid,
+                    COALESCE(orule.fixedamount, 0) AS overtimefixedamount
+                FROM employee.employees emp
+                LEFT JOIN LATERAL (
+                    SELECT ed.shiftid
+                    FROM employee.employmentdetails ed
+                    WHERE ed.employeeid = emp.employeeid
+                      AND ed.effectivedate <= @dateOnly::date
+                      AND (ed.enddate IS NULL OR ed.enddate >= @dateOnly::date)
+                    ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                    LIMIT 1
+                ) effective_ed ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT ed.shiftid
+                    FROM employee.employmentdetails ed
+                    WHERE ed.employeeid = emp.employeeid
+                    ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                    LIMIT 1
+                ) current_ed ON TRUE
+                LEFT JOIN attendance.shifts s
+                    ON s.shiftid = COALESCE(effective_ed.shiftid, current_ed.shiftid)
+                LEFT JOIN attendance.attendance a
+                    ON a.employeeid = emp.employeeid
+                   AND a.workdate = @dateOnly
+                LEFT JOIN latest_final lf
+                    ON lf.employee_id = emp.employeeid
+                   AND lf.work_date = @dateOnly
+                LEFT JOIN payroll.payrollperiods pr
+                    ON pr.organizationid = emp.organizationid
+                   AND pr.startdate <= @dateOnly
+                   AND pr.enddate >= @dateOnly
+                   AND pr.status = 'Open'
+                LEFT JOIN payroll.lateattendancerules lar
+                    ON lar.organizationid = emp.organizationid
+                   AND lar.isactive = true
+                   AND lar.isdeleted = false
+                LEFT JOIN payroll.overtimerules orule
+                    ON orule.organizationid = emp.organizationid
+                   AND orule.isactive = true
+                   AND orule.isdeleted = false
+                   AND orule.overtimetype = 'regular'
+                WHERE emp.employeeid = @employeeId
+            )
+            INSERT INTO payroll.lateattendance (employeeid, periodid, ruleid, lateminutes, deduction, isgrace, attendancedate, createdat, updatedat)
+            SELECT 
+                ea.employeeid,
+                ea.periodid,
+                ea.lateruleid,
+                CAST(GREATEST(EXTRACT(EPOCH FROM ((ea.checkintime AT TIME ZONE ea.timezone)::time - ea.starttime))/60, 0) AS INTEGER) AS latemins,
+                CASE 
+                    WHEN ea.latefixeddeduction > 0 THEN ea.latefixeddeduction
+                    ELSE 0 
+                END,
+                CASE 
+                    WHEN GREATEST(EXTRACT(EPOCH FROM ((ea.checkintime AT TIME ZONE ea.timezone)::time - ea.starttime))/60, 0) <= ea.latethresholdminutes THEN true
+                    ELSE false
+                END,
+                @dateOnly,
+                NOW() AT TIME ZONE 'UTC',
+                NOW() AT TIME ZONE 'UTC'
+            FROM effective_attendance ea
+            WHERE ea.periodid IS NOT NULL
+              AND ea.lateruleid IS NOT NULL
+              AND ea.checkintime IS NOT NULL
+              AND ea.status NOT IN ('absent', 'leave', 'holiday', 'weekend')
+              AND GREATEST(EXTRACT(EPOCH FROM ((ea.checkintime AT TIME ZONE ea.timezone)::time - ea.starttime))/60, 0) > ea.latethresholdminutes
+            ON CONFLICT (employeeid, attendancedate) 
+            DO UPDATE SET 
+                lateminutes = EXCLUDED.lateminutes,
+                deduction = EXCLUDED.deduction,
+                isgrace = EXCLUDED.isgrace,
+                updatedat = NOW() AT TIME ZONE 'UTC';
+
+            -- 2. Insert Overtime Entries based on rules
+            WITH latest_final AS (
+                SELECT DISTINCT ON (f.employee_id, f.work_date)
+                    f.employee_id,
+                    f.work_date,
+                    f.final_checkin,
+                    f.final_checkout,
+                    f.final_total_hours,
+                    f.final_overtime_hours,
+                    f.final_status,
+                    f.record_status,
+                    f.approved_at,
+                    f.record_id
+                FROM attendance.finalized_timesheet_records f
+                WHERE f.employee_id = @employeeId
+                  AND f.work_date = @dateOnly
+                  AND f.record_status IN ('finalized', 'overridden')
+                ORDER BY
+                    f.employee_id,
+                    f.work_date,
+                    CASE WHEN f.record_status = 'overridden' THEN 0 ELSE 1 END,
+                    f.approved_at DESC,
+                    f.record_id DESC
+            ),
+            effective_attendance AS (
+                SELECT
+                    emp.employeeid AS employeeid,
+                    @dateOnly::date AS workdate,
+                    COALESCE(lf.final_checkin, a.checkintime) AS checkintime,
+                    COALESCE(lf.final_checkout, a.checkouttime) AS checkouttime,
+                    COALESCE(
+                        lf.final_total_hours,
+                        a.totalhours,
+                        CASE
+                            WHEN COALESCE(lf.final_checkin, a.checkintime) IS NOT NULL
+                             AND COALESCE(lf.final_checkout, a.checkouttime) IS NOT NULL
+                            THEN ROUND(EXTRACT(EPOCH FROM (COALESCE(lf.final_checkout, a.checkouttime) - COALESCE(lf.final_checkin, a.checkintime))) / 3600.0, 2)
+                            ELSE 0
+                        END
+                    )::numeric(10,2) AS totalhours,
+                    COALESCE(lf.final_overtime_hours, a.overtimehours, 0)::numeric(10,2) AS overtimehours,
+                    LOWER(COALESCE(lf.final_status, a.status, 'absent')) AS status,
+                    emp.organizationid AS organizationid,
+                    COALESCE(NULLIF(s.timezone, ''), 'UTC') AS timezone,
+                    s.starttime,
+                    COALESCE(s.overtimestarttime, s.endtime) AS overtime_starttime,
+                    COALESCE(s.maxovertimeinminutes, 0) AS maxovertimeinminutes,
+                    COALESCE(
+                        CASE
+                            WHEN COALESCE(s.applymarginhours, FALSE)
+                            THEN COALESCE(s.marginhours, 0) * 60
+                            ELSE NULL
+                        END,
+                        COALESCE(lar.graceminutes, 0)
+                    ) AS latethresholdminutes,
+                    lar.ruleid AS lateruleid,
+                    COALESCE(lar.fixeddeduction, 0) AS latefixeddeduction,
+                    pr.periodid,
+                    orule.ruleid AS overtimeruleid,
+                    COALESCE(orule.fixedamount, 0) AS overtimefixedamount
+                FROM employee.employees emp
+                LEFT JOIN LATERAL (
+                    SELECT ed.shiftid
+                    FROM employee.employmentdetails ed
+                    WHERE ed.employeeid = emp.employeeid
+                      AND ed.effectivedate <= @dateOnly::date
+                      AND (ed.enddate IS NULL OR ed.enddate >= @dateOnly::date)
+                    ORDER BY ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                    LIMIT 1
+                ) effective_ed ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT ed.shiftid
+                    FROM employee.employmentdetails ed
+                    WHERE ed.employeeid = emp.employeeid
+                    ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC, ed.detailid DESC
+                    LIMIT 1
+                ) current_ed ON TRUE
+                LEFT JOIN attendance.shifts s
+                    ON s.shiftid = COALESCE(effective_ed.shiftid, current_ed.shiftid)
+                LEFT JOIN attendance.attendance a
+                    ON a.employeeid = emp.employeeid
+                   AND a.workdate = @dateOnly
+                LEFT JOIN latest_final lf
+                    ON lf.employee_id = emp.employeeid
+                   AND lf.work_date = @dateOnly
+                LEFT JOIN payroll.payrollperiods pr
+                    ON pr.organizationid = emp.organizationid
+                   AND pr.startdate <= @dateOnly
+                   AND pr.enddate >= @dateOnly
+                   AND pr.status = 'Open'
+                LEFT JOIN payroll.lateattendancerules lar
+                    ON lar.organizationid = emp.organizationid
+                   AND lar.isactive = true
+                   AND lar.isdeleted = false
+                LEFT JOIN payroll.overtimerules orule
+                    ON orule.organizationid = emp.organizationid
+                   AND orule.isactive = true
+                   AND orule.isdeleted = false
+                   AND orule.overtimetype = 'regular'
+                WHERE emp.employeeid = @employeeId
+            )
+            INSERT INTO payroll.overtimeentries (employeeid, periodid, ruleid, hoursworked, finalamount, entrystatus, overtimedate, createdat, updatedat)
+            SELECT 
+                ea.employeeid,
+                ea.periodid,
+                ea.overtimeruleid,
+                CASE
+                    WHEN COALESCE(ea.overtimehours, 0) > 0 THEN ea.overtimehours
+                    ELSE ROUND(
+                        (
+                            CASE
+                                WHEN ea.maxovertimeinminutes > 0 THEN LEAST(
+                                    GREATEST(EXTRACT(EPOCH FROM ((ea.checkouttime AT TIME ZONE ea.timezone)::time - ea.overtime_starttime))/60, 0),
+                                    ea.maxovertimeinminutes
+                                )
+                                ELSE GREATEST(EXTRACT(EPOCH FROM ((ea.checkouttime AT TIME ZONE ea.timezone)::time - ea.overtime_starttime))/60, 0)
+                            END
+                        ) / 60.0,
+                        2
+                    )
+                END AS hoursworked,
+                CASE 
+                    WHEN ea.overtimefixedamount IS NOT NULL THEN (
+                        CASE
+                            WHEN COALESCE(ea.overtimehours, 0) > 0 THEN ea.overtimehours
+                            ELSE ROUND(
+                                (
+                                    CASE
+                                        WHEN ea.maxovertimeinminutes > 0 THEN LEAST(
+                                            GREATEST(EXTRACT(EPOCH FROM ((ea.checkouttime AT TIME ZONE ea.timezone)::time - ea.overtime_starttime))/60, 0),
+                                            ea.maxovertimeinminutes
+                                        )
+                                        ELSE GREATEST(EXTRACT(EPOCH FROM ((ea.checkouttime AT TIME ZONE ea.timezone)::time - ea.overtime_starttime))/60, 0)
+                                    END
+                                ) / 60.0,
+                                2
+                            )
+                        END
+                    ) * ea.overtimefixedamount
+                    ELSE 0 
+                END,
+                'pending',
+                @dateOnly,
+                NOW() AT TIME ZONE 'UTC',
+                NOW() AT TIME ZONE 'UTC'
+            FROM effective_attendance ea
+            WHERE ea.periodid IS NOT NULL
+              AND ea.overtimeruleid IS NOT NULL
+              AND ea.checkouttime IS NOT NULL
+              AND ea.status NOT IN ('absent', 'leave', 'holiday', 'weekend')
+              AND (
+                    COALESCE(ea.overtimehours, 0) > 0
+                    OR GREATEST(EXTRACT(EPOCH FROM ((ea.checkouttime AT TIME ZONE ea.timezone)::time - ea.overtime_starttime))/60, 0) > 0
+                  )
+            ON CONFLICT (employeeid, periodid, overtimedate) 
+            DO UPDATE SET 
+                hoursworked = EXCLUDED.hoursworked,
+                finalamount = EXCLUDED.finalamount,
+                updatedat = NOW() AT TIME ZONE 'UTC';
+            ";
+
+            await ExecuteAsync(sql, new { employeeId, dateOnly });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error syncing payroll calculations for employee {EmployeeId} on {Date}", employeeId, date);
+            // Optionally swallow or throw depending on if we want attendance to fail if payroll sync fails
+            // Swallowing here so clock out doesn't break if payroll periods aren't configured yet
+        }
+    }
 }
+

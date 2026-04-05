@@ -16,6 +16,8 @@ public class AttendanceDto
     public decimal TotalHours { get; set; }
     public int SessionsCount { get; set; } = 0;
     public decimal OvertimeHours { get; set; }
+    public decimal LateHours { get; set; }
+    public bool IsShiftWorkingDay { get; set; }
     public string Status { get; set; } = string.Empty;
     public string? Notes { get; set; }
     public bool IsManagerOverride { get; set; }
@@ -23,9 +25,13 @@ public class AttendanceDto
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }
     public bool HasApprovedRequest { get; set; }
+    public bool HasRejectedRequest { get; set; }
     public DateTime? RequestedCheckIn { get; set; }
     public DateTime? RequestedCheckOut { get; set; }
     public string? RequestedStatus { get; set; }
+    public string? RequestedNotes { get; set; }
+    public string? RejectionReason { get; set; }
+    public string? RequestStatus { get; set; }
     public Guid? ShiftId { get; set; }
     public string? Location { get; set; }
     public string? checkinip { get; set; }
@@ -311,8 +317,45 @@ public class FinalizedTimesheetRecordDto
     public DateTime? FinalCheckIn { get; set; }
     public DateTime? FinalCheckOut { get; set; }
     public decimal FinalTotalHours { get; set; }
+    public decimal FinalOvertimeHours { get; set; }
+    public decimal FinalLateHours { get; set; }
     public string FinalStatus { get; set; }
     public string EmployeeName { get; set; }
+    public bool HasRejectedRequest { get; set; }
+    public string? RejectionReason { get; set; }
+    public string? LastRequestStatus { get; set; }
+}
+
+public class FinalizedPayrollStatusBreakdownDto
+{
+    public string Status { get; set; } = string.Empty;
+    public int Days { get; set; }
+    public decimal Hours { get; set; }
+}
+
+public class FinalizedPayrollCalculationDto
+{
+    public Guid TimesheetId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public int Month { get; set; }
+    public int Year { get; set; }
+    public int ExpectedWorkDays { get; set; }
+    public int FinalizedWorkDays { get; set; }
+    public int PendingWorkDays { get; set; }
+    public int PendingRequestDays { get; set; }
+    public int PayableDays { get; set; }
+    public int UnpaidDays { get; set; }
+    public decimal TotalHours { get; set; }
+    public decimal RegularHours { get; set; }
+    public decimal OvertimeHours { get; set; }
+    public decimal LateHours { get; set; }
+    public decimal AttendancePercentage { get; set; }
+    public bool PayrollReady { get; set; }
+    public string? BlockedReason { get; set; }
+    public DateTime GeneratedAt { get; set; } = DateTime.UtcNow;
+    public List<FinalizedPayrollStatusBreakdownDto> StatusBreakdown { get; set; } = new();
 }
 
 public class EmployeeTimesheetDto
@@ -518,15 +561,21 @@ public class DailyAttendanceRecord
     public DateTime? CheckOutTime { get; set; }
     public string Status { get; set; }
     public decimal TotalHours { get; set; }
+    public decimal OvertimeHours { get; set; }
+    public decimal LateHours { get; set; }
     public string? Notes { get; set; }
     public bool IsManagerOverride { get; set; }
     public bool IsFinalized { get; set; }
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }
     public bool HasApprovedRequest { get; set; }
+    public bool HasRejectedRequest { get; set; }
     public DateTime? RequestedCheckIn { get; set; }
     public DateTime? RequestedCheckOut { get; set; }
     public string? RequestedStatus { get; set; }
+    public string? RequestedNotes { get; set; }
+    public string? RejectionReason { get; set; }
+    public string? RequestStatus { get; set; }
 }
 public class AttendanceReportDto
 {

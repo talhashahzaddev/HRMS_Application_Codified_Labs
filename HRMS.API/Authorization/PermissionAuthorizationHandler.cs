@@ -28,8 +28,13 @@ namespace HRMS.API.Authorization
                 .Select(c => c.Value)
                 .ToList();
 
-            // Check if user has ALL required permissions
-            bool hasPermissions = requirement.Permissions.All(p => userPermissions.Contains(p));
+            var normalizedUserPermissions = new HashSet<string>(userPermissions, StringComparer.OrdinalIgnoreCase);
+
+            // For a single required permission, perform an exact check.
+            // For multiple permissions, treat them as alternatives (OR) to support safe key migrations.
+            bool hasPermissions = requirement.Permissions.Length == 1
+                ? normalizedUserPermissions.Contains(requirement.Permissions[0])
+                : requirement.Permissions.Any(p => normalizedUserPermissions.Contains(p));
 
             if (hasPermissions)
             {
