@@ -546,3 +546,37 @@ public class BonusEntryFilterDto
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
+
+public class LoanRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal? MaxLoanAmount { get; set; }
+    public int? MaxInstallments { get; set; }
+    public decimal InterestRate { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateLoanRuleDto
+{
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal? MaxLoanAmount { get; set; }
+    public int? MaxInstallments { get; set; }
+    public decimal InterestRate { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateLoanRuleDto : CreateLoanRuleDto
+{
+}
+
+public class PayrollOverviewDto
+{
+    public List<string> ActiveModules { get; set; } = new();
+}

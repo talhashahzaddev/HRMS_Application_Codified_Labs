@@ -2287,4 +2287,178 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { bonusId, organizationId });
         return deletedId != null && deletedId != Guid.Empty;
     }
+
+    // Loan Rules
+    public async Task<IEnumerable<LoanRuleDto>> GetAllLoanRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                maxloanamount AS MaxLoanAmount,
+                maxinstallments AS MaxInstallments,
+                interestrate AS InterestRate,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.loanrules
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<LoanRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<LoanRuleDto>> GetActiveLoanRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                maxloanamount AS MaxLoanAmount,
+                maxinstallments AS MaxInstallments,
+                interestrate AS InterestRate,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.loanrules
+            WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<LoanRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<LoanRuleDto?> GetLoanRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                maxloanamount AS MaxLoanAmount,
+                maxinstallments AS MaxInstallments,
+                interestrate AS InterestRate,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.loanrules
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<LoanRuleDto>(sql, new { ruleId, organizationId });
+    }
+
+    public async Task<LoanRuleDto> CreateLoanRuleAsync(Guid organizationId, CreateLoanRuleDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.loanrules (
+                organizationid, rulename, description, maxloanamount, 
+                maxinstallments, interestrate, isactive, isdeleted
+            )
+            VALUES (
+                @organizationId, @RuleName, @Description, @MaxLoanAmount, 
+                @MaxInstallments, @InterestRate, @IsActive, false
+            )
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.MaxLoanAmount,
+            dto.MaxInstallments,
+            dto.InterestRate,
+            dto.IsActive
+        };
+
+        var ruleId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetLoanRuleByIdAsync(ruleId, organizationId))!;
+    }
+
+    public async Task<LoanRuleDto?> UpdateLoanRuleAsync(Guid ruleId, Guid organizationId, UpdateLoanRuleDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.loanrules
+            SET 
+                rulename = @RuleName,
+                description = @Description,
+                maxloanamount = @MaxLoanAmount,
+                maxinstallments = @MaxInstallments,
+                interestrate = @InterestRate,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            ruleId,
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.MaxLoanAmount,
+            dto.MaxInstallments,
+            dto.InterestRate,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetLoanRuleByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteLoanRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.loanrules
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { ruleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    public async Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT 'Loan' as ModuleName 
+            WHERE EXISTS (SELECT 1 FROM payroll.loanrules WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false)
+            
+            UNION ALL
+            
+            SELECT 'Advance Salary' as ModuleName 
+            WHERE EXISTS (SELECT 1 FROM payroll.salaryadvancerules WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false)
+            
+            UNION ALL
+            
+            SELECT 'Provident Fund' as ModuleName 
+            WHERE EXISTS (SELECT 1 FROM payroll.pfrules WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false)
+            
+            UNION ALL
+            
+            SELECT 'Social Security' as ModuleName 
+            WHERE EXISTS (SELECT 1 FROM payroll.socialsecurityconfig WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false)
+            
+            UNION ALL
+            
+            SELECT 'Gratuity' as ModuleName 
+            WHERE EXISTS (SELECT 1 FROM payroll.gratuityconfig WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false);";
+
+        var activeModules = await QueryAsync<string>(sql, new { organizationId });
+
+        return new PayrollOverviewDto
+        {
+            ActiveModules = activeModules.ToList()
+        };
+    }
 }
