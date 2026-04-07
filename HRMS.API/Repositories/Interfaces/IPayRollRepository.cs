@@ -103,4 +103,15 @@ public interface IPayRollRepository
     Task<BonusEntryDto> CreateBonusEntryAsync(Guid organizationId, CreateBonusEntryDto dto);
     Task<BonusEntryDto?> UpdateBonusEntryAsync(Guid bonusId, Guid organizationId, UpdateBonusEntryDto dto);
     Task<bool> DeleteBonusEntryAsync(Guid bonusId, Guid organizationId);
+
+    // Loan Rules
+    Task<IEnumerable<LoanRuleDto>> GetAllLoanRulesAsync(Guid organizationId);
+    Task<IEnumerable<LoanRuleDto>> GetActiveLoanRulesAsync(Guid organizationId);
+    Task<LoanRuleDto?> GetLoanRuleByIdAsync(Guid ruleId, Guid organizationId);
+    Task<LoanRuleDto> CreateLoanRuleAsync(Guid organizationId, CreateLoanRuleDto dto);
+    Task<LoanRuleDto?> UpdateLoanRuleAsync(Guid ruleId, Guid organizationId, UpdateLoanRuleDto dto);
+    Task<bool> DeleteLoanRuleAsync(Guid ruleId, Guid organizationId);
+
+    // Overview
+    Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId);
 }

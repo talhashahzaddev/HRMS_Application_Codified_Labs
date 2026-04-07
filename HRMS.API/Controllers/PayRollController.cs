@@ -1388,6 +1388,134 @@ public class PayRollController : ControllerBase
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
     }
+
+    // Loan Rules
+    [HttpGet("loan-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LoanRuleDto>>>> GetAllLoanRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllLoanRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving loan rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("loan-rules/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LoanRuleDto>>>> GetActiveLoanRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveLoanRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active loan rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("loan-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<LoanRuleDto>>> GetLoanRuleById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetLoanRuleByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving loan rule by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<LoanRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("loan-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<LoanRuleDto>>> CreateLoanRule([FromBody] CreateLoanRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateLoanRuleAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetLoanRuleById), new { id = response.Data?.RuleId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating loan rule");
+            return StatusCode(500, new ServiceResponse<LoanRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("loan-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<LoanRuleDto>>> UpdateLoanRule(Guid id, [FromBody] UpdateLoanRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateLoanRuleAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating loan rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<LoanRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("loan-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteLoanRule(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteLoanRuleAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting loan rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("overview")]
+    [Authorize(Roles = "Super Admin,Employee,Manager,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollOverviewDto>>> GetPayrollOverview()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetPayrollOverviewAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payroll overview");
+            return StatusCode(500, new ServiceResponse<PayrollOverviewDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

@@ -1227,4 +1227,107 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }
+
+    // Loan Rules
+    public async Task<ServiceResponse<IEnumerable<LoanRuleDto>>> GetAllLoanRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllLoanRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all loan rules");
+            return new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<LoanRuleDto>>> GetActiveLoanRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveLoanRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active loan rules");
+            return new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LoanRuleDto>> GetLoanRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLoanRuleByIdAsync(ruleId, organizationId);
+            if (result == null)
+                return new ServiceResponse<LoanRuleDto> { Success = false, Message = "Loan rule not found." };
+            return new ServiceResponse<LoanRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting loan rule by ID");
+            return new ServiceResponse<LoanRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LoanRuleDto>> CreateLoanRuleAsync(Guid organizationId, CreateLoanRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateLoanRuleAsync(organizationId, dto);
+            return new ServiceResponse<LoanRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating loan rule");
+            return new ServiceResponse<LoanRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LoanRuleDto>> UpdateLoanRuleAsync(Guid ruleId, Guid organizationId, UpdateLoanRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateLoanRuleAsync(ruleId, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<LoanRuleDto> { Success = false, Message = "Loan rule not found." };
+            return new ServiceResponse<LoanRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating loan rule");
+            return new ServiceResponse<LoanRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteLoanRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteLoanRuleAsync(ruleId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting loan rule");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollOverviewDto>> GetPayrollOverviewAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetPayrollOverviewAsync(organizationId);
+            return new ServiceResponse<PayrollOverviewDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting payroll overview");
+            return new ServiceResponse<PayrollOverviewDto> { Success = false, Message = "An error occurred." };
+        }
+    }
 }

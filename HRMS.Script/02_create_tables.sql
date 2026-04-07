@@ -1862,63 +1862,86 @@ create table if not exists payroll.bonusentries
     constraint uqbonusentry unique (employeeid, periodid, ruleid)
 );
 // loan 
-create table if not exists payroll.loanrules
-(
+create table if not exists payroll.loanrules(
     ruleid              uuid primary key default uuid_generate_v4(),
-    rulename            character varying(100),
+    rulename            character varying(100) not null,
     description         text,
     organizationid      uuid not null,
     maxloanamount       numeric(15,2),
     maxinstallments     integer,
     interestrate        numeric(5,2) default 0,
-    requiresapproval    boolean default true,
     isactive            boolean default true,
     isdeleted           boolean default false,
     createdat           timestamptz default current_timestamp,
     updatedat           timestamptz default current_timestamp,
-    constraint uqorgloanrule unique (organizationid)
+    constraint uqorgloanrule unique (organizationid, rulename)
 );
 
-create table if not exists payroll.loans
-(
+create table if not exists payroll.loans(
     loanid              uuid primary key default uuid_generate_v4(),
     organizationid      uuid not null,
     employeeid          uuid not null,
     ruleid              uuid references payroll.loanrules(ruleid),
-    totalamount         numeric(15,2) not null,
+    
+    -- Financial Breakdown
+    principalamount     numeric(15,2) not null,
+    totalinterest       numeric(15,2) default 0,
+    totalamount         numeric(15,2) generated always as (
+                            principalamount + totalinterest
+                        ) stored,
     monthlyinstallment  numeric(15,2),
     remainingamount     numeric(15,2) not null,
     paidamount          numeric(15,2) generated always as (
-                            totalamount - remainingamount
+                            (principalamount + totalinterest) - remainingamount
                         ) stored,
+                        
     totalinstallments   integer not null default 0,
     paidinstallments    integer not null default 0,
     repaymenttype       varchar(20) default 'installment',
+    
+    -- Status Flow Design
     requeststatus       varchar(20) default 'pending', 
+    loanstatus          varchar(20) default 'active',  
+    
+    -- Approval Audit Trail
+    approvedby          uuid,
+    approvedat          timestamptz,
+    rejectionreason     text,
+    
+    -- Disbursement Tracking
+    disbursementstatus  varchar(20) default 'pending',
+    disbursementdate    date,
+    
     startdate           date,
     enddate             date,
-    loanstatus          varchar(20) default 'active',
     description         text,
     createdby           uuid,
     createdat           timestamptz default current_timestamp,
     updatedat           timestamptz default current_timestamp
 );
 
-create table if not exists payroll.loanpayments
-(
+create table if not exists payroll.loanpayments(
     id                  uuid primary key default uuid_generate_v4(),
     organizationid      uuid not null,
     loanid              uuid references payroll.loans(loanid),
     employeeid          uuid not null,
-    periodid            uuid not null,
+    
+    -- Nullable to allow for out-of-payroll settlements (e.g., employee pays cash)
+    periodid            uuid, 
+    
     installmentnumber   integer not null default 0,
     installmentamount   numeric(15,2) not null,
     remainingamount     numeric(15,2) not null,
     repaymenttype       varchar(20) default 'installment',
-    paymentstatus       varchar(20) default 'deducted',
+    
+    -- Exact Payment Details
+    paymentdate         date not null default current_date,
+    paymentmethod       varchar(50) default 'payroll_deduction', -- 'payroll_deduction', 'cash', 'bank_transfer'
+    paymentstatus       varchar(20) default 'deducted',          -- 'deducted', 'settled', 'failed'
+    
     createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqloanpayments unique (loanid, periodid)
+    updatedat           timestamptz default current_timestamp
+    
 ); // loan
 
 // advance salary
