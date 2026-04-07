@@ -120,6 +120,11 @@ public interface IPayRollRepository
     Task<PagedResult<LoanDto>> GetAllLoansAsync(Guid organizationId, LoanFilterDto filter);
     Task<LoanDto?> DisburseLoanAsync(Guid organizationId, Guid createdBy, DisburseLoanDto dto);
     Task<IEnumerable<MyActiveLoanDto>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId);
+    Task<PagedResult<MyActiveLoanDto>> GetDisbursedLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter);
+    Task<PagedResult<RepaymentHistoryDto>> GetAllRepaymentsAsync(Guid organizationId, RepaymentFilterDto filter);
+    Task<bool> AddLoanPaymentAsync(Guid organizationId, AddLoanPaymentDto dto);
+    Task<bool> UpdateLoanPaymentAsync(Guid organizationId, UpdateLoanPaymentDto dto);
+    Task<LoanPaymentDto?> GetLoanPaymentByIdAsync(Guid paymentId, Guid organizationId);
 
     // Personal Loan Operations
     Task<LoanDto?> GetLoanByIdAndEmployeeAsync(Guid loanId, Guid organizationId, Guid employeeId);

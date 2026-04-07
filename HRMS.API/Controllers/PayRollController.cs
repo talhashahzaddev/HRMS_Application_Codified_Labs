@@ -1711,6 +1711,59 @@ public class PayRollController : ControllerBase
         }
     }
 
+    [HttpPost("loans/payment")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> AddLoanPayment([FromBody] AddLoanPaymentDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.AddLoanPaymentAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding loan payment");
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+    [HttpPut("loans/payment")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateLoanPayment([FromBody] UpdateLoanPaymentDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateLoanPaymentAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating loan payment record");
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("loans/payment/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<LoanPaymentDto>>> GetLoanPaymentById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetLoanPaymentByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching loan payment record by ID");
+            return StatusCode(500, new ServiceResponse<LoanPaymentDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpGet("loans/all")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<LoanDto>>>> GetAllLoans([FromQuery] LoanFilterDto filter)
@@ -1728,6 +1781,42 @@ public class PayRollController : ControllerBase
             return StatusCode(500, new ServiceResponse<PagedResult<LoanDto>> { Success = false, Message = "An error occurred" });
         }
     }
+
+    [HttpGet("loans/disbursed-loans")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<MyActiveLoanDto>>>> GetDisbursedLoans([FromQuery] DisbursedLoanFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetDisbursedLoansAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving disbursed loan requests");
+            return StatusCode(500, new ServiceResponse<PagedResult<MyActiveLoanDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+    [HttpGet("repayments/all")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<RepaymentHistoryDto>>>> GetAllRepayments([FromQuery] RepaymentFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllRepaymentsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving repayment history");
+            return StatusCode(500, new ServiceResponse<PagedResult<RepaymentHistoryDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);

@@ -2655,10 +2655,349 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             ) lp ON l.loanid = lp.loanid
             WHERE l.organizationid = @organizationId 
               AND l.employeeid = @employeeId 
-              AND l.loanstatus = 'active'
+              AND l.loanstatus = 'active' 
             ORDER BY l.createdat DESC;";
 
         return await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId });
+    }
+
+    public async Task<PagedResult<MyActiveLoanDto>> GetDisbursedLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter)
+    {
+        var conditions = new List<string> { "l.organizationid = @organizationId", "l.disbursementstatus = 'paid'" };
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (!string.IsNullOrEmpty(filter.SearchTerm))
+        {
+            conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @SearchTerm");
+            parameters.Add("SearchTerm", $"%{filter.SearchTerm}%");
+        }
+
+        if (!string.IsNullOrEmpty(filter.LoanStatus))
+        {
+            conditions.Add("l.loanstatus = @LoanStatus");
+            parameters.Add("LoanStatus", filter.LoanStatus);
+        }
+
+        if (filter.MinTotalAmount.HasValue)
+        {
+            conditions.Add("l.totalamount >= @MinTotalAmount");
+            parameters.Add("MinTotalAmount", filter.MinTotalAmount);
+        }
+
+        if (filter.MaxTotalAmount.HasValue)
+        {
+            conditions.Add("l.totalamount <= @MaxTotalAmount");
+            parameters.Add("MaxTotalAmount", filter.MaxTotalAmount);
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var offset = (filter.Page - 1) * filter.PageSize;
+
+        var sql = $@"
+            SELECT 
+                l.loanid AS LoanId,
+                l.organizationid AS OrganizationId,
+                l.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                l.principalamount AS PrincipalAmount,
+                l.totalinterest AS TotalInterest,
+                l.totalamount AS TotalAmount,
+                l.monthlyinstallment AS MonthlyInstallment,
+                COALESCE(lp.remainingamount, l.remainingamount) AS RemainingAmount,
+                (l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) AS PaidAmount,
+                l.totalinstallments AS TotalInstallments,
+                COALESCE(lp.installmentnumber, 0) AS PaidInstallments,
+                l.repaymenttype AS RepaymentType,
+                l.requeststatus AS RequestStatus,
+                l.loanstatus AS LoanStatus,
+                l.description AS Description,
+                l.startdate AS StartDate,
+                l.enddate AS EndDate,
+                l.createdat AS CreatedAt,
+                (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
+                CASE 
+                    WHEN l.totalamount = 0 THEN 0 
+                    ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
+                END AS CompletedPercentage,
+                COUNT(*) OVER() as TotalCount
+            FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
+            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+            LEFT JOIN (
+                SELECT DISTINCT ON (loanid) loanid, installmentnumber, remainingamount
+                FROM payroll.loanpayments
+                ORDER BY loanid, installmentnumber DESC
+            ) lp ON l.loanid = lp.loanid
+            WHERE {whereClause}
+            ORDER BY l.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", offset);
+
+        var data = await QueryAsync<MyActiveLoanDto>(sql, parameters);
+        var totalCount = data.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<MyActiveLoanDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<PagedResult<RepaymentHistoryDto>> GetAllRepaymentsAsync(Guid organizationId, RepaymentFilterDto filter)
+    {
+        var conditions = new List<string> { "lp.organizationid = @organizationId" };
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (!string.IsNullOrEmpty(filter.SearchTerm))
+        {
+            conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @SearchTerm");
+            parameters.Add("SearchTerm", $"%{filter.SearchTerm}%");
+        }
+
+        if (!string.IsNullOrEmpty(filter.RepaymentType))
+        {
+            conditions.Add("lp.repaymenttype = @RepaymentType");
+            parameters.Add("RepaymentType", filter.RepaymentType);
+        }
+
+        if (!string.IsNullOrEmpty(filter.PaymentMethod))
+        {
+            conditions.Add("lp.paymentmethod = @PaymentMethod");
+            parameters.Add("PaymentMethod", filter.PaymentMethod);
+        }
+
+        if (!string.IsNullOrEmpty(filter.LoanStatus))
+        {
+            conditions.Add("l.loanstatus = @LoanStatus");
+            parameters.Add("LoanStatus", filter.LoanStatus);
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var offset = (filter.Page - 1) * filter.PageSize;
+
+        var sql = $@"
+            SELECT 
+                lp.id AS Id,
+                lp.loanid AS LoanId,
+                lp.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.totalamount AS LoanTotalAmount,
+                l.loanstatus AS LoanStatus,
+                lp.periodid AS PeriodId,
+                lp.installmentnumber AS InstallmentNumber,
+                lp.installmentamount AS InstallmentAmount,
+                lp.remainingamount AS RemainingAmount,
+                lp.repaymenttype AS RepaymentType,
+                lp.paymentdate AS PaymentDate,
+                lp.paymentmethod AS PaymentMethod,
+                lp.paymentstatus AS PaymentStatus,
+                lp.createdat AS CreatedAt,
+                COUNT(*) OVER() as TotalCount
+            FROM payroll.loanpayments lp
+            JOIN employee.Employees e ON lp.employeeid = e.employeeid
+            JOIN payroll.loans l ON lp.loanid = l.loanid
+            WHERE {whereClause}
+            ORDER BY lp.paymentdate DESC, lp.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", offset);
+
+        var data = await QueryAsync<RepaymentHistoryDto>(sql, parameters);
+        var totalCount = data.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<RepaymentHistoryDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<bool> AddLoanPaymentAsync(Guid organizationId, AddLoanPaymentDto dto)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            // 1. Update the main loan table (only if not already completed and has balance)
+            var updateSql = @"
+                UPDATE payroll.loans
+                SET 
+                    remainingamount = GREATEST(0, remainingamount - @InstallmentAmount),
+                    paidinstallments = @InstallmentNumber,
+                    loanstatus = CASE 
+                        WHEN (remainingamount - @InstallmentAmount) <= 0 THEN 'completed' 
+                        ELSE loanstatus 
+                    END,
+                    updatedat = CURRENT_TIMESTAMP
+                WHERE loanid = @LoanId 
+                  AND organizationid = @organizationId 
+                  AND employeeid = @EmployeeId
+                  AND loanstatus != 'completed'
+                  AND remainingamount > 0
+                RETURNING remainingamount;";
+
+            var newRemainingAmount = await connection.QuerySingleOrDefaultAsync<decimal?>(updateSql, new
+            {
+                dto.LoanId,
+                organizationId,
+                dto.EmployeeId,
+                dto.InstallmentAmount,
+                dto.InstallmentNumber
+            }, transaction);
+
+            if (newRemainingAmount == null)
+            {
+                transaction.Rollback();
+                return false; // Result will be handled as "Loan already completed or not found" in Service
+            }
+
+            // 2. Insert into loanpayments table
+            var insertSql = @"
+                INSERT INTO payroll.loanpayments (
+                    organizationid, loanid, employeeid, periodid, 
+                    installmentnumber, installmentamount, remainingamount, 
+                    repaymenttype, paymentdate, paymentmethod, paymentstatus
+                ) VALUES (
+                    @organizationId, @LoanId, @EmployeeId, @PeriodId, 
+                    @InstallmentNumber, @InstallmentAmount, @RemainingAmount, 
+                    @RepaymentType, @PaymentDate, @PaymentMethod, 'settled'
+                );";
+
+            await connection.ExecuteAsync(insertSql, new
+            {
+                organizationId,
+                dto.LoanId,
+                dto.EmployeeId,
+                dto.PeriodId,
+                dto.InstallmentNumber,
+                dto.InstallmentAmount,
+                RemainingAmount = newRemainingAmount,
+                dto.RepaymentType,
+                dto.PaymentDate,
+                dto.PaymentMethod
+            }, transaction);
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<LoanPaymentDto?> GetLoanPaymentByIdAsync(Guid paymentId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT 
+                id AS Id,
+                loanid AS LoanId,
+                employeeid AS EmployeeId,
+                periodid AS PeriodId,
+                installmentnumber AS InstallmentNumber,
+                installmentamount AS InstallmentAmount,
+                remainingamount AS RemainingAmount,
+                repaymenttype AS RepaymentType,
+                paymentdate AS PaymentDate,
+                paymentmethod AS PaymentMethod,
+                paymentstatus AS PaymentStatus,
+                createdat AS CreatedAt
+            FROM payroll.loanpayments
+            WHERE id = @paymentId AND organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<LoanPaymentDto>(sql, new { paymentId, organizationId });
+    }
+
+    public async Task<bool> UpdateLoanPaymentAsync(Guid organizationId, UpdateLoanPaymentDto dto)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            // 1. Get the old record to calculate the difference
+            var oldRecordSql = @"
+                SELECT installmentamount, loanid 
+                FROM payroll.loanpayments 
+                WHERE id = @Id AND organizationid = @organizationId FOR UPDATE;";
+            
+            var oldRecord = await connection.QuerySingleOrDefaultAsync(oldRecordSql, new { dto.Id, organizationId }, transaction);
+            if (oldRecord == null)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            decimal oldAmount = oldRecord.installmentamount;
+            decimal diff = oldAmount - dto.InstallmentAmount; // If new is larger, diff is negative
+
+            // 2. Update the main loan table
+            var updateLoanSql = @"
+                UPDATE payroll.loans
+                SET 
+                    remainingamount = GREATEST(0, remainingamount + @diff),
+                    loanstatus = CASE 
+                        WHEN (remainingamount + @diff) <= 0 THEN 'completed' 
+                        ELSE 'active' 
+                    END,
+                    updatedat = CURRENT_TIMESTAMP
+                WHERE loanid = @LoanId AND organizationid = @organizationId
+                RETURNING remainingamount;";
+
+            var newLoanRemaining = await connection.QuerySingleOrDefaultAsync<decimal?>(updateLoanSql, new { diff, dto.LoanId, organizationId }, transaction);
+
+            // 3. Update the payment record
+            var updatePaymentSql = @"
+                UPDATE payroll.loanpayments
+                SET 
+                    periodid = @PeriodId,
+                    installmentnumber = @InstallmentNumber,
+                    installmentamount = @InstallmentAmount,
+                    remainingamount = @RemainingAmount,
+                    repaymenttype = @RepaymentType,
+                    paymentdate = @PaymentDate,
+                    paymentmethod = @PaymentMethod,
+                    paymentstatus = @PaymentStatus,
+                    updatedat = CURRENT_TIMESTAMP
+                WHERE id = @Id AND organizationid = @organizationId;";
+
+            await connection.ExecuteAsync(updatePaymentSql, new
+            {
+                dto.PeriodId,
+                dto.InstallmentNumber,
+                dto.InstallmentAmount,
+                RemainingAmount = newLoanRemaining ?? 0,
+                dto.RepaymentType,
+                dto.PaymentDate,
+                dto.PaymentMethod,
+                dto.PaymentStatus,
+                dto.Id,
+                organizationId
+            }, transaction);
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
     }
 
     public async Task<PagedResult<LoanDto>> GetAllLoansAsync(Guid organizationId, LoanFilterDto filter)

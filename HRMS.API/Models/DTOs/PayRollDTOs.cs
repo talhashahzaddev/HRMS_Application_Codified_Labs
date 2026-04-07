@@ -642,6 +642,7 @@ public class MyActiveLoanDto : LoanDto
 {
     public int RemainingInstallments { get; set; }
     public decimal CompletedPercentage { get; set; }
+    public int TotalCount { get; set; }
 }
 
 public class LoanPaymentDto
@@ -658,4 +659,58 @@ public class LoanPaymentDto
     public string PaymentMethod { get; set; } = string.Empty;
     public string PaymentStatus { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+}
+
+public class DisbursedLoanFilterDto
+{
+    public string? SearchTerm { get; set; } // Employee name
+    public string? LoanStatus { get; set; } 
+    public decimal? MinTotalAmount { get; set; }
+    public decimal? MaxTotalAmount { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class AddLoanPaymentDto
+{
+    public Guid LoanId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid? PeriodId { get; set; }
+    public int InstallmentNumber { get; set; }
+    public decimal InstallmentAmount { get; set; }
+    public string RepaymentType { get; set; } = "installment";
+    public DateTime PaymentDate { get; set; } = DateTime.Now;
+    public string PaymentMethod { get; set; } = "cash"; // cash, bank_transfer, etc.
+}
+
+public class UpdateLoanPaymentDto
+{
+    public Guid Id { get; set; }
+    public Guid LoanId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid? PeriodId { get; set; }
+    public int InstallmentNumber { get; set; }
+    public decimal InstallmentAmount { get; set; }
+    public string RepaymentType { get; set; } = "installment";
+    public DateTime PaymentDate { get; set; } = DateTime.Now;
+    public string PaymentMethod { get; set; } = "cash";
+    public string PaymentStatus { get; set; } = "settled";
+}
+
+public class RepaymentHistoryDto : LoanPaymentDto
+{
+    public string EmployeeName { get; set; } = string.Empty;
+    public decimal LoanTotalAmount { get; set; }
+    public string LoanStatus { get; set; } = string.Empty;
+    public int TotalCount { get; set; }
+}
+
+public class RepaymentFilterDto
+{
+    public string? SearchTerm { get; set; } // Employee Name
+    public string? RepaymentType { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string? LoanStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
 }
