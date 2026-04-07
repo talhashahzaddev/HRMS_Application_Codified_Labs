@@ -2615,6 +2615,52 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return await GetLoanByIdAsync(loanId.Value, organizationId);
     }
 
+    public async Task<IEnumerable<MyActiveLoanDto>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT 
+                l.loanid AS LoanId,
+                l.organizationid AS OrganizationId,
+                l.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                l.principalamount AS PrincipalAmount,
+                l.totalinterest AS TotalInterest,
+                l.totalamount AS TotalAmount,
+                l.monthlyinstallment AS MonthlyInstallment,
+                COALESCE(lp.remainingamount, l.remainingamount) AS RemainingAmount,
+                (l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) AS PaidAmount,
+                l.totalinstallments AS TotalInstallments,
+                COALESCE(lp.installmentnumber, 0) AS PaidInstallments,
+                l.repaymenttype AS RepaymentType,
+                l.requeststatus AS RequestStatus,
+                l.loanstatus AS LoanStatus,
+                l.description AS Description,
+                l.startdate AS StartDate,
+                l.enddate AS EndDate,
+                l.createdat AS CreatedAt,
+                (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
+                CASE 
+                    WHEN l.totalamount = 0 THEN 0 
+                    ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
+                END AS CompletedPercentage
+            FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
+            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+            LEFT JOIN (
+                SELECT DISTINCT ON (loanid) loanid, installmentnumber, remainingamount
+                FROM payroll.loanpayments
+                ORDER BY loanid, installmentnumber DESC
+            ) lp ON l.loanid = lp.loanid
+            WHERE l.organizationid = @organizationId 
+              AND l.employeeid = @employeeId 
+              AND l.loanstatus = 'active'
+            ORDER BY l.createdat DESC;";
+
+        return await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId });
+    }
+
     public async Task<PagedResult<LoanDto>> GetAllLoansAsync(Guid organizationId, LoanFilterDto filter)
     {
         var conditions = new List<string> { "l.organizationid = @organizationId" };
@@ -2755,6 +2801,29 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
         var resultId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { loanId, organizationId, employeeId });
         return resultId != null;
+    }
+
+    public async Task<IEnumerable<LoanPaymentDto>> GetLoanHistoryAsync(Guid loanId, Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT 
+                id AS Id,
+                loanid AS LoanId,
+                employeeid AS EmployeeId,
+                periodid AS PeriodId,
+                installmentnumber AS InstallmentNumber,
+                installmentamount AS InstallmentAmount,
+                remainingamount AS RemainingAmount,
+                repaymenttype AS RepaymentType,
+                paymentdate AS PaymentDate,
+                paymentmethod AS PaymentMethod,
+                paymentstatus AS PaymentStatus,
+                createdat AS CreatedAt
+            FROM payroll.loanpayments
+            WHERE loanid = @loanId AND organizationid = @organizationId AND employeeid = @employeeId
+            ORDER BY installmentnumber DESC, paymentdate DESC;";
+
+        return await QueryAsync<LoanPaymentDto>(sql, new { loanId, organizationId, employeeId });
     }
 
     public async Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId)

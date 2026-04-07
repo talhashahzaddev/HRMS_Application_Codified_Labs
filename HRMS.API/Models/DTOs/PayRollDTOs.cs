@@ -637,3 +637,25 @@ public class DisburseLoanDto
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
 }
+
+public class MyActiveLoanDto : LoanDto
+{
+    public int RemainingInstallments { get; set; }
+    public decimal CompletedPercentage { get; set; }
+}
+
+public class LoanPaymentDto
+{
+    public Guid Id { get; set; }
+    public Guid LoanId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid? PeriodId { get; set; }
+    public int InstallmentNumber { get; set; }
+    public decimal InstallmentAmount { get; set; }
+    public decimal RemainingAmount { get; set; }
+    public string RepaymentType { get; set; } = string.Empty;
+    public DateTime PaymentDate { get; set; }
+    public string PaymentMethod { get; set; } = string.Empty;
+    public string PaymentStatus { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}

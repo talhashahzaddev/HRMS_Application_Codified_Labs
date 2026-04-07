@@ -1401,6 +1401,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<IEnumerable<MyActiveLoanDto>>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMyActiveLoansAsync(organizationId, employeeId);
+            return new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my active loans");
+            return new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<LoanDto>> DisburseLoanAsync(Guid organizationId, Guid createdBy, DisburseLoanDto dto)
     {
         try
@@ -1416,6 +1430,20 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error disbursing loan");
             return new ServiceResponse<LoanDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<LoanPaymentDto>>> GetLoanHistoryAsync(Guid loanId, Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLoanHistoryAsync(loanId, organizationId, employeeId);
+            return new ServiceResponse<IEnumerable<LoanPaymentDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting loan history");
+            return new ServiceResponse<IEnumerable<LoanPaymentDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
