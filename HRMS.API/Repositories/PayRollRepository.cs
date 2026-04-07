@@ -2428,6 +2428,335 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return deletedId != null && deletedId != Guid.Empty;
     }
 
+    public async Task<LoanDto?> GetLoanByIdAsync(Guid loanid, Guid organizationId)
+    {
+        var sql = @"
+            SELECT 
+                l.loanid AS LoanId,
+                l.organizationid AS OrganizationId,
+                l.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                l.principalamount AS PrincipalAmount,
+                l.totalinterest AS TotalInterest,
+                l.totalamount AS TotalAmount,
+                l.monthlyinstallment AS MonthlyInstallment,
+                l.remainingamount AS RemainingAmount,
+                l.paidamount AS PaidAmount,
+                l.totalinstallments AS TotalInstallments,
+                l.paidinstallments AS PaidInstallments,
+                l.repaymenttype AS RepaymentType,
+                l.requeststatus AS RequestStatus,
+                l.loanstatus AS LoanStatus,
+                l.description AS Description,
+                l.startdate AS StartDate,
+                l.enddate AS EndDate,
+                l.createdat AS CreatedAt
+            FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
+            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+            WHERE l.loanid = @loanid AND l.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<LoanDto>(sql, new { loanid, organizationId });
+    }
+
+    public async Task<LoanDto> CreateLoanRequestAsync(Guid organizationId, Guid employeeId, CreateLoanRequestDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.loans (
+                organizationid, employeeid, ruleid, principalamount, totalinterest, 
+                remainingamount, totalinstallments, monthlyinstallment, 
+                description, repaymenttype, requeststatus, loanstatus
+            )
+            VALUES (
+                @organizationId, @employeeId, @RuleId, @PrincipalAmount, @TotalInterest, 
+                0, @TotalInstallments, @MonthlyInstallment, 
+                @Description, @RepaymentType, 'pending', 'inactive'
+            )
+            RETURNING loanid;";
+
+        var parameters = new
+        {
+            organizationId,
+            employeeId,
+            dto.RuleId,
+            dto.PrincipalAmount,
+            dto.TotalInterest,
+            dto.TotalInstallments,
+            dto.MonthlyInstallment,
+            dto.Description,
+            dto.RepaymentType
+        };
+
+        var loanId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetLoanByIdAsync(loanId, organizationId))!;
+    }
+
+    public async Task<PagedResult<LoanDto>> GetMyLoansAsync(Guid organizationId, Guid employeeId, LoanFilterDto filter)
+    {
+        var conditions = new List<string> { "l.organizationid = @organizationId", "l.employeeid = @employeeId" };
+        if (!string.IsNullOrEmpty(filter.RequestStatus)) conditions.Add("l.requeststatus = @RequestStatus");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.loans l
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT 
+                l.loanid AS LoanId,
+                l.organizationid AS OrganizationId,
+                l.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                l.principalamount AS PrincipalAmount,
+                l.totalinterest AS TotalInterest,
+                l.totalamount AS TotalAmount,
+                l.monthlyinstallment AS MonthlyInstallment,
+                l.remainingamount AS RemainingAmount,
+                l.paidamount AS PaidAmount,
+                l.totalinstallments AS TotalInstallments,
+                l.paidinstallments AS PaidInstallments,
+                l.repaymenttype AS RepaymentType,
+                l.requeststatus AS RequestStatus,
+                l.loanstatus AS LoanStatus,
+                l.description AS Description,
+                l.startdate AS StartDate,
+                l.enddate AS EndDate,
+                l.createdat AS CreatedAt
+            FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
+            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+            WHERE {whereClause}
+            ORDER BY l.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new
+        {
+            organizationId,
+            employeeId,
+            filter.RequestStatus,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<LoanDto>(sql, parameters);
+
+        return new PagedResult<LoanDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<LoanDto?> UpdateLoanStatusAsync(Guid organizationId, Guid approvedBy, UpdateLoanStatusDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.loans
+            SET 
+                requeststatus = @RequestStatus,
+                approvedby = @approvedBy,
+                approvedat = CURRENT_TIMESTAMP,
+                rejectionreason = @RejectionReason,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE loanid = @LoanId AND organizationid = @organizationId
+            RETURNING loanid;";
+
+        var parameters = new
+        {
+            dto.LoanId,
+            organizationId,
+            approvedBy,
+            dto.RequestStatus,
+            dto.RejectionReason
+        };
+
+        var loanId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (loanId == null) return null;
+
+        return await GetLoanByIdAsync(loanId.Value, organizationId);
+    }
+
+    public async Task<LoanDto?> DisburseLoanAsync(Guid organizationId, Guid createdBy, DisburseLoanDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.loans
+            SET 
+                disbursementstatus = 'paid',
+                loanstatus = 'active',
+                disbursementdate = CURRENT_DATE,
+                startdate = @StartDate,
+                enddate = @EndDate,
+                createdby = @createdBy,
+                remainingamount = principalamount + totalinterest,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE loanid = @LoanId AND organizationid = @organizationId AND requeststatus = 'accepted'
+            RETURNING loanid;";
+
+        var parameters = new
+        {
+            dto.LoanId,
+            organizationId,
+            createdBy,
+            dto.StartDate,
+            dto.EndDate
+        };
+
+        var loanId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (loanId == null) return null;
+
+        return await GetLoanByIdAsync(loanId.Value, organizationId);
+    }
+
+    public async Task<PagedResult<LoanDto>> GetAllLoansAsync(Guid organizationId, LoanFilterDto filter)
+    {
+        var conditions = new List<string> { "l.organizationid = @organizationId" };
+        if (!string.IsNullOrEmpty(filter.RequestStatus)) conditions.Add("l.requeststatus = @RequestStatus");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.loans l
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT 
+                l.loanid AS LoanId,
+                l.organizationid AS OrganizationId,
+                l.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                l.principalamount AS PrincipalAmount,
+                l.totalinterest AS TotalInterest,
+                l.totalamount AS TotalAmount,
+                l.monthlyinstallment AS MonthlyInstallment,
+                l.remainingamount AS RemainingAmount,
+                l.paidamount AS PaidAmount,
+                l.totalinstallments AS TotalInstallments,
+                l.paidinstallments AS PaidInstallments,
+                l.repaymenttype AS RepaymentType,
+                l.requeststatus AS RequestStatus,
+                l.loanstatus AS LoanStatus,
+                l.description AS Description,
+                l.startdate AS StartDate,
+                l.enddate AS EndDate,
+                l.createdat AS CreatedAt
+            FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
+            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+            WHERE {whereClause}
+            ORDER BY l.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new
+        {
+            organizationId,
+            filter.RequestStatus,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<LoanDto>(sql, parameters);
+
+        return new PagedResult<LoanDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<LoanDto?> GetLoanByIdAndEmployeeAsync(Guid loanId, Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT 
+                l.loanid AS LoanId,
+                l.organizationid AS OrganizationId,
+                l.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                l.principalamount AS PrincipalAmount,
+                l.totalinterest AS TotalInterest,
+                l.totalamount AS TotalAmount,
+                l.monthlyinstallment AS MonthlyInstallment,
+                l.remainingamount AS RemainingAmount,
+                l.paidamount AS PaidAmount,
+                l.totalinstallments AS TotalInstallments,
+                l.paidinstallments AS PaidInstallments,
+                l.repaymenttype AS RepaymentType,
+                l.requeststatus AS RequestStatus,
+                l.loanstatus AS LoanStatus,
+                l.description AS Description,
+                l.startdate AS StartDate,
+                l.enddate AS EndDate,
+                l.createdat AS CreatedAt
+            FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
+            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+            WHERE l.loanid = @loanId AND l.organizationid = @organizationId AND l.employeeid = @employeeId;";
+
+        return await QuerySingleOrDefaultAsync<LoanDto>(sql, new { loanId, organizationId, employeeId });
+    }
+
+    public async Task<LoanDto?> UpdateLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId, CreateLoanRequestDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.loans
+            SET 
+                ruleid = @RuleId,
+                principalamount = @PrincipalAmount,
+                totalinterest = @TotalInterest,
+                totalinstallments = @TotalInstallments,
+                monthlyinstallment = @MonthlyInstallment,
+                description = @Description,
+                repaymenttype = @RepaymentType,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE loanid = @loanId AND organizationid = @organizationId AND employeeid = @employeeId AND requeststatus = 'pending'
+            RETURNING loanid;";
+
+        var parameters = new
+        {
+            loanId,
+            organizationId,
+            employeeId,
+            dto.RuleId,
+            dto.PrincipalAmount,
+            dto.TotalInterest,
+            dto.TotalInstallments,
+            dto.MonthlyInstallment,
+            dto.Description,
+            dto.RepaymentType
+        };
+
+        var resultId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (resultId == null) return null;
+
+        return await GetLoanByIdAsync(resultId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            DELETE FROM payroll.loans
+            WHERE loanid = @loanId AND organizationid = @organizationId AND employeeid = @employeeId AND requeststatus = 'pending'
+            RETURNING loanid;";
+
+        var resultId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { loanId, organizationId, employeeId });
+        return resultId != null;
+    }
+
     public async Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId)
     {
         var sql = @"

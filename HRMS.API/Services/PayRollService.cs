@@ -1317,6 +1317,162 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<LoanDto>> GetLoanByIdAsync(Guid loanId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLoanByIdAsync(loanId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<LoanDto> { Success = false, Message = "Loan not found." };
+            }
+            return new ServiceResponse<LoanDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting loan by ID");
+            return new ServiceResponse<LoanDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LoanDto>> CreateLoanRequestAsync(Guid organizationId, Guid employeeId, CreateLoanRequestDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateLoanRequestAsync(organizationId, employeeId, dto);
+            return new ServiceResponse<LoanDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating loan request");
+            return new ServiceResponse<LoanDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<LoanDto>>> GetMyLoansAsync(Guid organizationId, Guid employeeId, LoanFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMyLoansAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<LoanDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my loan requests");
+            return new ServiceResponse<PagedResult<LoanDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LoanDto>> UpdateLoanStatusAsync(Guid organizationId, Guid approvedBy, UpdateLoanStatusDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateLoanStatusAsync(organizationId, approvedBy, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<LoanDto> { Success = false, Message = "Loan request not found or failed to update." };
+            }
+
+            return new ServiceResponse<LoanDto>
+            {
+                Success = true,
+                Message = $"Loan request {dto.RequestStatus} successfully.",
+                Data = result
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating loan status");
+            return new ServiceResponse<LoanDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<LoanDto>>> GetAllLoansAsync(Guid organizationId, LoanFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllLoansAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<LoanDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all loan requests");
+            return new ServiceResponse<PagedResult<LoanDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LoanDto>> DisburseLoanAsync(Guid organizationId, Guid createdBy, DisburseLoanDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.DisburseLoanAsync(organizationId, createdBy, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<LoanDto> { Success = false, Message = "Loan disbursement failed. Ensure the request is accepted." };
+            }
+            return new ServiceResponse<LoanDto> { Success = true, Message = "Loan disbursed successfully.", Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disbursing loan");
+            return new ServiceResponse<LoanDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LoanDto>> GetLoanByIdAndEmployeeAsync(Guid loanId, Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetLoanByIdAndEmployeeAsync(loanId, organizationId, employeeId);
+            if (result == null)
+            {
+                return new ServiceResponse<LoanDto> { Success = false, Message = "Loan request not found or does not belong to you." };
+            }
+            return new ServiceResponse<LoanDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting loan by ID and employee");
+            return new ServiceResponse<LoanDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<LoanDto>> UpdateLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId, CreateLoanRequestDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateLoanRequestAsync(loanId, organizationId, employeeId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<LoanDto> { Success = false, Message = "Loan request not found, does not belong to you, or is not in pending status." };
+            }
+            return new ServiceResponse<LoanDto> { Success = true, Message = "Loan request updated successfully.", Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating loan request");
+            return new ServiceResponse<LoanDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteLoanRequestAsync(loanId, organizationId, employeeId);
+            if (!result)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Loan request not found, does not belong to you, or is not in pending status." };
+            }
+            return new ServiceResponse<bool> { Success = true, Message = "Loan request deleted successfully.", Data = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting loan request");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<PayrollOverviewDto>> GetPayrollOverviewAsync(Guid organizationId)
     {
         try

@@ -112,6 +112,19 @@ public interface IPayRollRepository
     Task<LoanRuleDto?> UpdateLoanRuleAsync(Guid ruleId, Guid organizationId, UpdateLoanRuleDto dto);
     Task<bool> DeleteLoanRuleAsync(Guid ruleId, Guid organizationId);
 
+    // Loans
+    Task<LoanDto?> GetLoanByIdAsync(Guid loanId, Guid organizationId);
+    Task<LoanDto> CreateLoanRequestAsync(Guid organizationId, Guid employeeId, CreateLoanRequestDto dto);
+    Task<PagedResult<LoanDto>> GetMyLoansAsync(Guid organizationId, Guid employeeId, LoanFilterDto filter);
+    Task<LoanDto?> UpdateLoanStatusAsync(Guid organizationId, Guid approvedBy, UpdateLoanStatusDto dto);
+    Task<PagedResult<LoanDto>> GetAllLoansAsync(Guid organizationId, LoanFilterDto filter);
+    Task<LoanDto?> DisburseLoanAsync(Guid organizationId, Guid createdBy, DisburseLoanDto dto);
+
+    // Personal Loan Operations
+    Task<LoanDto?> GetLoanByIdAndEmployeeAsync(Guid loanId, Guid organizationId, Guid employeeId);
+    Task<LoanDto?> UpdateLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId, CreateLoanRequestDto dto);
+    Task<bool> DeleteLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId);
+
     // Overview
     Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId);
 }

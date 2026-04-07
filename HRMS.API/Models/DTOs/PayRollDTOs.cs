@@ -580,3 +580,60 @@ public class PayrollOverviewDto
 {
     public List<string> ActiveModules { get; set; } = new();
 }
+
+public class LoanDto
+{
+    public Guid LoanId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public decimal PrincipalAmount { get; set; }
+    public decimal TotalInterest { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal? MonthlyInstallment { get; set; }
+    public decimal RemainingAmount { get; set; }
+    public decimal PaidAmount { get; set; }
+    public int TotalInstallments { get; set; }
+    public int PaidInstallments { get; set; }
+    public string RepaymentType { get; set; } = string.Empty;
+    public string RequestStatus { get; set; } = string.Empty;
+    public string LoanStatus { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CreateLoanRequestDto
+{
+    public Guid? RuleId { get; set; }
+    public decimal PrincipalAmount { get; set; }
+    public decimal TotalInterest { get; set; }
+    public decimal? MonthlyInstallment { get; set; }
+    public int TotalInstallments { get; set; }
+    public string? Description { get; set; }
+    public string RepaymentType { get; set; } = "installment";
+}
+
+public class LoanFilterDto
+{
+    public string? RequestStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class UpdateLoanStatusDto
+{
+    public Guid LoanId { get; set; }
+    public string RequestStatus { get; set; } = string.Empty; // accepted, rejected
+    public string? RejectionReason { get; set; }
+}
+
+public class DisburseLoanDto
+{
+    public Guid LoanId { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+}
