@@ -109,6 +109,26 @@ public interface IPayRollService
     Task<ServiceResponse<LoanRuleDto>> UpdateLoanRuleAsync(Guid ruleId, Guid organizationId, UpdateLoanRuleDto dto);
     Task<ServiceResponse<bool>> DeleteLoanRuleAsync(Guid ruleId, Guid organizationId);
 
+    // Salary Advance Rules
+    Task<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>> GetAllSalaryAdvanceRulesAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId);
+    Task<ServiceResponse<SalaryAdvanceRuleDto>> GetSalaryAdvanceRuleByIdAsync(Guid ruleId, Guid organizationId);
+    Task<ServiceResponse<SalaryAdvanceRuleDto>> CreateSalaryAdvanceRuleAsync(Guid organizationId, CreateSalaryAdvanceRuleDto dto);
+    Task<ServiceResponse<SalaryAdvanceRuleDto>> UpdateSalaryAdvanceRuleAsync(Guid ruleId, Guid organizationId, UpdateSalaryAdvanceRuleDto dto);
+    Task<ServiceResponse<bool>> DeleteSalaryAdvanceRuleAsync(Guid ruleId, Guid organizationId);
+
+    // Salary Advance
+    Task<ServiceResponse<SalaryAdvanceDto>> CreateSalaryAdvanceAsync(Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto);
+    Task<ServiceResponse<SalaryAdvanceDto>> UpdateMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto);
+    Task<ServiceResponse<bool>> CancelMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId);
+    Task<ServiceResponse<PagedResult<MySalaryAdvanceDto>>> GetMySalaryAdvancesAsync(Guid organizationId, Guid employeeId, SalaryAdvanceFilterDto filter);
+    Task<ServiceResponse<MySalaryAdvanceDto>> GetMySalaryAdvanceByIdAsync(Guid advanceId, Guid organizationId, Guid employeeId);
+    Task<ServiceResponse<PagedResult<AdminSalaryAdvanceDto>>> GetAllSalaryAdvanceRequestsAsync(Guid organizationId, AdminSalaryAdvanceFilterDto filter);
+    Task<ServiceResponse<AdminSalaryAdvanceDto>> GetSalaryAdvanceRequestByIdAsync(Guid advanceId, Guid organizationId);
+    Task<ServiceResponse<bool>> ApproveSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid approvedBy);
+    Task<ServiceResponse<bool>> RejectSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid rejectedBy, RejectSalaryAdvanceDto dto);
+    Task<ServiceResponse<bool>> DisburseSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid disbursedBy, DisburseSalaryAdvanceDto dto);
+
     // Loans
     Task<ServiceResponse<LoanDto>> GetLoanByIdAsync(Guid loanId, Guid organizationId);
     Task<ServiceResponse<LoanDto>> CreateLoanRequestAsync(Guid organizationId, Guid employeeId, CreateLoanRequestDto dto);

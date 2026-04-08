@@ -1317,6 +1317,262 @@ public class PayRollService : IPayRollService
         }
     }
 
+    // Salary Advance Rules
+    public async Task<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>> GetAllSalaryAdvanceRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllSalaryAdvanceRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all salary advance rules");
+            return new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveSalaryAdvanceRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active salary advance rules");
+            return new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SalaryAdvanceRuleDto>> GetSalaryAdvanceRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetSalaryAdvanceRuleByIdAsync(ruleId, organizationId);
+            if (result == null)
+                return new ServiceResponse<SalaryAdvanceRuleDto> { Success = false, Message = "Salary advance rule not found." };
+            return new ServiceResponse<SalaryAdvanceRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting salary advance rule by ID");
+            return new ServiceResponse<SalaryAdvanceRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SalaryAdvanceRuleDto>> CreateSalaryAdvanceRuleAsync(Guid organizationId, CreateSalaryAdvanceRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateSalaryAdvanceRuleAsync(organizationId, dto);
+            return new ServiceResponse<SalaryAdvanceRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating salary advance rule");
+            return new ServiceResponse<SalaryAdvanceRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SalaryAdvanceRuleDto>> UpdateSalaryAdvanceRuleAsync(Guid ruleId, Guid organizationId, UpdateSalaryAdvanceRuleDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateSalaryAdvanceRuleAsync(ruleId, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<SalaryAdvanceRuleDto> { Success = false, Message = "Salary advance rule not found." };
+            return new ServiceResponse<SalaryAdvanceRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating salary advance rule");
+            return new ServiceResponse<SalaryAdvanceRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteSalaryAdvanceRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteSalaryAdvanceRuleAsync(ruleId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting salary advance rule");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Salary Advance
+    public async Task<ServiceResponse<SalaryAdvanceDto>> CreateSalaryAdvanceAsync(Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateSalaryAdvanceAsync(organizationId, employeeId, dto);
+            return new ServiceResponse<SalaryAdvanceDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating salary advance request");
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SalaryAdvanceDto>> UpdateMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateMySalaryAdvanceAsync(advanceId, organizationId, employeeId, dto);
+            if (result == null)
+                return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "Salary advance request not found or cannot be updated." };
+            return new ServiceResponse<SalaryAdvanceDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating salary advance request");
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> CancelMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.CancelMySalaryAdvanceAsync(advanceId, organizationId, employeeId);
+            return new ServiceResponse<bool>
+            {
+                Success = result,
+                Data = result,
+                Message = result ? "Salary advance request cancelled successfully." : "Salary advance request not found or cannot be cancelled."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling salary advance request");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<MySalaryAdvanceDto>>> GetMySalaryAdvancesAsync(Guid organizationId, Guid employeeId, SalaryAdvanceFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMySalaryAdvancesAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<MySalaryAdvanceDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting salary advance requests for employee");
+            return new ServiceResponse<PagedResult<MySalaryAdvanceDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<MySalaryAdvanceDto>> GetMySalaryAdvanceByIdAsync(Guid advanceId, Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMySalaryAdvanceByIdAsync(advanceId, organizationId, employeeId);
+            if (result == null)
+                return new ServiceResponse<MySalaryAdvanceDto> { Success = false, Message = "Salary advance request not found." };
+            return new ServiceResponse<MySalaryAdvanceDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting salary advance request by ID for employee");
+            return new ServiceResponse<MySalaryAdvanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<AdminSalaryAdvanceDto>>> GetAllSalaryAdvanceRequestsAsync(Guid organizationId, AdminSalaryAdvanceFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllSalaryAdvanceRequestsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<AdminSalaryAdvanceDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all salary advance requests");
+            return new ServiceResponse<PagedResult<AdminSalaryAdvanceDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<AdminSalaryAdvanceDto>> GetSalaryAdvanceRequestByIdAsync(Guid advanceId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetSalaryAdvanceRequestByIdAsync(advanceId, organizationId);
+            if (result == null)
+                return new ServiceResponse<AdminSalaryAdvanceDto> { Success = false, Message = "Salary advance request not found." };
+            return new ServiceResponse<AdminSalaryAdvanceDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting salary advance request by ID");
+            return new ServiceResponse<AdminSalaryAdvanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> ApproveSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid approvedBy)
+    {
+        try
+        {
+            var result = await _payRollRepository.ApproveSalaryAdvanceAsync(advanceId, organizationId, approvedBy);
+            return new ServiceResponse<bool>
+            {
+                Success = result,
+                Data = result,
+                Message = result ? "Salary advance request approved successfully." : "Salary advance request not found or not in pending status."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving salary advance request");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> RejectSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid rejectedBy, RejectSalaryAdvanceDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.RejectSalaryAdvanceAsync(advanceId, organizationId, rejectedBy, dto);
+            return new ServiceResponse<bool>
+            {
+                Success = result,
+                Data = result,
+                Message = result ? "Salary advance request rejected successfully." : "Salary advance request not found or not in pending status."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error rejecting salary advance request");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DisburseSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid disbursedBy, DisburseSalaryAdvanceDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.DisburseSalaryAdvanceAsync(advanceId, organizationId, disbursedBy, dto);
+            return new ServiceResponse<bool>
+            {
+                Success = result,
+                Data = result,
+                Message = result ? "Salary advance request marked as disbursed successfully." : "Salary advance request not found or not in approved status."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disbursing salary advance request");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<LoanDto>> GetLoanByIdAsync(Guid loanId, Guid organizationId)
     {
         try

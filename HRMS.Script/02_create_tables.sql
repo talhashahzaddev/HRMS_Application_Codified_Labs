@@ -1945,15 +1945,12 @@ create table if not exists payroll.loanpayments(
 ); // loan
 
 // advance salary
-create table if not exists payroll.salaryadvancerules
-(
+create table if not exists payroll.salaryadvancerules (
     ruleid              uuid primary key default uuid_generate_v4(),
-    rulename            character varying(100),
+    rulename            character varying(100) not null,
     description         text,
     organizationid      uuid not null,
-    maxpercentage       numeric(5,2),
-    allowancegrace      integer,
-    requiresapproval    boolean default true,
+    maxpercentage       numeric(5,2),            -- max % of salary employee can request
     isactive            boolean default true,
     isdeleted           boolean default false,
     createdat           timestamptz default current_timestamp,
@@ -1961,39 +1958,35 @@ create table if not exists payroll.salaryadvancerules
     constraint uqorgadvancerule unique (organizationid)
 );
 
-create table if not exists payroll.salaryadvance
+CREATE TABLE IF NOT EXISTS payroll.salaryadvance
 (
-    advanceid           uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    employeeid          uuid not null,
-    ruleid              uuid references payroll.salaryadvancerules(ruleid),
-    periodid            uuid, 
-    totalamount         numeric(15,2) not null,
-    remainingamount     numeric(15,2) not null,
-    monthlydeduction    numeric(15,2) default 0,
-    reason              text,
-    advancestatus       varchar(20) default 'pending'
-                        check (advancestatus in ('pending', 'approved', 'completed', 'cancelled')),
-    approvedby          uuid,
-    createdby           uuid,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp
-);
-
-create table if not exists payroll.advancepayments
-(
-    id                  uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    advanceid           uuid references payroll.salaryadvance(advanceid),
-    employeeid          uuid not null,
-    periodid            uuid not null,
-    deductionamount     numeric(15,2) not null,
-    remainingamount     numeric(15,2) not null,
-    paymentstatus       varchar(20) default 'deducted',
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqadvancepayments unique (advanceid, periodid)
-); // advance salary
+    advanceid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    ruleid uuid,
+    amount numeric(15,2) NOT NULL,
+    reason text COLLATE pg_catalog."default",
+    advancestatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    approvedby uuid,
+    approvedat timestamp with time zone,
+    rejectedby uuid,
+    rejectedat timestamp with time zone,
+    rejectionreason text COLLATE pg_catalog."default",
+    deductedperiodid uuid,
+    deductedat timestamp with time zone,
+    createdby uuid,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    disbursedby uuid,
+    disbursedat timestamp with time zone,
+    disbursementnote text COLLATE pg_catalog."default",
+    CONSTRAINT salaryadvance_pkey PRIMARY KEY (advanceid),
+    CONSTRAINT salaryadvance_ruleid_fkey FOREIGN KEY (ruleid)
+        REFERENCES payroll.salaryadvancerules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT salaryadvance_advancestatus_check CHECK (advancestatus::text = ANY (ARRAY['pending'::character varying, 'approved'::character varying, 'disbursed'::character varying, 'rejected'::character varying, 'deducted'::character varying, 'cancelled'::character varying]::text[]))
+) // advance salary
 
 // pf rules
 create table if not exists payroll.pfrules
