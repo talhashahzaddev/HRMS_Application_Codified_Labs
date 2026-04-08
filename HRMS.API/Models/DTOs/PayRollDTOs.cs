@@ -576,6 +576,107 @@ public class UpdateLoanRuleDto : CreateLoanRuleDto
 {
 }
 
+public class SalaryAdvanceRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal? MaxPercentage { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateSalaryAdvanceRuleDto
+{
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal? MaxPercentage { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateSalaryAdvanceRuleDto : CreateSalaryAdvanceRuleDto
+{
+}
+
+public class SalaryAdvanceDto
+{
+    public Guid AdvanceId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal Amount { get; set; }
+    public string? Reason { get; set; }
+    public string AdvanceStatus { get; set; } = string.Empty;
+    public Guid? CreatedBy { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateSalaryAdvanceDto
+{
+    public Guid? RuleId { get; set; }
+    public decimal Amount { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class MySalaryAdvanceDto
+{
+    public Guid AdvanceId { get; set; }
+    public decimal Amount { get; set; }
+    public string? Reason { get; set; }
+    public string AdvanceStatus { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public Guid? DeductedPeriodId { get; set; }
+    public DateTime? DeductedAt { get; set; }
+}
+
+public class SalaryAdvanceFilterDto
+{
+    public string? AdvanceStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class AdminSalaryAdvanceDto
+{
+    public Guid AdvanceId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? Department { get; set; }
+    public decimal Amount { get; set; }
+    public string? Reason { get; set; }
+    public string AdvanceStatus { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public Guid? RejectedBy { get; set; }
+    public DateTime? RejectedAt { get; set; }
+    public string? RejectionReason { get; set; }
+    public Guid? DeductedPeriodId { get; set; }
+    public DateTime? DeductedAt { get; set; }
+}
+
+public class AdminSalaryAdvanceFilterDto
+{
+    public string? AdvanceStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class RejectSalaryAdvanceDto
+{
+    public string RejectionReason { get; set; } = string.Empty;
+}
+
+public class DisburseSalaryAdvanceDto
+{
+    public string? DisbursementNote { get; set; }
+}
+
 public class PayrollOverviewDto
 {
     public List<string> ActiveModules { get; set; } = new();

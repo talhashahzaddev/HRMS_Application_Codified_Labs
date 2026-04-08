@@ -2428,6 +2428,449 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return deletedId != null && deletedId != Guid.Empty;
     }
 
+    // Salary Advance Rules
+    public async Task<IEnumerable<SalaryAdvanceRuleDto>> GetAllSalaryAdvanceRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                maxpercentage AS MaxPercentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.salaryadvancerules
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<SalaryAdvanceRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<SalaryAdvanceRuleDto>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                maxpercentage AS MaxPercentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.salaryadvancerules
+            WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<SalaryAdvanceRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<SalaryAdvanceRuleDto?> GetSalaryAdvanceRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                maxpercentage AS MaxPercentage,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.salaryadvancerules
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<SalaryAdvanceRuleDto>(sql, new { ruleId, organizationId });
+    }
+
+    public async Task<SalaryAdvanceRuleDto> CreateSalaryAdvanceRuleAsync(Guid organizationId, CreateSalaryAdvanceRuleDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.salaryadvancerules (
+                organizationid, rulename, description, maxpercentage, isactive, isdeleted
+            )
+            VALUES (
+                @organizationId, @RuleName, @Description, @MaxPercentage, @IsActive, false
+            )
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.MaxPercentage,
+            dto.IsActive
+        };
+
+        var ruleId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetSalaryAdvanceRuleByIdAsync(ruleId, organizationId))!;
+    }
+
+    public async Task<SalaryAdvanceRuleDto?> UpdateSalaryAdvanceRuleAsync(Guid ruleId, Guid organizationId, UpdateSalaryAdvanceRuleDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.salaryadvancerules
+            SET
+                rulename = @RuleName,
+                description = @Description,
+                maxpercentage = @MaxPercentage,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            ruleId,
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.MaxPercentage,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetSalaryAdvanceRuleByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteSalaryAdvanceRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.salaryadvancerules
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { ruleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Salary Advance
+    public async Task<SalaryAdvanceDto> CreateSalaryAdvanceAsync(Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.salaryadvance (
+                organizationid, employeeid, ruleid, amount, reason, createdby
+            )
+            VALUES (
+                @organizationId, @employeeId, @RuleId, @Amount, @Reason, @employeeId
+            )
+            RETURNING
+                advanceid AS AdvanceId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                amount AS Amount,
+                reason AS Reason,
+                advancestatus AS AdvanceStatus,
+                createdby AS CreatedBy,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        var parameters = new
+        {
+            organizationId,
+            employeeId,
+            dto.RuleId,
+            dto.Amount,
+            dto.Reason
+        };
+
+        return await QuerySingleAsync<SalaryAdvanceDto>(sql, parameters);
+    }
+
+    public async Task<SalaryAdvanceDto?> UpdateMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.salaryadvance
+            SET
+                ruleid = @RuleId,
+                amount = @Amount,
+                reason = @Reason,
+                updatedat = current_timestamp
+            WHERE advanceid = @advanceId
+              AND organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND advancestatus = 'pending'
+            RETURNING
+                advanceid AS AdvanceId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                amount AS Amount,
+                reason AS Reason,
+                advancestatus AS AdvanceStatus,
+                createdby AS CreatedBy,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        var parameters = new
+        {
+            advanceId,
+            organizationId,
+            employeeId,
+            dto.RuleId,
+            dto.Amount,
+            dto.Reason
+        };
+
+        return await QuerySingleOrDefaultAsync<SalaryAdvanceDto>(sql, parameters);
+    }
+
+    public async Task<bool> CancelMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            UPDATE payroll.salaryadvance
+            SET
+                advancestatus = 'cancelled',
+                updatedat = current_timestamp
+            WHERE advanceid = @advanceId
+              AND organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND advancestatus = 'pending'
+            RETURNING advanceid;";
+
+        var cancelledId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { advanceId, organizationId, employeeId });
+        return cancelledId != null && cancelledId != Guid.Empty;
+    }
+
+    public async Task<PagedResult<MySalaryAdvanceDto>> GetMySalaryAdvancesAsync(Guid organizationId, Guid employeeId, SalaryAdvanceFilterDto filter)
+    {
+        filter ??= new SalaryAdvanceFilterDto();
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+        if (filter.Page <= 0) filter.Page = 1;
+
+        var whereClause = "WHERE organizationid = @organizationId AND employeeid = @employeeId";
+        if (!string.IsNullOrWhiteSpace(filter.AdvanceStatus))
+            whereClause += " AND advancestatus = @AdvanceStatus";
+
+        var countSql = $@"
+            SELECT COUNT(*)
+            FROM payroll.salaryadvance
+            {whereClause};";
+
+        var sql = $@"
+            SELECT
+                advanceid AS AdvanceId,
+                amount AS Amount,
+                reason AS Reason,
+                advancestatus AS AdvanceStatus,
+                createdat AS CreatedAt,
+                approvedat AS ApprovedAt,
+                deductedperiodid AS DeductedPeriodId,
+                deductedat AS DeductedAt
+            FROM payroll.salaryadvance
+            {whereClause}
+            ORDER BY createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new
+        {
+            organizationId,
+            employeeId,
+            filter.AdvanceStatus,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<MySalaryAdvanceDto>(sql, parameters);
+
+        return new PagedResult<MySalaryAdvanceDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<MySalaryAdvanceDto?> GetMySalaryAdvanceByIdAsync(Guid advanceId, Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT
+                advanceid AS AdvanceId,
+                amount AS Amount,
+                reason AS Reason,
+                advancestatus AS AdvanceStatus,
+                createdat AS CreatedAt,
+                approvedat AS ApprovedAt,
+                deductedperiodid AS DeductedPeriodId,
+                deductedat AS DeductedAt
+            FROM payroll.salaryadvance
+            WHERE advanceid = @advanceId
+              AND organizationid = @organizationId
+              AND employeeid = @employeeId;";
+
+        return await QuerySingleOrDefaultAsync<MySalaryAdvanceDto>(sql, new { advanceId, organizationId, employeeId });
+    }
+
+    public async Task<PagedResult<AdminSalaryAdvanceDto>> GetAllSalaryAdvanceRequestsAsync(Guid organizationId, AdminSalaryAdvanceFilterDto filter)
+    {
+        filter ??= new AdminSalaryAdvanceFilterDto();
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+        if (filter.Page <= 0) filter.Page = 1;
+
+        var whereClause = "WHERE sa.organizationid = @organizationId";
+        if (!string.IsNullOrWhiteSpace(filter.AdvanceStatus))
+            whereClause += " AND sa.advancestatus = @AdvanceStatus";
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.salaryadvance sa
+            {whereClause};";
+
+        var sql = $@"
+            SELECT
+                sa.advanceid AS AdvanceId,
+                sa.employeeid AS EmployeeId,
+                (e.firstname || ' ' || e.lastname) AS EmployeeName,
+                d.departmentname AS Department,
+                sa.amount AS Amount,
+                sa.reason AS Reason,
+                sa.advancestatus AS AdvanceStatus,
+                sa.createdat AS CreatedAt,
+                sa.approvedby AS ApprovedBy,
+                sa.approvedat AS ApprovedAt,
+                sa.rejectedby AS RejectedBy,
+                sa.rejectedat AS RejectedAt,
+                sa.rejectionreason AS RejectionReason,
+                sa.deductedperiodid AS DeductedPeriodId,
+                sa.deductedat AS DeductedAt
+            FROM payroll.salaryadvance sa
+            JOIN employee.Employees e ON sa.employeeid = e.employeeid
+            LEFT JOIN employee.EmploymentDetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.Departments d ON d.departmentid = ed.departmentid
+            {whereClause}
+            ORDER BY sa.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new
+        {
+            organizationId,
+            filter.AdvanceStatus,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<AdminSalaryAdvanceDto>(sql, parameters);
+
+        return new PagedResult<AdminSalaryAdvanceDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<AdminSalaryAdvanceDto?> GetSalaryAdvanceRequestByIdAsync(Guid advanceId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                sa.advanceid AS AdvanceId,
+                sa.employeeid AS EmployeeId,
+                (e.firstname || ' ' || e.lastname) AS EmployeeName,
+                d.departmentname AS Department,
+                sa.amount AS Amount,
+                sa.reason AS Reason,
+                sa.advancestatus AS AdvanceStatus,
+                sa.createdat AS CreatedAt,
+                sa.approvedby AS ApprovedBy,
+                sa.approvedat AS ApprovedAt,
+                sa.rejectedby AS RejectedBy,
+                sa.rejectedat AS RejectedAt,
+                sa.rejectionreason AS RejectionReason,
+                sa.deductedperiodid AS DeductedPeriodId,
+                sa.deductedat AS DeductedAt
+            FROM payroll.salaryadvance sa
+            JOIN employee.Employees e ON sa.employeeid = e.employeeid
+            LEFT JOIN employee.EmploymentDetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.Departments d ON d.departmentid = ed.departmentid
+            WHERE sa.advanceid = @advanceId
+              AND sa.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<AdminSalaryAdvanceDto>(sql, new { advanceId, organizationId });
+    }
+
+    public async Task<bool> ApproveSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid approvedBy)
+    {
+        var sql = @"
+            UPDATE payroll.salaryadvance
+            SET
+                advancestatus = 'approved',
+                approvedby = @approvedBy,
+                approvedat = current_timestamp,
+                updatedat = current_timestamp
+            WHERE advanceid = @advanceId
+              AND organizationid = @organizationId
+              AND advancestatus = 'pending'
+            RETURNING advanceid;";
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { advanceId, organizationId, approvedBy });
+        return updatedId != null && updatedId != Guid.Empty;
+    }
+
+    public async Task<bool> RejectSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid rejectedBy, RejectSalaryAdvanceDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.salaryadvance
+            SET
+                advancestatus = 'rejected',
+                rejectedby = @rejectedBy,
+                rejectedat = current_timestamp,
+                rejectionreason = @RejectionReason,
+                updatedat = current_timestamp
+            WHERE advanceid = @advanceId
+              AND organizationid = @organizationId
+              AND advancestatus = 'pending'
+            RETURNING advanceid;";
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new
+        {
+            advanceId,
+            organizationId,
+            rejectedBy,
+            dto.RejectionReason
+        });
+        return updatedId != null && updatedId != Guid.Empty;
+    }
+
+    public async Task<bool> DisburseSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid disbursedBy, DisburseSalaryAdvanceDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.salaryadvance
+            SET
+                advancestatus = 'disbursed',
+                disbursedby = @disbursedBy,
+                disbursedat = current_timestamp,
+                disbursementnote = @DisbursementNote,
+                updatedat = current_timestamp
+            WHERE advanceid = @advanceId
+              AND organizationid = @organizationId
+              AND advancestatus = 'approved'
+            RETURNING advanceid;";
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new
+        {
+            advanceId,
+            organizationId,
+            disbursedBy,
+            dto.DisbursementNote
+        });
+        return updatedId != null && updatedId != Guid.Empty;
+    }
+
     public async Task<LoanDto?> GetLoanByIdAsync(Guid loanid, Guid organizationId)
     {
         var sql = @"

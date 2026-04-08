@@ -1498,6 +1498,303 @@ public class PayRollController : ControllerBase
         }
     }
 
+    // Salary Advance Rules
+    [HttpGet("salary-advance-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>>> GetAllSalaryAdvanceRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllSalaryAdvanceRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving salary advance rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("salary-advance-rules/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>>> GetActiveSalaryAdvanceRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveSalaryAdvanceRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active salary advance rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("salary-advance-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SalaryAdvanceRuleDto>>> GetSalaryAdvanceRuleById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSalaryAdvanceRuleByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving salary advance rule by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SalaryAdvanceRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("salary-advance-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SalaryAdvanceRuleDto>>> CreateSalaryAdvanceRule([FromBody] CreateSalaryAdvanceRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateSalaryAdvanceRuleAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetSalaryAdvanceRuleById), new { id = response.Data?.RuleId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating salary advance rule");
+            return StatusCode(500, new ServiceResponse<SalaryAdvanceRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("salary-advance-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SalaryAdvanceRuleDto>>> UpdateSalaryAdvanceRule(Guid id, [FromBody] UpdateSalaryAdvanceRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateSalaryAdvanceRuleAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating salary advance rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SalaryAdvanceRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("salary-advance-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSalaryAdvanceRule(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteSalaryAdvanceRuleAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting salary advance rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("salary-advance/request")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<SalaryAdvanceDto>>> CreateSalaryAdvance([FromBody] CreateSalaryAdvanceDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.CreateSalaryAdvanceAsync(organizationId, employeeId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating salary advance request");
+            return StatusCode(500, new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("salary-advance/my-requests/{id}")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<SalaryAdvanceDto>>> UpdateMySalaryAdvance(Guid id, [FromBody] CreateSalaryAdvanceDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.UpdateMySalaryAdvanceAsync(id, organizationId, employeeId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating salary advance request: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("salary-advance/my-requests/{id}")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<bool>>> CancelMySalaryAdvance(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.CancelMySalaryAdvanceAsync(id, organizationId, employeeId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error cancelling salary advance request: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("salary-advance/my-requests")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<PagedResult<MySalaryAdvanceDto>>>> GetMySalaryAdvances([FromQuery] SalaryAdvanceFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMySalaryAdvancesAsync(organizationId, employeeId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my salary advance requests");
+            return StatusCode(500, new ServiceResponse<PagedResult<MySalaryAdvanceDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("salary-advance/my-requests/{id}")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<MySalaryAdvanceDto>>> GetMySalaryAdvanceById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMySalaryAdvanceByIdAsync(id, organizationId, employeeId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my salary advance request by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<MySalaryAdvanceDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("salary-advance/all")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<AdminSalaryAdvanceDto>>>> GetAllSalaryAdvanceRequests([FromQuery] AdminSalaryAdvanceFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllSalaryAdvanceRequestsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving all salary advance requests");
+            return StatusCode(500, new ServiceResponse<PagedResult<AdminSalaryAdvanceDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("salary-advance/all/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<AdminSalaryAdvanceDto>>> GetSalaryAdvanceRequestById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSalaryAdvanceRequestByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving salary advance request by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<AdminSalaryAdvanceDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("salary-advance/{id}/approve")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> ApproveSalaryAdvance(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var approvedBy = await GetCurrentEmployeeId();
+            var response = await _payRollService.ApproveSalaryAdvanceAsync(id, organizationId, approvedBy);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving salary advance request: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("salary-advance/{id}/reject")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> RejectSalaryAdvance(Guid id, [FromBody] RejectSalaryAdvanceDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var rejectedBy = await GetCurrentEmployeeId();
+            var response = await _payRollService.RejectSalaryAdvanceAsync(id, organizationId, rejectedBy, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error rejecting salary advance request: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("salary-advance/{id}/disburse")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DisburseSalaryAdvance(Guid id, [FromBody] DisburseSalaryAdvanceDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var disbursedBy = await GetCurrentEmployeeId();
+            var response = await _payRollService.DisburseSalaryAdvanceAsync(id, organizationId, disbursedBy, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error disbursing salary advance request: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     // Loans
     //Employee side
     [HttpPost("loans/request")]
