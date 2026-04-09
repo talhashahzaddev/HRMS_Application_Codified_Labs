@@ -1,4 +1,4 @@
-namespace HRMS.API.Models.DTOs;
+        namespace HRMS.API.Models.DTOs;
 
 public class LoginRequest
 {
@@ -45,6 +45,8 @@ public class UserDto
     public bool IsActive { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public DateTime CreatedAt { get; set; }
+    public string ProfileImage { get; set; }
+    public string? FaceEmbedding { get; set; }
 }
 
 public class RegisterRequest
