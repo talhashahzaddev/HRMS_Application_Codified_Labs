@@ -701,6 +701,8 @@ public class LoanDto
     public string RepaymentType { get; set; } = string.Empty;
     public string RequestStatus { get; set; } = string.Empty;
     public string LoanStatus { get; set; } = string.Empty;
+    public string DisbursementStatus { get; set; } = string.Empty;
+    public DateTime? DisbursementDate { get; set; }
     public string? Description { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
@@ -722,6 +724,7 @@ public class CreateLoanRequestDto
 
 public class LoanFilterDto
 {
+    public string? SearchTerm { get; set; }
     public string? RequestStatus { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;

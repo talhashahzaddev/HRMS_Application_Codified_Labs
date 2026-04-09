@@ -2892,6 +2892,8 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 l.repaymenttype AS RepaymentType,
                 l.requeststatus AS RequestStatus,
                 l.loanstatus AS LoanStatus,
+                l.disbursementstatus AS DisbursementStatus,
+                l.disbursementdate AS DisbursementDate,
                 l.description AS Description,
                 l.startdate AS StartDate,
                 l.enddate AS EndDate,
@@ -2970,6 +2972,8 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 l.repaymenttype AS RepaymentType,
                 l.requeststatus AS RequestStatus,
                 l.loanstatus AS LoanStatus,
+                l.disbursementstatus AS DisbursementStatus,
+                l.disbursementdate AS DisbursementDate,
                 l.description AS Description,
                 l.startdate AS StartDate,
                 l.enddate AS EndDate,
@@ -3113,45 +3117,46 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     {
         var sql = @"
             SELECT 
-                l.loanid AS LoanId,
-                l.organizationid AS OrganizationId,
-                l.employeeid AS EmployeeId,
-                e.firstname || ' ' || e.lastname AS EmployeeName,
-                l.ruleid AS RuleId,
-                lr.rulename AS RuleName,
-                l.principalamount AS PrincipalAmount,
-                l.totalinterest AS TotalInterest,
-                l.totalamount AS TotalAmount,
-                l.monthlyinstallment AS MonthlyInstallment,
-                COALESCE(lp.remainingamount, l.remainingamount) AS RemainingAmount,
-                (l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) AS PaidAmount,
-                l.totalinstallments AS TotalInstallments,
-                COALESCE(lp.installmentnumber, 0) AS PaidInstallments,
-                l.repaymenttype AS RepaymentType,
-                l.requeststatus AS RequestStatus,
-                l.loanstatus AS LoanStatus,
-                l.description AS Description,
-                l.startdate AS StartDate,
-                l.enddate AS EndDate,
-                l.enddate AS ReturnDate,
-                l.createdat AS CreatedAt,
-                (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
-                CASE 
-                    WHEN l.totalamount = 0 THEN 0 
-                    ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
-                END AS CompletedPercentage
-            FROM payroll.loans l
-            JOIN employee.Employees e ON l.employeeid = e.employeeid
-            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
-            LEFT JOIN (
-                SELECT DISTINCT ON (loanid) loanid, installmentnumber, remainingamount
-                FROM payroll.loanpayments
-                ORDER BY loanid, installmentnumber DESC
-            ) lp ON l.loanid = lp.loanid
-            WHERE l.organizationid = @organizationId 
-              AND l.employeeid = @employeeId 
-              AND l.requeststatus IN ('pending', 'approved') 
-            ORDER BY l.createdat DESC;";
+    l.loanid AS LoanId,
+    l.organizationid AS OrganizationId,
+    l.employeeid AS EmployeeId,
+    e.firstname || ' ' || e.lastname AS EmployeeName,
+    l.ruleid AS RuleId,
+    lr.rulename AS RuleName,
+    l.principalamount AS PrincipalAmount,
+    l.totalinterest AS TotalInterest,
+    l.totalamount AS TotalAmount,
+    l.monthlyinstallment AS MonthlyInstallment,
+    COALESCE(lp.remainingamount, l.remainingamount) AS RemainingAmount,
+    (l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) AS PaidAmount,
+    l.totalinstallments AS TotalInstallments,
+    COALESCE(lp.installmentnumber, 0) AS PaidInstallments,
+    l.repaymenttype AS RepaymentType,
+    l.requeststatus AS RequestStatus,
+    l.loanstatus AS LoanStatus,
+    l.description AS Description,
+    l.startdate AS StartDate,
+    l.enddate AS EndDate,
+    l.enddate AS ReturnDate,
+    l.createdat AS CreatedAt,
+    (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
+    CASE 
+        WHEN l.totalamount = 0 THEN 0 
+        ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
+    END AS CompletedPercentage
+FROM payroll.loans l
+JOIN employee.Employees e ON l.employeeid = e.employeeid
+LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+LEFT JOIN (
+    SELECT DISTINCT ON (loanid) loanid, installmentnumber, remainingamount
+    FROM payroll.loanpayments
+    ORDER BY loanid, installmentnumber DESC
+) lp ON l.loanid = lp.loanid
+WHERE l.organizationid = @organizationId 
+  AND l.employeeid = @employeeId 
+  AND LOWER(TRIM(l.requeststatus)) IN ('pending', 'accepted', 'approved') 
+  AND LOWER(TRIM(l.disbursementstatus)) = 'pending'
+ORDER BY l.createdat DESC;";
 
         return await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId });
     }
@@ -3499,13 +3504,27 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     public async Task<PagedResult<LoanDto>> GetAllLoansAsync(Guid organizationId, LoanFilterDto filter)
     {
         var conditions = new List<string> { "l.organizationid = @organizationId" };
-        if (!string.IsNullOrEmpty(filter.RequestStatus)) conditions.Add("l.requeststatus = @RequestStatus");
+        if (!string.IsNullOrEmpty(filter.SearchTerm))
+            conditions.Add("(e.firstname ILIKE @SearchTerm OR e.lastname ILIKE @SearchTerm OR (e.firstname || ' ' || e.lastname) ILIKE @SearchTerm)");
+        if (!string.IsNullOrEmpty(filter.RequestStatus))
+        {
+            if (filter.RequestStatus.ToLower() == "pending")
+            {
+                conditions.Add("LOWER(l.requeststatus) IN ('pending', 'accepted', 'approved')");
+            }
+            else
+            {
+                conditions.Add("LOWER(l.requeststatus) = LOWER(@RequestStatus)");
+            }
+        }
+        conditions.Add("LOWER(l.disbursementstatus) = 'pending'");
 
         var whereClause = string.Join(" AND ", conditions);
 
         var countSql = $@"
             SELECT COUNT(1)
             FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
             WHERE {whereClause};";
 
         var sql = $@"
@@ -3541,6 +3560,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         var parameters = new
         {
             organizationId,
+            SearchTerm = !string.IsNullOrEmpty(filter.SearchTerm) ? $"%{filter.SearchTerm.Trim()}%" : null,
             filter.RequestStatus,
             PageSize = filter.PageSize,
             Offset = (filter.Page - 1) * filter.PageSize
