@@ -2895,6 +2895,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 l.description AS Description,
                 l.startdate AS StartDate,
                 l.enddate AS EndDate,
+                l.enddate AS ReturnDate,
                 l.createdat AS CreatedAt
             FROM payroll.loans l
             JOIN employee.Employees e ON l.employeeid = e.employeeid
@@ -2906,16 +2907,17 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
     public async Task<LoanDto> CreateLoanRequestAsync(Guid organizationId, Guid employeeId, CreateLoanRequestDto dto)
     {
+       
         var sql = @"
             INSERT INTO payroll.loans (
                 organizationid, employeeid, ruleid, principalamount, totalinterest, 
                 remainingamount, totalinstallments, monthlyinstallment, 
-                description, repaymenttype, requeststatus, loanstatus
+                description, repaymenttype, requeststatus, loanstatus, enddate
             )
             VALUES (
                 @organizationId, @employeeId, @RuleId, @PrincipalAmount, @TotalInterest, 
                 0, @TotalInstallments, @MonthlyInstallment, 
-                @Description, @RepaymentType, 'pending', 'inactive'
+                @Description, @RepaymentType, 'pending', 'inactive', @ReturnDate
             )
             RETURNING loanid;";
 
@@ -2929,7 +2931,8 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             dto.TotalInstallments,
             dto.MonthlyInstallment,
             dto.Description,
-            dto.RepaymentType
+            dto.RepaymentType,
+            dto.ReturnDate
         };
 
         var loanId = await QuerySingleAsync<Guid>(sql, parameters);
@@ -2970,6 +2973,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 l.description AS Description,
                 l.startdate AS StartDate,
                 l.enddate AS EndDate,
+                l.enddate AS ReturnDate,
                 l.createdat AS CreatedAt
             FROM payroll.loans l
             JOIN employee.Employees e ON l.employeeid = e.employeeid
@@ -3082,6 +3086,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 l.description AS Description,
                 l.startdate AS StartDate,
                 l.enddate AS EndDate,
+                l.enddate AS ReturnDate,
                 l.createdat AS CreatedAt,
                 (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
                 CASE 
@@ -3099,6 +3104,53 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE l.organizationid = @organizationId 
               AND l.employeeid = @employeeId 
               AND l.loanstatus = 'active' 
+            ORDER BY l.createdat DESC;";
+
+        return await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId });
+    }
+
+    public async Task<IEnumerable<MyActiveLoanDto>> GetMyPendingLoansAsync(Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT 
+                l.loanid AS LoanId,
+                l.organizationid AS OrganizationId,
+                l.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                l.principalamount AS PrincipalAmount,
+                l.totalinterest AS TotalInterest,
+                l.totalamount AS TotalAmount,
+                l.monthlyinstallment AS MonthlyInstallment,
+                COALESCE(lp.remainingamount, l.remainingamount) AS RemainingAmount,
+                (l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) AS PaidAmount,
+                l.totalinstallments AS TotalInstallments,
+                COALESCE(lp.installmentnumber, 0) AS PaidInstallments,
+                l.repaymenttype AS RepaymentType,
+                l.requeststatus AS RequestStatus,
+                l.loanstatus AS LoanStatus,
+                l.description AS Description,
+                l.startdate AS StartDate,
+                l.enddate AS EndDate,
+                l.enddate AS ReturnDate,
+                l.createdat AS CreatedAt,
+                (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
+                CASE 
+                    WHEN l.totalamount = 0 THEN 0 
+                    ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
+                END AS CompletedPercentage
+            FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
+            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+            LEFT JOIN (
+                SELECT DISTINCT ON (loanid) loanid, installmentnumber, remainingamount
+                FROM payroll.loanpayments
+                ORDER BY loanid, installmentnumber DESC
+            ) lp ON l.loanid = lp.loanid
+            WHERE l.organizationid = @organizationId 
+              AND l.employeeid = @employeeId 
+              AND l.requeststatus IN ('pending', 'approved') 
             ORDER BY l.createdat DESC;";
 
         return await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId });
@@ -3159,6 +3211,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 l.description AS Description,
                 l.startdate AS StartDate,
                 l.enddate AS EndDate,
+                l.enddate AS ReturnDate,
                 l.createdat AS CreatedAt,
                 (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
                 CASE 
@@ -3550,8 +3603,9 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 monthlyinstallment = @MonthlyInstallment,
                 description = @Description,
                 repaymenttype = @RepaymentType,
+                enddate = @ReturnDate,
                 updatedat = CURRENT_TIMESTAMP
-            WHERE loanid = @loanId AND organizationid = @organizationId AND employeeid = @employeeId AND requeststatus = 'pending'
+            WHERE loanid = @loanId AND organizationid = @organizationId AND employeeid = @employeeId AND requeststatus IN ('pending', 'approved')
             RETURNING loanid;";
 
         var parameters = new
@@ -3565,7 +3619,8 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             dto.TotalInstallments,
             dto.MonthlyInstallment,
             dto.Description,
-            dto.RepaymentType
+            dto.RepaymentType,
+            dto.ReturnDate
         };
 
         var resultId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
@@ -3578,7 +3633,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     {
         var sql = @"
             DELETE FROM payroll.loans
-            WHERE loanid = @loanId AND organizationid = @organizationId AND employeeid = @employeeId AND requeststatus = 'pending'
+            WHERE loanid = @loanId AND organizationid = @organizationId AND employeeid = @employeeId AND requeststatus IN ('pending', 'approved')
             RETURNING loanid;";
 
         var resultId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { loanId, organizationId, employeeId });

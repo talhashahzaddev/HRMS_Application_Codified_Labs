@@ -1894,6 +1894,25 @@ public class PayRollController : ControllerBase
         }
     }
 
+    [HttpGet("loans/my-pending-loans")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<MyActiveLoanDto>>>> GetMyPendingLoans()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMyPendingLoansAsync(organizationId, employeeId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving personal pending loans");
+            return StatusCode(500, new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpGet("loans/my-loan-history/{loanId}")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LoanPaymentDto>>>> GetMyLoanHistory(Guid loanId)

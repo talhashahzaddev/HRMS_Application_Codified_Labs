@@ -1671,6 +1671,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<IEnumerable<MyActiveLoanDto>>> GetMyPendingLoansAsync(Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMyPendingLoansAsync(organizationId, employeeId);
+            return new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my pending loans");
+            return new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<LoanDto>> DisburseLoanAsync(Guid organizationId, Guid createdBy, DisburseLoanDto dto)
     {
         try
