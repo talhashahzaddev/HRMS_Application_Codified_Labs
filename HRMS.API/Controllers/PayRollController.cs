@@ -298,7 +298,7 @@ public class PayRollController : ControllerBase
 
     // Payroll Periods
     [HttpGet("periods")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodPagedResult>>> GetAllPayrollPeriods([FromQuery] PayrollPeriodFilterDto filter)
     {
         try
@@ -1913,22 +1913,41 @@ public class PayRollController : ControllerBase
         }
     }
 
-    [HttpGet("loans/my-loan-history/{loanId}")]
+    [HttpGet("loans/my-loan-history")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<LoanPaymentDto>>>> GetMyLoanHistory(Guid loanId)
+    public async Task<ActionResult<ServiceResponse<PagedResult<MyLoanPaymentDto>>>> GetMyLoanHistory([FromQuery] MyLoanHistoryFilterDto filter)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
-            var response = await _payRollService.GetLoanHistoryAsync(loanId, organizationId, employeeId);
+            var response = await _payRollService.GetLoanHistoryAsync(organizationId, employeeId, filter);
             if (!response.Success) return BadRequest(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving personal loan history");
-            return StatusCode(500, new ServiceResponse<IEnumerable<LoanPaymentDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<PagedResult<MyLoanPaymentDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("loans/my-references")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LoanReferenceDto>>>> GetMyLoanReferences()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMyLoanReferencesAsync(organizationId, employeeId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving loan references");
+            return StatusCode(500, new ServiceResponse<IEnumerable<LoanReferenceDto>> { Success = false, Message = "An error occurred" });
         }
     }
 

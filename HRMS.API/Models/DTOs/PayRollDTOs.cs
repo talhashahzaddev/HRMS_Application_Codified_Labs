@@ -690,6 +690,7 @@ public class LoanDto
     public string EmployeeName { get; set; } = string.Empty;
     public Guid? RuleId { get; set; }
     public string? RuleName { get; set; }
+    public string ReferenceId { get; set; } = string.Empty;
     public decimal PrincipalAmount { get; set; }
     public decimal TotalInterest { get; set; }
     public decimal TotalAmount { get; set; }
@@ -708,6 +709,12 @@ public class LoanDto
     public DateTime? EndDate { get; set; }
     public DateTime? ReturnDate { get; set; }
     public DateTime CreatedAt { get; set; }
+}
+
+public class LoanReferenceDto
+{
+    public Guid LoanId { get; set; }
+    public string ReferenceId { get; set; } = string.Empty;
 }
 
 public class CreateLoanRequestDto
@@ -779,7 +786,7 @@ public class DisbursedLoanFilterDto
 
 public class AddLoanPaymentDto
 {
-    public Guid LoanId { get; set; }
+    public string ReferenceId { get; set; } = string.Empty;
     public Guid EmployeeId { get; set; }
     public Guid? PeriodId { get; set; }
     public int InstallmentNumber { get; set; }
@@ -819,4 +826,17 @@ public class RepaymentFilterDto
     public string? LoanStatus { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
+}
+
+public class MyLoanHistoryFilterDto
+{
+    public Guid? LoanId { get; set; }
+    public Guid? PeriodId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class MyLoanPaymentDto : LoanPaymentDto
+{
+    public int TotalCount { get; set; }
 }

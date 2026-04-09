@@ -148,7 +148,8 @@ public interface IPayRollService
     Task<ServiceResponse<LoanDto>> GetLoanByIdAndEmployeeAsync(Guid loanId, Guid organizationId, Guid employeeId);
     Task<ServiceResponse<LoanDto>> UpdateLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId, CreateLoanRequestDto dto);
     Task<ServiceResponse<bool>> DeleteLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId);
-    Task<ServiceResponse<IEnumerable<LoanPaymentDto>>> GetLoanHistoryAsync(Guid loanId, Guid organizationId, Guid employeeId);
+    Task<ServiceResponse<PagedResult<MyLoanPaymentDto>>> GetLoanHistoryAsync(Guid organizationId, Guid employeeId, MyLoanHistoryFilterDto filter);
+    Task<ServiceResponse<IEnumerable<LoanReferenceDto>>> GetMyLoanReferencesAsync(Guid organizationId, Guid employeeId);
 
     // Overview
     Task<ServiceResponse<PayrollOverviewDto>> GetPayrollOverviewAsync(Guid organizationId);

@@ -1877,48 +1877,41 @@ create table if not exists payroll.loanrules(
     constraint uqorgloanrule unique (organizationid, rulename)
 );
 
-create table if not exists payroll.loans(
-    loanid              uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    employeeid          uuid not null,
-    ruleid              uuid references payroll.loanrules(ruleid),
-    
-    -- Financial Breakdown
-    principalamount     numeric(15,2) not null,
-    totalinterest       numeric(15,2) default 0,
-    totalamount         numeric(15,2) generated always as (
-                            principalamount + totalinterest
-                        ) stored,
-    monthlyinstallment  numeric(15,2),
-    remainingamount     numeric(15,2) not null,
-    paidamount          numeric(15,2) generated always as (
-                            (principalamount + totalinterest) - remainingamount
-                        ) stored,
-                        
-    totalinstallments   integer not null default 0,
-    paidinstallments    integer not null default 0,
-    repaymenttype       varchar(20) default 'installment',
-    
-    -- Status Flow Design
-    requeststatus       varchar(20) default 'pending', 
-    loanstatus          varchar(20) default 'active',  
-    
-    -- Approval Audit Trail
-    approvedby          uuid,
-    approvedat          timestamptz,
-    rejectionreason     text,
-    
-    -- Disbursement Tracking
-    disbursementstatus  varchar(20) default 'pending',
-    disbursementdate    date,
-    
-    startdate           date,
-    enddate             date,
-    description         text,
-    createdby           uuid,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp
-);
+CREATE TABLE IF NOT EXISTS payroll.loans
+(
+    loanid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    ruleid uuid,
+    principalamount numeric(15,2) NOT NULL,
+    totalinterest numeric(15,2) DEFAULT 0,
+    totalamount numeric(15,2) GENERATED ALWAYS AS ((principalamount + totalinterest)) STORED,
+    monthlyinstallment numeric(15,2),
+    remainingamount numeric(15,2) NOT NULL,
+    paidamount numeric(15,2) GENERATED ALWAYS AS (((principalamount + totalinterest) - remainingamount)) STORED,
+    totalinstallments integer NOT NULL DEFAULT 0,
+    paidinstallments integer NOT NULL DEFAULT 0,
+    repaymenttype character varying(20) COLLATE pg_catalog."default" DEFAULT 'installment'::character varying,
+    requeststatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    loanstatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'active'::character varying,
+    approvedby uuid,
+    approvedat timestamp with time zone,
+    rejectionreason text COLLATE pg_catalog."default",
+    disbursementstatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    disbursementdate date,
+    startdate date,
+    enddate date,
+    description text COLLATE pg_catalog."default",
+    createdby uuid,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    referenceid character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT ('LN-'::text || upper("substring"(replace((uuid_generate_v4())::text, '-'::text, ''::text), 1, 10))),
+    CONSTRAINT loans_pkey PRIMARY KEY (loanid),
+    CONSTRAINT loans_ruleid_fkey FOREIGN KEY (ruleid)
+        REFERENCES payroll.loanrules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
 
 create table if not exists payroll.loanpayments(
     id                  uuid primary key default uuid_generate_v4(),
@@ -1936,7 +1929,7 @@ create table if not exists payroll.loanpayments(
     
     -- Exact Payment Details
     paymentdate         date not null default current_date,
-    paymentmethod       varchar(50) default 'payroll_deduction', -- 'payroll_deduction', 'cash', 'bank_transfer'
+    paymentmethod       varchar(50) default 'payroll_deduction', -- 'payroll deduction', 'cash', 'bank transfer'
     paymentstatus       varchar(20) default 'deducted',          -- 'deducted', 'settled', 'failed'
     
     createdat           timestamptz default current_timestamp,

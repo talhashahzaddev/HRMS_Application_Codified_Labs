@@ -2881,6 +2881,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 l.ruleid AS RuleId,
                 lr.rulename AS RuleName,
+                l.referenceid AS ReferenceId,
                 l.principalamount AS PrincipalAmount,
                 l.totalinterest AS TotalInterest,
                 l.totalamount AS TotalAmount,
@@ -2961,6 +2962,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 l.ruleid AS RuleId,
                 lr.rulename AS RuleName,
+                l.referenceid AS ReferenceId,
                 l.principalamount AS PrincipalAmount,
                 l.totalinterest AS TotalInterest,
                 l.totalamount AS TotalAmount,
@@ -3076,6 +3078,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 l.ruleid AS RuleId,
                 lr.rulename AS RuleName,
+                l.referenceid AS ReferenceId,
                 l.principalamount AS PrincipalAmount,
                 l.totalinterest AS TotalInterest,
                 l.totalamount AS TotalAmount,
@@ -3123,6 +3126,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     e.firstname || ' ' || e.lastname AS EmployeeName,
     l.ruleid AS RuleId,
     lr.rulename AS RuleName,
+    l.referenceid AS ReferenceId,
     l.principalamount AS PrincipalAmount,
     l.totalinterest AS TotalInterest,
     l.totalamount AS TotalAmount,
@@ -3202,6 +3206,7 @@ ORDER BY l.createdat DESC;";
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 l.ruleid AS RuleId,
                 lr.rulename AS RuleName,
+                l.referenceid AS ReferenceId,
                 l.principalamount AS PrincipalAmount,
                 l.totalinterest AS TotalInterest,
                 l.totalamount AS TotalAmount,
@@ -3343,27 +3348,30 @@ ORDER BY l.createdat DESC;";
                         ELSE loanstatus 
                     END,
                     updatedat = CURRENT_TIMESTAMP
-                WHERE loanid = @LoanId 
+                WHERE referenceid = @ReferenceId 
                   AND organizationid = @organizationId 
                   AND employeeid = @EmployeeId
                   AND loanstatus != 'completed'
                   AND remainingamount > 0
-                RETURNING remainingamount;";
+                RETURNING remainingamount, loanid;";
 
-            var newRemainingAmount = await connection.QuerySingleOrDefaultAsync<decimal?>(updateSql, new
+            var result = await connection.QuerySingleOrDefaultAsync<dynamic>(updateSql, new
             {
-                dto.LoanId,
+                dto.ReferenceId,
                 organizationId,
                 dto.EmployeeId,
                 dto.InstallmentAmount,
                 dto.InstallmentNumber
             }, transaction);
 
-            if (newRemainingAmount == null)
+            if (result == null)
             {
                 transaction.Rollback();
                 return false; // Result will be handled as "Loan already completed or not found" in Service
             }
+
+            decimal newRemainingAmount = result.remainingamount;
+            Guid loanId = result.loanid;
 
             // 2. Insert into loanpayments table
             var insertSql = @"
@@ -3372,7 +3380,7 @@ ORDER BY l.createdat DESC;";
                     installmentnumber, installmentamount, remainingamount, 
                     repaymenttype, paymentdate, paymentmethod, paymentstatus
                 ) VALUES (
-                    @organizationId, @LoanId, @EmployeeId, @PeriodId, 
+                    @organizationId, @loanId, @EmployeeId, @PeriodId, 
                     @InstallmentNumber, @InstallmentAmount, @RemainingAmount, 
                     @RepaymentType, @PaymentDate, @PaymentMethod, 'settled'
                 );";
@@ -3380,7 +3388,7 @@ ORDER BY l.createdat DESC;";
             await connection.ExecuteAsync(insertSql, new
             {
                 organizationId,
-                dto.LoanId,
+                loanId,
                 dto.EmployeeId,
                 dto.PeriodId,
                 dto.InstallmentNumber,
@@ -3535,6 +3543,7 @@ ORDER BY l.createdat DESC;";
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 l.ruleid AS RuleId,
                 lr.rulename AS RuleName,
+                l.referenceid AS ReferenceId,
                 l.principalamount AS PrincipalAmount,
                 l.totalinterest AS TotalInterest,
                 l.totalamount AS TotalAmount,
@@ -3588,6 +3597,7 @@ ORDER BY l.createdat DESC;";
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 l.ruleid AS RuleId,
                 lr.rulename AS RuleName,
+                l.referenceid AS ReferenceId,
                 l.principalamount AS PrincipalAmount,
                 l.totalinterest AS TotalInterest,
                 l.totalamount AS TotalAmount,
@@ -3660,9 +3670,29 @@ ORDER BY l.createdat DESC;";
         return resultId != null;
     }
 
-    public async Task<IEnumerable<LoanPaymentDto>> GetLoanHistoryAsync(Guid loanId, Guid organizationId, Guid employeeId)
+    public async Task<PagedResult<MyLoanPaymentDto>> GetLoanHistoryAsync(Guid organizationId, Guid employeeId, MyLoanHistoryFilterDto filter)
     {
-        var sql = @"
+        var conditions = new List<string> { "organizationid = @organizationId", "employeeid = @employeeId" };
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("employeeId", employeeId);
+
+        if (filter.LoanId.HasValue)
+        {
+            conditions.Add("loanid = @LoanId");
+            parameters.Add("LoanId", filter.LoanId.Value);
+        }
+
+        if (filter.PeriodId.HasValue)
+        {
+            conditions.Add("periodid = @PeriodId");
+            parameters.Add("PeriodId", filter.PeriodId.Value);
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var offset = (filter.Page - 1) * filter.PageSize;
+
+        var sql = $@"
             SELECT 
                 id AS Id,
                 loanid AS LoanId,
@@ -3675,12 +3705,42 @@ ORDER BY l.createdat DESC;";
                 paymentdate AS PaymentDate,
                 paymentmethod AS PaymentMethod,
                 paymentstatus AS PaymentStatus,
-                createdat AS CreatedAt
+                createdat AS CreatedAt,
+                COUNT(*) OVER() as TotalCount
             FROM payroll.loanpayments
-            WHERE loanid = @loanId AND organizationid = @organizationId AND employeeid = @employeeId
-            ORDER BY installmentnumber DESC, paymentdate DESC;";
+            WHERE {whereClause}
+            ORDER BY createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
 
-        return await QueryAsync<LoanPaymentDto>(sql, new { loanId, organizationId, employeeId });
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", offset);
+
+        var data = await QueryAsync<MyLoanPaymentDto>(sql, parameters);
+        var totalCount = data.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<MyLoanPaymentDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<IEnumerable<LoanReferenceDto>> GetMyLoanReferencesAsync(Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT 
+                loanid AS LoanId, 
+                referenceid AS ReferenceId 
+            FROM payroll.loans 
+            WHERE employeeid = @EmployeeId 
+              AND organizationid = @OrganizationId 
+              AND requeststatus != 'pending' 
+              AND disbursementstatus = 'paid'
+            ORDER BY createdat DESC;";
+              
+        return await QueryAsync<LoanReferenceDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
     }
 
     public async Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId)
