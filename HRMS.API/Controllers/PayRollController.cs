@@ -2134,6 +2134,24 @@ public class PayRollController : ControllerBase
             return StatusCode(500, new ServiceResponse<PagedResult<MyActiveLoanDto>> { Success = false, Message = "An error occurred" });
         }
     }
+
+    [HttpGet("loans/disbursed-active-loans")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<MyActiveLoanDto>>>> GetDisbursedActiveLoans([FromQuery] DisbursedLoanFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetDisbursedActiveLoansAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving disbursed active loan requests");
+            return StatusCode(500, new ServiceResponse<PagedResult<MyActiveLoanDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
     [HttpGet("repayments/all")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<RepaymentHistoryDto>>>> GetAllRepayments([FromQuery] RepaymentFilterDto filter)

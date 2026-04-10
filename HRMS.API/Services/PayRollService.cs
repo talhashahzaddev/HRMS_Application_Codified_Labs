@@ -1785,6 +1785,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<PagedResult<MyActiveLoanDto>>> GetDisbursedActiveLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetDisbursedActiveLoansAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<MyActiveLoanDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting disbursed active loans");
+            return new ServiceResponse<PagedResult<MyActiveLoanDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<PagedResult<MyLoanPaymentDto>>> GetLoanHistoryAsync(Guid organizationId, Guid employeeId, MyLoanHistoryFilterDto filter)
     {
         try

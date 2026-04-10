@@ -2881,7 +2881,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 l.ruleid AS RuleId,
                 lr.rulename AS RuleName,
-                l.referenceid AS ReferenceId,
+                COALESCE(NULLIF(TRIM(l.referenceid), ''), ('LN-' || upper(substring(replace(l.loanid::text, '-'::text, ''::text), 1, 10)))) AS ReferenceId,
                 l.principalamount AS PrincipalAmount,
                 l.totalinterest AS TotalInterest,
                 l.totalamount AS TotalAmount,
@@ -3095,7 +3095,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 l.enddate AS EndDate,
                 l.enddate AS ReturnDate,
                 l.createdat AS CreatedAt,
-                (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
+                GREATEST(0, (l.totalinstallments - COALESCE(lp.installmentnumber, 0))) AS RemainingInstallments,
                 CASE 
                     WHEN l.totalamount = 0 THEN 0 
                     ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
@@ -3143,7 +3143,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     l.enddate AS EndDate,
     l.enddate AS ReturnDate,
     l.createdat AS CreatedAt,
-    (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
+    GREATEST(0, (l.totalinstallments - COALESCE(lp.installmentnumber, 0))) AS RemainingInstallments,
     CASE 
         WHEN l.totalamount = 0 THEN 0 
         ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
@@ -3167,7 +3167,7 @@ ORDER BY l.createdat DESC;";
 
     public async Task<PagedResult<MyActiveLoanDto>> GetDisbursedLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter)
     {
-        var conditions = new List<string> { "l.organizationid = @organizationId", "l.disbursementstatus = 'paid'" };
+        var conditions = new List<string> { "l.organizationid = @organizationId", "l.disbursementstatus != 'pending'" };
         var parameters = new DynamicParameters();
         parameters.Add("organizationId", organizationId);
 
@@ -3223,7 +3223,103 @@ ORDER BY l.createdat DESC;";
                 l.enddate AS EndDate,
                 l.enddate AS ReturnDate,
                 l.createdat AS CreatedAt,
-                (l.totalinstallments - COALESCE(lp.installmentnumber, 0)) AS RemainingInstallments,
+                GREATEST(0, (l.totalinstallments - COALESCE(lp.installmentnumber, 0))) AS RemainingInstallments,
+                CASE 
+                    WHEN l.totalamount = 0 THEN 0 
+                    ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
+                END AS CompletedPercentage,
+                COUNT(*) OVER() as TotalCount
+            FROM payroll.loans l
+            JOIN employee.Employees e ON l.employeeid = e.employeeid
+            LEFT JOIN payroll.loanrules lr ON l.ruleid = lr.ruleid
+            LEFT JOIN (
+                SELECT DISTINCT ON (loanid) loanid, installmentnumber, remainingamount
+                FROM payroll.loanpayments
+                ORDER BY loanid, installmentnumber DESC
+            ) lp ON l.loanid = lp.loanid
+            WHERE {whereClause}
+            ORDER BY l.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", offset);
+
+        var data = await QueryAsync<MyActiveLoanDto>(sql, parameters);
+        var totalCount = data.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<MyActiveLoanDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<PagedResult<MyActiveLoanDto>> GetDisbursedActiveLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter)
+    {
+        var conditions = new List<string>
+        {
+            "l.organizationid = @organizationId",
+            "l.disbursementstatus = 'paid'",
+            "LOWER(TRIM(l.loanstatus)) = 'active'"
+        };
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (!string.IsNullOrEmpty(filter.SearchTerm))
+        {
+            conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @SearchTerm");
+            parameters.Add("SearchTerm", $"%{filter.SearchTerm}%");
+        }
+
+        if (!string.IsNullOrEmpty(filter.LoanStatus))
+        {
+            conditions.Add("l.loanstatus = @LoanStatus");
+            parameters.Add("LoanStatus", filter.LoanStatus);
+        }
+
+        if (filter.MinTotalAmount.HasValue)
+        {
+            conditions.Add("l.totalamount >= @MinTotalAmount");
+            parameters.Add("MinTotalAmount", filter.MinTotalAmount);
+        }
+
+        if (filter.MaxTotalAmount.HasValue)
+        {
+            conditions.Add("l.totalamount <= @MaxTotalAmount");
+            parameters.Add("MaxTotalAmount", filter.MaxTotalAmount);
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var offset = (filter.Page - 1) * filter.PageSize;
+
+        var sql = $@"
+            SELECT 
+                l.loanid AS LoanId,
+                l.organizationid AS OrganizationId,
+                l.employeeid AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                l.ruleid AS RuleId,
+                lr.rulename AS RuleName,
+                l.referenceid AS ReferenceId,
+                l.principalamount AS PrincipalAmount,
+                l.totalinterest AS TotalInterest,
+                l.totalamount AS TotalAmount,
+                l.monthlyinstallment AS MonthlyInstallment,
+                COALESCE(lp.remainingamount, l.remainingamount) AS RemainingAmount,
+                (l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) AS PaidAmount,
+                l.totalinstallments AS TotalInstallments,
+                COALESCE(lp.installmentnumber, 0) AS PaidInstallments,
+                l.repaymenttype AS RepaymentType,
+                l.requeststatus AS RequestStatus,
+                l.loanstatus AS LoanStatus,
+                l.description AS Description,
+                l.startdate AS StartDate,
+                l.enddate AS EndDate,
+                l.enddate AS ReturnDate,
+                l.createdat AS CreatedAt,
+                GREATEST(0, (l.totalinstallments - COALESCE(lp.installmentnumber, 0))) AS RemainingInstallments,
                 CASE 
                     WHEN l.totalamount = 0 THEN 0 
                     ELSE ROUND(((l.totalamount - COALESCE(lp.remainingamount, l.remainingamount)) / l.totalamount) * 100, 2)
@@ -3293,6 +3389,7 @@ ORDER BY l.createdat DESC;";
             SELECT 
                 lp.id AS Id,
                 lp.loanid AS LoanId,
+                l.referenceid AS ReferenceId,
                 lp.employeeid AS EmployeeId,
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 l.totalamount AS LoanTotalAmount,
@@ -3346,6 +3443,10 @@ ORDER BY l.createdat DESC;";
                     loanstatus = CASE 
                         WHEN (remainingamount - @InstallmentAmount) <= 0 THEN 'completed' 
                         ELSE loanstatus 
+                    END,
+                    disbursementstatus = CASE
+                        WHEN (remainingamount - @InstallmentAmount) <= 0 THEN 'recovered'
+                        ELSE disbursementstatus
                     END,
                     updatedat = CURRENT_TIMESTAMP
                 WHERE referenceid = @ReferenceId 
@@ -3460,15 +3561,26 @@ ORDER BY l.createdat DESC;";
                 UPDATE payroll.loans
                 SET 
                     remainingamount = GREATEST(0, remainingamount + @diff),
+                    paidinstallments = @InstallmentNumber,
                     loanstatus = CASE 
                         WHEN (remainingamount + @diff) <= 0 THEN 'completed' 
                         ELSE 'active' 
+                    END,
+                    disbursementstatus = CASE
+                        WHEN (remainingamount + @diff) <= 0 THEN 'recovered'
+                        ELSE disbursementstatus
                     END,
                     updatedat = CURRENT_TIMESTAMP
                 WHERE loanid = @LoanId AND organizationid = @organizationId
                 RETURNING remainingamount;";
 
-            var newLoanRemaining = await connection.QuerySingleOrDefaultAsync<decimal?>(updateLoanSql, new { diff, dto.LoanId, organizationId }, transaction);
+            var newLoanRemaining = await connection.QuerySingleOrDefaultAsync<decimal?>(updateLoanSql, new
+            {
+                diff,
+                dto.InstallmentNumber,
+                dto.LoanId,
+                organizationId
+            }, transaction);
 
             // 3. Update the payment record
             var updatePaymentSql = @"

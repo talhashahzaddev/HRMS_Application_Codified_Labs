@@ -813,6 +813,7 @@ public class UpdateLoanPaymentDto
 public class RepaymentHistoryDto : LoanPaymentDto
 {
     public string EmployeeName { get; set; } = string.Empty;
+    public string ReferenceId { get; set; } = string.Empty;
     public decimal LoanTotalAmount { get; set; }
     public string LoanStatus { get; set; } = string.Empty;
     public int TotalCount { get; set; }
