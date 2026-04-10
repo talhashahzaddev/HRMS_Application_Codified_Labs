@@ -3849,7 +3849,7 @@ ORDER BY l.createdat DESC;";
             WHERE employeeid = @EmployeeId 
               AND organizationid = @OrganizationId 
               AND requeststatus != 'pending' 
-              AND disbursementstatus = 'paid'
+              AND disbursementstatus != 'pending'
             ORDER BY createdat DESC;";
               
         return await QueryAsync<LoanReferenceDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
