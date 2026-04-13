@@ -601,6 +601,171 @@ public class UpdateSalaryAdvanceRuleDto : CreateSalaryAdvanceRuleDto
 {
 }
 
+public class ProvidentFundRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal DefaultEmployeePct { get; set; }
+    public decimal DefaultEmployerPct { get; set; }
+    public string ContributionBasis { get; set; } = "basic";
+    public decimal? MinContribution { get; set; }
+    public decimal? MaxContribution { get; set; }
+    public bool AllowPartialWithdraw { get; set; }
+    public int VestingMonths { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateProvidentFundRuleDto
+{
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public decimal DefaultEmployeePct { get; set; }
+    public decimal DefaultEmployerPct { get; set; }
+    public string ContributionBasis { get; set; } = "basic";
+    public decimal? MinContribution { get; set; }
+    public decimal? MaxContribution { get; set; }
+    public bool AllowPartialWithdraw { get; set; } = false;
+    public int VestingMonths { get; set; } = 0;
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateProvidentFundRuleDto : CreateProvidentFundRuleDto
+{
+}
+
+public class CreateProvidentFundEnrollmentDto
+{
+    public Guid RuleId { get; set; }
+    public decimal EmployeePct { get; set; }
+    public DateTime EffectiveFrom { get; set; }
+}
+
+public class UpdateProvidentFundPercentageDto
+{
+    public decimal EmployeePct { get; set; }
+}
+
+public class CreateProvidentFundWithdrawRequestDto
+{
+    public decimal Amount { get; set; }
+    public string? Reason { get; set; }
+}
+
+public class CreateProvidentFundSettlementRequestDto
+{
+    public DateTime EffectiveFrom { get; set; }
+    public string? Remarks { get; set; }
+}
+
+public class ProvidentFundEnrollmentDto
+{
+    public Guid PfId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid RuleId { get; set; }
+    public decimal EmployeePct { get; set; }
+    public decimal EmployerPct { get; set; }
+    public string RequestType { get; set; } = string.Empty;
+    public string PfStatus { get; set; } = string.Empty;
+    public DateTime EffectiveFrom { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? Remarks { get; set; }
+    public string? RejectionReason { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class ProvidentFundTransactionDto
+{
+    public Guid TransactionId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public Guid PfId { get; set; }
+    public decimal SalaryBasisAmount { get; set; }
+    public decimal EmployeePct { get; set; }
+    public decimal EmployerPct { get; set; }
+    public decimal EmployeeAmount { get; set; }
+    public decimal EmployerAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public decimal RunningBalance { get; set; }
+    public string TransactionType { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class ProvidentFundTransactionFilterDto
+{
+    public int? Year { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class AdminProvidentFundRequestDto
+{
+    public Guid PfId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public decimal? BasicSalary { get; set; }
+    public Guid RuleId { get; set; }
+    public decimal EmployeePct { get; set; }
+    public decimal EmployerPct { get; set; }
+    public string RequestType { get; set; } = string.Empty;
+    public string PfStatus { get; set; } = string.Empty;
+    public DateTime EffectiveFrom { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public string? Remarks { get; set; }
+    public string? RejectionReason { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class AdminProvidentFundRequestFilterDto
+{
+    public string? RequestType { get; set; }
+    public string? SearchTerm { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class ApproveProvidentFundRequestDto
+{
+    public Guid EmployeeId { get; set; }
+    public string RequestType { get; set; } = string.Empty;
+}
+
+public class RejectProvidentFundRequestDto
+{
+    public string? Remarks { get; set; }
+}
+
+public class CreateProvidentFundMonthlyTransactionDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+}
+
+public class ManualProvidentFundEnrollmentDto
+{
+    public Guid RuleId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public decimal EmployeePct { get; set; }
+    public decimal EmployerPct { get; set; }
+    public DateTime EffectiveFrom { get; set; }
+}
+
 public class SalaryAdvanceDto
 {
     public Guid AdvanceId { get; set; }
