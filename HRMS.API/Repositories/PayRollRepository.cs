@@ -2554,6 +2554,971 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return deletedId != null && deletedId != Guid.Empty;
     }
 
+    // Provident Fund Rules
+    public async Task<IEnumerable<ProvidentFundRuleDto>> GetAllProvidentFundRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                defaultemployeepct AS DefaultEmployeePct,
+                defaultemployerpct AS DefaultEmployerPct,
+                contributionbasis AS ContributionBasis,
+                mincontribution AS MinContribution,
+                maxcontribution AS MaxContribution,
+                allowpartialwithdraw AS AllowPartialWithdraw,
+                vestingmonths AS VestingMonths,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.pfrules
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<ProvidentFundRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<ProvidentFundRuleDto>> GetActiveProvidentFundRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                defaultemployeepct AS DefaultEmployeePct,
+                defaultemployerpct AS DefaultEmployerPct,
+                contributionbasis AS ContributionBasis,
+                mincontribution AS MinContribution,
+                maxcontribution AS MaxContribution,
+                allowpartialwithdraw AS AllowPartialWithdraw,
+                vestingmonths AS VestingMonths,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.pfrules
+            WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<ProvidentFundRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<ProvidentFundRuleDto?> GetProvidentFundRuleByIdAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                rulename AS RuleName,
+                description AS Description,
+                defaultemployeepct AS DefaultEmployeePct,
+                defaultemployerpct AS DefaultEmployerPct,
+                contributionbasis AS ContributionBasis,
+                mincontribution AS MinContribution,
+                maxcontribution AS MaxContribution,
+                allowpartialwithdraw AS AllowPartialWithdraw,
+                vestingmonths AS VestingMonths,
+                isactive AS IsActive,
+                isdeleted AS IsDeleted,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.pfrules
+            WHERE ruleid = @ruleId AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<ProvidentFundRuleDto>(sql, new { ruleId, organizationId });
+    }
+
+    public async Task<ProvidentFundRuleDto> CreateProvidentFundRuleAsync(Guid organizationId, CreateProvidentFundRuleDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.pfrules (
+                organizationid, rulename, description, defaultemployeepct, defaultemployerpct,
+                contributionbasis, mincontribution, maxcontribution, allowpartialwithdraw, vestingmonths, isactive, isdeleted
+            )
+            VALUES (
+                @organizationId, @RuleName, @Description, @DefaultEmployeePct, @DefaultEmployerPct,
+                @ContributionBasis, @MinContribution, @MaxContribution, @AllowPartialWithdraw, @VestingMonths, @IsActive, false
+            )
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.DefaultEmployeePct,
+            dto.DefaultEmployerPct,
+            dto.ContributionBasis,
+            dto.MinContribution,
+            dto.MaxContribution,
+            dto.AllowPartialWithdraw,
+            dto.VestingMonths,
+            dto.IsActive
+        };
+
+        var ruleId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetProvidentFundRuleByIdAsync(ruleId, organizationId))!;
+    }
+
+    public async Task<ProvidentFundRuleDto?> UpdateProvidentFundRuleAsync(Guid ruleId, Guid organizationId, UpdateProvidentFundRuleDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.pfrules
+            SET
+                rulename = @RuleName,
+                description = @Description,
+                defaultemployeepct = @DefaultEmployeePct,
+                defaultemployerpct = @DefaultEmployerPct,
+                contributionbasis = @ContributionBasis,
+                mincontribution = @MinContribution,
+                maxcontribution = @MaxContribution,
+                allowpartialwithdraw = @AllowPartialWithdraw,
+                vestingmonths = @VestingMonths,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var parameters = new
+        {
+            ruleId,
+            organizationId,
+            dto.RuleName,
+            dto.Description,
+            dto.DefaultEmployeePct,
+            dto.DefaultEmployerPct,
+            dto.ContributionBasis,
+            dto.MinContribution,
+            dto.MaxContribution,
+            dto.AllowPartialWithdraw,
+            dto.VestingMonths,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetProvidentFundRuleByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteProvidentFundRuleAsync(Guid ruleId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.pfrules
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE ruleid = @ruleId AND organizationid = @organizationId
+            RETURNING ruleid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { ruleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    public async Task<ProvidentFundEnrollmentDto> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct)
+    {
+        var sql = @"
+            INSERT INTO payroll.providentfund (
+                organizationid, employeeid, ruleid, employeepct, employerpct,
+                requesttype, pfstatus, effectivefrom, isactive
+            )
+            VALUES (
+                @organizationId, @employeeId, @RuleId, @EmployeePct, @EmployerPct,
+                'enrollment', 'pending', @EffectiveFrom, true
+            )
+            ON CONFLICT (organizationid, employeeid)
+            DO UPDATE SET
+                ruleid = EXCLUDED.ruleid,
+                employeepct = EXCLUDED.employeepct,
+                employerpct = EXCLUDED.employerpct,
+                requesttype = 'update',
+                pfstatus = 'pending',
+                effectivefrom = EXCLUDED.effectivefrom,
+                approvedby = null,
+                approvedat = null,
+                remarks = null,
+                rejectionreason = null,
+                isactive = true,
+                updatedat = current_timestamp
+            RETURNING
+                pfid AS PfId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                employeepct AS EmployeePct,
+                employerpct AS EmployerPct,
+                requesttype AS RequestType,
+                pfstatus AS PfStatus,
+                effectivefrom AS EffectiveFrom,
+                approvedby AS ApprovedBy,
+                approvedat AS ApprovedAt,
+                remarks AS Remarks,
+                rejectionreason AS RejectionReason,
+                isactive AS IsActive,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        var parameters = new
+        {
+            organizationId,
+            employeeId,
+            dto.RuleId,
+            dto.EmployeePct,
+            EmployerPct = employerPct,
+            dto.EffectiveFrom
+        };
+
+        return await QuerySingleAsync<ProvidentFundEnrollmentDto>(sql, parameters);
+    }
+
+    public async Task<ProvidentFundEnrollmentDto?> UpdateProvidentFundEnrollmentRequestAsync(Guid pfId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct)
+    {
+        var sql = @"
+            UPDATE payroll.providentfund
+            SET
+                ruleid = @RuleId,
+                employeepct = @EmployeePct,
+                employerpct = @EmployerPct,
+                effectivefrom = @EffectiveFrom,
+                pfstatus = 'pending',
+                updatedat = current_timestamp
+            WHERE pfid = @pfId
+              AND organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND pfstatus = 'pending'
+            RETURNING
+                pfid AS PfId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                employeepct AS EmployeePct,
+                employerpct AS EmployerPct,
+                requesttype AS RequestType,
+                pfstatus AS PfStatus,
+                effectivefrom AS EffectiveFrom,
+                approvedby AS ApprovedBy,
+                approvedat AS ApprovedAt,
+                remarks AS Remarks,
+                rejectionreason AS RejectionReason,
+                isactive AS IsActive,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        return await QuerySingleOrDefaultAsync<ProvidentFundEnrollmentDto>(sql, new
+        {
+            pfId,
+            organizationId,
+            employeeId,
+            dto.RuleId,
+            dto.EmployeePct,
+            EmployerPct = employerPct,
+            dto.EffectiveFrom
+        });
+    }
+
+    public async Task<ProvidentFundEnrollmentDto?> UpdateProvidentFundPercentageAsync(Guid organizationId, Guid employeeId, UpdateProvidentFundPercentageDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.providentfund
+            SET
+                employeepct = @EmployeePct,
+                requesttype = 'update',
+                pfstatus = 'pending',
+                approvedby = null,
+                approvedat = null,
+                remarks = null,
+                rejectionreason = null,
+                updatedat = current_timestamp
+            WHERE organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND isactive = true
+            RETURNING
+                pfid AS PfId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                employeepct AS EmployeePct,
+                employerpct AS EmployerPct,
+                requesttype AS RequestType,
+                pfstatus AS PfStatus,
+                effectivefrom AS EffectiveFrom,
+                approvedby AS ApprovedBy,
+                approvedat AS ApprovedAt,
+                remarks AS Remarks,
+                rejectionreason AS RejectionReason,
+                isactive AS IsActive,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        return await QuerySingleOrDefaultAsync<ProvidentFundEnrollmentDto>(sql, new
+        {
+            organizationId,
+            employeeId,
+            dto.EmployeePct
+        });
+    }
+
+    public async Task<ProvidentFundEnrollmentDto?> CreateProvidentFundWithdrawRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundWithdrawRequestDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.providentfund
+            SET
+                requesttype = 'withdrawal',
+                pfstatus = 'pending',
+                remarks = @Reason,
+                approvedby = null,
+                approvedat = null,
+                rejectionreason = null,
+                updatedat = current_timestamp
+            WHERE organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND isactive = true
+            RETURNING
+                pfid AS PfId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                employeepct AS EmployeePct,
+                employerpct AS EmployerPct,
+                requesttype AS RequestType,
+                pfstatus AS PfStatus,
+                effectivefrom AS EffectiveFrom,
+                approvedby AS ApprovedBy,
+                approvedat AS ApprovedAt,
+                remarks AS Remarks,
+                rejectionreason AS RejectionReason,
+                isactive AS IsActive,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        return await QuerySingleOrDefaultAsync<ProvidentFundEnrollmentDto>(sql, new
+        {
+            organizationId,
+            employeeId,
+            dto.Reason
+        });
+    }
+
+    public async Task<ProvidentFundEnrollmentDto?> CreateProvidentFundSettlementRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundSettlementRequestDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.providentfund
+            SET
+                requesttype = 'settlement',
+                pfstatus = 'pending',
+                effectivefrom = @EffectiveFrom,
+                remarks = @Remarks,
+                approvedby = null,
+                approvedat = null,
+                rejectionreason = null,
+                updatedat = current_timestamp
+            WHERE organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND isactive = true
+            RETURNING
+                pfid AS PfId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                employeepct AS EmployeePct,
+                employerpct AS EmployerPct,
+                requesttype AS RequestType,
+                pfstatus AS PfStatus,
+                effectivefrom AS EffectiveFrom,
+                approvedby AS ApprovedBy,
+                approvedat AS ApprovedAt,
+                remarks AS Remarks,
+                rejectionreason AS RejectionReason,
+                isactive AS IsActive,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        return await QuerySingleOrDefaultAsync<ProvidentFundEnrollmentDto>(sql, new
+        {
+            organizationId,
+            employeeId,
+            dto.EffectiveFrom,
+            dto.Remarks
+        });
+    }
+
+    public async Task<bool> DeleteProvidentFundRequestAsync(Guid pfId, Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            DELETE FROM payroll.providentfund
+            WHERE pfid = @pfId
+              AND organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND pfstatus = 'pending'
+            RETURNING pfid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new
+        {
+            pfId,
+            organizationId,
+            employeeId
+        });
+
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    public async Task<ProvidentFundEnrollmentDto?> GetMyPendingProvidentFundRequestAsync(Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT
+                pfid AS PfId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                employeepct AS EmployeePct,
+                employerpct AS EmployerPct,
+                requesttype AS RequestType,
+                pfstatus AS PfStatus,
+                effectivefrom AS EffectiveFrom,
+                approvedby AS ApprovedBy,
+                approvedat AS ApprovedAt,
+                remarks AS Remarks,
+                rejectionreason AS RejectionReason,
+                isactive AS IsActive,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt
+            FROM payroll.providentfund
+            WHERE organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND pfstatus = 'pending'
+              AND isactive = true
+            ORDER BY updatedat DESC
+            LIMIT 1;";
+
+        return await QuerySingleOrDefaultAsync<ProvidentFundEnrollmentDto>(sql, new
+        {
+            organizationId,
+            employeeId
+        });
+    }
+
+    public async Task<PagedResult<ProvidentFundTransactionDto>> GetMyProvidentFundTransactionsAsync(Guid organizationId, Guid employeeId, ProvidentFundTransactionFilterDto filter)
+    {
+        var conditions = new List<string>
+        {
+            "pt.organizationid = @organizationId",
+            "pt.employeeid = @employeeId"
+        };
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("employeeId", employeeId);
+
+        if (filter.Year.HasValue)
+        {
+            conditions.Add("EXTRACT(YEAR FROM pt.createdat) = @Year");
+            parameters.Add("Year", filter.Year.Value);
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var offset = (filter.Page - 1) * filter.PageSize;
+
+        var sql = $@"
+            SELECT
+                pt.transactionid AS TransactionId,
+                pt.organizationid AS OrganizationId,
+                pt.employeeid AS EmployeeId,
+                pt.periodid AS PeriodId,
+                pp.periodname AS PeriodName,
+                pt.pfid AS PfId,
+                pt.salarybasisamount AS SalaryBasisAmount,
+                pt.employeepct AS EmployeePct,
+                pt.employerpct AS EmployerPct,
+                pt.employeeamount AS EmployeeAmount,
+                pt.employeramount AS EmployerAmount,
+                pt.totalamount AS TotalAmount,
+                pt.runningbalance AS RunningBalance,
+                pt.transactiontype AS TransactionType,
+                pt.createdat AS CreatedAt,
+                pt.updatedat AS UpdatedAt,
+                COUNT(*) OVER() as TotalCount
+            FROM payroll.pftransactions pt
+            INNER JOIN payroll.payrollperiods pp
+                ON pp.periodid = pt.periodid
+                AND pp.organizationid = pt.organizationid
+            WHERE {whereClause}
+            ORDER BY pt.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", offset);
+
+        var data = await QueryAsync<ProvidentFundTransactionDto>(sql, parameters);
+        var totalCount = data.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<ProvidentFundTransactionDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<PagedResult<AdminProvidentFundRequestDto>> GetAllProvidentFundRequestsAsync(Guid organizationId, AdminProvidentFundRequestFilterDto filter)
+    {
+        filter ??= new AdminProvidentFundRequestFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var whereClause = "WHERE pf.organizationid = @organizationId";
+
+        if (!string.IsNullOrWhiteSpace(filter.RequestType))
+            whereClause += " AND LOWER(pf.requesttype) = LOWER(@RequestType)";
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+            whereClause += " AND (e.firstname || ' ' || e.lastname) ILIKE @SearchTerm";
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.providentfund pf
+            JOIN employee.Employees e ON e.employeeid = pf.employeeid
+            {whereClause};";
+
+        var sql = $@"
+            SELECT
+                pf.pfid AS PfId,
+                pf.organizationid AS OrganizationId,
+                pf.employeeid AS EmployeeId,
+                (e.firstname || ' ' || e.lastname) AS EmployeeName,
+                ed.basicsalary AS BasicSalary,
+                pf.ruleid AS RuleId,
+                pf.employeepct AS EmployeePct,
+                pf.employerpct AS EmployerPct,
+                pf.requesttype AS RequestType,
+                pf.pfstatus AS PfStatus,
+                pf.effectivefrom AS EffectiveFrom,
+                pf.approvedby AS ApprovedBy,
+                pf.approvedat AS ApprovedAt,
+                pf.remarks AS Remarks,
+                pf.rejectionreason AS RejectionReason,
+                pf.isactive AS IsActive,
+                pf.createdat AS CreatedAt,
+                pf.updatedat AS UpdatedAt
+            FROM payroll.providentfund pf
+            JOIN employee.Employees e ON e.employeeid = pf.employeeid
+            LEFT JOIN employee.EmploymentDetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            {whereClause}
+            ORDER BY pf.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new
+        {
+            organizationId,
+            filter.RequestType,
+            SearchTerm = !string.IsNullOrWhiteSpace(filter.SearchTerm) ? $"%{filter.SearchTerm.Trim()}%" : null,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<AdminProvidentFundRequestDto>(sql, parameters);
+
+        return new PagedResult<AdminProvidentFundRequestDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<bool> ApproveProvidentFundRequestAsync(Guid organizationId, Guid approvedBy, ApproveProvidentFundRequestDto dto)
+    {
+        var normalizedRequestType = dto.RequestType?.Trim().ToLowerInvariant();
+        var allowedTypes = new[] { "enrollment", "update", "withdrawal", "settlement" };
+        if (string.IsNullOrWhiteSpace(normalizedRequestType) || !allowedTypes.Contains(normalizedRequestType))
+            return false;
+
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var pendingRequestSql = @"
+                SELECT pfid
+                FROM payroll.providentfund
+                WHERE organizationid = @organizationId
+                  AND employeeid = @EmployeeId
+                  AND LOWER(requesttype) = @RequestType
+                  AND pfstatus = 'pending'
+                ORDER BY updatedat DESC
+                LIMIT 1
+                FOR UPDATE;";
+
+            var pfId = await connection.QuerySingleOrDefaultAsync<Guid?>(
+                pendingRequestSql,
+                new
+                {
+                    organizationId,
+                    dto.EmployeeId,
+                    RequestType = normalizedRequestType
+                },
+                transaction);
+
+            if (pfId == null || pfId == Guid.Empty)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            string updateSql = normalizedRequestType switch
+            {
+                "enrollment" => @"
+                    UPDATE payroll.providentfund
+                    SET
+                        pfstatus = 'active',
+                        isactive = true,
+                        approvedby = @approvedBy,
+                        approvedat = current_timestamp,
+                        updatedat = current_timestamp
+                    WHERE pfid = @pfId
+                      AND organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND pfstatus = 'pending';",
+                "update" => @"
+                    UPDATE payroll.providentfund
+                    SET
+                        pfstatus = 'active',
+                        approvedby = @approvedBy,
+                        approvedat = current_timestamp,
+                        updatedat = current_timestamp
+                    WHERE pfid = @pfId
+                      AND organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND pfstatus = 'pending';",
+                "withdrawal" => @"
+                    UPDATE payroll.providentfund
+                    SET
+                        pfstatus = 'approved',
+                        approvedby = @approvedBy,
+                        approvedat = current_timestamp,
+                        updatedat = current_timestamp
+                    WHERE pfid = @pfId
+                      AND organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND pfstatus = 'pending';",
+                "settlement" => @"
+                    UPDATE payroll.providentfund
+                    SET
+                        pfstatus = 'closed',
+                        isactive = false,
+                        approvedby = @approvedBy,
+                        approvedat = current_timestamp,
+                        updatedat = current_timestamp
+                    WHERE pfid = @pfId
+                      AND organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND pfstatus = 'pending';",
+                _ => string.Empty
+            };
+
+            var updatedRows = await connection.ExecuteAsync(updateSql, new
+            {
+                pfId,
+                organizationId,
+                dto.EmployeeId,
+                approvedBy
+            }, transaction);
+
+            if (updatedRows == 0)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            if (normalizedRequestType is "withdrawal" or "settlement")
+            {
+                var latestTransactionSql = @"
+                    SELECT
+                        periodid,
+                        salarybasisamount,
+                        employeepct,
+                        employerpct
+                    FROM payroll.pftransactions
+                    WHERE organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND pfid = @pfId
+                    ORDER BY createdat DESC
+                    LIMIT 1;";
+
+                var latestTransaction = await connection.QuerySingleOrDefaultAsync<dynamic>(
+                    latestTransactionSql,
+                    new { organizationId, dto.EmployeeId, pfId },
+                    transaction);
+
+                if (latestTransaction == null)
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                var totalsSql = @"
+                    SELECT
+                        COALESCE(SUM(employeeamount), 0) AS employeeamount,
+                        COALESCE(SUM(employeramount), 0) AS employeramount
+                    FROM payroll.pftransactions
+                    WHERE organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND pfid = @pfId;";
+
+                var totals = await connection.QuerySingleAsync<dynamic>(
+                    totalsSql,
+                    new { organizationId, dto.EmployeeId, pfId },
+                    transaction);
+
+                decimal employeeAmount = totals.employeeamount;
+                decimal employerAmount = totals.employeramount;
+                decimal runningBalance = employeeAmount + employerAmount;
+
+                var insertTransactionSql = @"
+                    INSERT INTO payroll.pftransactions (
+                        organizationid, employeeid, periodid, pfid,
+                        salarybasisamount, employeepct, employerpct,
+                        employeeamount, employeramount, runningbalance, transactiontype
+                    )
+                    VALUES (
+                        @organizationId, @EmployeeId, @PeriodId, @pfId,
+                        @SalaryBasisAmount, @EmployeePct, @EmployerPct,
+                        @EmployeeAmount, @EmployerAmount, @RunningBalance, @TransactionType
+                    );";
+
+                await connection.ExecuteAsync(insertTransactionSql, new
+                {
+                    organizationId,
+                    dto.EmployeeId,
+                    pfId,
+                    PeriodId = (Guid)latestTransaction.periodid,
+                    SalaryBasisAmount = (decimal)latestTransaction.salarybasisamount,
+                    EmployeePct = (decimal)latestTransaction.employeepct,
+                    EmployerPct = (decimal)latestTransaction.employerpct,
+                    EmployeeAmount = employeeAmount,
+                    EmployerAmount = employerAmount,
+                    RunningBalance = runningBalance,
+                    TransactionType = normalizedRequestType
+                }, transaction);
+            }
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<bool> RejectProvidentFundRequestAsync(Guid pfId, Guid organizationId, RejectProvidentFundRequestDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.providentfund
+            SET
+                pfstatus = 'rejected',
+                remarks = @Remarks,
+                updatedat = current_timestamp
+            WHERE pfid = @pfId
+              AND organizationid = @organizationId
+              AND pfstatus = 'pending'
+            RETURNING pfid;";
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new
+        {
+            pfId,
+            organizationId,
+            dto.Remarks
+        });
+
+        return updatedId != null && updatedId != Guid.Empty;
+    }
+
+    public async Task<bool> AddProvidentFundMonthlyTransactionAsync(Guid organizationId, CreateProvidentFundMonthlyTransactionDto dto)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var activePfSql = @"
+                SELECT
+                    pfid,
+                    employeepct,
+                    employerpct
+                FROM payroll.providentfund
+                WHERE organizationid = @organizationId
+                  AND employeeid = @EmployeeId
+                  AND pfstatus = 'active'
+                  AND isactive = true
+                ORDER BY updatedat DESC
+                LIMIT 1
+                FOR UPDATE;";
+
+            var activePf = await connection.QuerySingleOrDefaultAsync<dynamic>(
+                activePfSql,
+                new { organizationId, dto.EmployeeId },
+                transaction);
+
+            if (activePf == null)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            var basicSalarySql = @"
+                SELECT ed.basicsalary
+                FROM employee.EmploymentDetails ed
+                JOIN employee.Employees e ON e.employeeid = ed.employeeid
+                WHERE ed.employeeid = @EmployeeId
+                  AND e.organizationid = @organizationId
+                  AND ed.iscurrent = true
+                ORDER BY ed.effectivedate DESC
+                LIMIT 1;";
+
+            var basicSalary = await connection.QuerySingleOrDefaultAsync<decimal?>(
+                basicSalarySql,
+                new { organizationId, dto.EmployeeId },
+                transaction);
+
+            if (!basicSalary.HasValue || basicSalary.Value <= 0)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            Guid pfId = (Guid)activePf.pfid;
+            decimal employeePct = (decimal)activePf.employeepct;
+            decimal employerPct = (decimal)activePf.employerpct;
+            decimal salaryBasisAmount = basicSalary.Value;
+
+            decimal employeeAmount = Math.Round((salaryBasisAmount * employeePct) / 100m, 2);
+            decimal employerAmount = Math.Round((salaryBasisAmount * employerPct) / 100m, 2);
+
+            var existingSumsSql = @"
+                SELECT
+                    COALESCE(SUM(employeeamount), 0) AS totalemployeeamount,
+                    COALESCE(SUM(employeramount), 0) AS totalemployeramount
+                FROM payroll.pftransactions
+                WHERE organizationid = @organizationId
+                  AND employeeid = @EmployeeId
+                  AND pfid = @pfId;";
+
+            var sums = await connection.QuerySingleAsync<dynamic>(
+                existingSumsSql,
+                new { organizationId, dto.EmployeeId, pfId },
+                transaction);
+
+            decimal runningBalance = (decimal)sums.totalemployeeamount + (decimal)sums.totalemployeramount + employeeAmount + employerAmount;
+
+            var insertSql = @"
+                INSERT INTO payroll.pftransactions (
+                    organizationid, employeeid, periodid, pfid,
+                    salarybasisamount, employeepct, employerpct,
+                    employeeamount, employeramount, runningbalance, transactiontype
+                )
+                VALUES (
+                    @organizationId, @EmployeeId, @PeriodId, @pfId,
+                    @SalaryBasisAmount, @EmployeePct, @EmployerPct,
+                    @EmployeeAmount, @EmployerAmount, @RunningBalance, 'monthly'
+                )
+                RETURNING transactionid;";
+
+            var insertedId = await connection.QuerySingleOrDefaultAsync<Guid?>(
+                insertSql,
+                new
+                {
+                    organizationId,
+                    dto.EmployeeId,
+                    dto.PeriodId,
+                    pfId,
+                    SalaryBasisAmount = salaryBasisAmount,
+                    EmployeePct = employeePct,
+                    EmployerPct = employerPct,
+                    EmployeeAmount = employeeAmount,
+                    EmployerAmount = employerAmount,
+                    RunningBalance = runningBalance
+                },
+                transaction);
+
+            if (insertedId == null || insertedId == Guid.Empty)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<ProvidentFundEnrollmentDto> ManualProvidentFundEnrollmentAsync(Guid organizationId, ManualProvidentFundEnrollmentDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.providentfund (
+                organizationid, employeeid, ruleid, employeepct, employerpct,
+                requesttype, pfstatus, effectivefrom, isactive
+            )
+            VALUES (
+                @organizationId, @EmployeeId, @RuleId, @EmployeePct, @EmployerPct,
+                'enrollment', 'active', @EffectiveFrom, true
+            )
+            ON CONFLICT (organizationid, employeeid)
+            DO UPDATE SET
+                ruleid = EXCLUDED.ruleid,
+                employeepct = EXCLUDED.employeepct,
+                employerpct = EXCLUDED.employerpct,
+                requesttype = 'enrollment',
+                pfstatus = 'active',
+                effectivefrom = EXCLUDED.effectivefrom,
+                approvedby = null,
+                approvedat = null,
+                remarks = null,
+                rejectionreason = null,
+                isactive = true,
+                updatedat = current_timestamp
+            RETURNING
+                pfid AS PfId,
+                organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                ruleid AS RuleId,
+                employeepct AS EmployeePct,
+                employerpct AS EmployerPct,
+                requesttype AS RequestType,
+                pfstatus AS PfStatus,
+                effectivefrom AS EffectiveFrom,
+                approvedby AS ApprovedBy,
+                approvedat AS ApprovedAt,
+                remarks AS Remarks,
+                rejectionreason AS RejectionReason,
+                isactive AS IsActive,
+                createdat AS CreatedAt,
+                updatedat AS UpdatedAt;";
+
+        return await QuerySingleAsync<ProvidentFundEnrollmentDto>(sql, new
+        {
+            organizationId,
+            dto.EmployeeId,
+            dto.RuleId,
+            dto.EmployeePct,
+            dto.EmployerPct,
+            dto.EffectiveFrom
+        });
+    }
+
     // Salary Advance
     public async Task<SalaryAdvanceDto> CreateSalaryAdvanceAsync(Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
     {

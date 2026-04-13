@@ -1984,54 +1984,91 @@ CREATE TABLE IF NOT EXISTS payroll.salaryadvance
 // pf rules
 create table if not exists payroll.pfrules
 (
-    ruleid              uuid primary key default uuid_generate_v4(),
-    rulename            character varying(100),
-    description         text,
-    organizationid      uuid not null,
-    defaultemployeepct  numeric(5,2) default 0,
-    defaultemployerpct  numeric(5,2) default 0,
-    mincontribution     numeric(15,2),
-    maxcontribution     numeric(15,2),
-    isactive            boolean default true,
-    isdeleted           boolean default false,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqorgpfrule unique (organizationid)
+    ruleid                  uuid primary key default uuid_generate_v4(),
+    organizationid          uuid not null,
+    rulename                varchar(100) not null,
+    description             text,
+
+    defaultemployeepct      numeric(5,2) not null,
+    defaultemployerpct      numeric(5,2) not null,
+
+    contributionbasis       varchar(20) default 'basic'
+                            check (contributionbasis in ('basic', 'gross', 'fixed')),
+
+    mincontribution         numeric(15,2),
+    maxcontribution         numeric(15,2),
+
+    allowpartialwithdraw    boolean default false,
+    vestingmonths           int default 0,
+
+    isactive                boolean default true,
+    isdeleted               boolean default false,
+
+    createdat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp,
+
+    constraint uq_org_pf_rule unique (organizationid)
 );
 
 create table if not exists payroll.providentfund
 (
-    pfid                uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    employeeid          uuid not null,
-    ruleid              uuid references payroll.pfrules(ruleid),
-    employeepct         numeric(5,2) not null,
-    employerpct         numeric(5,2) not null,
-    isenrolled          boolean default false,
-    pfstatus            varchar(20) default 'pending'
-                        check (pfstatus in ('pending', 'approved', 'completed', 'cancelled')),
-    effectivefrom       date,
-    isactive            boolean default true,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqprovidentfund unique (organizationid, employeeid)
+    pfid                    uuid primary key default uuid_generate_v4(),
+    organizationid          uuid not null,
+    employeeid              uuid not null,
+    ruleid                  uuid not null references payroll.pfrules(ruleid),
+
+    employeepct             numeric(5,2) not null,
+    employerpct             numeric(5,2) not null,
+
+    requesttype             varchar(30) default 'enrollment'
+                            check (requesttype in
+                            ('enrollment', 'withdrawal', 'settlement', 'update')),
+
+    pfstatus                varchar(20) default 'pending'
+                            check (pfstatus in
+                            ('pending', 'approved', 'rejected', 'active', 'closed')),
+
+    effectivefrom           date not null,
+    approvedby              uuid,
+    approvedat              timestamptz,
+    remarks                 text,
+    rejectionreason         text,
+
+    isactive                boolean default false,
+    createdat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp,
+
+    constraint uq_pf_employee unique (organizationid, employeeid)
 );
 
 create table if not exists payroll.pftransactions
 (
-    id                  uuid primary key default uuid_generate_v4(),
-    organizationid      uuid not null,
-    employeeid          uuid not null,
-    periodid            uuid not null,
-    pfid                uuid references payroll.providentfund(pfid),
-    employeeamount      numeric(15,2) not null,
-    employeramount      numeric(15,2) not null,
-    totalamount         numeric(15,2) generated always as (
-                            employeeamount + employeramount
-                        ) stored,
-    createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqpftransactions unique (employeeid, periodid)
+    transactionid           uuid primary key default uuid_generate_v4(),
+    organizationid          uuid not null,
+    employeeid              uuid not null,
+    periodid                uuid not null,
+    pfid                    uuid not null references payroll.providentfund(pfid),
+
+    salarybasisamount       numeric(15,2) not null,
+    employeepct             numeric(5,2) not null,
+    employerpct             numeric(5,2) not null,
+
+    employeeamount          numeric(15,2) not null,
+    employeramount          numeric(15,2) not null,
+
+    totalamount             numeric(15,2) generated always as
+                            (employeeamount + employeramount) stored,
+
+    runningbalance          numeric(15,2) not null,
+
+    transactiontype         varchar(20) default 'monthly'
+                            check (transactiontype in
+                            ('monthly', 'profit', 'withdrawal', 'adjustment', 'settlement')),
+
+    createdat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp,
+
+    constraint uq_pf_period unique (employeeid, periodid)
 ); // pf rules
 
 // tax slabs 
