@@ -1948,7 +1948,6 @@ create table if not exists payroll.salaryadvancerules (
     isdeleted           boolean default false,
     createdat           timestamptz default current_timestamp,
     updatedat           timestamptz default current_timestamp,
-    constraint uqorgadvancerule unique (organizationid)
 );
 
 CREATE TABLE IF NOT EXISTS payroll.salaryadvance
@@ -2007,7 +2006,6 @@ create table if not exists payroll.pfrules
     createdat               timestamptz default current_timestamp,
     updatedat               timestamptz default current_timestamp,
 
-    constraint uq_org_pf_rule unique (organizationid)
 );
 
 create table if not exists payroll.providentfund
