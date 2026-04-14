@@ -151,6 +151,7 @@ builder.Services.AddCors(options =>
 
 // -------------------- HTTP CLIENTS --------------------
 builder.Services.AddHttpClient();
+builder.Services.AddMemoryCache();
 
 builder.Services.AddHttpClient<GuidanceAIService>(client =>
 {

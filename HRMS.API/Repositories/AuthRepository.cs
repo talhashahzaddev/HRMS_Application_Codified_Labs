@@ -110,9 +110,15 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
     FROM auth.users u
     INNER JOIN auth.roles r ON u.roleid = r.roleid
     INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
-    INNER JOIN employee.employees e ON u.userid = e.userid
     WHERE u.email = @email
-    AND e.status = 'active'";
+      AND EXISTS (
+          SELECT 1
+          FROM employee.employees e
+          WHERE e.userid = u.userid
+            AND e.status = 'active'
+      )
+    ORDER BY u.createdat DESC
+    LIMIT 1";
 
         try
         {
@@ -521,11 +527,17 @@ WHERE token = @token;
 
     public async Task<string> GetHashedPassword(string email)
     {
-        var sql = "SELECT passwordhash FROM auth.users WHERE email = @Email";
+        var sql = @"
+            SELECT passwordhash
+            FROM auth.users
+            WHERE email = @Email
+            ORDER BY isactive DESC, createdat DESC
+            LIMIT 1";
+
         try
         {
-        var result = await QuerySingleOrDefaultAsync<string>(sql, new { Email = email });
-        return result ?? string.Empty;
+            var result = await QuerySingleOrDefaultAsync<string>(sql, new { Email = email });
+            return result ?? string.Empty;
         }
         catch (Exception ex)
         {
