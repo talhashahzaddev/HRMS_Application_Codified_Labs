@@ -668,6 +668,7 @@ public class ProvidentFundEnrollmentDto
     public Guid OrganizationId { get; set; }
     public Guid EmployeeId { get; set; }
     public Guid RuleId { get; set; }
+    public string? RuleName { get; set; }
     public decimal EmployeePct { get; set; }
     public decimal EmployerPct { get; set; }
     public string RequestType { get; set; } = string.Empty;

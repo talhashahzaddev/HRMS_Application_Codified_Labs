@@ -2788,7 +2788,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE pfid = @pfId
               AND organizationid = @organizationId
               AND employeeid = @employeeId
-              AND pfstatus = 'pending'
+              AND pf.pfstatus = 'pending'
             RETURNING
                 pfid AS PfId,
                 organizationid AS OrganizationId,
@@ -2970,11 +2970,12 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         var sql = @"
             SELECT
                 pfid AS PfId,
-                organizationid AS OrganizationId,
+                pf.organizationid AS OrganizationId,
                 employeeid AS EmployeeId,
-                ruleid AS RuleId,
-                employeepct AS EmployeePct,
-                employerpct AS EmployerPct,
+                pf.ruleid AS RuleId,
+                pr.rulename AS RuleName,
+                pf.employeepct AS EmployeePct,
+                pf.employerpct AS EmployerPct,
                 requesttype AS RequestType,
                 pfstatus AS PfStatus,
                 effectivefrom AS EffectiveFrom,
@@ -2982,15 +2983,18 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 approvedat AS ApprovedAt,
                 remarks AS Remarks,
                 rejectionreason AS RejectionReason,
-                isactive AS IsActive,
-                createdat AS CreatedAt,
-                updatedat AS UpdatedAt
-            FROM payroll.providentfund
-            WHERE organizationid = @organizationId
-              AND employeeid = @employeeId
+                pf.isactive AS IsActive,
+                pf.createdat AS CreatedAt,
+                pf.updatedat AS UpdatedAt
+            FROM payroll.providentfund pf
+            LEFT JOIN payroll.pfrules pr
+              ON pr.ruleid = pf.ruleid
+             AND pr.organizationid = pf.organizationid
+            WHERE pf.organizationid = @organizationId
+              AND pf.employeeid = @employeeId
               AND pfstatus = 'pending'
-              AND isactive = true
-            ORDER BY updatedat DESC
+              AND pf.isactive = true
+            ORDER BY pf.updatedat DESC
             LIMIT 1;";
 
         return await QuerySingleOrDefaultAsync<ProvidentFundEnrollmentDto>(sql, new
