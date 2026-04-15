@@ -2822,41 +2822,57 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     public async Task<ProvidentFundEnrollmentDto?> UpdateProvidentFundPercentageAsync(Guid organizationId, Guid employeeId, UpdateProvidentFundPercentageDto dto)
     {
         var sql = @"
-            UPDATE payroll.providentfund
+            UPDATE payroll.providentfund pf
             SET
+                ruleid = @RuleId,
                 employeepct = @EmployeePct,
-                requesttype = 'update',
+                employerpct = ruledata.defaultemployerpct,
                 pfstatus = 'pending',
+                requesttype = 'update',
                 approvedby = null,
                 approvedat = null,
                 remarks = null,
                 rejectionreason = null,
                 updatedat = current_timestamp
-            WHERE organizationid = @organizationId
-              AND employeeid = @employeeId
-              AND isactive = true
+            FROM (
+                SELECT
+                    pr.ruleid,
+                    pr.defaultemployerpct
+                FROM payroll.pfrules pr
+                WHERE pr.organizationid = @organizationId
+                  AND pr.ruleid = @RuleId
+                  AND COALESCE(pr.isdeleted, false) = false
+                  AND COALESCE(pr.isactive, true) = true
+                LIMIT 1
+            ) AS ruledata
+            WHERE pf.organizationid = @organizationId
+              AND pf.employeeid = @employeeId
+              AND ruledata.ruleid = @RuleId
+              AND pf.ruleid <> @RuleId
+              AND pf.isactive = true
             RETURNING
-                pfid AS PfId,
-                organizationid AS OrganizationId,
-                employeeid AS EmployeeId,
-                ruleid AS RuleId,
-                employeepct AS EmployeePct,
-                employerpct AS EmployerPct,
-                requesttype AS RequestType,
-                pfstatus AS PfStatus,
-                effectivefrom AS EffectiveFrom,
-                approvedby AS ApprovedBy,
-                approvedat AS ApprovedAt,
-                remarks AS Remarks,
-                rejectionreason AS RejectionReason,
-                isactive AS IsActive,
-                createdat AS CreatedAt,
-                updatedat AS UpdatedAt;";
+                pf.pfid AS PfId,
+                pf.organizationid AS OrganizationId,
+                pf.employeeid AS EmployeeId,
+                pf.ruleid AS RuleId,
+                pf.employeepct AS EmployeePct,
+                pf.employerpct AS EmployerPct,
+                pf.requesttype AS RequestType,
+                pf.pfstatus AS PfStatus,
+                pf.effectivefrom AS EffectiveFrom,
+                pf.approvedby AS ApprovedBy,
+                pf.approvedat AS ApprovedAt,
+                pf.remarks AS Remarks,
+                pf.rejectionreason AS RejectionReason,
+                pf.isactive AS IsActive,
+                pf.createdat AS CreatedAt,
+                pf.updatedat AS UpdatedAt;";
 
         return await QuerySingleOrDefaultAsync<ProvidentFundEnrollmentDto>(sql, new
         {
             organizationId,
             employeeId,
+            dto.RuleId,
             dto.EmployeePct
         });
     }
@@ -3029,7 +3045,6 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
              AND pr.organizationid = pf.organizationid
             WHERE pf.organizationid = @organizationId
               AND pf.employeeid = @employeeId
-              AND pf.pfstatus = 'active'
             ORDER BY pf.updatedat DESC
             LIMIT 1;";
 
@@ -3042,6 +3057,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
     public async Task<PagedResult<ProvidentFundTransactionDto>> GetMyProvidentFundTransactionsAsync(Guid organizationId, Guid employeeId, ProvidentFundTransactionFilterDto filter)
     {
+        filter ??= new ProvidentFundTransactionFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
         var conditions = new List<string>
         {
             "pt.organizationid = @organizationId",
@@ -3056,6 +3075,12 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         {
             conditions.Add("EXTRACT(YEAR FROM pt.createdat) = @Year");
             parameters.Add("Year", filter.Year.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TransactionType))
+        {
+            conditions.Add("LOWER(pt.transactiontype) = LOWER(@TransactionType)");
+            parameters.Add("TransactionType", filter.TransactionType.Trim());
         }
 
         var whereClause = string.Join(" AND ", conditions);
@@ -3163,6 +3188,99 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         var data = await QueryAsync<AdminProvidentFundRequestDto>(sql, parameters);
 
         return new PagedResult<AdminProvidentFundRequestDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<PagedResult<AdminProvidentFundRepaymentDto>> GetAllProvidentFundRepaymentsAsync(Guid organizationId, AdminProvidentFundRepaymentFilterDto filter)
+    {
+        filter ??= new AdminProvidentFundRepaymentFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var conditions = new List<string>
+        {
+            "pt.organizationid = @organizationId"
+        };
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @SearchTerm");
+            parameters.Add("SearchTerm", $"%{filter.SearchTerm.Trim()}%");
+        }
+
+        if (filter.PeriodId.HasValue && filter.PeriodId.Value != Guid.Empty)
+        {
+            conditions.Add("pt.periodid = @PeriodId");
+            parameters.Add("PeriodId", filter.PeriodId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TransactionType))
+        {
+            conditions.Add("LOWER(pt.transactiontype) = LOWER(@TransactionType)");
+            parameters.Add("TransactionType", filter.TransactionType.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.PfStatus))
+        {
+            conditions.Add("LOWER(pf.pfstatus) = LOWER(@PfStatus)");
+            parameters.Add("PfStatus", filter.PfStatus.Trim());
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var offset = (filter.Page - 1) * filter.PageSize;
+
+        var sql = $@"
+            SELECT
+                pt.transactionid AS TransactionId,
+                pt.organizationid AS OrganizationId,
+                pt.employeeid AS EmployeeId,
+                (e.firstname || ' ' || e.lastname) AS EmployeeName,
+                pt.pfid AS PfId,
+                COALESCE(pr.rulename, '') AS RuleName,
+                pt.periodid AS PeriodId,
+                pp.periodname AS PeriodName,
+                pt.employeepct AS EmployeePct,
+                pt.employeeamount AS EmployeeAmount,
+                pt.employerpct AS EmployerPct,
+                pt.employeramount AS EmployerAmount,
+                pt.runningbalance AS RunningBalance,
+                pt.totalamount AS TotalAmount,
+                pt.transactiontype AS TransactionType,
+                pf.pfstatus AS PfStatus,
+                pt.createdat AS CreatedAt,
+                COUNT(*) OVER() AS TotalCount
+            FROM payroll.pftransactions pt
+            INNER JOIN payroll.payrollperiods pp
+                ON pp.periodid = pt.periodid
+               AND pp.organizationid = pt.organizationid
+            INNER JOIN payroll.providentfund pf
+                ON pf.pfid = pt.pfid
+               AND pf.organizationid = pt.organizationid
+            LEFT JOIN payroll.pfrules pr
+                ON pr.ruleid = pf.ruleid
+               AND pr.organizationid = pf.organizationid
+            INNER JOIN employee.employees e
+                ON e.employeeid = pt.employeeid
+               AND e.organizationid = pt.organizationid
+            WHERE {whereClause}
+            ORDER BY pt.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", offset);
+
+        var data = await QueryAsync<AdminProvidentFundRepaymentDto>(sql, parameters);
+        var totalCount = data.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<AdminProvidentFundRepaymentDto>
         {
             Data = data.ToList(),
             TotalCount = totalCount,
