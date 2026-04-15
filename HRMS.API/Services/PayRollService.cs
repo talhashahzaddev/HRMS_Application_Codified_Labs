@@ -1674,6 +1674,29 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> GetMyActiveProvidentFundRequestAsync(Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMyActiveProvidentFundRequestAsync(organizationId, employeeId);
+            if (result == null)
+            {
+                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                {
+                    Success = false,
+                    Message = "No active provident fund request found."
+                };
+            }
+
+            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my active provident fund request");
+            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<PagedResult<ProvidentFundTransactionDto>>> GetMyProvidentFundTransactionsAsync(Guid organizationId, Guid employeeId, ProvidentFundTransactionFilterDto filter)
     {
         try

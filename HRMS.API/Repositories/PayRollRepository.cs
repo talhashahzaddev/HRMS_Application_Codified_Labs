@@ -2727,7 +2727,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             )
             VALUES (
                 @organizationId, @employeeId, @RuleId, @EmployeePct, @EmployerPct,
-                'enrollment', 'pending', @EffectiveFrom, true
+                'enrollment', 'pending', @EffectiveFrom, false
             )
             ON CONFLICT (organizationid, employeeid)
             DO UPDATE SET
@@ -2777,7 +2777,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     public async Task<ProvidentFundEnrollmentDto?> UpdateProvidentFundEnrollmentRequestAsync(Guid pfId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct)
     {
         var sql = @"
-            UPDATE payroll.providentfund
+            UPDATE payroll.providentfund pf
             SET
                 ruleid = @RuleId,
                 employeepct = @EmployeePct,
@@ -2992,8 +2992,44 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
              AND pr.organizationid = pf.organizationid
             WHERE pf.organizationid = @organizationId
               AND pf.employeeid = @employeeId
-              AND pfstatus = 'pending'
-              AND pf.isactive = true
+            ORDER BY pf.updatedat DESC
+            LIMIT 1;";
+
+        return await QuerySingleOrDefaultAsync<ProvidentFundEnrollmentDto>(sql, new
+        {
+            organizationId,
+            employeeId
+        });
+    }
+
+    public async Task<ProvidentFundEnrollmentDto?> GetMyActiveProvidentFundRequestAsync(Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT
+                pfid AS PfId,
+                pf.organizationid AS OrganizationId,
+                employeeid AS EmployeeId,
+                pf.ruleid AS RuleId,
+                pr.rulename AS RuleName,
+                pf.employeepct AS EmployeePct,
+                pf.employerpct AS EmployerPct,
+                requesttype AS RequestType,
+                pfstatus AS PfStatus,
+                effectivefrom AS EffectiveFrom,
+                approvedby AS ApprovedBy,
+                approvedat AS ApprovedAt,
+                remarks AS Remarks,
+                rejectionreason AS RejectionReason,
+                pf.isactive AS IsActive,
+                pf.createdat AS CreatedAt,
+                pf.updatedat AS UpdatedAt
+            FROM payroll.providentfund pf
+            LEFT JOIN payroll.pfrules pr
+              ON pr.ruleid = pf.ruleid
+             AND pr.organizationid = pf.organizationid
+            WHERE pf.organizationid = @organizationId
+              AND pf.employeeid = @employeeId
+              AND pf.pfstatus = 'active'
             ORDER BY pf.updatedat DESC
             LIMIT 1;";
 
