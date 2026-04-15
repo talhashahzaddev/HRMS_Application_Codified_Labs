@@ -647,6 +647,7 @@ public class CreateProvidentFundEnrollmentDto
 
 public class UpdateProvidentFundPercentageDto
 {
+    public Guid RuleId { get; set; }
     public decimal EmployeePct { get; set; }
 }
 
@@ -668,6 +669,7 @@ public class ProvidentFundEnrollmentDto
     public Guid OrganizationId { get; set; }
     public Guid EmployeeId { get; set; }
     public Guid RuleId { get; set; }
+    public string? RuleName { get; set; }
     public decimal EmployeePct { get; set; }
     public decimal EmployerPct { get; set; }
     public string RequestType { get; set; } = string.Empty;
@@ -706,6 +708,7 @@ public class ProvidentFundTransactionDto
 public class ProvidentFundTransactionFilterDto
 {
     public int? Year { get; set; }
+    public string? TransactionType { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
@@ -736,6 +739,38 @@ public class AdminProvidentFundRequestFilterDto
 {
     public string? RequestType { get; set; }
     public string? SearchTerm { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class AdminProvidentFundRepaymentDto
+{
+    public Guid TransactionId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid PfId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public decimal EmployeePct { get; set; }
+    public decimal EmployeeAmount { get; set; }
+    public decimal EmployerPct { get; set; }
+    public decimal EmployerAmount { get; set; }
+    public decimal RunningBalance { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string TransactionType { get; set; } = string.Empty;
+    public string PfStatus { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class AdminProvidentFundRepaymentFilterDto
+{
+    public string? SearchTerm { get; set; }
+    public Guid? PeriodId { get; set; }
+    public string? TransactionType { get; set; }
+    public string? PfStatus { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }

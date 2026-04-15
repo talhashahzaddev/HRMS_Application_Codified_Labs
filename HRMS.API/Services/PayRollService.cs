@@ -1567,13 +1567,31 @@ public class PayRollService : IPayRollService
     {
         try
         {
+            if (dto.RuleId == Guid.Empty)
+            {
+                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                {
+                    Success = false,
+                    Message = "RuleId is required."
+                };
+            }
+
+            if (dto.EmployeePct <= 0)
+            {
+                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                {
+                    Success = false,
+                    Message = "Employee percentage must be greater than zero."
+                };
+            }
+
             var result = await _payRollRepository.UpdateProvidentFundPercentageAsync(organizationId, employeeId, dto);
             if (result == null)
             {
                 return new ServiceResponse<ProvidentFundEnrollmentDto>
                 {
                     Success = false,
-                    Message = "Provident fund enrollment not found."
+                    Message = "Provident fund enrollment not found, selected rule is invalid, or selected rule is already active."
                 };
             }
 
@@ -1674,6 +1692,29 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> GetMyActiveProvidentFundRequestAsync(Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMyActiveProvidentFundRequestAsync(organizationId, employeeId);
+            if (result == null)
+            {
+                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                {
+                    Success = false,
+                    Message = "No active provident fund request found."
+                };
+            }
+
+            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my active provident fund request");
+            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<PagedResult<ProvidentFundTransactionDto>>> GetMyProvidentFundTransactionsAsync(Guid organizationId, Guid employeeId, ProvidentFundTransactionFilterDto filter)
     {
         try
@@ -1699,6 +1740,20 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error getting all provident fund requests");
             return new ServiceResponse<PagedResult<AdminProvidentFundRequestDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>>> GetAllProvidentFundRepaymentsAsync(Guid organizationId, AdminProvidentFundRepaymentFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllProvidentFundRepaymentsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all provident fund repayments");
+            return new ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>> { Success = false, Message = "An error occurred." };
         }
     }
 

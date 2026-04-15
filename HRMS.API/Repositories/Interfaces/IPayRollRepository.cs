@@ -136,8 +136,10 @@ public interface IPayRollRepository
     Task<ProvidentFundEnrollmentDto?> CreateProvidentFundSettlementRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundSettlementRequestDto dto);
     Task<bool> DeleteProvidentFundRequestAsync(Guid pfId, Guid organizationId, Guid employeeId);
     Task<ProvidentFundEnrollmentDto?> GetMyPendingProvidentFundRequestAsync(Guid organizationId, Guid employeeId);
+    Task<ProvidentFundEnrollmentDto?> GetMyActiveProvidentFundRequestAsync(Guid organizationId, Guid employeeId);
     Task<PagedResult<ProvidentFundTransactionDto>> GetMyProvidentFundTransactionsAsync(Guid organizationId, Guid employeeId, ProvidentFundTransactionFilterDto filter);
     Task<PagedResult<AdminProvidentFundRequestDto>> GetAllProvidentFundRequestsAsync(Guid organizationId, AdminProvidentFundRequestFilterDto filter);
+    Task<PagedResult<AdminProvidentFundRepaymentDto>> GetAllProvidentFundRepaymentsAsync(Guid organizationId, AdminProvidentFundRepaymentFilterDto filter);
     Task<bool> ApproveProvidentFundRequestAsync(Guid organizationId, Guid approvedBy, ApproveProvidentFundRequestDto dto);
     Task<bool> RejectProvidentFundRequestAsync(Guid pfId, Guid organizationId, RejectProvidentFundRequestDto dto);
     Task<bool> AddProvidentFundMonthlyTransactionAsync(Guid organizationId, CreateProvidentFundMonthlyTransactionDto dto);

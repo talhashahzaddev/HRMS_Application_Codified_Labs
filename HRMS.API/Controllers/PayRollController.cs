@@ -1849,6 +1849,25 @@ public class PayRollController : ControllerBase
         }
     }
 
+    [HttpGet("/api/employee/provident-fund/my-active-request")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> GetMyActiveProvidentFundRequest()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMyActiveProvidentFundRequestAsync(organizationId, employeeId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching active provident fund request");
+            return StatusCode(500, new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpGet("/api/employee/provident-fund/my-transactions")]
     [Authorize]
     public async Task<ActionResult<ServiceResponse<PagedResult<ProvidentFundTransactionDto>>>> GetMyProvidentFundTransactions([FromQuery] ProvidentFundTransactionFilterDto filter)
@@ -1884,6 +1903,24 @@ public class PayRollController : ControllerBase
         {
             _logger.LogError(ex, "Error fetching all provident fund requests");
             return StatusCode(500, new ServiceResponse<PagedResult<AdminProvidentFundRequestDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("provident-fund/repayments")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>>>> GetAllProvidentFundRepayments([FromQuery] AdminProvidentFundRepaymentFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllProvidentFundRepaymentsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching all provident fund repayments");
+            return StatusCode(500, new ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>> { Success = false, Message = "An error occurred" });
         }
     }
 

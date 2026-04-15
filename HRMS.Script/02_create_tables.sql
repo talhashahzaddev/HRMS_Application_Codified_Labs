@@ -2064,9 +2064,8 @@ create table if not exists payroll.pftransactions
                             ('monthly', 'profit', 'withdrawal', 'adjustment', 'settlement')),
 
     createdat               timestamptz default current_timestamp,
-    updatedat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp
 
-    constraint uq_pf_period unique (employeeid, periodid)
 ); // pf rules
 
 // tax slabs 
