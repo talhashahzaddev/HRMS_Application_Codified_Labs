@@ -34,21 +34,44 @@ public class EmployeeSkillDto
     public string? AssessorName { get; set; }
 }
 
+//public class AppraisalCycleDto
+//{
+//    public Guid CycleId { get; set; }
+//    public string CycleName { get; set; } = string.Empty;
+//    public string? Description { get; set; }
+//    public DateTime StartDate { get; set; }
+//    public DateTime EndDate { get; set; }
+//    public string Status { get; set; } = string.Empty;
+//    public bool SelfReviewEnabled { get; set; }
+//    public bool PeerReviewEnabled { get; set; }
+//    public bool ManagerReviewEnabled { get; set; }
+//    public int TotalAppraisals { get; set; }
+//    public int CompletedAppraisals { get; set; }
+//}
 public class AppraisalCycleDto
 {
     public Guid CycleId { get; set; }
     public string CycleName { get; set; } = string.Empty;
-    public string? Description { get; set; }
+    public string? CycleType { get; set; } // cycletype
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
+    public DateTime? ReviewStartDate { get; set; } // reviewstartdate
+    public DateTime? ReviewEndDate { get; set; }   // reviewenddate
     public string Status { get; set; } = string.Empty;
-    public Dictionary<string, object> RatingScale { get; set; } = new();
-    public bool SelfReviewEnabled { get; set; }
-    public bool PeerReviewEnabled { get; set; }
-    public bool ManagerReviewEnabled { get; set; }
+
+    public bool SelfReviewEnabled { get; set; }   // isselfassessmentenable
+    public bool ManagerReviewEnabled { get; set; } // managerreview
+    public bool AppraisalEnabled { get; set; }     // isappraisalenable
+
+    public Guid OrganizationId { get; set; }
+    public Guid? CreatedBy { get; set; }
+    public DateTime? CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+
     public int TotalAppraisals { get; set; }
     public int CompletedAppraisals { get; set; }
 }
+
 
 public class EmployeeAppraisalDto
 {
@@ -110,6 +133,13 @@ public class PerformanceSummaryDto
     public long PendingAppraisals { get; set; }
     public Dictionary<string, long> RatingDistribution { get; set; } = new();
     public List<TopPerformerDto> TopPerformers { get; set; } = new();
+}
+
+public class MYPerformanceSummary
+{
+    public decimal CurrentCycleRating { get; set; }
+    public decimal OverallRating { get; set; }
+    public string skillsetRating { get; set; }
 }
 
 public class TopPerformerDto
@@ -193,50 +223,102 @@ public class UpdateEmployeeSkillRequest
 
 public class KRADto
 {
-    public Guid KRAId { get; set; }
-    public Guid? OrganizationId { get; set; }
-    public Guid? PositionId { get; set; }
+    public Guid KraId { get; set; }
+
+    public Guid OrganizationId { get; set; }
+
+    public Guid CycleId { get; set; }
+    public string CycleName { get; set; } 
+
     public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string Category { get; set; } = string.Empty;
-    public decimal Weight { get; set; }
-    public string MeasurementCriteria { get; set; } = string.Empty;
+
+    public string KraDescription { get; set; } = string.Empty;
+
+    public string KraRate { get; set; } = string.Empty; // varchar in Di
+    public int noOfGoals { get; set; }
+
     public bool IsActive { get; set; }
+
     public DateTime CreatedAt { get; set; }
+    public string CreatedByName { get; set; } = string.Empty;
 }
+
 
 public class CreateKRARequest
 {
-    public Guid PositionId { get; set; }
     public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public decimal Weight { get; set; }
-    public string MeasurementCriteria { get; set; } = string.Empty;
+
+    public string KraDescription { get; set; } = string.Empty;
+    public Guid CycleId { get; set; }
+
     public bool IsActive { get; set; } = true;
 }
 
 public class UpdateKRARequest
 {
     public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    //public string Category { get; set; } = string.Empty;
-    public decimal Weight { get; set; }
-    public string MeasurementCriteria { get; set; } = string.Empty;
+    public string KraDescription { get; set; } = string.Empty;
+    public Guid CycleId { get; set; }
+
     public bool IsActive { get; set; }
+}
+
+//Goals
+public class CreateGoalRequest
+{
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public Guid KRAId { get; set; }
+    public string Progress { get; set; } = "tostart"; // default
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+}
+
+public class GoalDto
+{
+    public Guid GoalId { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public Guid organizationId { get; set; }
+    public string Progress { get; set; } = string.Empty;
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public Guid? KRAId { get; set; }
+    public string? KraName { get; set; }
+    public Guid? AssignedTo { get; set; }
+    public Guid? createdBy { get; set; }
+    public string? CreatedByName { get; set; }
+    public string? AssignedtoName { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
 }
 
 public class UpdateAppraisalCycleRequest
 {
     public string CycleName { get; set; } = string.Empty;
+    public string? CycleType { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
+    public DateTime? ReviewStartDate { get; set; }
+    public DateTime? ReviewEndDate { get; set; }
+    public string? Status { get; set; }
+    public bool IsSelfAssessmentEnable { get; set; }
+    public bool ManagerReview { get; set; }
+    public bool IsAppraisalEnable { get; set; }
     public string? Description { get; set; }
-    public string Status { get; set; } = string.Empty;
-    public Dictionary<string, object> RatingScale { get; set; } = new();
-    public bool SelfReviewEnabled { get; set; }
-    public bool PeerReviewEnabled { get; set; }
-    public bool ManagerReviewEnabled { get; set; }
 }
+
+public class UpdateGoalRequest
+{
+    public Guid GoalId { get; set; }
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public string? Progress { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public Guid KRAId { get; set; }
+}
+
 
 public class SubmitAppraisalRequest
 {
@@ -277,62 +359,190 @@ public class DepartmentPerformanceDto
     public int PendingAppraisals { get; set; }
 }
 
+//public class CreateSelfAssessmentRequest
+//{
+//    public Guid EmployeeId { get; set; }
+//    public Guid CycleId { get; set; }
+//    public Guid? KraId { get; set; }
+//    public Guid? SkillId { get; set; }
+//    public decimal Rating { get; set; }
+//    public string? Comments { get; set; }
+//    public List<string>? EvidenceUrls { get; set; }
+//    public string Status { get; set; } = "draft";  // draft | submitted
+//}
+
 public class CreateSelfAssessmentRequest
 {
-    public Guid EmployeeId { get; set; }
-    public Guid CycleId { get; set; }
-    public Guid? KraId { get; set; }    
-    public Guid? SkillId { get; set; }
-    public decimal Rating { get; set; }
-    public string? Comments { get; set; }
-    public List<string>? EvidenceUrls { get; set; }
-    public string Status { get; set; } = "draft";  // draft | submitted
+    public Guid GoalId { get; set; }
+    public Guid KraId { get; set; }
+    public decimal SelfRating { get; set; }  // 1 to 5
+    public string SelfComment { get; set; } = string.Empty;
 }
+
 
 public class SelfAssessmentDto
 {
     public Guid SelfAssessmentId { get; set; }
-    public Guid EmployeeId { get; set; }
-    public Guid CycleId { get; set; }
-    public Guid? KraId { get; set; }
-    public Guid? SkillId { get; set; }
-    public decimal Rating { get; set; }
-    public string? Comments { get; set; }
-    public List<string>? EvidenceUrls { get; set; }
-    public string Status { get; set; }
+    public Guid GoalId { get; set; }
+    public Guid KraId { get; set; }
+    public Guid OrganizationId { get; set; }
+
+    public decimal SelfRating { get; set; }               // Matches selfrating in DB
+    public string? SelfComment { get; set; }          // Matches selfcomment in DB
+
+    public string Status { get; set; } = "SUBMITTED"; // Default status
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-    public string? CycleName { get; set; }
+    public Guid? EmployeeId { get; set; }  
+    public string? GoalName { get; set; }
     public string? KraName { get; set; }
     public string? EmployeeName { get; set; }
+    public Guid? CycleId { get; set; }
+    public string? CycleName { get; set; }
 }
 
 public class ManagerReviewRequest
 {
-    public Guid ManagerId { get; set; }
+
     public Guid EmployeeId { get; set; }
+
     public Guid CycleId { get; set; }
-    public decimal OverallRating { get; set; }
+
+    public Guid KraId { get; set; }
+
+    public Guid GoalId { get; set; }
+
+    public decimal Rating { get; set; }
+
     public string? Feedback { get; set; }
-    public string? ImprovementAreas { get; set; }
-    public string? DevelopmentPlan { get; set; }
-    public Dictionary<Guid, decimal>? KraRatings { get; set; } // KRA ID -> rating
-    public Dictionary<Guid, decimal>? SkillRatings { get; set; } // Skill ID -> rating
+
+    public string? ImprovementArea { get; set; }
+
+    public string Status { get; set; } = "SUBMITTED";
+}
+
+public class SearchManagersDto
+{
+    public Guid? kraid { get; set; }
+    public Guid? CycleId { get; set; }
+    public string? searchQuery { get; set; }
 }
 
 public class ManagerReviewDto
 {
-    public Guid ReviewId { get; set; }
+    public Guid ManagerReviewId { get; set; }
+
+    public Guid OrganizationId { get; set; }
+
     public Guid ManagerId { get; set; }
+    public string ManagerName { get; set; } = string.Empty;
+
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+
+    public Guid CycleId { get; set; }
+    public string CycleName { get; set; } = string.Empty;
+
+    public Guid KraId { get; set; }
+    public string KraName { get; set; } = string.Empty;
+
+    public Guid GoalId { get; set; }
+    public string GoalName { get; set; } = string.Empty;
+
+    public decimal Rating { get; set; }
+
+    public string? Feedback { get; set; }
+
+    public string? ImprovementArea { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
+    public DateTime CreatedAt { get; set; }
+}
+
+// HR Review Request DTO
+
+
+//public class HrReviewRequest
+//{
+//    public Guid EmployeeId { get; set; }
+//    public Guid CycleId { get; set; }
+//    public Guid KraId { get; set; }
+//    public Guid GoalId { get; set; }
+//    public decimal FinalRating { get; set; }
+//    public string? HrComments { get; set; }
+//    public string? ImprovementArea { get; set; }
+//    public string? Feedback { get; set; }
+//    public string Status { get; set; } = "SUBMITTED";
+//}
+
+public class HrReviewRequest
+{
     public Guid EmployeeId { get; set; }
     public Guid CycleId { get; set; }
-    public decimal OverallRating { get; set; }
+
+    public decimal FinalRating { get; set; }
+    public string? HrComments { get; set; }
+    public string? ImprovementArea { get; set; }
     public string? Feedback { get; set; }
-    public string? ImprovementAreas { get; set; }
-    public string? DevelopmentPlan { get; set; }
-    public string Status { get; set; }
+
+    public string Status { get; set; } = "SUBMITTED";
+}
+
+// HR Review Response DTO
+//public class HrReviewDto
+//{
+//    public Guid HrReviewId { get; set; }
+//    public Guid OrganizationId { get; set; }
+//    public Guid CycleId { get; set; }
+//    public string CycleName { get; set; } = string.Empty;
+//    public string HrName { get; set; }
+//    public Guid HrId { get; set; }
+//    public Guid KraId { get; set; }
+//    public string KraName { get; set; } = string.Empty;
+//    public Guid GoalId { get; set; }
+//    public string GoalName { get; set; } = string.Empty;
+//    public Guid EmployeeId { get; set; }
+//    public string EmployeeName { get; set; } = string.Empty;
+//    public decimal FinalRating { get; set; }
+//    public string? HrComments { get; set; }
+//    public string? ImprovementArea { get; set; }
+//    public string? Feedback { get; set; }
+//    public string Status { get; set; } = string.Empty;
+//    public DateTime CreatedAt { get; set; }
+//    public DateTime UpdatedAt { get; set; }
+//}
+
+public class HrReviewDto
+{
+    public Guid HrReviewId { get; set; }
+    public Guid OrganizationId { get; set; }
+
+    public Guid CycleId { get; set; }
+    public string CycleName { get; set; } = string.Empty;
+
+    public Guid HrId { get; set; }
+    public string HrName { get; set; } = string.Empty;
+
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+
+    public decimal FinalRating { get; set; }
+
+    public string? HrComments { get; set; }
+    public string? ImprovementArea { get; set; }
+    public string? Feedback { get; set; }
+
+    public string Status { get; set; } = string.Empty;
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+}
+public class SearchAppraisalDto
+{
+    public Guid? CycleId { get; set; }
+    public decimal? Rating { get; set; }
+    public string? SearchQuery { get; set; }
 }
 
 public class ConsolidateAppraisalRequest

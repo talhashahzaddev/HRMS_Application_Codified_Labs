@@ -110,6 +110,76 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
         return await QuerySingleOrDefaultAsync<EmployeeDto>(sql, new { employeeId });
     }
+    //Getting employees under reporting manager
+    //    public async Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId)
+    //    {
+    //        var sql = @"
+    //SELECT e.employeeid,
+    //       e.organizationid,
+    //       e.userid,
+    //       e.employeecode,
+    //       e.firstname,
+    //       e.lastname,
+    //       e.email,
+    //       e.phone,
+    //       e.address,
+    //       e.dateofbirth,
+    //       e.gender,
+    //       e.nationality,
+    //       e.maritalstatus,
+    //       e.hiredate,
+    //       e.status,
+    //       d.departmentname,
+    //       p.positiontitle,
+    //       ed.basicsalary
+    //FROM employee.employees e
+    //LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+    //LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+    //LEFT JOIN employee.positions p ON ed.positionid = p.positionid
+    //WHERE e.managerid = @ManagerId
+    //ORDER BY e.firstname, e.lastname;
+    //";
+
+    //        return await QueryAsync<EmployeeDto>(sql, new { ManagerId = managerId });
+    //    }
+
+    public async Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId)
+    {
+        var sql = @"
+SELECT 
+    e.employeeid,
+    e.organizationid,
+    e.userid,
+    e.employeecode,
+    e.firstname,
+    e.lastname,
+    e.email,
+    e.phone,
+    e.address,
+    e.dateofbirth,
+    e.gender,
+    e.nationality,
+    e.maritalstatus,
+    e.hiredate,
+    e.status,
+    d.departmentname,
+    p.positiontitle,
+    ed.basicsalary
+FROM employee.employees e
+INNER JOIN employee.employmentdetails ed 
+    ON e.employeeid = ed.employeeid 
+    AND ed.iscurrent = true
+LEFT JOIN employee.departments d 
+    ON ed.departmentid = d.departmentid
+LEFT JOIN employee.positions p 
+    ON ed.positionid = p.positionid
+WHERE ed.reportingmanagerid = @ManagerId
+ORDER BY e.firstname, e.lastname;
+";
+
+        return await QueryAsync<EmployeeDto>(sql, new { ManagerId = managerId });
+    }
+
 
 
     //Get Empolyee ID

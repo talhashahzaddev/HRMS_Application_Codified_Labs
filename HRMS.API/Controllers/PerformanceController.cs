@@ -1,9 +1,8 @@
+using HRMS.API.Models.DTOs;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Services.Interfaces;
-using System.Threading.Tasks;
 
 namespace HRMS.API.Controllers;
 
@@ -26,7 +25,7 @@ public class PerformanceController : ControllerBase
         _logger = logger;
     }
 
-    [HttpGet("cycles")]
+    [HttpGet("get-allcycles")]
     public async Task<ActionResult<ServiceResponse<List<AppraisalCycleDto>>>> GetAppraisalCycles()
     {
         try
@@ -69,7 +68,7 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    [HttpPost("cycles")]
+    [HttpPost("create-cycles")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> CreateAppraisalCycle([FromBody] CreateAppraisalCycleRequest request)
     {
@@ -86,8 +85,8 @@ public class PerformanceController : ControllerBase
             }
             //i change this function time stamp problem performance.fn_create_appraisal_cycle
             var organizationId = GetCurrentOrganizationId();
-            var cycle = await _performanceService.CreateAppraisalCycleAsync(
-                request.CycleName, request.StartDate, request.EndDate, organizationId, request.Description);
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var cycle = await _performanceService.CreateAppraisalCycleAsync(request, organizationId, currentEmployeeId);
 
             return Ok(new ServiceResponse<AppraisalCycleDto>
             {
@@ -124,6 +123,75 @@ public class PerformanceController : ControllerBase
             });
         }
     }
+
+   
+    [HttpDelete("delete-cycle/{cycleId}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteAppraisalCycle(Guid cycleId)
+    {
+        try
+        {
+            if (cycleId == Guid.Empty)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid appraisal cycle ID"
+                });
+            }
+
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var deleted = await _performanceService.DeleteAppraisalCycleAsync(cycleId);
+
+            if (!deleted)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Appraisal cycle not found or could not be deleted"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Appraisal cycle deleted successfully",
+                Data = true
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while deleting appraisal cycle");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error deleting appraisal cycle");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting appraisal cycle");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting appraisal cycle"
+            });
+        }
+    }
+
+
+
 
     [HttpGet("cycles/{cycleId}/appraisals")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeAppraisalDto>>>> GetEmployeeAppraisals(Guid cycleId, [FromQuery] Guid? employeeId = null)
@@ -725,7 +793,7 @@ public class PerformanceController : ControllerBase
 
     [HttpGet("summary")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<PerformanceSummaryDto>>> GetPerformanceSummary([FromQuery] Guid? cycleId = null)
+    public async Task<ActionResult<ServiceResponse<MYPerformanceSummary>>> GetPerformanceSummary(Guid? cycleId)
     {
         try
         {
@@ -757,6 +825,45 @@ public class PerformanceController : ControllerBase
             });
         }
     }
+
+    [HttpGet("My/summary")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<MYPerformanceSummary>>> GetMyPerformanceSummary()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmp = await GetCurrentEmployeeId();
+            var summary = await _performanceService.GetMyPerformanceSummaryAsync(organizationId,currentEmp);
+
+            return Ok(new ServiceResponse<MYPerformanceSummary>
+            {
+                Success = true,
+                Data = summary
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving performance summary");
+            return BadRequest(new ServiceResponse<MYPerformanceSummary>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving performance summary");
+            return StatusCode(500, new ServiceResponse<MYPerformanceSummary>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving performance summary"
+            });
+        }
+    }
+
+
+
 
     [HttpGet("team-performance-overview")]
     [Authorize(Roles = "Super Admin,Manager,HR Manager")]
@@ -807,14 +914,14 @@ public class PerformanceController : ControllerBase
 
 
 
-    [HttpPost("Kra")]
-
+    [HttpPost("create-Kra")]
     public async Task<ActionResult<ServiceResponse<KRADto>>> CreateKra([FromQuery] CreateKRARequest request)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var result = await _performanceService.CreateKRAAsync(organizationId, request);
+            var CurrentEmpId= await GetCurrentEmployeeId();
+            var result = await _performanceService.CreateKRAAsync(organizationId,CurrentEmpId, request);
 
             return Ok(new ServiceResponse<KRADto>
             {
@@ -833,9 +940,7 @@ public class PerformanceController : ControllerBase
         }
     }
 
-
-
-    [HttpGet("Kra")]
+    [HttpGet("get-allKra")]
 
     public async Task<ActionResult<ServiceResponse<PagedResult<KRADto>>>> GetKra([FromQuery] string? search = null, [FromQuery] int page = 1,
     [FromQuery] int limit = 10)
@@ -999,6 +1104,224 @@ public class PerformanceController : ControllerBase
     }
 
 
+    [HttpPost("create-goal")]
+    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<GoalDto>>> CreateGoal([FromBody] CreateGoalRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmpId = await GetCurrentEmployeeId();
+
+            var result = await _performanceService.CreateGoalAsync(organizationId, currentEmpId, request);
+
+            return Ok(new ServiceResponse<GoalDto>
+            {
+                Success = true,
+                Data = result,
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while creating Goal");
+            return StatusCode(500, new ServiceResponse<GoalDto>
+            {
+                Success = false,
+                Message = "Error while creating Goal"
+            });
+        }
+    }
+
+    [HttpGet("goals")]
+    public async Task<ActionResult<ServiceResponse<List<GoalDto>>>> GetAllGoals()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var result = await _performanceService.GetAllGoalsAsync(organizationId,currentEmployeeId);
+            return Ok(new ServiceResponse<List<GoalDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while fetching Goals");
+            return StatusCode(500, new ServiceResponse<List<GoalDto>>
+            {
+                Success = false,
+                Message = "Error while fetching Goals"
+            });
+        }
+    }
+
+    [HttpGet("goals/{goalId}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<GoalDto>>> GetGoalById(Guid goalId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _performanceService.GetGoalByIdAsync(organizationId, goalId);
+            if (result == null)
+                return NotFound(new ServiceResponse<GoalDto> { Success = false, Message = "Goal not found" });
+
+            return Ok(new ServiceResponse<GoalDto> { Success = true, Data = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while fetching Goal {GoalId}", goalId);
+            return StatusCode(500, new ServiceResponse<GoalDto>
+            {
+                Success = false,
+                Message = "Error while fetching Goal"
+            });
+        }
+    }
+
+    [HttpPut("update-goal")]
+    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<GoalDto>>> UpdateGoal([FromBody] UpdateGoalRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _performanceService.UpdateGoalAsync(organizationId, request);
+            if (result == null)
+                return NotFound(new ServiceResponse<GoalDto> { Success = false, Message = "Goal not found" });
+
+            return Ok(new ServiceResponse<GoalDto> { Success = true, Data = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while updating Goal {GoalId}", request.GoalId);
+            return StatusCode(500, new ServiceResponse<GoalDto>
+            {
+                Success = false,
+                Message = "Error while updating Goal"
+            });
+        }
+    }
+
+    [HttpPatch("GoalStatus/{goalId}")]
+    public async Task<ActionResult<ServiceResponse<string>>> UpdateGoalStatus(
+    Guid goalId,
+    [FromQuery] string status)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(status))
+            {
+                return BadRequest(new ServiceResponse<string>
+                {
+                    Success = false,
+                    Message = "Status is required"
+                });
+            }
+
+            var result = await _performanceService.UpdateGoalStatusAsync(goalId, status);
+
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<string>
+                {
+                    Success = false,
+                    Message = "Goal not found"
+                });
+            }
+
+            return Ok(new ServiceResponse<string>
+            {
+                Success = true,
+                Message = $"Goal status updated to {status} successfully"
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Goal not found while updating status: {GoalId}", goalId);
+
+            return NotFound(new ServiceResponse<string>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while updating Goal status");
+
+            return StatusCode(500, new ServiceResponse<string>
+            {
+                Success = false,
+                Message = "Error updating Goal status"
+            });
+        }
+    }
+
+
+    [HttpDelete("delete-goal/{goalId}")]
+    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteGoal(Guid goalId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            await _performanceService.DeleteGoalAsync(organizationId, goalId);
+            return Ok(new ServiceResponse<bool> { Success = true, Data = true });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while deleting Goal {GoalId}", goalId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "Error while deleting Goal"
+            });
+        }
+    }
+
+    [HttpPost("goals/assign-employee")]
+    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<bool>>> AssignGoalToEmployee(
+     [FromQuery] Guid goalId,
+     [FromQuery] Guid assignedTo)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var assignedBy =await GetCurrentEmployeeId(); 
+            var result = await _performanceService.AssignGoalAsync(organizationId, goalId, assignedTo, assignedBy);
+
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Goal not found or could not be assigned"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = result,
+                Message = "Goal assigned successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while assigning Goal {GoalId}", goalId);
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "Error while assigning Goal"
+            });
+        }
+    }
 
     [HttpGet("top-performers")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
@@ -1026,18 +1349,59 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    [HttpPost("SelfAssessment")]
-    [Authorize(Roles = "Employee,Manager,HR Manager")]
+    //[HttpPost("SelfAssessment")]
+    //[Authorize(Roles = "Employee,Manager,HR Manager")]
+    //public async Task<ActionResult<ServiceResponse<SelfAssessmentDto>>> CreateSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
+    //{
+    //    try
+    //    {
+    //        var currentEmployeeId = await GetCurrentEmployeeId();
+    //        var organizationId = GetCurrentOrganizationId();
+    //        request.EmployeeId = currentEmployeeId;
+    //        if (request == null)
+    //            return BadRequest("Invalid self-assessment data");
+    //        var result = await _performanceService.CreateSelfAssessmentAsync(request, organizationId);
+
+    //        return Ok(new ServiceResponse<SelfAssessmentDto>
+    //        {
+    //            Success = true,
+    //            Data = result,
+    //            Message = "Self-assessment saved successfully"
+    //        });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error saving self-assessment");
+    //        return StatusCode(500, new ServiceResponse<SelfAssessmentDto>
+    //        {
+    //            Success = false,
+    //            Message = ex.Message
+    //        });
+    //    }
+    //}
+
+    [HttpPost("create-selfassessment")]
     public async Task<ActionResult<ServiceResponse<SelfAssessmentDto>>> CreateSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
     {
+        if (request == null)
+        {
+            return BadRequest(new ServiceResponse<SelfAssessmentDto>
+            {
+                Success = false,
+                Message = "Invalid self-assessment data"
+            });
+        }
+
         try
         {
+            // Get current context
             var currentEmployeeId = await GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
-            request.EmployeeId = currentEmployeeId;
-            if (request == null)
-                return BadRequest("Invalid self-assessment data");
-            var result = await _performanceService.CreateSelfAssessmentAsync(request, organizationId);
+
+
+
+            // Call service to create self-assessment
+            var result = await _performanceService.CreateSelfAssessmentAsync(request, organizationId, currentEmployeeId);
 
             return Ok(new ServiceResponse<SelfAssessmentDto>
             {
@@ -1049,13 +1413,80 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving self-assessment");
+
             return StatusCode(500, new ServiceResponse<SelfAssessmentDto>
             {
                 Success = false,
-                Message = ex.Message
+                Message = "An error occurred while saving the self-assessment"
             });
         }
     }
+    //mm
+
+    [HttpGet("selfassessment/my")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMySelfAssessments()
+    {
+        try
+        {
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var organizationId = GetCurrentOrganizationId();
+
+            var result = await _performanceService.GetSelfAssessmentsByEmployeeAsync(currentEmployeeId, organizationId);
+
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Self-assessments retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving self-assessments");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving self-assessments"
+            });
+        }
+    }
+
+    //mm
+
+    [HttpGet("selfassessment/team")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetTeamSelfAssessments()
+    {
+        try
+        {
+            // Get current manager/HR context
+            var currentManagerId = await GetCurrentEmployeeId();
+            var organizationId = GetCurrentOrganizationId();
+
+            // Call service to get self-assessments of employees reporting to this manager
+            var result = await _performanceService.GetSelfAssessmentsForManagerAsync(currentManagerId, organizationId);
+
+            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Team self-assessments retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving team self-assessments");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving team self-assessments"
+            });
+        }
+    }
+
+
+
+
+
 
     [HttpGet("SelfAssessment/{employeeId}/{cycleId}")]
     [Authorize(Roles = "Employee,Manager,HR Manager")]
@@ -1160,31 +1591,31 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    [HttpPost("SelfAssessment/Submit")]
-    [Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
-    public async Task<ActionResult<ServiceResponse<string>>> SubmitSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
-    {
-        try
-        {
-            var result = await _performanceService.SubmitSelfAssessmentAsync(request.EmployeeId, request.CycleId);
+    //[HttpPost("SelfAssessment/Submit")]
+    //[Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
+    //public async Task<ActionResult<ServiceResponse<string>>> SubmitSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
+    //{
+    //    try
+    //    {
+    //        var result = await _performanceService.SubmitSelfAssessmentAsync(request.EmployeeId, request.CycleId);
 
-            return Ok(new ServiceResponse<string>
-            {
-                Success = true,
-                Message = "Self-assessment submitted successfully",
-                Data = result
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error submitting self-assessment");
-            return StatusCode(500, new ServiceResponse<string>
-            {
-                Success = false,
-                Message = "An error occurred while submitting self-assessment"
-            });
-        }
-    }
+    //        return Ok(new ServiceResponse<string>
+    //        {
+    //            Success = true,
+    //            Message = "Self-assessment submitted successfully",
+    //            Data = result
+    //        });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error submitting self-assessment");
+    //        return StatusCode(500, new ServiceResponse<string>
+    //        {
+    //            Success = false,
+    //            Message = "An error occurred while submitting self-assessment"
+    //        });
+    //    }
+    //}
 
     [HttpGet("Manager/Self-Assessments/{managerId}/{cycleId}")]
     [Authorize(Roles = "Manager,HR Manager")]
@@ -1368,6 +1799,15 @@ public class PerformanceController : ControllerBase
                 Message = "Appraisal cycle not found"
             });
         }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error deleting appraisal cycle");
+            return BadRequest(new ServiceResponse<AppraisalCycleDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating appraisal cycle {CycleId}", cycleId);
@@ -1379,56 +1819,56 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    [HttpDelete("cycles/{cycleId}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<bool>>> DeleteAppraisalCycle(Guid cycleId)
-    {
-        try
-        {
-            var result = await _performanceService.DeleteAppraisalCycleAsync(cycleId);
-            if (!result)
-            {
-                return NotFound(new ServiceResponse<bool>
-                {
-                    Success = false,
-                    Message = "Appraisal cycle not found or could not be deleted"
-                });
-            }
+    //[HttpDelete("cycles/{cycleId}")]
+    //[Authorize(Roles = "Super Admin,HR Manager")]
+    //public async Task<ActionResult<ServiceResponse<bool>>> DeleteAppraisalCycle(Guid cycleId)
+    //{
+    //    try
+    //    {
+    //        var result = await _performanceService.DeleteAppraisalCycleAsync(cycleId);
+    //        if (!result)
+    //        {
+    //            return NotFound(new ServiceResponse<bool>
+    //            {
+    //                Success = false,
+    //                Message = "Appraisal cycle not found or could not be deleted"
+    //            });
+    //        }
 
-            return Ok(new ServiceResponse<bool>
-            {
-                Success = true,
-                Message = "Appraisal cycle deleted successfully",
-                Data = true
-            });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            _logger.LogWarning(ex, "Appraisal cycle not found while deleting: {CycleId}", cycleId);
-            return NotFound(new ServiceResponse<bool>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ServiceResponse<bool>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting appraisal cycle {CycleId}", cycleId);
-            return StatusCode(500, new ServiceResponse<bool>
-            {
-                Success = false,
-                Message = "An error occurred while deleting appraisal cycle"
-            });
-        }
-    }
+    //        return Ok(new ServiceResponse<bool>
+    //        {
+    //            Success = true,
+    //            Message = "Appraisal cycle deleted successfully",
+    //            Data = true
+    //        });
+    //    }
+    //    catch (KeyNotFoundException ex)
+    //    {
+    //        _logger.LogWarning(ex, "Appraisal cycle not found while deleting: {CycleId}", cycleId);
+    //        return NotFound(new ServiceResponse<bool>
+    //        {
+    //            Success = false,
+    //            Message = ex.Message
+    //        });
+    //    }
+    //    catch (InvalidOperationException ex)
+    //    {
+    //        return BadRequest(new ServiceResponse<bool>
+    //        {
+    //            Success = false,
+    //            Message = ex.Message
+    //        });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error deleting appraisal cycle {CycleId}", cycleId);
+    //        return StatusCode(500, new ServiceResponse<bool>
+    //        {
+    //            Success = false,
+    //            Message = "An error occurred while deleting appraisal cycle"
+    //        });
+    //    }
+    //}
 
     [HttpGet("cycles/active")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
@@ -1510,41 +1950,41 @@ public class PerformanceController : ControllerBase
     }
 
     // Appraisal Consolidation
-    [HttpPost("appraisals/consolidate")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> ConsolidateAppraisal([FromBody] ConsolidateAppraisalRequest request)
-    {
-        try
-        {
-            var reviewerId = await GetCurrentEmployeeId();
-            request.ReviewerId = reviewerId;
+    //[HttpPost("appraisals/consolidate")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    //public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> ConsolidateAppraisal([FromBody] ConsolidateAppraisalRequest request)
+    //{
+    //    try
+    //    {
+    //        var reviewerId = await GetCurrentEmployeeId();
+    //        request.ReviewerId = reviewerId;
             
-            var appraisal = await _performanceService.ConsolidateAppraisalAsync(request);
-            return Ok(new ServiceResponse<EmployeeAppraisalDto>
-            {
-                Success = true,
-                Message = "Appraisal consolidated successfully",
-                Data = appraisal
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new ServiceResponse<EmployeeAppraisalDto>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error consolidating appraisal");
-            return StatusCode(500, new ServiceResponse<EmployeeAppraisalDto>
-            {
-                Success = false,
-                Message = "An error occurred while consolidating appraisal"
-            });
-        }
-    }
+    //        var appraisal = await _performanceService.ConsolidateAppraisalAsync(request);
+    //        return Ok(new ServiceResponse<EmployeeAppraisalDto>
+    //        {
+    //            Success = true,
+    //            Message = "Appraisal consolidated successfully",
+    //            Data = appraisal
+    //        });
+    //    }
+    //    catch (InvalidOperationException ex)
+    //    {
+    //        return BadRequest(new ServiceResponse<EmployeeAppraisalDto>
+    //        {
+    //            Success = false,
+    //            Message = ex.Message
+    //        });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error consolidating appraisal");
+    //        return StatusCode(500, new ServiceResponse<EmployeeAppraisalDto>
+    //        {
+    //            Success = false,
+    //            Message = "An error occurred while consolidating appraisal"
+    //        });
+    //    }
+    //}
 
     // Reports and Analytics
     [HttpGet("employee/{employeeId}/history")]
@@ -1631,12 +2071,15 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("Manager/Review")]
-    [Authorize(Roles = "Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ManagerReviewDto>>> SubmitManagerReview([FromBody] ManagerReviewRequest request)
     {
         try
         {
-            var result = await _performanceService.SubmitManagerReviewAsync(request);
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var result = await _performanceService.SubmitManagerReviewAsync(request, organizationId, employeeId);
+
+
             return Ok(new ServiceResponse<ManagerReviewDto>
             {
                 Success = true,
@@ -1654,6 +2097,262 @@ public class PerformanceController : ControllerBase
             });
         }
     }
+
+    // Get reviews created by manager (for their employees)
+    [HttpGet("getall/created/Manager/Reviews")]
+    public async Task<ActionResult<ServiceResponse<List<ManagerReviewDto>>>> GetManagerCreatedReviews()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var managerId = await GetCurrentEmployeeId();
+
+            var result = await _performanceService.GetManagerReviewsAsync(organizationId, managerId);
+
+            return Ok(new ServiceResponse<List<ManagerReviewDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Manager reviews retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving manager reviews");
+            return StatusCode(500, new ServiceResponse<List<ManagerReviewDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving manager reviews"
+            });
+        }
+    }
+
+    //Getting all managers review from manager table for showing all managers review that they give to there employee
+    [HttpGet("getAllManagers/Reviews")]
+    public async Task<ActionResult<ServiceResponse<List<ManagerReviewDto>>>> GetAllManagerReviews([FromQuery] SearchManagersDto search)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var managerId = await GetCurrentEmployeeId();
+
+            var result = await _performanceService.GetAllManagerReviewsAsync(organizationId, managerId,search);
+
+            return Ok(new ServiceResponse<List<ManagerReviewDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Manager reviews retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving manager reviews");
+            return StatusCode(500, new ServiceResponse<List<ManagerReviewDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving manager reviews"
+            });
+        }
+    }
+
+    // Get reviews received by employee (from their manager)
+    [HttpGet("employee/manager-reviews")]
+    public async Task<ActionResult<ServiceResponse<List<ManagerReviewDto>>>> GetEmployeeReviews()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _performanceService.GetEmployeeReviewsAsync(organizationId, employeeId);
+
+            return Ok(new ServiceResponse<List<ManagerReviewDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Employee reviews retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee reviews");
+            return StatusCode(500, new ServiceResponse<List<ManagerReviewDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee reviews"
+            });
+        }
+    }
+
+    // Submit HR Review
+    [HttpPost("HR/Review")]
+    public async Task<ActionResult<ServiceResponse<HrReviewDto>>> SubmitHrReview([FromBody] HrReviewRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId(); // HR employee ID
+
+            var result = await _performanceService.SubmitHrReviewAsync(request, organizationId, currentEmployeeId);
+
+            return Ok(new ServiceResponse<HrReviewDto>
+            {
+                Success = true,
+                Data = result,
+                Message = "HR review submitted successfully"
+            });
+        }
+
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while creating appraisal cycle");
+            return BadRequest(new ServiceResponse<HrReviewDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error creating appraisal cycle");
+            return BadRequest(new ServiceResponse<HrReviewDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error submitting HR review");
+            return StatusCode(500, new ServiceResponse<HrReviewDto>
+            {
+                Success = false,
+                Message = "An error occurred while submitting HR review"
+            });
+        }
+    }
+
+    // Get all HR reviews given to other employees  by this hr (for HR dashboard)
+    [HttpGet("HR/Reviews")]
+    public async Task<ActionResult<ServiceResponse<List<HrReviewDto>>>> GetHrReviews()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currenEmpid= await GetCurrentEmployeeId();
+
+            var result = await _performanceService.GetHrReviewsAsync(organizationId,currenEmpid);
+
+            return Ok(new ServiceResponse<List<HrReviewDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "HR reviews retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving HR reviews");
+            return StatusCode(500, new ServiceResponse<List<HrReviewDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving HR reviews"
+            });
+        }
+    }
+
+    // Get HR reviews for a specific employee
+    [HttpGet("HR/Reviews/Employee/{employeeId}")]
+    public async Task<ActionResult<ServiceResponse<List<HrReviewDto>>>> GetHrReviewsByEmployee(Guid employeeId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var result = await _performanceService.GetHrReviewsByEmployeeAsync(organizationId, employeeId);
+
+            return Ok(new ServiceResponse<List<HrReviewDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Employee HR reviews retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee HR reviews");
+            return StatusCode(500, new ServiceResponse<List<HrReviewDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employee HR reviews"
+            });
+        }
+    }
+
+
+    // Get employee's own HR reviews
+    [HttpGet("Employee/HR/Reviews")]
+    public async Task<ActionResult<ServiceResponse<List<HrReviewDto>>>> GetMyHrReviews()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _performanceService.GetHrReviewsByEmployeeAsync(organizationId, employeeId);
+
+            return Ok(new ServiceResponse<List<HrReviewDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Your HR reviews retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee HR reviews");
+            return StatusCode(500, new ServiceResponse<List<HrReviewDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving your HR reviews"
+            });
+        }
+    }
+
+
+    //Get all records of Hr.appraisals mm
+    [HttpGet("GetAllHr/Appraisals")]
+    public async Task<ActionResult<ServiceResponse<List<HrReviewDto>>>> GetallAppraisal([FromQuery] SearchAppraisalDto? search)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _performanceService.GetAllAppraisaAsync(organizationId, employeeId,search);
+
+            return Ok(new ServiceResponse<List<HrReviewDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Your HR reviews retrieved successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee HR reviews");
+            return StatusCode(500, new ServiceResponse<List<HrReviewDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving your HR reviews"
+            });
+        }
+    }
+
+
+
 
     [HttpDelete("appraisals/{appraisalId}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
@@ -1740,7 +2439,19 @@ public class PerformanceController : ControllerBase
 public class CreateAppraisalCycleRequest
 {
     public string CycleName { get; set; } = string.Empty;
+    public string? CycleType { get; set; }
+
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
+
+    public DateTime? ReviewStartDate { get; set; }
+    public DateTime? ReviewEndDate { get; set; }
+
+    public string? Status { get; set; } // upcoming, inprogress, concluded
+
+    public bool IsSelfAssessmentEnable { get; set; }
+    public bool ManagerReview { get; set; }   // renamed from IsReviewEnable
+    public bool IsAppraisalEnable { get; set; }
+
     public string? Description { get; set; }
 }
