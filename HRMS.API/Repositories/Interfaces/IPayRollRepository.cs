@@ -130,7 +130,7 @@ public interface IPayRollRepository
 
     // Provident Fund (Employee Side)
     Task<ProvidentFundRequestDto> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct);
-    Task<ProvidentFundRequestDto> UpdateProvidentFundEnrollmentRequestAsync(Guid pfId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct);
+    Task<ProvidentFundRequestDto> UpdateProvidentFundEnrollmentRequestAsync(Guid requestId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct);
     Task<ProvidentFundRequestDto> UpdateProvidentFundPercentageAsync(Guid organizationId, Guid employeeId, UpdateProvidentFundPercentageDto dto);
     Task<ProvidentFundRequestDto> CreateProvidentFundWithdrawRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundWithdrawRequestDto dto);
     Task<bool> DeleteProvidentFundRequestAsync(Guid requestId, Guid organizationId, Guid employeeId);
@@ -138,6 +138,7 @@ public interface IPayRollRepository
     Task<ProvidentFundAccountDto?> GetMyActiveProvidentFundAsync(Guid organizationId, Guid employeeId);
     Task<PagedResult<ProvidentFundTransactionDto>> GetMyProvidentFundTransactionsAsync(Guid organizationId, Guid employeeId, ProvidentFundTransactionFilterDto filter);
     Task<PagedResult<AdminProvidentFundRequestDto>> GetAllProvidentFundRequestsAsync(Guid organizationId, AdminProvidentFundRequestFilterDto filter);
+    Task<PagedResult<AdminProvidentFundAccountDto>> GetAllProvidentFundAccountsAsync(Guid organizationId, AdminProvidentFundAccountFilterDto filter);
     Task<PagedResult<AdminProvidentFundRepaymentDto>> GetAllProvidentFundRepaymentsAsync(Guid organizationId, AdminProvidentFundRepaymentFilterDto filter);
     Task<bool> ApproveProvidentFundRequestAsync(Guid organizationId, Guid approvedBy, ApproveProvidentFundRequestDto dto);
     Task<bool> RejectProvidentFundRequestAsync(Guid requestId, Guid organizationId, RejectProvidentFundRequestDto dto);

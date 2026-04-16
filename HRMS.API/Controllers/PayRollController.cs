@@ -1735,21 +1735,21 @@ public class PayRollController : ControllerBase
         }
     }
 
-    [HttpPut("/api/employee/provident-fund/enroll/{pfid}")]
+    [HttpPut("/api/employee/provident-fund/enroll/{requestId}")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> UpdateProvidentFundEnrollmentRequest(Guid pfid, [FromBody] CreateProvidentFundEnrollmentDto dto)
+    public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> UpdateProvidentFundEnrollmentRequest(Guid requestId, [FromBody] CreateProvidentFundEnrollmentDto dto)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
-            var response = await _payRollService.UpdateProvidentFundEnrollmentRequestAsync(pfid, organizationId, employeeId, dto);
+            var response = await _payRollService.UpdateProvidentFundEnrollmentRequestAsync(requestId, organizationId, employeeId, dto);
             if (!response.Success) return BadRequest(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating provident fund enrollment request: {PfId}", pfid);
+            _logger.LogError(ex, "Error updating provident fund enrollment request: {RequestId}", requestId);
             return StatusCode(500, new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred" });
         }
     }
@@ -1884,6 +1884,24 @@ public class PayRollController : ControllerBase
         {
             _logger.LogError(ex, "Error fetching all provident fund requests");
             return StatusCode(500, new ServiceResponse<PagedResult<AdminProvidentFundRequestDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("provident-fund/accounts")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundAccountDto>>>> GetAllProvidentFundAccounts([FromQuery] AdminProvidentFundAccountFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllProvidentFundAccountsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching all provident fund accounts");
+            return StatusCode(500, new ServiceResponse<PagedResult<AdminProvidentFundAccountDto>> { Success = false, Message = "An error occurred" });
         }
     }
 

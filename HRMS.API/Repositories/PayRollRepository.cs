@@ -2,12 +2,27 @@ using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using Dapper;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace HRMS.API.Repositories;
 
 public class PayRollRepository : BaseRepository, IPayRollRepository
 {
     public PayRollRepository(IDatabaseConnectionFactory connectionFactory) : base(connectionFactory) { }
+
+    private sealed class WithdrawalConfigRoot
+    {
+        public List<WithdrawalConfigEntry>? temporary { get; set; }
+        public List<WithdrawalConfigEntry>? permanent { get; set; }
+    }
+
+    private sealed class WithdrawalConfigEntry
+    {
+        public string? reason { get; set; }
+        public decimal? min_pct { get; set; }
+        public decimal? max_pct { get; set; }
+    }
 
     public async Task<PayRollRulesGroupedDto> GetAllRulesAsync(Guid organizationId)
     {
@@ -2755,19 +2770,20 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         });
     }
 
-    public async Task<ProvidentFundRequestDto> UpdateProvidentFundEnrollmentRequestAsync(Guid pfId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct)
+    public async Task<ProvidentFundRequestDto> UpdateProvidentFundEnrollmentRequestAsync(Guid requestId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct)
     {
         var sql = @"
-            INSERT INTO payroll.pfrequests (
-                organizationid, employeeid, ruleid, pfid,
-                requesttype, status,
-                requestedemployeepct, requestedemployerpct
-            )
-            VALUES (
-                @organizationId, @employeeId, @RuleId, @pfId,
-                'update', 'pending',
-                @EmployeePct, @EmployerPct
-            )
+            UPDATE payroll.pfrequests
+            SET
+                ruleid = @RuleId,
+                requestedemployeepct = @EmployeePct,
+                requestedemployerpct = @EmployerPct,
+                updatedat = current_timestamp
+            WHERE requestid = @requestId
+              AND organizationid = @organizationId
+              AND employeeid = @employeeId
+              AND status = 'pending'
+              AND requesttype = 'enrollment'
             RETURNING
                 requestid AS RequestId,
                 organizationid AS OrganizationId,
@@ -2790,7 +2806,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
         return await QuerySingleAsync<ProvidentFundRequestDto>(sql, new
         {
-            pfId,
+            requestId,
             organizationId,
             employeeId,
             dto.RuleId,
@@ -3185,6 +3201,81 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         };
     }
 
+    public async Task<PagedResult<AdminProvidentFundAccountDto>> GetAllProvidentFundAccountsAsync(Guid organizationId, AdminProvidentFundAccountFilterDto filter)
+    {
+        filter ??= new AdminProvidentFundAccountFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var conditions = new List<string>
+        {
+            "pf.organizationid = @organizationId"
+        };
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (!string.IsNullOrWhiteSpace(filter.PfStatus))
+        {
+            conditions.Add("LOWER(pf.pfstatus) = LOWER(@PfStatus)");
+            parameters.Add("PfStatus", filter.PfStatus.Trim());
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @SearchTerm");
+            parameters.Add("SearchTerm", $"%{filter.SearchTerm.Trim()}%");
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var offset = (filter.Page - 1) * filter.PageSize;
+
+        var sql = $@"
+            SELECT
+                pf.pfid AS PfId,
+                pf.organizationid AS OrganizationId,
+                pf.employeeid AS EmployeeId,
+                (e.firstname || ' ' || e.lastname) AS EmployeeName,
+                ed.basicsalary AS BasicSalary,
+                pf.ruleid AS RuleId,
+                pr.rulename AS RuleName,
+                pf.employeepct AS EmployeePct,
+                pf.employerpct AS EmployerPct,
+                pf.pfstatus AS PfStatus,
+                pf.effectivefrom AS EffectiveFrom,
+                pf.isactive AS IsActive,
+                pf.createdat AS CreatedAt,
+                pf.updatedat AS UpdatedAt,
+                COUNT(*) OVER() AS TotalCount
+            FROM payroll.providentfund pf
+            INNER JOIN employee.employees e
+                ON e.employeeid = pf.employeeid
+               AND e.organizationid = pf.organizationid
+            LEFT JOIN employee.employmentdetails ed
+                ON ed.employeeid = e.employeeid
+               AND ed.iscurrent = true
+            LEFT JOIN payroll.pfrules pr
+                ON pr.ruleid = pf.ruleid
+               AND pr.organizationid = pf.organizationid
+            WHERE {whereClause}
+            ORDER BY pf.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", offset);
+
+        var data = await QueryAsync<AdminProvidentFundAccountDto>(sql, parameters);
+        var totalCount = data.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<AdminProvidentFundAccountDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
     public async Task<PagedResult<AdminProvidentFundRepaymentDto>> GetAllProvidentFundRepaymentsAsync(Guid organizationId, AdminProvidentFundRepaymentFilterDto filter)
     {
         filter ??= new AdminProvidentFundRepaymentFilterDto();
@@ -3490,8 +3581,133 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
                 decimal requestedAmount = (decimal?)req.requestedamount ?? 0m;
                 var withdrawalType = ((string?)req.withdrawaltype)?.Trim().ToLowerInvariant();
+                var requestReason = ((string?)req.reason)?.Trim();
 
                 if (requestedAmount <= 0)
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                // Validate withdrawal reason against pfrules.withdrawal_config (reason match + min/max % checks)
+                if (string.IsNullOrWhiteSpace(withdrawalType) || (withdrawalType != "temporary" && withdrawalType != "permanent"))
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                if (string.IsNullOrWhiteSpace(requestReason))
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                var configSql = @"
+                    SELECT
+                        pr.allowpartialwithdraw AS AllowPartialWithdraw,
+                        pr.withdrawal_config::text AS WithdrawalConfig
+                    FROM payroll.providentfund pf
+                    JOIN payroll.pfrules pr
+                      ON pr.organizationid = pf.organizationid
+                     AND pr.ruleid = pf.ruleid
+                    WHERE pf.organizationid = @organizationId
+                      AND pf.employeeid = @employeeId
+                      AND pf.pfid = @pfId
+                      AND pf.isactive = true
+                    LIMIT 1;";
+
+                var configRow = await connection.QuerySingleOrDefaultAsync<dynamic>(
+                    configSql,
+                    new { organizationId, employeeId = (Guid)req.employeeid, pfId },
+                    transaction);
+
+                if (configRow == null)
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                bool allowPartialWithdraw = (bool)configRow.allowpartialwithdraw;
+                string? withdrawalConfigJson = configRow.withdrawalconfig;
+
+                if (!allowPartialWithdraw && withdrawalType == "temporary")
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                WithdrawalConfigRoot? config;
+                try
+                {
+                    config = string.IsNullOrWhiteSpace(withdrawalConfigJson)
+                        ? null
+                        : JsonSerializer.Deserialize<WithdrawalConfigRoot>(withdrawalConfigJson, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                }
+                catch
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                var bucket = withdrawalType == "temporary" ? config?.temporary : config?.permanent;
+                if (bucket == null || bucket.Count == 0)
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                static string EscapeRegex(string value) => Regex.Escape(value);
+
+                // Match strategy:
+                // 1) exact match (case-insensitive)
+                // 2) otherwise, whole-word match against free text reason (case-insensitive)
+                var exact = bucket.FirstOrDefault(e =>
+                    !string.IsNullOrWhiteSpace(e.reason) &&
+                    string.Equals(e.reason.Trim(), requestReason, StringComparison.OrdinalIgnoreCase));
+
+                List<WithdrawalConfigEntry> wordMatches = new();
+                if (exact == null)
+                {
+                    foreach (var entry in bucket)
+                    {
+                        var configuredReason = entry.reason?.Trim();
+                        if (string.IsNullOrWhiteSpace(configuredReason))
+                            continue;
+
+                        var pattern = $@"\b{EscapeRegex(configuredReason)}\b";
+                        if (Regex.IsMatch(requestReason, pattern, RegexOptions.IgnoreCase))
+                        {
+                            wordMatches.Add(entry);
+                        }
+                    }
+                }
+
+                var matchedEntry = exact ?? (wordMatches.Count == 1 ? wordMatches[0] : null);
+                if (matchedEntry == null)
+                {
+                    // no match OR ambiguous match (multiple reasons matched)
+                    transaction.Rollback();
+                    return false;
+                }
+
+                var minPct = matchedEntry.min_pct ?? 0m;
+                var maxPct = matchedEntry.max_pct ?? 100m;
+                if (minPct < 0m || maxPct < 0m || minPct > maxPct || maxPct > 100m)
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                if (baseBalance <= 0m)
+                {
+                    transaction.Rollback();
+                    return false;
+                }
+
+                var minAllowedAmount = Math.Round((baseBalance * minPct) / 100m, 2);
+                var maxAllowedAmount = Math.Round((baseBalance * maxPct) / 100m, 2);
+
+                if (requestedAmount < minAllowedAmount || requestedAmount > maxAllowedAmount)
                 {
                     transaction.Rollback();
                     return false;
@@ -3560,7 +3776,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                         employerAmount = -baseEmployer
                     }, transaction);
 
-                    await connection.ExecuteAsync(@"
+                    var closedRows = await connection.ExecuteAsync(@"
                         UPDATE payroll.providentfund
                         SET pfstatus = 'closed',
                             isactive = false,
@@ -3569,6 +3785,12 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                           AND employeeid = @employeeId
                           AND pfid = @pfId;",
                         new { organizationId, employeeId = (Guid)req.employeeid, pfId }, transaction);
+
+                    if (closedRows <= 0)
+                    {
+                        transaction.Rollback();
+                        return false;
+                    }
                 }
                 else
                 {

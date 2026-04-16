@@ -1519,7 +1519,7 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<ProvidentFundRequestDto>> UpdateProvidentFundEnrollmentRequestAsync(Guid pfId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto)
+    public async Task<ServiceResponse<ProvidentFundRequestDto>> UpdateProvidentFundEnrollmentRequestAsync(Guid requestId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto)
     {
         try
         {
@@ -1533,7 +1533,7 @@ public class PayRollService : IPayRollService
                 };
             }
 
-            var result = await _payRollRepository.UpdateProvidentFundEnrollmentRequestAsync(pfId, organizationId, employeeId, dto, rule.DefaultEmployerPct);
+            var result = await _payRollRepository.UpdateProvidentFundEnrollmentRequestAsync(requestId, organizationId, employeeId, dto, rule.DefaultEmployerPct);
             return new ServiceResponse<ProvidentFundRequestDto> { Success = true, Data = result };
         }
         catch (Exception ex)
@@ -1670,6 +1670,20 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error getting all provident fund requests");
             return new ServiceResponse<PagedResult<AdminProvidentFundRequestDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<AdminProvidentFundAccountDto>>> GetAllProvidentFundAccountsAsync(Guid organizationId, AdminProvidentFundAccountFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllProvidentFundAccountsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<AdminProvidentFundAccountDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all provident fund accounts");
+            return new ServiceResponse<PagedResult<AdminProvidentFundAccountDto>> { Success = false, Message = "An error occurred." };
         }
     }
 

@@ -798,6 +798,33 @@ public class AdminProvidentFundRequestFilterDto
     public int PageSize { get; set; } = 10;
 }
 
+public class AdminProvidentFundAccountDto
+{
+    public Guid PfId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public decimal? BasicSalary { get; set; }
+    public Guid RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public decimal EmployeePct { get; set; }
+    public decimal EmployerPct { get; set; }
+    public string PfStatus { get; set; } = string.Empty; // active | closed | pending
+    public DateTime EffectiveFrom { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class AdminProvidentFundAccountFilterDto
+{
+    public string? PfStatus { get; set; } // active | closed | pending
+    public string? SearchTerm { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
 public class AdminProvidentFundRepaymentDto
 {
     public Guid TransactionId { get; set; }
