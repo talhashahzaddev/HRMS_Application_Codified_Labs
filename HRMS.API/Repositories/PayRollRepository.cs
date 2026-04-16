@@ -2566,8 +2566,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 defaultemployeepct AS DefaultEmployeePct,
                 defaultemployerpct AS DefaultEmployerPct,
                 contributionbasis AS ContributionBasis,
-                mincontribution AS MinContribution,
-                maxcontribution AS MaxContribution,
+                withdrawal_config::text AS WithdrawalConfig,
                 allowpartialwithdraw AS AllowPartialWithdraw,
                 vestingmonths AS VestingMonths,
                 isactive AS IsActive,
@@ -2592,8 +2591,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 defaultemployeepct AS DefaultEmployeePct,
                 defaultemployerpct AS DefaultEmployerPct,
                 contributionbasis AS ContributionBasis,
-                mincontribution AS MinContribution,
-                maxcontribution AS MaxContribution,
+                withdrawal_config::text AS WithdrawalConfig,
                 allowpartialwithdraw AS AllowPartialWithdraw,
                 vestingmonths AS VestingMonths,
                 isactive AS IsActive,
@@ -2618,8 +2616,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 defaultemployeepct AS DefaultEmployeePct,
                 defaultemployerpct AS DefaultEmployerPct,
                 contributionbasis AS ContributionBasis,
-                mincontribution AS MinContribution,
-                maxcontribution AS MaxContribution,
+                withdrawal_config::text AS WithdrawalConfig,
                 allowpartialwithdraw AS AllowPartialWithdraw,
                 vestingmonths AS VestingMonths,
                 isactive AS IsActive,
@@ -2637,11 +2634,11 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         var sql = @"
             INSERT INTO payroll.pfrules (
                 organizationid, rulename, description, defaultemployeepct, defaultemployerpct,
-                contributionbasis, mincontribution, maxcontribution, allowpartialwithdraw, vestingmonths, isactive, isdeleted
+                contributionbasis, withdrawal_config, allowpartialwithdraw, vestingmonths, isactive, isdeleted
             )
             VALUES (
                 @organizationId, @RuleName, @Description, @DefaultEmployeePct, @DefaultEmployerPct,
-                @ContributionBasis, @MinContribution, @MaxContribution, @AllowPartialWithdraw, @VestingMonths, @IsActive, false
+                @ContributionBasis, @WithdrawalConfig::jsonb, @AllowPartialWithdraw, @VestingMonths, @IsActive, false
             )
             RETURNING ruleid;";
 
@@ -2653,8 +2650,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             dto.DefaultEmployeePct,
             dto.DefaultEmployerPct,
             dto.ContributionBasis,
-            dto.MinContribution,
-            dto.MaxContribution,
+            dto.WithdrawalConfig,
             dto.AllowPartialWithdraw,
             dto.VestingMonths,
             dto.IsActive
@@ -2674,8 +2670,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 defaultemployeepct = @DefaultEmployeePct,
                 defaultemployerpct = @DefaultEmployerPct,
                 contributionbasis = @ContributionBasis,
-                mincontribution = @MinContribution,
-                maxcontribution = @MaxContribution,
+                withdrawal_config = @WithdrawalConfig::jsonb,
                 allowpartialwithdraw = @AllowPartialWithdraw,
                 vestingmonths = @VestingMonths,
                 isactive = @IsActive,
@@ -2692,8 +2687,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             dto.DefaultEmployeePct,
             dto.DefaultEmployerPct,
             dto.ContributionBasis,
-            dto.MinContribution,
-            dto.MaxContribution,
+            dto.WithdrawalConfig,
             dto.AllowPartialWithdraw,
             dto.VestingMonths,
             dto.IsActive

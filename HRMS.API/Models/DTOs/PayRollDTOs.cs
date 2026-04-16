@@ -610,8 +610,7 @@ public class ProvidentFundRuleDto
     public decimal DefaultEmployeePct { get; set; }
     public decimal DefaultEmployerPct { get; set; }
     public string ContributionBasis { get; set; } = "basic";
-    public decimal? MinContribution { get; set; }
-    public decimal? MaxContribution { get; set; }
+    public string? WithdrawalConfig { get; set; }
     public bool AllowPartialWithdraw { get; set; }
     public int VestingMonths { get; set; }
     public bool IsActive { get; set; }
@@ -627,8 +626,7 @@ public class CreateProvidentFundRuleDto
     public decimal DefaultEmployeePct { get; set; }
     public decimal DefaultEmployerPct { get; set; }
     public string ContributionBasis { get; set; } = "basic";
-    public decimal? MinContribution { get; set; }
-    public decimal? MaxContribution { get; set; }
+    public string? WithdrawalConfig { get; set; }
     public bool AllowPartialWithdraw { get; set; } = false;
     public int VestingMonths { get; set; } = 0;
     public bool IsActive { get; set; } = true;

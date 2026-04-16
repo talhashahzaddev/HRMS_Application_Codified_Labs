@@ -1981,8 +1981,7 @@ CREATE TABLE IF NOT EXISTS payroll.salaryadvance
 ) // advance salary
 
 // pf rules
-create table if not exists payroll.pfrules
-(
+create table if not exists payroll.pfrules(
     ruleid                  uuid primary key default uuid_generate_v4(),
     organizationid          uuid not null,
     rulename                varchar(100) not null,
@@ -1994,22 +1993,20 @@ create table if not exists payroll.pfrules
     contributionbasis       varchar(20) default 'basic'
                             check (contributionbasis in ('basic', 'gross', 'fixed')),
 
-    mincontribution         numeric(15,2),
-    maxcontribution         numeric(15,2),
-
     allowpartialwithdraw    boolean default false,
     vestingmonths           int default 0,
+    
+    -- The JSON object defining withdrawal rules (e.g., Medical = 50% max)
+    withdrawal_config       jsonb, 
 
     isactive                boolean default true,
     isdeleted               boolean default false,
 
     createdat               timestamptz default current_timestamp,
-    updatedat               timestamptz default current_timestamp,
-
+    updatedat               timestamptz default current_timestamp
 );
 
-create table if not exists payroll.providentfund
-(
+create table if not exists payroll.providentfund(
     pfid                    uuid primary key default uuid_generate_v4(),
     organizationid          uuid not null,
     employeeid              uuid not null,
@@ -2018,34 +2015,64 @@ create table if not exists payroll.providentfund
     employeepct             numeric(5,2) not null,
     employerpct             numeric(5,2) not null,
 
-    requesttype             varchar(30) default 'enrollment'
-                            check (requesttype in
-                            ('enrollment', 'withdrawal', 'settlement', 'update')),
-
     pfstatus                varchar(20) default 'pending'
-                            check (pfstatus in
-                            ('pending', 'approved', 'rejected', 'active', 'closed')),
+                            check (pfstatus in ('active', 'closed','pending')),
 
     effectivefrom           date not null,
-    approvedby              uuid,
-    approvedat              timestamptz,
-    remarks                 text,
-    rejectionreason         text,
-
-    isactive                boolean default false,
+    
+    isactive                boolean default true,
     createdat               timestamptz default current_timestamp,
     updatedat               timestamptz default current_timestamp,
 
     constraint uq_pf_employee unique (organizationid, employeeid)
 );
 
-create table if not exists payroll.pftransactions
-(
+create table if not exists payroll.pfrequests(
+    requestid               uuid primary key default uuid_generate_v4(),
+    organizationid          uuid not null,
+    employeeid              uuid not null,
+    ruleid                  uuid not null references payroll.pfrules(ruleid),
+    
+    -- NULLABLE: Because an 'enrollment' request happens before the PF account exists!
+    pfid                    uuid references payroll.providentfund(pfid),
+    
+    -- CORE REQUEST ROUTING
+    requesttype             varchar(20) not null 
+                            check (requesttype in ('enrollment', 'update', 'withdrawal')),
+    
+    status                  varchar(20) default 'pending'
+                            check (status in ('pending', 'approved', 'rejected')),
+
+    -- 1. ENROLLMENT & UPDATE SPECIFIC FIELDS
+    requestedemployeepct    numeric(5,2), 
+    requestedemployerpct    numeric(5,2),
+
+    -- 2. WITHDRAWAL SPECIFIC FIELDS
+    withdrawaltype          varchar(20) 
+                            check (withdrawaltype in ('temporary', 'permanent')),
+    reason                  varchar(100), 
+    requestedamount         numeric(15,2),
+                            
+    -- 3. AUDIT & ADMIN FIELDS
+    remarks                 text,
+    rejectionreason         text,
+    
+    approvedby              uuid,
+    approvedat              timestamptz,
+    
+    createdat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp
+);
+
+create table if not exists payroll.pftransactions(
     transactionid           uuid primary key default uuid_generate_v4(),
     organizationid          uuid not null,
     employeeid              uuid not null,
     periodid                uuid not null,
     pfid                    uuid not null references payroll.providentfund(pfid),
+    
+    -- Links the transaction back to the approved request (NULL for regular monthly payroll)
+    pfrequestid             uuid references payroll.pfrequests(requestid),
 
     salarybasisamount       numeric(15,2) not null,
     employeepct             numeric(5,2) not null,
@@ -2054,18 +2081,15 @@ create table if not exists payroll.pftransactions
     employeeamount          numeric(15,2) not null,
     employeramount          numeric(15,2) not null,
 
-    totalamount             numeric(15,2) generated always as
-                            (employeeamount + employeramount) stored,
+    totalamount             numeric(15,2) generated always as (employeeamount + employeramount) stored,
 
     runningbalance          numeric(15,2) not null,
 
     transactiontype         varchar(20) default 'monthly'
-                            check (transactiontype in
-                            ('monthly', 'profit', 'withdrawal', 'adjustment', 'settlement')),
+                            check (transactiontype in ('monthly', 'profit', 'withdrawal', 'adjustment', 'settlement')),
 
     createdat               timestamptz default current_timestamp,
     updatedat               timestamptz default current_timestamp
-
 ); // pf rules
 
 // tax slabs 
