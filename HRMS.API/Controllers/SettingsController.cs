@@ -164,6 +164,137 @@ public class SettingsController : ControllerBase
         }
     }
 
+    [HttpGet("policies")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<List<CompanyPolicyDto>>>> GetPolicies()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.GetPoliciesAsync(organizationId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving company policies");
+            return StatusCode(500, new ServiceResponse<List<CompanyPolicyDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving company policies"
+            });
+        }
+    }
+
+    [HttpGet("policies/{policyId}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> GetPolicyById(Guid policyId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.GetPolicyByIdAsync(organizationId, policyId);
+
+            if (!result.Success)
+            {
+                return NotFound(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving policy details");
+            return StatusCode(500, new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving policy details"
+            });
+        }
+    }
+
+    [HttpPost("policies")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> CreatePolicy([FromBody] CreateCompanyPolicyRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var createdBy = User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name ?? "System";
+            var result = await _settingsService.CreatePolicyAsync(organizationId, request, createdBy);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating company policy");
+            return StatusCode(500, new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating company policy"
+            });
+        }
+    }
+
+    [HttpPut("policies/{policyId}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> UpdatePolicy(Guid policyId, [FromBody] UpdateCompanyPolicyRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var updatedBy = User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name ?? "System";
+            var result = await _settingsService.UpdatePolicyAsync(organizationId, policyId, request, updatedBy);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating company policy");
+            return StatusCode(500, new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating company policy"
+            });
+        }
+    }
+
+    [HttpDelete("policies/{policyId}")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeletePolicy(Guid policyId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.DeletePolicyAsync(organizationId, policyId);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting company policy");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting company policy"
+            });
+        }
+    }
+
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");

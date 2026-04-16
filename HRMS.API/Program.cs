@@ -201,6 +201,8 @@ builder.Services.AddScoped<IPayRollService, PayRollService>();
 builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
 builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<IGeoFenceService, GeoFenceService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
 // --- Super Admin Portal Services ---
 builder.Services.AddScoped<IPlatformAdminAuthService, PlatformAdminAuthService>();
@@ -231,6 +233,7 @@ builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 builder.Services.AddScoped<IPayRollRepository, PayRollRepository>();
 builder.Services.AddScoped<IHelpDeskRepository, HelpDeskRepository>();
 builder.Services.AddScoped<IGeoFenceRepository, GeoFenceRepository>();
+builder.Services.AddScoped<IOnboardingRepository, OnboardingRepository>();
 
 // --- Super Admin Portal Repositories ---
 builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
