@@ -1495,81 +1495,61 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto)
+    public async Task<ServiceResponse<ProvidentFundRequestDto>> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto)
     {
         try
         {
             var rule = await _payRollRepository.GetProvidentFundRuleByIdAsync(dto.RuleId, organizationId);
             if (rule == null || !rule.IsActive)
             {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                return new ServiceResponse<ProvidentFundRequestDto>
                 {
                     Success = false,
                     Message = "Provident fund rule not found or inactive."
                 };
             }
 
-            var result = await _payRollRepository.CreateProvidentFundEnrollmentAsync(
-                organizationId,
-                employeeId,
-                dto,
-                rule.DefaultEmployerPct);
-
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
+            var result = await _payRollRepository.CreateProvidentFundEnrollmentAsync(organizationId, employeeId, dto, rule.DefaultEmployerPct);
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating provident fund enrollment request");
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> UpdateProvidentFundEnrollmentRequestAsync(Guid pfId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto)
+    public async Task<ServiceResponse<ProvidentFundRequestDto>> UpdateProvidentFundEnrollmentRequestAsync(Guid requestId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto)
     {
         try
         {
             var rule = await _payRollRepository.GetProvidentFundRuleByIdAsync(dto.RuleId, organizationId);
             if (rule == null || !rule.IsActive)
             {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                return new ServiceResponse<ProvidentFundRequestDto>
                 {
                     Success = false,
                     Message = "Provident fund rule not found or inactive."
                 };
             }
 
-            var result = await _payRollRepository.UpdateProvidentFundEnrollmentRequestAsync(
-                pfId,
-                organizationId,
-                employeeId,
-                dto,
-                rule.DefaultEmployerPct);
-
-            if (result == null)
-            {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
-                {
-                    Success = false,
-                    Message = "Pending provident fund request not found."
-                };
-            }
-
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
+            var result = await _payRollRepository.UpdateProvidentFundEnrollmentRequestAsync(requestId, organizationId, employeeId, dto, rule.DefaultEmployerPct);
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating provident fund enrollment request");
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> UpdateProvidentFundPercentageAsync(Guid organizationId, Guid employeeId, UpdateProvidentFundPercentageDto dto)
+    public async Task<ServiceResponse<ProvidentFundRequestDto>> UpdateProvidentFundPercentageAsync(Guid organizationId, Guid employeeId, UpdateProvidentFundPercentageDto dto)
     {
         try
         {
             if (dto.RuleId == Guid.Empty)
             {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                return new ServiceResponse<ProvidentFundRequestDto>
                 {
                     Success = false,
                     Message = "RuleId is required."
@@ -1578,7 +1558,7 @@ public class PayRollService : IPayRollService
 
             if (dto.EmployeePct <= 0)
             {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                return new ServiceResponse<ProvidentFundRequestDto>
                 {
                     Success = false,
                     Message = "Employee percentage must be greater than zero."
@@ -1586,75 +1566,34 @@ public class PayRollService : IPayRollService
             }
 
             var result = await _payRollRepository.UpdateProvidentFundPercentageAsync(organizationId, employeeId, dto);
-            if (result == null)
-            {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
-                {
-                    Success = false,
-                    Message = "Provident fund enrollment not found, selected rule is invalid, or selected rule is already active."
-                };
-            }
-
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error updating provident fund percentage request");
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> CreateProvidentFundWithdrawRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundWithdrawRequestDto dto)
+    public async Task<ServiceResponse<ProvidentFundRequestDto>> CreateProvidentFundWithdrawRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundWithdrawRequestDto dto)
     {
         try
         {
             var result = await _payRollRepository.CreateProvidentFundWithdrawRequestAsync(organizationId, employeeId, dto);
-            if (result == null)
-            {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
-                {
-                    Success = false,
-                    Message = "Provident fund enrollment not found."
-                };
-            }
-
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating provident fund withdrawal request");
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> CreateProvidentFundSettlementRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundSettlementRequestDto dto)
+    public async Task<ServiceResponse<bool>> DeleteProvidentFundRequestAsync(Guid requestId, Guid organizationId, Guid employeeId)
     {
         try
         {
-            var result = await _payRollRepository.CreateProvidentFundSettlementRequestAsync(organizationId, employeeId, dto);
-            if (result == null)
-            {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
-                {
-                    Success = false,
-                    Message = "Provident fund enrollment not found."
-                };
-            }
-
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error creating provident fund settlement request");
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
-        }
-    }
-
-    public async Task<ServiceResponse<bool>> DeleteProvidentFundRequestAsync(Guid pfId, Guid organizationId, Guid employeeId)
-    {
-        try
-        {
-            var result = await _payRollRepository.DeleteProvidentFundRequestAsync(pfId, organizationId, employeeId);
+            var result = await _payRollRepository.DeleteProvidentFundRequestAsync(requestId, organizationId, employeeId);
             return new ServiceResponse<bool>
             {
                 Success = result,
@@ -1669,49 +1608,40 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> GetMyPendingProvidentFundRequestAsync(Guid organizationId, Guid employeeId)
+    public async Task<ServiceResponse<PagedResult<ProvidentFundRequestDto>>> GetMyProvidentFundRequestsAsync(Guid organizationId, Guid employeeId, ProvidentFundRequestFilterDto filter)
     {
         try
         {
-            var result = await _payRollRepository.GetMyPendingProvidentFundRequestAsync(organizationId, employeeId);
-            if (result == null)
-            {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
-                {
-                    Success = false,
-                    Message = "No pending provident fund request found."
-                };
-            }
-
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
+            var result = await _payRollRepository.GetMyProvidentFundRequestsAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<ProvidentFundRequestDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting my pending provident fund request");
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
+            _logger.LogError(ex, "Error getting my provident fund requests");
+            return new ServiceResponse<PagedResult<ProvidentFundRequestDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<ProvidentFundEnrollmentDto>> GetMyActiveProvidentFundRequestAsync(Guid organizationId, Guid employeeId)
+    public async Task<ServiceResponse<ProvidentFundAccountDto>> GetMyActiveProvidentFundAsync(Guid organizationId, Guid employeeId)
     {
         try
         {
-            var result = await _payRollRepository.GetMyActiveProvidentFundRequestAsync(organizationId, employeeId);
+            var result = await _payRollRepository.GetMyActiveProvidentFundAsync(organizationId, employeeId);
             if (result == null)
             {
-                return new ServiceResponse<ProvidentFundEnrollmentDto>
+                return new ServiceResponse<ProvidentFundAccountDto>
                 {
                     Success = false,
-                    Message = "No active provident fund request found."
+                    Message = "No active provident fund account found."
                 };
             }
 
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = true, Data = result };
+            return new ServiceResponse<ProvidentFundAccountDto> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting my active provident fund request");
-            return new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred." };
+            _logger.LogError(ex, "Error getting my active provident fund account");
+            return new ServiceResponse<ProvidentFundAccountDto> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1740,6 +1670,20 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error getting all provident fund requests");
             return new ServiceResponse<PagedResult<AdminProvidentFundRequestDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<AdminProvidentFundAccountDto>>> GetAllProvidentFundAccountsAsync(Guid organizationId, AdminProvidentFundAccountFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllProvidentFundAccountsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<AdminProvidentFundAccountDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all provident fund accounts");
+            return new ServiceResponse<PagedResult<AdminProvidentFundAccountDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1776,11 +1720,11 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<bool>> RejectProvidentFundRequestAsync(Guid pfId, Guid organizationId, RejectProvidentFundRequestDto dto)
+    public async Task<ServiceResponse<bool>> RejectProvidentFundRequestAsync(Guid requestId, Guid organizationId, RejectProvidentFundRequestDto dto)
     {
         try
         {
-            var result = await _payRollRepository.RejectProvidentFundRequestAsync(pfId, organizationId, dto);
+            var result = await _payRollRepository.RejectProvidentFundRequestAsync(requestId, organizationId, dto);
             return new ServiceResponse<bool>
             {
                 Success = result,

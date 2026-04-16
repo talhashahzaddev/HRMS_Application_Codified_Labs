@@ -126,19 +126,19 @@ public interface IPayRollService
     Task<ServiceResponse<bool>> DeleteProvidentFundRuleAsync(Guid ruleId, Guid organizationId);
 
     // Provident Fund (Employee Side)
-    Task<ServiceResponse<ProvidentFundEnrollmentDto>> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto);
-    Task<ServiceResponse<ProvidentFundEnrollmentDto>> UpdateProvidentFundEnrollmentRequestAsync(Guid pfId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto);
-    Task<ServiceResponse<ProvidentFundEnrollmentDto>> UpdateProvidentFundPercentageAsync(Guid organizationId, Guid employeeId, UpdateProvidentFundPercentageDto dto);
-    Task<ServiceResponse<ProvidentFundEnrollmentDto>> CreateProvidentFundWithdrawRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundWithdrawRequestDto dto);
-    Task<ServiceResponse<ProvidentFundEnrollmentDto>> CreateProvidentFundSettlementRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundSettlementRequestDto dto);
-    Task<ServiceResponse<bool>> DeleteProvidentFundRequestAsync(Guid pfId, Guid organizationId, Guid employeeId);
-    Task<ServiceResponse<ProvidentFundEnrollmentDto>> GetMyPendingProvidentFundRequestAsync(Guid organizationId, Guid employeeId);
-    Task<ServiceResponse<ProvidentFundEnrollmentDto>> GetMyActiveProvidentFundRequestAsync(Guid organizationId, Guid employeeId);
+    Task<ServiceResponse<ProvidentFundRequestDto>> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto);
+    Task<ServiceResponse<ProvidentFundRequestDto>> UpdateProvidentFundEnrollmentRequestAsync(Guid requestId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto);
+    Task<ServiceResponse<ProvidentFundRequestDto>> UpdateProvidentFundPercentageAsync(Guid organizationId, Guid employeeId, UpdateProvidentFundPercentageDto dto);
+    Task<ServiceResponse<ProvidentFundRequestDto>> CreateProvidentFundWithdrawRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundWithdrawRequestDto dto);
+    Task<ServiceResponse<bool>> DeleteProvidentFundRequestAsync(Guid requestId, Guid organizationId, Guid employeeId);
+    Task<ServiceResponse<PagedResult<ProvidentFundRequestDto>>> GetMyProvidentFundRequestsAsync(Guid organizationId, Guid employeeId, ProvidentFundRequestFilterDto filter);
+    Task<ServiceResponse<ProvidentFundAccountDto>> GetMyActiveProvidentFundAsync(Guid organizationId, Guid employeeId);
     Task<ServiceResponse<PagedResult<ProvidentFundTransactionDto>>> GetMyProvidentFundTransactionsAsync(Guid organizationId, Guid employeeId, ProvidentFundTransactionFilterDto filter);
     Task<ServiceResponse<PagedResult<AdminProvidentFundRequestDto>>> GetAllProvidentFundRequestsAsync(Guid organizationId, AdminProvidentFundRequestFilterDto filter);
+    Task<ServiceResponse<PagedResult<AdminProvidentFundAccountDto>>> GetAllProvidentFundAccountsAsync(Guid organizationId, AdminProvidentFundAccountFilterDto filter);
     Task<ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>>> GetAllProvidentFundRepaymentsAsync(Guid organizationId, AdminProvidentFundRepaymentFilterDto filter);
     Task<ServiceResponse<bool>> ApproveProvidentFundRequestAsync(Guid organizationId, Guid approvedBy, ApproveProvidentFundRequestDto dto);
-    Task<ServiceResponse<bool>> RejectProvidentFundRequestAsync(Guid pfId, Guid organizationId, RejectProvidentFundRequestDto dto);
+    Task<ServiceResponse<bool>> RejectProvidentFundRequestAsync(Guid requestId, Guid organizationId, RejectProvidentFundRequestDto dto);
     Task<ServiceResponse<bool>> AddProvidentFundMonthlyTransactionAsync(Guid organizationId, CreateProvidentFundMonthlyTransactionDto dto);
     Task<ServiceResponse<ProvidentFundEnrollmentDto>> ManualProvidentFundEnrollmentAsync(Guid organizationId, ManualProvidentFundEnrollmentDto dto);
 

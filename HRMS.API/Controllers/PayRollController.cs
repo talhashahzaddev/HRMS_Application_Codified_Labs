@@ -1718,7 +1718,7 @@ public class PayRollController : ControllerBase
 
     [HttpPost("provident-fund/enroll")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> EnrollProvidentFund([FromBody] CreateProvidentFundEnrollmentDto dto)
+    public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> EnrollProvidentFund([FromBody] CreateProvidentFundEnrollmentDto dto)
     {
         try
         {
@@ -1731,32 +1731,32 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating provident fund enrollment request");
-            return StatusCode(500, new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred" });
         }
     }
 
-    [HttpPut("/api/employee/provident-fund/enroll/{pfid}")]
+    [HttpPut("/api/employee/provident-fund/enroll/{requestId}")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> UpdateProvidentFundEnrollmentRequest(Guid pfid, [FromBody] CreateProvidentFundEnrollmentDto dto)
+    public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> UpdateProvidentFundEnrollmentRequest(Guid requestId, [FromBody] CreateProvidentFundEnrollmentDto dto)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
-            var response = await _payRollService.UpdateProvidentFundEnrollmentRequestAsync(pfid, organizationId, employeeId, dto);
+            var response = await _payRollService.UpdateProvidentFundEnrollmentRequestAsync(requestId, organizationId, employeeId, dto);
             if (!response.Success) return BadRequest(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating provident fund enrollment request: {PfId}", pfid);
-            return StatusCode(500, new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred" });
+            _logger.LogError(ex, "Error updating provident fund enrollment request: {RequestId}", requestId);
+            return StatusCode(500, new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpPatch("provident-fund/update-percentage")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> UpdateProvidentFundPercentage([FromBody] UpdateProvidentFundPercentageDto dto)
+    public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> UpdateProvidentFundPercentage([FromBody] UpdateProvidentFundPercentageDto dto)
     {
         try
         {
@@ -1769,13 +1769,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating provident fund update percentage request");
-            return StatusCode(500, new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpPost("/api/employee/provident-fund/withdraw")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> WithdrawProvidentFund([FromBody] CreateProvidentFundWithdrawRequestDto dto)
+    public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> WithdrawProvidentFund([FromBody] CreateProvidentFundWithdrawRequestDto dto)
     {
         try
         {
@@ -1788,83 +1788,64 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating provident fund withdrawal request");
-            return StatusCode(500, new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "An error occurred" });
         }
     }
 
-    [HttpPost("/api/employee/provident-fund/settlement-request")]
+    [HttpDelete("/api/employee/provident-fund/request/{requestId}")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> RequestProvidentFundSettlement([FromBody] CreateProvidentFundSettlementRequestDto dto)
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteProvidentFundRequest(Guid requestId)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
-            var response = await _payRollService.CreateProvidentFundSettlementRequestAsync(organizationId, employeeId, dto);
+            var response = await _payRollService.DeleteProvidentFundRequestAsync(requestId, organizationId, employeeId);
             if (!response.Success) return BadRequest(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating provident fund settlement request");
-            return StatusCode(500, new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred" });
-        }
-    }
-
-    [HttpDelete("/api/employee/provident-fund/request/{pfid}")]
-    [Authorize]
-    public async Task<ActionResult<ServiceResponse<bool>>> DeleteProvidentFundRequest(Guid pfid)
-    {
-        try
-        {
-            var organizationId = GetCurrentOrganizationId();
-            var employeeId = await GetCurrentEmployeeId();
-            var response = await _payRollService.DeleteProvidentFundRequestAsync(pfid, organizationId, employeeId);
-            if (!response.Success) return BadRequest(response);
-            return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error deleting provident fund request: {PfId}", pfid);
+            _logger.LogError(ex, "Error deleting provident fund request: {RequestId}", requestId);
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("/api/employee/provident-fund/my-pending-request")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> GetMyPendingProvidentFundRequest()
+    public async Task<ActionResult<ServiceResponse<PagedResult<ProvidentFundRequestDto>>>> GetMyPendingProvidentFundRequest([FromQuery] ProvidentFundRequestFilterDto filter)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
-            var response = await _payRollService.GetMyPendingProvidentFundRequestAsync(organizationId, employeeId);
-            if (!response.Success) return NotFound(response);
+            var response = await _payRollService.GetMyProvidentFundRequestsAsync(organizationId, employeeId, filter);
+            if (!response.Success) return BadRequest(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching pending provident fund request");
-            return StatusCode(500, new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred" });
+            _logger.LogError(ex, "Error fetching provident fund requests");
+            return StatusCode(500, new ServiceResponse<PagedResult<ProvidentFundRequestDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("/api/employee/provident-fund/my-active-request")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> GetMyActiveProvidentFundRequest()
+    public async Task<ActionResult<ServiceResponse<ProvidentFundAccountDto>>> GetMyActiveProvidentFundRequest()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
-            var response = await _payRollService.GetMyActiveProvidentFundRequestAsync(organizationId, employeeId);
+            var response = await _payRollService.GetMyActiveProvidentFundAsync(organizationId, employeeId);
             if (!response.Success) return NotFound(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching active provident fund request");
-            return StatusCode(500, new ServiceResponse<ProvidentFundEnrollmentDto> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<ProvidentFundAccountDto> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1906,6 +1887,24 @@ public class PayRollController : ControllerBase
         }
     }
 
+    [HttpGet("provident-fund/accounts")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundAccountDto>>>> GetAllProvidentFundAccounts([FromQuery] AdminProvidentFundAccountFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllProvidentFundAccountsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching all provident fund accounts");
+            return StatusCode(500, new ServiceResponse<PagedResult<AdminProvidentFundAccountDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpGet("provident-fund/repayments")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>>>> GetAllProvidentFundRepayments([FromQuery] AdminProvidentFundRepaymentFilterDto filter)
@@ -1943,20 +1942,20 @@ public class PayRollController : ControllerBase
         }
     }
 
-    [HttpPut("/api/admin/provident-fund/requests/{pfId}/reject")]
+    [HttpPut("/api/admin/provident-fund/requests/{requestId}/reject")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<bool>>> RejectProvidentFundRequest(Guid pfId, [FromBody] RejectProvidentFundRequestDto dto)
+    public async Task<ActionResult<ServiceResponse<bool>>> RejectProvidentFundRequest(Guid requestId, [FromBody] RejectProvidentFundRequestDto dto)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var response = await _payRollService.RejectProvidentFundRequestAsync(pfId, organizationId, dto);
+            var response = await _payRollService.RejectProvidentFundRequestAsync(requestId, organizationId, dto);
             if (!response.Success) return BadRequest(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error rejecting provident fund request: {PfId}", pfId);
+            _logger.LogError(ex, "Error rejecting provident fund request: {RequestId}", requestId);
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
     }
