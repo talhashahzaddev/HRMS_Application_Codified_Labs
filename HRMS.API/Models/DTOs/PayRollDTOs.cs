@@ -651,14 +651,65 @@ public class UpdateProvidentFundPercentageDto
 
 public class CreateProvidentFundWithdrawRequestDto
 {
+    public string WithdrawalType { get; set; } = "temporary"; // temporary | permanent
     public decimal Amount { get; set; }
     public string? Reason { get; set; }
 }
 
-public class CreateProvidentFundSettlementRequestDto
+public class ProvidentFundRequestDto
 {
-    public DateTime EffectiveFrom { get; set; }
+    public Guid RequestId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid RuleId { get; set; }
+    public string? RuleName { get; set; }
+
+    public Guid? PfId { get; set; }
+    public string RequestType { get; set; } = string.Empty; // enrollment | update | withdrawal
+    public string Status { get; set; } = string.Empty; // pending | approved | rejected
+
+    public decimal? RequestedEmployeePct { get; set; }
+    public decimal? RequestedEmployerPct { get; set; }
+
+    public string? WithdrawalType { get; set; } // temporary | permanent
+    public string? Reason { get; set; }
+    public decimal? RequestedAmount { get; set; }
+
     public string? Remarks { get; set; }
+    public string? RejectionReason { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class ProvidentFundRequestFilterDto
+{
+    public string? Status { get; set; } // pending | approved | rejected
+    public string? RequestType { get; set; } // enrollment | update | withdrawal
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class ProvidentFundAccountDto
+{
+    public Guid PfId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public string? ContributionBasis { get; set; }
+    public bool AllowPartialWithdraw { get; set; }
+    public string? WithdrawalConfig { get; set; }
+    public decimal EmployeePct { get; set; }
+    public decimal EmployerPct { get; set; }
+    public string PfStatus { get; set; } = string.Empty; // active | closed | pending
+    public DateTime EffectiveFrom { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 }
 
 public class ProvidentFundEnrollmentDto
@@ -690,6 +741,7 @@ public class ProvidentFundTransactionDto
     public Guid PeriodId { get; set; }
     public string PeriodName { get; set; } = string.Empty;
     public Guid PfId { get; set; }
+    public Guid? PfRequestId { get; set; }
     public decimal SalaryBasisAmount { get; set; }
     public decimal EmployeePct { get; set; }
     public decimal EmployerPct { get; set; }
@@ -713,29 +765,34 @@ public class ProvidentFundTransactionFilterDto
 
 public class AdminProvidentFundRequestDto
 {
-    public Guid PfId { get; set; }
+    public Guid RequestId { get; set; }
+    public Guid? PfId { get; set; }
     public Guid OrganizationId { get; set; }
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
     public decimal? BasicSalary { get; set; }
     public Guid RuleId { get; set; }
-    public decimal EmployeePct { get; set; }
-    public decimal EmployerPct { get; set; }
+    public string? RuleName { get; set; }
+    public decimal? RequestedEmployeePct { get; set; }
+    public decimal? RequestedEmployerPct { get; set; }
     public string RequestType { get; set; } = string.Empty;
-    public string PfStatus { get; set; } = string.Empty;
-    public DateTime EffectiveFrom { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? WithdrawalType { get; set; }
+    public string? Reason { get; set; }
+    public decimal? RequestedAmount { get; set; }
     public Guid? ApprovedBy { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? Remarks { get; set; }
     public string? RejectionReason { get; set; }
-    public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public int TotalCount { get; set; }
 }
 
 public class AdminProvidentFundRequestFilterDto
 {
     public string? RequestType { get; set; }
+    public string? Status { get; set; }
     public string? SearchTerm { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
@@ -775,8 +832,7 @@ public class AdminProvidentFundRepaymentFilterDto
 
 public class ApproveProvidentFundRequestDto
 {
-    public Guid EmployeeId { get; set; }
-    public string RequestType { get; set; } = string.Empty;
+    public Guid RequestId { get; set; }
 }
 
 public class RejectProvidentFundRequestDto
