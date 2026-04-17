@@ -182,4 +182,22 @@ public interface IPayRollRepository
 
     // Overview
     Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId);
+
+    // Gratuity Config
+    Task<IEnumerable<GratuityConfigDto>> GetAllGratuityConfigsAsync(Guid organizationId);
+    Task<IEnumerable<GratuityConfigDto>> GetActiveGratuityConfigsAsync(Guid organizationId);
+    Task<GratuityConfigDto?> GetGratuityConfigByIdAsync(Guid id, Guid organizationId);
+    Task<GratuityConfigDto> CreateGratuityConfigAsync(Guid organizationId, CreateGratuityConfigDto dto);
+    Task<GratuityConfigDto?> UpdateGratuityConfigAsync(Guid id, Guid organizationId, UpdateGratuityConfigDto dto);
+    Task<bool> DeleteGratuityConfigAsync(Guid id, Guid organizationId);
+
+    // Gratuity Transactions
+    Task<PagedResult<GratuityTransactionDto>> GetAllGratuityTransactionsAsync(Guid organizationId, GratuityTransactionFilterDto filter);
+    Task<GratuityTransactionDto?> GetGratuityTransactionByIdAsync(Guid id, Guid organizationId);
+    Task<GratuityTransactionDto> CreateGratuityTransactionAsync(Guid organizationId, Guid createdBy, CreateGratuityTransactionDto dto);
+    Task<GratuityTransactionDto?> UpdateGratuityTransactionAsync(Guid id, Guid organizationId, UpdateGratuityTransactionDto dto);
+    Task<bool> DeleteGratuityTransactionAsync(Guid id, Guid organizationId);
+    Task<bool> ApproveGratuityTransactionAsync(Guid id, Guid organizationId, Guid approvedBy, ApproveGratuityDto dto);
+    Task<bool> MarkGratuityPaidAsync(Guid id, Guid organizationId, Guid paidBy, MarkGratuityPaidDto dto);
+    Task<GratuityTransactionDto?> GetMyGratuityStatusAsync(Guid employeeId, Guid organizationId);
 }

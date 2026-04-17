@@ -2260,4 +2260,245 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<PayrollOverviewDto> { Success = false, Message = "An error occurred." };
         }
     }
+
+    // ─── Gratuity Config ─────────────────────────────────────────────────────
+
+    public async Task<ServiceResponse<IEnumerable<GratuityConfigDto>>> GetAllGratuityConfigsAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllGratuityConfigsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting gratuity configs");
+            return new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<GratuityConfigDto>>> GetActiveGratuityConfigsAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveGratuityConfigsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active gratuity configs");
+            return new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<GratuityConfigDto>> GetGratuityConfigByIdAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetGratuityConfigByIdAsync(id, organizationId);
+            if (result == null)
+                return new ServiceResponse<GratuityConfigDto> { Success = false, Message = "Gratuity config not found." };
+            return new ServiceResponse<GratuityConfigDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting gratuity config by ID: {Id}", id);
+            return new ServiceResponse<GratuityConfigDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<GratuityConfigDto>> CreateGratuityConfigAsync(Guid organizationId, CreateGratuityConfigDto dto)
+    {
+        try
+        {
+            var validTypes = new[] { "fixed", "peryear", "percentage" };
+            if (!validTypes.Contains(dto.CalculationType))
+                return new ServiceResponse<GratuityConfigDto> { Success = false, Message = "Invalid calculation type. Must be 'fixed', 'peryear', or 'percentage'." };
+
+            var result = await _payRollRepository.CreateGratuityConfigAsync(organizationId, dto);
+            return new ServiceResponse<GratuityConfigDto> { Success = true, Message = "Gratuity config created successfully.", Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating gratuity config");
+            return new ServiceResponse<GratuityConfigDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<GratuityConfigDto>> UpdateGratuityConfigAsync(Guid id, Guid organizationId, UpdateGratuityConfigDto dto)
+    {
+        try
+        {
+            var validTypes = new[] { "fixed", "peryear", "percentage" };
+            if (!validTypes.Contains(dto.CalculationType))
+                return new ServiceResponse<GratuityConfigDto> { Success = false, Message = "Invalid calculation type." };
+
+            var result = await _payRollRepository.UpdateGratuityConfigAsync(id, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<GratuityConfigDto> { Success = false, Message = "Gratuity config not found." };
+            return new ServiceResponse<GratuityConfigDto> { Success = true, Message = "Gratuity config updated successfully.", Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating gratuity config: {Id}", id);
+            return new ServiceResponse<GratuityConfigDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteGratuityConfigAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteGratuityConfigAsync(id, organizationId);
+            if (!result)
+                return new ServiceResponse<bool> { Success = false, Message = "Gratuity config not found." };
+            return new ServiceResponse<bool> { Success = true, Message = "Gratuity config deleted successfully.", Data = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting gratuity config: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // ─── Gratuity Transactions ────────────────────────────────────────────────
+
+    public async Task<ServiceResponse<PagedResult<GratuityTransactionDto>>> GetAllGratuityTransactionsAsync(Guid organizationId, GratuityTransactionFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllGratuityTransactionsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<GratuityTransactionDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting gratuity transactions");
+            return new ServiceResponse<PagedResult<GratuityTransactionDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<GratuityTransactionDto>> GetGratuityTransactionByIdAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetGratuityTransactionByIdAsync(id, organizationId);
+            if (result == null)
+                return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "Gratuity transaction not found." };
+            return new ServiceResponse<GratuityTransactionDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting gratuity transaction by ID: {Id}", id);
+            return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<GratuityTransactionDto>> CreateGratuityTransactionAsync(Guid organizationId, Guid createdBy, CreateGratuityTransactionDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateGratuityTransactionAsync(organizationId, createdBy, dto);
+            return new ServiceResponse<GratuityTransactionDto> { Success = true, Message = "Gratuity record created successfully.", Data = result };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while creating gratuity transaction");
+            return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating gratuity transaction");
+            return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<GratuityTransactionDto>> UpdateGratuityTransactionAsync(Guid id, Guid organizationId, UpdateGratuityTransactionDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateGratuityTransactionAsync(id, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "Gratuity transaction not found." };
+            return new ServiceResponse<GratuityTransactionDto> { Success = true, Message = "Gratuity record updated successfully.", Data = result };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while updating gratuity transaction: {Id}", id);
+            return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating gratuity transaction: {Id}", id);
+            return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteGratuityTransactionAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteGratuityTransactionAsync(id, organizationId);
+            if (!result)
+                return new ServiceResponse<bool> { Success = false, Message = "Gratuity transaction not found." };
+            return new ServiceResponse<bool> { Success = true, Message = "Gratuity record deleted successfully.", Data = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting gratuity transaction: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> ApproveGratuityTransactionAsync(Guid id, Guid organizationId, Guid approvedBy, ApproveGratuityDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.ApproveGratuityTransactionAsync(id, organizationId, approvedBy, dto);
+            if (!result)
+                return new ServiceResponse<bool> { Success = false, Message = "Gratuity record not found or is not in 'calculated' status." };
+            return new ServiceResponse<bool> { Success = true, Message = "Gratuity record approved successfully.", Data = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving gratuity transaction: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> MarkGratuityPaidAsync(Guid id, Guid organizationId, Guid paidBy, MarkGratuityPaidDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.MarkGratuityPaidAsync(id, organizationId, paidBy, dto);
+            if (!result)
+                return new ServiceResponse<bool> { Success = false, Message = "Gratuity record not found or is not in 'approved' status." };
+            return new ServiceResponse<bool> { Success = true, Message = "Gratuity record marked as paid.", Data = true };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while marking gratuity paid: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking gratuity as paid: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<GratuityTransactionDto>> GetMyGratuityStatusAsync(Guid employeeId, Guid organizationId)
+    {
+        try
+        {
+            var record = await _payRollRepository.GetMyGratuityStatusAsync(employeeId, organizationId);
+            if (record == null)
+                return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "No gratuity record found for this employee." };
+            return new ServiceResponse<GratuityTransactionDto> { Success = true, Data = record };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching gratuity status for employee: {EmployeeId}", employeeId);
+            return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
 }

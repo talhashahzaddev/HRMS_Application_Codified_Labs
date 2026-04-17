@@ -259,6 +259,45 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         public string PolicyName { get; set; } = string.Empty;
     }
 
+    private class ExistingGratuityRecordDto
+    {
+        public Guid Id { get; set; }
+        public string PaymentStatus { get; set; } = string.Empty;
+    }
+
+    private static readonly HashSet<string> AllowedGratuityPaymentMethods = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "payroll_credit",
+        "bank_transfer",
+        "cash"
+    };
+
+    private static string NormalizeGratuityPaymentMethod(string? paymentMethod)
+    {
+        if (string.IsNullOrWhiteSpace(paymentMethod))
+        {
+            return "payroll_credit";
+        }
+
+        var normalized = paymentMethod.Trim().ToLowerInvariant();
+        if (!AllowedGratuityPaymentMethods.Contains(normalized))
+        {
+            throw new InvalidOperationException("Invalid payment method. Allowed values: payroll_credit, bank_transfer, cash.");
+        }
+
+        return normalized;
+    }
+
+    private static string? NormalizeOptionalGratuityPaymentMethod(string? paymentMethod)
+    {
+        if (string.IsNullOrWhiteSpace(paymentMethod))
+        {
+            return null;
+        }
+
+        return NormalizeGratuityPaymentMethod(paymentMethod);
+    }
+
     public async Task<IEnumerable<OvertimeRuleDto>> GetAllOvertimeRulesAsync(Guid organizationId)
     {
         var sql = @"
@@ -636,12 +675,12 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
 
         var data = await QueryAsync<PayrollPeriodDto>(sql, parameters);
-        
-        return new PayrollPeriodPagedResult 
-        { 
-            Data = data.ToList(), 
-            TotalCount = totalCount, 
-            Page = filter.Page, 
+
+        return new PayrollPeriodPagedResult
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
             PageSize = filter.PageSize,
             OpenCount = openCount,
             ProcessedCount = processedCount,
@@ -702,7 +741,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             return (await GetPayrollPeriodByIdAsync(periodId, organizationId))!;
 
         }
-        catch(Exception ex){
+        catch (Exception ex) {
             throw new Exception(ex.Message);
         }
 
@@ -1281,7 +1320,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             LEFT JOIN attendance.shifts s ON ats.shiftid = s.shiftid
             WHERE ats.id = @id AND e.organizationid = @organizationId;";
 
-        return await QuerySingleOrDefaultAsync<PayrollAttendanceSummaryDto>(sql, new { id, organizationId });
+            return await QuerySingleOrDefaultAsync<PayrollAttendanceSummaryDto>(sql, new { id, organizationId });
 
         }
         catch (Exception)
@@ -1300,7 +1339,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         try
         {
 
-        var sql = @"
+            var sql = @"
             INSERT INTO payroll.attendancesummary (
                 employeeid, periodid, ruleid, shiftid, scheduleddays, 
                 totaldays, presentdays, absentdays, halfdays, effectiveabsents, 
@@ -1313,29 +1352,29 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             )
             RETURNING id;";
 
-        var parameters = new
-        {
-            dto.EmployeeId,
-            dto.PeriodId,
-            dto.RuleId,
-            ShiftId       = shiftId,
-            ScheduledDays = scheduledDays,
-            TotalDays     = totalDays,
-            dto.PresentDays,
-            dto.AbsentDays,
-            dto.HalfDays,
-            dto.EffectiveAbsents,
-            dto.AbsentDeduction,
-            dto.HalfDayDeduction,
-            dto.TotalDeduction
-        };
+            var parameters = new
+            {
+                dto.EmployeeId,
+                dto.PeriodId,
+                dto.RuleId,
+                ShiftId = shiftId,
+                ScheduledDays = scheduledDays,
+                TotalDays = totalDays,
+                dto.PresentDays,
+                dto.AbsentDays,
+                dto.HalfDays,
+                dto.EffectiveAbsents,
+                dto.AbsentDeduction,
+                dto.HalfDayDeduction,
+                dto.TotalDeduction
+            };
 
-        var id = await QuerySingleAsync<Guid>(sql, parameters);
-        return (await GetAttendanceSummaryByIdAsync(id, organizationId))!;
+            var id = await QuerySingleAsync<Guid>(sql, parameters);
+            return (await GetAttendanceSummaryByIdAsync(id, organizationId))!;
         }
         catch (Exception)
         {
-            throw ;
+            throw;
         }
     }
 
@@ -4366,7 +4405,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
     public async Task<LoanDto> CreateLoanRequestAsync(Guid organizationId, Guid employeeId, CreateLoanRequestDto dto)
     {
-       
+
         var sql = @"
             INSERT INTO payroll.loans (
                 organizationid, employeeid, ruleid, principalamount, totalinterest, 
@@ -5001,7 +5040,7 @@ ORDER BY l.createdat DESC;";
                 SELECT installmentamount, loanid 
                 FROM payroll.loanpayments 
                 WHERE id = @Id AND organizationid = @organizationId FOR UPDATE;";
-            
+
             var oldRecord = await connection.QuerySingleOrDefaultAsync(oldRecordSql, new { dto.Id, organizationId }, transaction);
             if (oldRecord == null)
             {
@@ -5307,7 +5346,7 @@ ORDER BY l.createdat DESC;";
               AND requeststatus != 'pending' 
               AND disbursementstatus != 'pending'
             ORDER BY createdat DESC;";
-              
+
         return await QueryAsync<LoanReferenceDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
     }
 
@@ -5343,5 +5382,496 @@ ORDER BY l.createdat DESC;";
         {
             ActiveModules = activeModules.ToList()
         };
+    }
+
+    // ─── Gratuity Config ─────────────────────────────────────────────────────
+
+    public async Task<IEnumerable<GratuityConfigDto>> GetAllGratuityConfigsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                id              AS Id,
+                organizationid  AS OrganizationId,
+                configrulename  AS ConfigRuleName,
+                description     AS Description,
+                yearsrequired   AS YearsRequired,
+                calculationtype AS CalculationType,
+                calculationvalue AS CalculationValue,
+                isactive        AS IsActive,
+                isdeleted       AS IsDeleted,
+                createdat       AS CreatedAt,
+                updatedat       AS UpdatedAt
+            FROM payroll.gratuityconfig
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<GratuityConfigDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<GratuityConfigDto>> GetActiveGratuityConfigsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                id              AS Id,
+                organizationid  AS OrganizationId,
+                configrulename  AS ConfigRuleName,
+                description     AS Description,
+                yearsrequired   AS YearsRequired,
+                calculationtype AS CalculationType,
+                calculationvalue AS CalculationValue,
+                isactive        AS IsActive,
+                isdeleted       AS IsDeleted,
+                createdat       AS CreatedAt,
+                updatedat       AS UpdatedAt
+            FROM payroll.gratuityconfig
+            WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<GratuityConfigDto>(sql, new { organizationId });
+    }
+
+    public async Task<GratuityConfigDto?> GetGratuityConfigByIdAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                id              AS Id,
+                organizationid  AS OrganizationId,
+                configrulename  AS ConfigRuleName,
+                description     AS Description,
+                yearsrequired   AS YearsRequired,
+                calculationtype AS CalculationType,
+                calculationvalue AS CalculationValue,
+                isactive        AS IsActive,
+                isdeleted       AS IsDeleted,
+                createdat       AS CreatedAt,
+                updatedat       AS UpdatedAt
+            FROM payroll.gratuityconfig
+            WHERE id = @id AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<GratuityConfigDto>(sql, new { id, organizationId });
+    }
+
+    public async Task<GratuityConfigDto> CreateGratuityConfigAsync(Guid organizationId, CreateGratuityConfigDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.gratuityconfig
+                (organizationid, configrulename, description, yearsrequired, calculationtype, calculationvalue, isactive, isdeleted)
+            VALUES
+                (@organizationId, @ConfigRuleName, @Description, @YearsRequired, @CalculationType, @CalculationValue, @IsActive, false)
+            RETURNING id;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.ConfigRuleName,
+            dto.Description,
+            dto.YearsRequired,
+            dto.CalculationType,
+            dto.CalculationValue,
+            dto.IsActive
+        };
+
+        var newId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetGratuityConfigByIdAsync(newId, organizationId))!;
+    }
+
+    public async Task<GratuityConfigDto?> UpdateGratuityConfigAsync(Guid id, Guid organizationId, UpdateGratuityConfigDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.gratuityconfig
+            SET
+                configrulename  = @ConfigRuleName,
+                description     = @Description,
+                yearsrequired   = @YearsRequired,
+                calculationtype = @CalculationType,
+                calculationvalue = @CalculationValue,
+                isactive        = @IsActive,
+                updatedat       = current_timestamp
+            WHERE id = @id AND organizationid = @organizationId AND isdeleted = false
+            RETURNING id;";
+
+        var parameters = new
+        {
+            id,
+            organizationId,
+            dto.ConfigRuleName,
+            dto.Description,
+            dto.YearsRequired,
+            dto.CalculationType,
+            dto.CalculationValue,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty) return null;
+
+        return await GetGratuityConfigByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteGratuityConfigAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.gratuityconfig
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE id = @id AND organizationid = @organizationId AND isdeleted = false
+            RETURNING id;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // ─── Gratuity Transactions ────────────────────────────────────────────────
+
+    public async Task<PagedResult<GratuityTransactionDto>> GetAllGratuityTransactionsAsync(Guid organizationId, GratuityTransactionFilterDto filter)
+    {
+        try
+        {
+            var conditions = new List<string> { "gt.organizationid = @organizationId", "gt.isdeleted = false" };
+            var parameters = new DynamicParameters();
+            parameters.Add("organizationId", organizationId);
+
+            if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+            {
+                conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @SearchTerm");
+                parameters.Add("SearchTerm", $"%{filter.SearchTerm.Trim()}%");
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.PaymentStatus))
+            {
+                conditions.Add("gt.paymentstatus = @PaymentStatus");
+                parameters.Add("PaymentStatus", filter.PaymentStatus);
+            }
+
+            if (filter.PeriodId.HasValue)
+            {
+                conditions.Add("gt.periodid = @PeriodId");
+                parameters.Add("PeriodId", filter.PeriodId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(filter.PaymentMethod))
+            {
+                conditions.Add("LOWER(gt.paymentmethod) = LOWER(@PaymentMethod)");
+                parameters.Add("PaymentMethod", filter.PaymentMethod);
+            }
+
+            var whereClause = string.Join(" AND ", conditions);
+            var offset = (filter.Page - 1) * filter.PageSize;
+
+            var sql = $@"
+            SELECT
+                gt.id                   AS Id,
+                gt.organizationid       AS OrganizationId,
+                gt.employeeid           AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                d.departmentname        AS Department,
+                gt.periodid             AS PeriodId,
+                gt.configid             AS ConfigId,
+                gc.configrulename       AS ConfigRuleName,
+                gc.calculationtype      AS CalculationType,
+                gc.calculationvalue     AS CalculationValue,
+                gc.yearsrequired        AS YearsRequired,
+                gt.yearsworked          AS YearsWorked,
+                gt.lastsalary           AS LastSalary,
+                gt.totalamount          AS TotalAmount,
+                gt.paymentmethod        AS PaymentMethod,
+                gt.paymentstatus        AS PaymentStatus,
+                gt.approvedby           AS ApprovedBy,
+                gt.approvedat           AS ApprovedAt,
+                gt.paidat               AS PaidAt,
+                gt.paidby               AS PaidBy,
+                gt.cancellationreason   AS CancellationReason,
+                gt.notes                AS Notes,
+                gt.createdat            AS CreatedAt,
+                gt.updatedat            AS UpdatedAt,
+                COUNT(*) OVER()         AS TotalCount
+            FROM payroll.gratuitytransactions gt
+            INNER JOIN employee.employees e ON e.employeeid = gt.employeeid
+            LEFT JOIN LATERAL (
+                SELECT ed.departmentid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = e.employeeid
+                ORDER BY COALESCE(ed.iscurrent, false) DESC, ed.effectivedate DESC, ed.createdat DESC
+                LIMIT 1
+            ) ed ON true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            LEFT JOIN payroll.gratuityconfig gc ON gc.id = gt.configid
+            WHERE {whereClause}
+            ORDER BY gt.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+            parameters.Add("PageSize", filter.PageSize);
+            parameters.Add("Offset", offset);
+
+            var data = await QueryAsync<GratuityTransactionDto>(sql, parameters);
+            var totalCount = data.FirstOrDefault()?.TotalCount ?? 0;
+
+            return new PagedResult<GratuityTransactionDto>
+            {
+                Data = data.ToList(),
+                TotalCount = totalCount,
+                Page = filter.Page,
+                PageSize = filter.PageSize
+            };
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task<GratuityTransactionDto?> GetGratuityTransactionByIdAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                gt.id                   AS Id,
+                gt.organizationid       AS OrganizationId,
+                gt.employeeid           AS EmployeeId,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                d.departmentname        AS Department,
+                gt.periodid             AS PeriodId,
+                gt.configid             AS ConfigId,
+                gc.configrulename       AS ConfigRuleName,
+                gc.calculationtype      AS CalculationType,
+                gc.calculationvalue     AS CalculationValue,
+                gc.yearsrequired        AS YearsRequired,
+                gt.yearsworked          AS YearsWorked,
+                gt.lastsalary           AS LastSalary,
+                gt.totalamount          AS TotalAmount,
+                gt.paymentmethod        AS PaymentMethod,
+                gt.paymentstatus        AS PaymentStatus,
+                gt.approvedby           AS ApprovedBy,
+                gt.approvedat           AS ApprovedAt,
+                gt.paidat               AS PaidAt,
+                gt.paidby               AS PaidBy,
+                gt.cancellationreason   AS CancellationReason,
+                gt.notes                AS Notes,
+                gt.createdat            AS CreatedAt,
+                gt.updatedat            AS UpdatedAt,
+                0                       AS TotalCount
+            FROM payroll.gratuitytransactions gt
+            INNER JOIN employee.employees e ON e.employeeid = gt.employeeid
+            LEFT JOIN LATERAL (
+                SELECT ed.departmentid
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = e.employeeid
+                ORDER BY COALESCE(ed.iscurrent, false) DESC, ed.effectivedate DESC, ed.createdat DESC
+                LIMIT 1
+            ) ed ON true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            LEFT JOIN payroll.gratuityconfig gc ON gc.id = gt.configid
+            WHERE gt.id = @id AND gt.organizationid = @organizationId AND gt.isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<GratuityTransactionDto>(sql, new { id, organizationId });
+    }
+
+    public async Task<GratuityTransactionDto> CreateGratuityTransactionAsync(Guid organizationId, Guid createdBy, CreateGratuityTransactionDto dto)
+    {
+        try
+        {
+            var paymentMethod = NormalizeGratuityPaymentMethod(dto.PaymentMethod);
+
+            var configExistsSql = @"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.gratuityconfig
+                WHERE id = @ConfigId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false
+            );";
+
+            var configExists = await ExecuteScalarAsync<bool>(configExistsSql, new { organizationId, dto.ConfigId });
+            if (!configExists)
+            {
+                throw new InvalidOperationException("Selected gratuity rule is not available for this organization.");
+            }
+
+            var existingRecordSql = @"
+            SELECT
+                id              AS Id,
+                paymentstatus   AS PaymentStatus
+            FROM payroll.gratuitytransactions
+            WHERE organizationid = @organizationId
+              AND employeeid = @EmployeeId
+              AND COALESCE(isdeleted, false) = false
+            ORDER BY createdat DESC
+            LIMIT 1;";
+
+            var existingRecord = await QuerySingleOrDefaultAsync<ExistingGratuityRecordDto>(existingRecordSql, new { organizationId, dto.EmployeeId });
+            if (existingRecord != null)
+            {
+                var status = (existingRecord.PaymentStatus ?? string.Empty).Trim().ToLowerInvariant();
+                if (status is "paid" or "cancelled")
+                {
+                    await ExecuteAsync(@"
+                    UPDATE payroll.gratuitytransactions
+                    SET isdeleted = true,
+                        updatedat = current_timestamp
+                    WHERE id = @Id
+                      AND organizationid = @organizationId
+                      AND COALESCE(isdeleted, false) = false;",
+                        new { existingRecord.Id, organizationId });
+                }
+                else
+                {
+                    throw new InvalidOperationException("An active gratuity record already exists for this employee. Approve, pay, cancel, or delete the existing record first.");
+                }
+            }
+
+            var sql = @"
+            INSERT INTO payroll.gratuitytransactions
+                (organizationid, employeeid, periodid, configid, yearsworked, lastsalary, totalamount, paymentmethod, paymentstatus, notes, createdby, isdeleted)
+            VALUES
+                (@organizationId, @EmployeeId, @PeriodId, @ConfigId, @YearsWorked, @LastSalary, @TotalAmount, @PaymentMethod, 'calculated', @Notes, @createdBy, false)
+            RETURNING id;";
+
+            var parameters = new
+            {
+                organizationId,
+                dto.EmployeeId,
+                dto.PeriodId,
+                dto.ConfigId,
+                dto.YearsWorked,
+                dto.LastSalary,
+                dto.TotalAmount,
+                PaymentMethod = paymentMethod,
+                dto.Notes,
+                createdBy
+            };
+
+            var newId = await QuerySingleAsync<Guid>(sql, parameters);
+            return (await GetGratuityTransactionByIdAsync(newId, organizationId))!;
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task<GratuityTransactionDto?> UpdateGratuityTransactionAsync(Guid id, Guid organizationId, UpdateGratuityTransactionDto dto)
+    {
+        var paymentMethod = NormalizeOptionalGratuityPaymentMethod(dto.PaymentMethod);
+
+        var sql = @"
+            UPDATE payroll.gratuitytransactions
+            SET
+                configid                = @ConfigId,
+                periodid                = @PeriodId,
+                yearsworked             = @YearsWorked,
+                lastsalary              = @LastSalary,
+                totalamount             = @TotalAmount,
+                paymentmethod           = COALESCE(@PaymentMethod, paymentmethod),
+                paymentstatus           = @PaymentStatus,
+                cancellationreason      = COALESCE(@CancellationReason, cancellationreason),
+                notes                   = @Notes,
+                updatedat               = current_timestamp
+            WHERE id = @id AND organizationid = @organizationId AND isdeleted = false
+            RETURNING id;";
+
+        var parameters = new
+        {
+            id,
+            organizationId,
+            dto.ConfigId,
+            dto.PeriodId,
+            dto.YearsWorked,
+            dto.LastSalary,
+            dto.TotalAmount,
+            PaymentMethod = paymentMethod,
+            dto.PaymentStatus,
+            dto.CancellationReason,
+            dto.Notes
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty) return null;
+
+        return await GetGratuityTransactionByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteGratuityTransactionAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.gratuitytransactions
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE id = @id AND organizationid = @organizationId AND isdeleted = false
+            RETURNING id;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    public async Task<bool> ApproveGratuityTransactionAsync(Guid id, Guid organizationId, Guid approvedBy, ApproveGratuityDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.gratuitytransactions
+            SET
+                paymentstatus   = 'approved',
+                approvedby      = @approvedBy,
+                approvedat      = current_timestamp,
+                notes           = COALESCE(@Notes, notes),
+                updatedat       = current_timestamp
+            WHERE id = @id AND organizationid = @organizationId AND paymentstatus = 'calculated' AND isdeleted = false
+            RETURNING id;";
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId, approvedBy, dto.Notes });
+        return updatedId != null && updatedId != Guid.Empty;
+    }
+
+    public async Task<bool> MarkGratuityPaidAsync(Guid id, Guid organizationId, Guid paidBy, MarkGratuityPaidDto dto)
+    {
+        var paymentMethod = NormalizeOptionalGratuityPaymentMethod(dto.PaymentMethod);
+
+        var sql = @"
+            UPDATE payroll.gratuitytransactions
+            SET
+                paymentstatus   = 'paid',
+                paidat          = COALESCE(@PaidAt, current_timestamp),
+                paidby          = @paidBy,
+                periodid        = COALESCE(@PeriodId, periodid),
+                paymentmethod   = COALESCE(@PaymentMethod, paymentmethod),
+                notes           = COALESCE(@Notes, notes),
+                updatedat       = current_timestamp
+            WHERE id = @id AND organizationid = @organizationId AND paymentstatus = 'approved' AND isdeleted = false
+            RETURNING id;";
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId, paidBy, dto.PaidAt, dto.PeriodId, PaymentMethod = paymentMethod, dto.Notes });
+        return updatedId != null && updatedId != Guid.Empty;
+    }
+
+    public async Task<GratuityTransactionDto?> GetMyGratuityStatusAsync(Guid employeeId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                gt.id                   AS Id,
+                gt.organizationid       AS OrganizationId,
+                gt.employeeid           AS EmployeeId,
+                gt.periodid             AS PeriodId,
+                gt.configid             AS ConfigId,
+                gc.configrulename       AS ConfigRuleName,
+                gc.calculationtype      AS CalculationType,
+                gc.calculationvalue     AS CalculationValue,
+                gc.yearsrequired        AS YearsRequired,
+                gt.yearsworked          AS YearsWorked,
+                gt.lastsalary           AS LastSalary,
+                gt.totalamount          AS TotalAmount,
+                gt.paymentmethod        AS PaymentMethod,
+                gt.paymentstatus        AS PaymentStatus,
+                gt.approvedat           AS ApprovedAt,
+                gt.paidat               AS PaidAt,
+                gt.paidby               AS PaidBy,
+                gt.cancellationreason   AS CancellationReason,
+                gt.notes                AS Notes,
+                gt.createdat            AS CreatedAt,
+                gt.updatedat            AS UpdatedAt,
+                0                       AS TotalCount
+            FROM payroll.gratuitytransactions gt
+            LEFT JOIN payroll.gratuityconfig gc ON gc.id = gt.configid
+            WHERE gt.employeeid = @employeeId
+              AND gt.organizationid = @organizationId
+              AND gt.isdeleted = false
+            ORDER BY gt.createdat DESC
+            LIMIT 1;";
+
+        return await QuerySingleOrDefaultAsync<GratuityTransactionDto>(sql, new { employeeId, organizationId });
     }
 }

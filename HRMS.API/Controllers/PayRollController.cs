@@ -2560,6 +2560,266 @@ public class PayRollController : ControllerBase
         }
     }
 
+    // ─── Gratuity Config ─────────────────────────────────────────────────────
+
+    [HttpGet("gratuity-configs")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<GratuityConfigDto>>>> GetAllGratuityConfigs()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllGratuityConfigsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving gratuity configs");
+            return StatusCode(500, new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("gratuity-configs/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<GratuityConfigDto>>>> GetActiveGratuityConfigs()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveGratuityConfigsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active gratuity configs");
+            return StatusCode(500, new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("gratuity-configs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<GratuityConfigDto>>> GetGratuityConfigById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetGratuityConfigByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving gratuity config by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<GratuityConfigDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("gratuity-configs")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<GratuityConfigDto>>> CreateGratuityConfig([FromBody] CreateGratuityConfigDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateGratuityConfigAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetGratuityConfigById), new { id = response.Data?.Id }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating gratuity config");
+            return StatusCode(500, new ServiceResponse<GratuityConfigDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("gratuity-configs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<GratuityConfigDto>>> UpdateGratuityConfig(Guid id, [FromBody] UpdateGratuityConfigDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateGratuityConfigAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating gratuity config: {Id}", id);
+            return StatusCode(500, new ServiceResponse<GratuityConfigDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("gratuity-configs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteGratuityConfig(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteGratuityConfigAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting gratuity config: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // ─── Gratuity Transactions ────────────────────────────────────────────────
+
+    [HttpGet("gratuity-transactions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<GratuityTransactionDto>>>> GetAllGratuityTransactions([FromQuery] GratuityTransactionFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllGratuityTransactionsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving gratuity transactions");
+            return StatusCode(500, new ServiceResponse<PagedResult<GratuityTransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("gratuity-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> GetGratuityTransactionById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetGratuityTransactionByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving gratuity transaction by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("gratuity-transactions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> CreateGratuityTransaction([FromBody] CreateGratuityTransactionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var createdBy = await GetCurrentEmployeeId();
+            var response = await _payRollService.CreateGratuityTransactionAsync(organizationId, createdBy, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetGratuityTransactionById), new { id = response.Data?.Id }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating gratuity transaction");
+            return StatusCode(500, new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("gratuity-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> UpdateGratuityTransaction(Guid id, [FromBody] UpdateGratuityTransactionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateGratuityTransactionAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating gratuity transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("gratuity-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteGratuityTransaction(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteGratuityTransactionAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting gratuity transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPatch("gratuity-transactions/{id}/approve")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> ApproveGratuityTransaction(Guid id, [FromBody] ApproveGratuityDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var approvedBy = await GetCurrentEmployeeId();
+            var response = await _payRollService.ApproveGratuityTransactionAsync(id, organizationId, approvedBy, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving gratuity transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPatch("gratuity-transactions/{id}/mark-paid")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> MarkGratuityPaid(Guid id, [FromBody] MarkGratuityPaidDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var paidBy = await GetCurrentEmployeeId();
+            var response = await _payRollService.MarkGratuityPaidAsync(id, organizationId, paidBy, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking gratuity as paid: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("gratuity-transactions/my-status")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> GetMyGratuityStatus()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMyGratuityStatusAsync(employeeId, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching gratuity status for current employee");
+            return StatusCode(500, new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
