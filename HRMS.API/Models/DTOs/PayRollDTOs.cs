@@ -1122,3 +1122,110 @@ public class MyLoanPaymentDto : LoanPaymentDto
 {
     public int TotalCount { get; set; }
 }
+
+// ─── Gratuity ────────────────────────────────────────────────────────────────
+
+public class GratuityConfigDto
+{
+    public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string ConfigRuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int YearsRequired { get; set; }
+    public string CalculationType { get; set; } = string.Empty; // fixed | peryear | percentage
+    public decimal CalculationValue { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateGratuityConfigDto
+{
+    public string ConfigRuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public int YearsRequired { get; set; } = 5;
+    public string CalculationType { get; set; } = "peryear";
+    public decimal CalculationValue { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateGratuityConfigDto : CreateGratuityConfigDto { }
+
+public class GratuityTransactionDto
+{
+    public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? Department { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid? ConfigId { get; set; }
+    public string? ConfigRuleName { get; set; }
+    // Config fields joined from gratuityconfig (populated in my-status and detail queries)
+    public string? CalculationType { get; set; }
+    public decimal? CalculationValue { get; set; }
+    public int? YearsRequired { get; set; }
+    public decimal YearsWorked { get; set; }
+    public decimal? LastSalary { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string PaymentStatus { get; set; } = string.Empty;
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public Guid? PaidBy { get; set; }
+    public string? CancellationReason { get; set; }
+    public string? Notes { get; set; }
+    public int TotalCount { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateGratuityTransactionDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid ConfigId { get; set; }              // required: policy must be selected
+    public decimal YearsWorked { get; set; }
+    public decimal? LastSalary { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class UpdateGratuityTransactionDto
+{
+    public Guid? ConfigId { get; set; }
+    public Guid? PeriodId { get; set; }
+    public decimal YearsWorked { get; set; }
+    public decimal? LastSalary { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string PaymentStatus { get; set; } = string.Empty;
+    public string? CancellationReason { get; set; }
+    public string? Notes { get; set; }
+}
+
+public class GratuityTransactionFilterDto
+{
+    public string? SearchTerm { get; set; }
+    public Guid? PeriodId { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string? PaymentStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class ApproveGratuityDto
+{
+    public string? Notes { get; set; }
+}
+
+public class MarkGratuityPaidDto
+{
+    public Guid? PeriodId { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public string? PaymentMethod { get; set; }
+    public string? Notes { get; set; }
+}

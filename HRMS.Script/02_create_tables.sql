@@ -2174,17 +2174,17 @@ create table if not exists payroll.gratuityconfig
 (
     id                  uuid primary key default uuid_generate_v4(),
     organizationid      uuid not null,
-    configrulename          varchar(100) not null,
+    configrulename      varchar(100) not null,
     description         text,
-    yearsrequired       integer not null default 5,
-    calculationtype     varchar(50) not null 
+    yearsrequired       integer not null default 5,    -- whole years only (e.g. 5, not 4.5)
+    calculationtype     varchar(50) not null
                         check (calculationtype in ('fixed', 'peryear', 'percentage')),
-    calculationvalue    numeric(10,2) not null,
+    calculationvalue    numeric(15,2) not null,        -- fixed: was numeric(10,2), consistent with all payroll financial fields
     isactive            boolean default true,
     isdeleted           boolean default false,
     createdat           timestamptz default current_timestamp,
     updatedat           timestamptz default current_timestamp,
-    constraint uqgratuityconfig unique (organizationid, configname)
+    constraint uqgratuityconfig unique (organizationid, configrulename)
 );
 
 create table if not exists payroll.gratuitytransactions
@@ -2192,18 +2192,34 @@ create table if not exists payroll.gratuitytransactions
     id                  uuid primary key default uuid_generate_v4(),
     organizationid      uuid not null,
     employeeid          uuid not null,
+    -- Nullable to allow off-cycle/manual settlement, similar to loanpayments.periodid
     periodid            uuid,
-    configid            uuid references payroll.gratuityconfig(id),
-    yearsworked         numeric(4,2) not null,
+    configid            uuid not null references payroll.gratuityconfig(id),  -- NOT NULL: policy selection is mandatory
+    yearsworked         numeric(5,2) not null,          -- fixed: was numeric(4,2), allows up to 999.99 years
     lastsalary          numeric(15,2),
     totalamount         numeric(15,2) not null,
     paymentstatus       varchar(20) default 'calculated'
                         check (paymentstatus in ('calculated', 'approved', 'paid', 'cancelled')),
+    paymentmethod       varchar(50) default 'payroll_credit', -- 'payroll_credit', 'bank_transfer', 'cash'
+    approvedby          uuid,
+    approvedat          timestamptz,
     paidat              timestamptz,
+    paidby              uuid,                           -- who disbursed/marked as paid
+    cancellationreason  text,                          -- reason if cancelled (mirrors loan/advance pattern)
+    notes               text,
+    createdby           uuid,
+    isdeleted           boolean default false,
     createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
-    constraint uqgratuitytransaction unique (employeeid, organizationid) 
-); // gratuity
+    updatedat           timestamptz default current_timestamp
+    -- NOTE: unique constraint replaced by partial index below to support soft-delete + rehire scenarios
+);
+
+-- Partial unique index: allows a new gratuity record after soft-delete (rehire/correction scenario)
+-- A hard constraint on (employeeid, organizationid) would block re-creation even after isdeleted = true
+create unique index if not exists uq_gratuitytransaction_active
+    on payroll.gratuitytransactions (employeeid, organizationid)
+    where isdeleted = false;
+// gratuity
 
 // payrolldata 
 create table if not exists payroll.payrolldata
@@ -2221,6 +2237,7 @@ create table if not exists payroll.payrolldata
     totalearnings       numeric(15,2) default 0,
     overtimeamount      numeric(15,2) default 0,
     bonusamount         numeric(15,2) default 0,
+    gratuityamount      numeric(15,2) default 0,
     grosssalary         numeric(15,2) default 0,
 
     scheduleddays       integer default 0,
