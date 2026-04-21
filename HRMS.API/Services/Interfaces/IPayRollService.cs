@@ -125,6 +125,46 @@ public interface IPayRollService
     Task<ServiceResponse<ProvidentFundRuleDto>> UpdateProvidentFundRuleAsync(Guid ruleId, Guid organizationId, UpdateProvidentFundRuleDto dto);
     Task<ServiceResponse<bool>> DeleteProvidentFundRuleAsync(Guid ruleId, Guid organizationId);
 
+    // Tax Regimes
+    Task<ServiceResponse<IEnumerable<TaxRegimeDto>>> GetAllTaxRegimesAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<TaxRegimeDto>>> GetActiveTaxRegimesAsync(Guid organizationId);
+    Task<ServiceResponse<TaxRegimeDto>> GetTaxRegimeByIdAsync(Guid regimeId, Guid organizationId);
+    Task<ServiceResponse<TaxRegimeDto>> CreateTaxRegimeAsync(Guid organizationId, CreateTaxRegimeDto dto);
+    Task<ServiceResponse<TaxRegimeDto>> UpdateTaxRegimeAsync(Guid regimeId, Guid organizationId, UpdateTaxRegimeDto dto);
+    Task<ServiceResponse<bool>> DeleteTaxRegimeAsync(Guid regimeId, Guid organizationId);
+
+    // Tax Categories
+    Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetAllTaxCategoriesAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetActiveTaxCategoriesAsync(Guid organizationId);
+    Task<ServiceResponse<TaxCategoryDto>> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId);
+    Task<ServiceResponse<TaxCategoryDto>> CreateTaxCategoryAsync(Guid organizationId, CreateTaxCategoryDto dto);
+    Task<ServiceResponse<TaxCategoryDto>> UpdateTaxCategoryAsync(Guid categoryId, Guid organizationId, UpdateTaxCategoryDto dto);
+    Task<ServiceResponse<bool>> DeleteTaxCategoryAsync(Guid categoryId, Guid organizationId);
+
+    // Tax Slabs
+    Task<ServiceResponse<IEnumerable<TaxSlabDto>>> GetAllTaxSlabsAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<TaxSlabDto>>> GetActiveTaxSlabsAsync(Guid organizationId);
+    Task<ServiceResponse<TaxSlabDto>> GetTaxSlabByIdAsync(Guid slabId, Guid organizationId);
+    Task<ServiceResponse<TaxSlabDto>> CreateTaxSlabAsync(Guid organizationId, CreateTaxSlabDto dto);
+    Task<ServiceResponse<TaxSlabDto>> UpdateTaxSlabAsync(Guid slabId, Guid organizationId, UpdateTaxSlabDto dto);
+    Task<ServiceResponse<bool>> DeleteTaxSlabAsync(Guid slabId, Guid organizationId);
+
+    // Tax Component Rules
+    Task<ServiceResponse<IEnumerable<TaxComponentRuleDto>>> GetAllTaxComponentRulesAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<TaxComponentRuleDto>>> GetActiveTaxComponentRulesAsync(Guid organizationId);
+    Task<ServiceResponse<TaxComponentRuleDto>> GetTaxComponentRuleByIdAsync(Guid componentRuleId, Guid organizationId);
+    Task<ServiceResponse<TaxComponentRuleDto>> CreateTaxComponentRuleAsync(Guid organizationId, CreateTaxComponentRuleDto dto);
+    Task<ServiceResponse<TaxComponentRuleDto>> UpdateTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId, UpdateTaxComponentRuleDto dto);
+    Task<ServiceResponse<bool>> DeleteTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId);
+
+    // Tax Transactions
+    Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetActiveTaxTransactionsAsync(Guid organizationId);
+    Task<ServiceResponse<TaxTransactionDto>> GetTaxTransactionByIdAsync(Guid id, Guid organizationId);
+    Task<ServiceResponse<TaxTransactionDto>> CreateTaxTransactionAsync(Guid organizationId, CreateTaxTransactionDto dto);
+    Task<ServiceResponse<TaxTransactionDto>> UpdateTaxTransactionAsync(Guid id, Guid organizationId, UpdateTaxTransactionDto dto);
+    Task<ServiceResponse<bool>> DeleteTaxTransactionAsync(Guid id, Guid organizationId);
+
     // Provident Fund (Employee Side)
     Task<ServiceResponse<ProvidentFundRequestDto>> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto);
     Task<ServiceResponse<ProvidentFundRequestDto>> UpdateProvidentFundEnrollmentRequestAsync(Guid requestId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto);

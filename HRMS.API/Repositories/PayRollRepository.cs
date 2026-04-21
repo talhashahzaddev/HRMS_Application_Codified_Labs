@@ -2766,6 +2766,842 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return deletedId != null && deletedId != Guid.Empty;
     }
 
+    // Tax Regimes
+    public async Task<IEnumerable<TaxRegimeDto>> GetAllTaxRegimesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                regimeid AS RegimeId,
+                organizationid AS OrganizationId,
+                country AS Country,
+                regimename AS RegimeName,
+                startdate AS StartDate,
+                enddate AS EndDate,
+                isactive AS IsActive,
+                createdat AS CreatedAt
+            FROM payroll.taxregimes
+            WHERE organizationid = @organizationId AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<TaxRegimeDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<TaxRegimeDto>> GetActiveTaxRegimesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                regimeid AS RegimeId,
+                organizationid AS OrganizationId,
+                country AS Country,
+                regimename AS RegimeName,
+                startdate AS StartDate,
+                enddate AS EndDate,
+                isactive AS IsActive,
+                createdat AS CreatedAt
+            FROM payroll.taxregimes
+            WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false
+            ORDER BY createdat DESC;";
+
+        return await QueryAsync<TaxRegimeDto>(sql, new { organizationId });
+    }
+
+    public async Task<TaxRegimeDto?> GetTaxRegimeByIdAsync(Guid regimeId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                regimeid AS RegimeId,
+                organizationid AS OrganizationId,
+                country AS Country,
+                regimename AS RegimeName,
+                startdate AS StartDate,
+                enddate AS EndDate,
+                isactive AS IsActive,
+                createdat AS CreatedAt
+            FROM payroll.taxregimes
+            WHERE regimeid = @regimeId AND organizationid = @organizationId AND isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<TaxRegimeDto>(sql, new { regimeId, organizationId });
+    }
+
+    public async Task<TaxRegimeDto> CreateTaxRegimeAsync(Guid organizationId, CreateTaxRegimeDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.taxregimes (
+                organizationid, country, regimename, startdate, enddate, isactive
+            )
+            VALUES (
+                @organizationId, @Country, @RegimeName, @StartDate, @EndDate, @IsActive
+            )
+            RETURNING regimeid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.Country,
+            dto.RegimeName,
+            dto.StartDate,
+            dto.EndDate,
+            dto.IsActive
+        };
+
+        var regimeId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetTaxRegimeByIdAsync(regimeId, organizationId))!;
+    }
+
+    public async Task<TaxRegimeDto?> UpdateTaxRegimeAsync(Guid regimeId, Guid organizationId, UpdateTaxRegimeDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.taxregimes
+            SET
+                country = @Country,
+                regimename = @RegimeName,
+                startdate = @StartDate,
+                enddate = @EndDate,
+                isactive = @IsActive
+            WHERE regimeid = @regimeId AND organizationid = @organizationId AND isdeleted = false
+            RETURNING regimeid;";
+
+        var parameters = new
+        {
+            regimeId,
+            organizationId,
+            dto.Country,
+            dto.RegimeName,
+            dto.StartDate,
+            dto.EndDate,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetTaxRegimeByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteTaxRegimeAsync(Guid regimeId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.taxregimes
+            SET isdeleted = true
+            WHERE regimeid = @regimeId AND organizationid = @organizationId AND isdeleted = false
+            RETURNING regimeid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { regimeId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Tax Categories
+    public async Task<IEnumerable<TaxCategoryDto>> GetAllTaxCategoriesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tc.categoryid AS CategoryId,
+                tc.regimeid AS RegimeId,
+                tr.regimename AS RegimeName,
+                tc.categoryname AS CategoryName,
+                tc.isactive AS IsActive,
+                tc.isdeleted AS IsDeleted,
+                tc.createdat AS CreatedAt
+            FROM payroll.taxcategories tc
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+            WHERE tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tc.isdeleted = false
+            ORDER BY tc.createdat DESC;";
+
+        return await QueryAsync<TaxCategoryDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<TaxCategoryDto>> GetActiveTaxCategoriesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tc.categoryid AS CategoryId,
+                tc.regimeid AS RegimeId,
+                tr.regimename AS RegimeName,
+                tc.categoryname AS CategoryName,
+                tc.isactive AS IsActive,
+                tc.isdeleted AS IsDeleted,
+                tc.createdat AS CreatedAt
+            FROM payroll.taxcategories tc
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+            WHERE tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tc.isactive = true
+              AND tc.isdeleted = false
+            ORDER BY tc.createdat DESC;";
+
+        return await QueryAsync<TaxCategoryDto>(sql, new { organizationId });
+    }
+
+    public async Task<TaxCategoryDto?> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tc.categoryid AS CategoryId,
+                tc.regimeid AS RegimeId,
+                tr.regimename AS RegimeName,
+                tc.categoryname AS CategoryName,
+                tc.isactive AS IsActive,
+                tc.isdeleted AS IsDeleted,
+                tc.createdat AS CreatedAt
+            FROM payroll.taxcategories tc
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+            WHERE tc.categoryid = @categoryId
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tc.isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<TaxCategoryDto>(sql, new { categoryId, organizationId });
+    }
+
+    public async Task<TaxCategoryDto> CreateTaxCategoryAsync(Guid organizationId, CreateTaxCategoryDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.taxcategories (
+                regimeid, categoryname, isactive, isdeleted
+            )
+            SELECT
+                @RegimeId, @CategoryName, @IsActive, false
+            FROM payroll.taxregimes tr
+            WHERE tr.regimeid = @RegimeId
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+            RETURNING categoryid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RegimeId,
+            dto.CategoryName,
+            dto.IsActive
+        };
+
+        var categoryId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetTaxCategoryByIdAsync(categoryId, organizationId))!;
+    }
+
+    public async Task<TaxCategoryDto?> UpdateTaxCategoryAsync(Guid categoryId, Guid organizationId, UpdateTaxCategoryDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.taxcategories tc
+            SET
+                regimeid = @RegimeId,
+                categoryname = @CategoryName,
+                isactive = @IsActive
+            WHERE tc.categoryid = @categoryId
+              AND tc.isdeleted = false
+              AND EXISTS (
+                  SELECT 1
+                  FROM payroll.taxregimes tr
+                  WHERE tr.regimeid = tc.regimeid
+                    AND tr.organizationid = @organizationId
+                    AND tr.isdeleted = false
+              )
+              AND EXISTS (
+                  SELECT 1
+                  FROM payroll.taxregimes tr2
+                  WHERE tr2.regimeid = @RegimeId
+                    AND tr2.organizationid = @organizationId
+                    AND tr2.isdeleted = false
+              )
+            RETURNING categoryid;";
+
+        var parameters = new
+        {
+            categoryId,
+            organizationId,
+            dto.RegimeId,
+            dto.CategoryName,
+            dto.IsActive
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetTaxCategoryByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteTaxCategoryAsync(Guid categoryId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.taxcategories tc
+            SET isdeleted = true
+            WHERE tc.categoryid = @categoryId
+              AND tc.isdeleted = false
+              AND EXISTS (
+                  SELECT 1
+                  FROM payroll.taxregimes tr
+                  WHERE tr.regimeid = tc.regimeid
+                    AND tr.organizationid = @organizationId
+                    AND tr.isdeleted = false
+              )
+            RETURNING tc.categoryid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { categoryId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Tax Slabs
+    public async Task<IEnumerable<TaxSlabDto>> GetAllTaxSlabsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ts.slabid AS SlabId,
+                ts.categoryid AS CategoryId,
+                tc.categoryname AS CategoryName,
+                ts.slaborder AS SlabOrder,
+                ts.minincome AS MinIncome,
+                ts.maxincome AS MaxIncome,
+                ts.fixedamount AS FixedAmount,
+                ts.percentage AS Percentage,
+                ts.isdeleted AS IsDeleted,
+                ts.createdat AS CreatedAt
+            FROM payroll.taxslabs ts
+            INNER JOIN payroll.taxcategories tc ON tc.categoryid = ts.categoryid
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+            WHERE tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tc.isdeleted = false
+              AND ts.isdeleted = false
+            ORDER BY ts.createdat DESC, ts.slaborder ASC;";
+
+        return await QueryAsync<TaxSlabDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<TaxSlabDto>> GetActiveTaxSlabsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ts.slabid AS SlabId,
+                ts.categoryid AS CategoryId,
+                tc.categoryname AS CategoryName,
+                ts.slaborder AS SlabOrder,
+                ts.minincome AS MinIncome,
+                ts.maxincome AS MaxIncome,
+                ts.fixedamount AS FixedAmount,
+                ts.percentage AS Percentage,
+                ts.isdeleted AS IsDeleted,
+                ts.createdat AS CreatedAt
+            FROM payroll.taxslabs ts
+            INNER JOIN payroll.taxcategories tc ON tc.categoryid = ts.categoryid
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+            WHERE tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tr.isactive = true
+              AND tc.isdeleted = false
+              AND tc.isactive = true
+              AND ts.isdeleted = false
+            ORDER BY ts.createdat DESC, ts.slaborder ASC;";
+
+        return await QueryAsync<TaxSlabDto>(sql, new { organizationId });
+    }
+
+    public async Task<TaxSlabDto?> GetTaxSlabByIdAsync(Guid slabId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                ts.slabid AS SlabId,
+                ts.categoryid AS CategoryId,
+                tc.categoryname AS CategoryName,
+                ts.slaborder AS SlabOrder,
+                ts.minincome AS MinIncome,
+                ts.maxincome AS MaxIncome,
+                ts.fixedamount AS FixedAmount,
+                ts.percentage AS Percentage,
+                ts.isdeleted AS IsDeleted,
+                ts.createdat AS CreatedAt
+            FROM payroll.taxslabs ts
+            INNER JOIN payroll.taxcategories tc ON tc.categoryid = ts.categoryid
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+            WHERE ts.slabid = @slabId
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tc.isdeleted = false
+              AND ts.isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<TaxSlabDto>(sql, new { slabId, organizationId });
+    }
+
+    public async Task<TaxSlabDto> CreateTaxSlabAsync(Guid organizationId, CreateTaxSlabDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.taxslabs (
+                categoryid, slaborder, minincome, maxincome, fixedamount, percentage, isdeleted
+            )
+            SELECT
+                @CategoryId, @SlabOrder, @MinIncome, @MaxIncome, @FixedAmount, @Percentage, false
+            FROM payroll.taxcategories tc
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+            WHERE tc.categoryid = @CategoryId
+              AND tc.isdeleted = false
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+            RETURNING slabid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.CategoryId,
+            dto.SlabOrder,
+            dto.MinIncome,
+            dto.MaxIncome,
+            dto.FixedAmount,
+            dto.Percentage
+        };
+
+        var slabId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetTaxSlabByIdAsync(slabId, organizationId))!;
+    }
+
+    public async Task<TaxSlabDto?> UpdateTaxSlabAsync(Guid slabId, Guid organizationId, UpdateTaxSlabDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.taxslabs ts
+            SET
+                categoryid = @CategoryId,
+                slaborder = @SlabOrder,
+                minincome = @MinIncome,
+                maxincome = @MaxIncome,
+                fixedamount = @FixedAmount,
+                percentage = @Percentage
+            WHERE ts.slabid = @slabId
+              AND ts.isdeleted = false
+              AND EXISTS (
+                  SELECT 1
+                  FROM payroll.taxcategories tc
+                  INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+                  WHERE tc.categoryid = ts.categoryid
+                    AND tc.isdeleted = false
+                    AND tr.organizationid = @organizationId
+                    AND tr.isdeleted = false
+              )
+              AND EXISTS (
+                  SELECT 1
+                  FROM payroll.taxcategories tc2
+                  INNER JOIN payroll.taxregimes tr2 ON tr2.regimeid = tc2.regimeid
+                  WHERE tc2.categoryid = @CategoryId
+                    AND tc2.isdeleted = false
+                    AND tr2.organizationid = @organizationId
+                    AND tr2.isdeleted = false
+              )
+            RETURNING slabid;";
+
+        var parameters = new
+        {
+            slabId,
+            organizationId,
+            dto.CategoryId,
+            dto.SlabOrder,
+            dto.MinIncome,
+            dto.MaxIncome,
+            dto.FixedAmount,
+            dto.Percentage
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetTaxSlabByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteTaxSlabAsync(Guid slabId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.taxslabs ts
+            SET isdeleted = true
+            WHERE ts.slabid = @slabId
+              AND ts.isdeleted = false
+              AND EXISTS (
+                  SELECT 1
+                  FROM payroll.taxcategories tc
+                  INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+                  WHERE tc.categoryid = ts.categoryid
+                    AND tc.isdeleted = false
+                    AND tr.organizationid = @organizationId
+                    AND tr.isdeleted = false
+              )
+            RETURNING ts.slabid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { slabId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Tax Component Rules
+    public async Task<IEnumerable<TaxComponentRuleDto>> GetAllTaxComponentRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tcr.componentruleid AS ComponentRuleId,
+                tcr.regimeid AS RegimeId,
+                tr.regimename AS RegimeName,
+                tcr.organizationid AS OrganizationId,
+                tcr.componentname AS ComponentName,
+                tcr.taxability AS Taxability,
+                tcr.limitamount AS LimitAmount,
+                tcr.limitpercentage AS LimitPercentage,
+                tcr.applystage AS ApplyStage,
+                tcr.isdeleted AS IsDeleted,
+                tcr.createdat AS CreatedAt
+            FROM payroll.taxcomponentrules tcr
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tcr.regimeid
+            WHERE tcr.organizationid = @organizationId
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tcr.isdeleted = false
+            ORDER BY tcr.createdat DESC;";
+
+        return await QueryAsync<TaxComponentRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<TaxComponentRuleDto>> GetActiveTaxComponentRulesAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tcr.componentruleid AS ComponentRuleId,
+                tcr.regimeid AS RegimeId,
+                tr.regimename AS RegimeName,
+                tcr.organizationid AS OrganizationId,
+                tcr.componentname AS ComponentName,
+                tcr.taxability AS Taxability,
+                tcr.limitamount AS LimitAmount,
+                tcr.limitpercentage AS LimitPercentage,
+                tcr.applystage AS ApplyStage,
+                tcr.isdeleted AS IsDeleted,
+                tcr.createdat AS CreatedAt
+            FROM payroll.taxcomponentrules tcr
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tcr.regimeid
+            WHERE tcr.organizationid = @organizationId
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tr.isactive = true
+              AND tcr.isdeleted = false
+            ORDER BY tcr.createdat DESC;";
+
+        return await QueryAsync<TaxComponentRuleDto>(sql, new { organizationId });
+    }
+
+    public async Task<TaxComponentRuleDto?> GetTaxComponentRuleByIdAsync(Guid componentRuleId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tcr.componentruleid AS ComponentRuleId,
+                tcr.regimeid AS RegimeId,
+                tr.regimename AS RegimeName,
+                tcr.organizationid AS OrganizationId,
+                tcr.componentname AS ComponentName,
+                tcr.taxability AS Taxability,
+                tcr.limitamount AS LimitAmount,
+                tcr.limitpercentage AS LimitPercentage,
+                tcr.applystage AS ApplyStage,
+                tcr.isdeleted AS IsDeleted,
+                tcr.createdat AS CreatedAt
+            FROM payroll.taxcomponentrules tcr
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tcr.regimeid
+            WHERE tcr.componentruleid = @componentRuleId
+              AND tcr.organizationid = @organizationId
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tcr.isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<TaxComponentRuleDto>(sql, new { componentRuleId, organizationId });
+    }
+
+    public async Task<TaxComponentRuleDto> CreateTaxComponentRuleAsync(Guid organizationId, CreateTaxComponentRuleDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.taxcomponentrules (
+                regimeid, organizationid, componentname, taxability, limitamount, limitpercentage, applystage, isdeleted
+            )
+            SELECT
+                @RegimeId, @organizationId, @ComponentName, @Taxability, @LimitAmount, @LimitPercentage, @ApplyStage, false
+            FROM payroll.taxregimes tr
+            WHERE tr.regimeid = @RegimeId
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+            RETURNING componentruleid;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.RegimeId,
+            dto.ComponentName,
+            dto.Taxability,
+            dto.LimitAmount,
+            dto.LimitPercentage,
+            dto.ApplyStage
+        };
+
+        var componentRuleId = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetTaxComponentRuleByIdAsync(componentRuleId, organizationId))!;
+    }
+
+    public async Task<TaxComponentRuleDto?> UpdateTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId, UpdateTaxComponentRuleDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.taxcomponentrules tcr
+            SET
+                regimeid = @RegimeId,
+                componentname = @ComponentName,
+                taxability = @Taxability,
+                limitamount = @LimitAmount,
+                limitpercentage = @LimitPercentage,
+                applystage = @ApplyStage
+            WHERE tcr.componentruleid = @componentRuleId
+              AND tcr.organizationid = @organizationId
+              AND tcr.isdeleted = false
+              AND EXISTS (
+                  SELECT 1
+                  FROM payroll.taxregimes tr
+                  WHERE tr.regimeid = @RegimeId
+                    AND tr.organizationid = @organizationId
+                    AND tr.isdeleted = false
+              )
+            RETURNING componentruleid;";
+
+        var parameters = new
+        {
+            componentRuleId,
+            organizationId,
+            dto.RegimeId,
+            dto.ComponentName,
+            dto.Taxability,
+            dto.LimitAmount,
+            dto.LimitPercentage,
+            dto.ApplyStage
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetTaxComponentRuleByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.taxcomponentrules
+            SET isdeleted = true
+            WHERE componentruleid = @componentRuleId
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING componentruleid;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { componentRuleId, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // Tax Transactions
+    public async Task<IEnumerable<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tt.id AS Id,
+                tt.organizationid AS OrganizationId,
+                tt.employeeid AS EmployeeId,
+                CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) AS EmployeeName,
+                tt.periodid AS PeriodId,
+                pp.periodname AS PeriodName,
+                tt.categoryid AS CategoryId,
+                tc.categoryname AS CategoryName,
+                tt.grossincome AS GrossIncome,
+                tt.taxableincome AS TaxableIncome,
+                tt.taxamount AS TaxAmount,
+                tt.monthlytax AS MonthlyTax,
+                tt.createdat AS CreatedAt
+            FROM payroll.taxtransactions tt
+            INNER JOIN employee.employees e ON e.employeeid = tt.employeeid AND e.organizationid = tt.organizationid
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = tt.periodid AND pp.organizationid = tt.organizationid
+            LEFT JOIN payroll.taxcategories tc ON tc.categoryid = tt.categoryid
+            WHERE tt.organizationid = @organizationId
+            ORDER BY tt.createdat DESC;";
+
+        return await QueryAsync<TaxTransactionDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<TaxTransactionDto>> GetActiveTaxTransactionsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tt.id AS Id,
+                tt.organizationid AS OrganizationId,
+                tt.employeeid AS EmployeeId,
+                CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) AS EmployeeName,
+                tt.periodid AS PeriodId,
+                pp.periodname AS PeriodName,
+                tt.categoryid AS CategoryId,
+                tc.categoryname AS CategoryName,
+                tt.grossincome AS GrossIncome,
+                tt.taxableincome AS TaxableIncome,
+                tt.taxamount AS TaxAmount,
+                tt.monthlytax AS MonthlyTax,
+                tt.createdat AS CreatedAt
+            FROM payroll.taxtransactions tt
+            INNER JOIN employee.employees e ON e.employeeid = tt.employeeid AND e.organizationid = tt.organizationid
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = tt.periodid AND pp.organizationid = tt.organizationid
+            LEFT JOIN payroll.taxcategories tc ON tc.categoryid = tt.categoryid
+            WHERE tt.organizationid = @organizationId
+              AND (LOWER(COALESCE(e.status, 'active')) = 'active')
+              AND pp.isactive = true
+              AND pp.isdeleted = false
+              AND (tt.categoryid IS NULL OR (tc.isactive = true AND tc.isdeleted = false))
+            ORDER BY tt.createdat DESC;";
+
+        return await QueryAsync<TaxTransactionDto>(sql, new { organizationId });
+    }
+
+    public async Task<TaxTransactionDto?> GetTaxTransactionByIdAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tt.id AS Id,
+                tt.organizationid AS OrganizationId,
+                tt.employeeid AS EmployeeId,
+                CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) AS EmployeeName,
+                tt.periodid AS PeriodId,
+                pp.periodname AS PeriodName,
+                tt.categoryid AS CategoryId,
+                tc.categoryname AS CategoryName,
+                tt.grossincome AS GrossIncome,
+                tt.taxableincome AS TaxableIncome,
+                tt.taxamount AS TaxAmount,
+                tt.monthlytax AS MonthlyTax,
+                tt.createdat AS CreatedAt
+            FROM payroll.taxtransactions tt
+            INNER JOIN employee.employees e ON e.employeeid = tt.employeeid AND e.organizationid = tt.organizationid
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = tt.periodid AND pp.organizationid = tt.organizationid
+            LEFT JOIN payroll.taxcategories tc ON tc.categoryid = tt.categoryid
+            WHERE tt.id = @id
+              AND tt.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<TaxTransactionDto>(sql, new { id, organizationId });
+    }
+
+    public async Task<TaxTransactionDto> CreateTaxTransactionAsync(Guid organizationId, CreateTaxTransactionDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.taxtransactions (
+                organizationid, employeeid, periodid, categoryid, grossincome, taxableincome, taxamount, monthlytax
+            )
+            SELECT
+                @organizationId, @EmployeeId, @PeriodId, @CategoryId, @GrossIncome, @TaxableIncome, @TaxAmount, @MonthlyTax
+            WHERE EXISTS (
+                SELECT 1
+                FROM employee.employees e
+                WHERE e.employeeid = @EmployeeId
+                  AND e.organizationid = @organizationId
+            )
+            AND EXISTS (
+                SELECT 1
+                FROM payroll.payrollperiods pp
+                WHERE pp.periodid = @PeriodId
+                  AND pp.organizationid = @organizationId
+            )
+            AND (
+                @CategoryId IS NULL
+                OR EXISTS (
+                    SELECT 1
+                    FROM payroll.taxcategories tc
+                    INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+                    WHERE tc.categoryid = @CategoryId
+                      AND tr.organizationid = @organizationId
+                      AND tc.isdeleted = false
+                      AND tr.isdeleted = false
+                )
+            )
+            RETURNING id;";
+
+        var parameters = new
+        {
+            organizationId,
+            dto.EmployeeId,
+            dto.PeriodId,
+            dto.CategoryId,
+            dto.GrossIncome,
+            dto.TaxableIncome,
+            dto.TaxAmount,
+            dto.MonthlyTax
+        };
+
+        var id = await QuerySingleAsync<Guid>(sql, parameters);
+        return (await GetTaxTransactionByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<TaxTransactionDto?> UpdateTaxTransactionAsync(Guid id, Guid organizationId, UpdateTaxTransactionDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.taxtransactions tt
+            SET
+                employeeid = @EmployeeId,
+                periodid = @PeriodId,
+                categoryid = @CategoryId,
+                grossincome = @GrossIncome,
+                taxableincome = @TaxableIncome,
+                taxamount = @TaxAmount,
+                monthlytax = @MonthlyTax
+            WHERE tt.id = @id
+              AND tt.organizationid = @organizationId
+              AND EXISTS (
+                  SELECT 1
+                  FROM employee.employees e
+                  WHERE e.employeeid = @EmployeeId
+                    AND e.organizationid = @organizationId
+              )
+              AND EXISTS (
+                  SELECT 1
+                  FROM payroll.payrollperiods pp
+                  WHERE pp.periodid = @PeriodId
+                    AND pp.organizationid = @organizationId
+              )
+              AND (
+                  @CategoryId IS NULL
+                  OR EXISTS (
+                      SELECT 1
+                      FROM payroll.taxcategories tc
+                      INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+                      WHERE tc.categoryid = @CategoryId
+                        AND tr.organizationid = @organizationId
+                        AND tc.isdeleted = false
+                        AND tr.isdeleted = false
+                  )
+              )
+            RETURNING tt.id;";
+
+        var parameters = new
+        {
+            id,
+            organizationId,
+            dto.EmployeeId,
+            dto.PeriodId,
+            dto.CategoryId,
+            dto.GrossIncome,
+            dto.TaxableIncome,
+            dto.TaxAmount,
+            dto.MonthlyTax
+        };
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, parameters);
+        if (updatedId == null || updatedId == Guid.Empty)
+            return null;
+
+        return await GetTaxTransactionByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteTaxTransactionAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            DELETE FROM payroll.taxtransactions
+            WHERE id = @id AND organizationid = @organizationId
+            RETURNING id;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
     public async Task<ProvidentFundRequestDto> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct)
     {
         var sql = @"

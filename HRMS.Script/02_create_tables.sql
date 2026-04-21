@@ -2093,39 +2093,73 @@ create table if not exists payroll.pftransactions(
 ); // pf rules
 
 // tax slabs 
-create table if not exists payroll.taxslabs
+-- 1. Handles Yearly/Fiscal updates per country and per organization
+CREATE TABLE payroll.taxregimes
 (
-    slabid          uuid primary key default uuid_generate_v4(),
-    organizationid  uuid not null,
-    slabrulename        character varying(100) not null,
-    description         text,
-    fiscalyear      character varying(20) not null,
-    minincome       numeric(15,2) not null,
-    maxincome       numeric(15,2),
-    fixedamount     numeric(15,2) default 0,
-    percentage      numeric(5,2) default 0,
-    isactive        boolean default true,
-    isdeleted       boolean default false,
-    createdat       timestamptz default current_timestamp,
-    updatedat       timestamptz default current_timestamp,
-    constraint uqtaxslab unique (organizationid, fiscalyear, minincome)
+    regimeid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,           -- Identifies which company owns this tax setup
+    country VARCHAR(50),                    -- Target country (e.g., Pakistan, UAE)
+    regimename VARCHAR(100),                -- Display name (e.g., Finance Act 2024)
+    startdate DATE NOT NULL,                -- Start of fiscal year
+    enddate DATE NOT NULL,                  -- End of fiscal year
+    isactive BOOLEAN DEFAULT TRUE,          -- Toggle to enable/disable this regime
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    isdeleted BOOLEAN DEFAULT FALSE
 );
 
-create table if not exists payroll.taxtransactions
+-- 2. Handles different tax statuses (Linked to Regime)
+CREATE TABLE payroll.taxcategories
 (
-    id              uuid primary key default uuid_generate_v4(),
-    organizationid  uuid not null,
-    employeeid      uuid not null,
-    periodid        uuid not null,
-    slabid          uuid references payroll.taxslabs(slabid),
-    annualsalary    numeric(15,2),
-    taxableincome   numeric(15,2),
-    fixedamount     numeric(15,2) default 0,
-    taxpercentage   numeric(5,2) default 0,
-    taxamount       numeric(15,2),
-    createdat       timestamptz default current_timestamp,
-    updatedat       timestamptz default current_timestamp,
-    constraint uqtaxtransaction unique (employeeid, periodid)
+    categoryid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    regimeid uuid NOT NULL,                 -- Link to the specific fiscal year/country
+    categoryname VARCHAR(100),              -- e.g., Salaried, Non-Salaried, Filer
+    isactive BOOLEAN DEFAULT TRUE,          -- Toggle for this specific category
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    isdeleted BOOLEAN DEFAULT FALSE
+);
+
+-- 3. Refined Slabs (Linked to Category)
+CREATE TABLE payroll.taxslabs
+(
+    slabid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    categoryid uuid NOT NULL,               -- Link to category (e.g., Salaried slabs)
+    slaborder INT NOT NULL,                 -- Order of calculation (1, 2, 3...)
+    minincome NUMERIC(15,2) NOT NULL,       -- The "Floor" of the tax bucket
+    maxincome NUMERIC(15,2),                -- The "Ceiling" (NULL means infinity)
+    fixedamount NUMERIC(15,2) DEFAULT 0,    -- The tax accumulated from previous buckets
+    percentage NUMERIC(5,2) DEFAULT 0,      -- Tax rate for amount exceeding minincome
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    isdeleted BOOLEAN DEFAULT FALSE
+);
+
+-- 4. Component Mapping (How Loans, PF, Gratuity affect tax per company)
+CREATE TABLE payroll.taxcomponentrules
+(
+    componentruleid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    regimeid uuid NOT NULL,                 -- Link to specific country/year
+    organizationid uuid NOT NULL,           -- Company specific rules for PF/Gratuity
+    componentname VARCHAR(50),              -- Name of your module (Loan, PF, Gratuity)
+    taxability VARCHAR(20),                 -- FullyTaxable, Exempt, PartiallyExempt
+    limitamount NUMERIC(15,2) DEFAULT 0,    -- Fixed tax-free limit (e.g., 300,000)
+    limitpercentage NUMERIC(5,2) DEFAULT 0, -- % tax-free limit (e.g., 10% of basic)
+    applystage VARCHAR(20),                 -- BeforeTax (Income filter) or AfterTax (Rebate)
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    isdeleted BOOLEAN DEFAULT FALSE
+);
+
+-- 5. Final Transactions (The actual payroll record)
+CREATE TABLE payroll.taxtransactions
+(
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,           -- For fast filtering per company
+    employeeid uuid NOT NULL,               -- The person being taxed
+    periodid uuid NOT NULL,                 -- The specific Payroll Month ID
+    categoryid uuid,                        -- The category used (Salaried/Filer etc)
+    grossincome NUMERIC(15,2),              -- Total earnings before any logic
+    taxableincome NUMERIC(15,2),            -- Income after passing through componentrules
+    taxamount NUMERIC(15,2),                -- Total tax for the whole year
+    monthlytax NUMERIC(15,2),               -- Final deduction for this month (taxamount / 12)
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 // social security
