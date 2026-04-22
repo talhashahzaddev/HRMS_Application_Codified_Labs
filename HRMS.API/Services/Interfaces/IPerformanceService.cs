@@ -11,7 +11,7 @@ public interface IPerformanceService
     Task<List<ManagerReviewDto>> GetAllManagerReviewsAsync(Guid organizationId, Guid managerId, SearchManagersDto search);
     Task<List<HrReviewDto>> GetAllAppraisaAsync(Guid organizationId, Guid employeeId, SearchAppraisalDto search);
     Task<HrReviewDto> SubmitHrReviewAsync(HrReviewRequest request, Guid organizationId, Guid currentEmployeeId);
-    Task<List<HrReviewDto>> GetHrReviewsAsync(Guid organizationId,Guid CurrentEmpId);
+    Task<List<HrReviewDto>> GetHrReviewsAsync(Guid organizationId, Guid CurrentEmpId);
     Task<List<HrReviewDto>> GetHrReviewsByEmployeeAsync(Guid organizationId, Guid employeeId);
     Task<bool> UpdateGoalStatusAsync(Guid goalId, string status);
     //Task<AppraisalCycleDto> CreateAppraisalCycleAsync(string cycleName, DateTime startDate, DateTime endDate, Guid organizationId, string? description = null);
@@ -19,7 +19,7 @@ public interface IPerformanceService
     Task<GoalDto?> UpdateGoalAsync(Guid organizationId, UpdateGoalRequest request);
     Task DeleteGoalAsync(Guid organizationId, Guid goalId);
     Task<GoalDto?> GetGoalByIdAsync(Guid organizationId, Guid goalId);
-    Task<List<GoalDto>> GetAllGoalsAsync(Guid organizationId,Guid CurrentEmpid);
+    Task<List<GoalDto>> GetAllGoalsAsync(Guid organizationId, Guid CurrentEmpid);
     Task<bool> AssignGoalAsync(Guid organizationId, Guid goalId, Guid assignedTo, Guid assignedBy);
     Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsByEmployeeAsync(Guid employeeId, Guid organizationId);
     Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsForManagerAsync(Guid managerId, Guid organizationId);
@@ -30,7 +30,7 @@ public interface IPerformanceService
 
 
     Task<AppraisalCycleDto> CreateAppraisalCycleAsync(CreateAppraisalCycleRequest request, Guid organizationId, Guid currentEmployeeId);
-    
+
     Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId);
     Task<EmployeeAppraisalDto> CreateEmployeeAppraisalAsync(CreateAppraisalRequest request, Guid reviewerId, Guid organizationId);
     Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId);
@@ -57,7 +57,7 @@ public interface IPerformanceService
     //KRA 
     Task<PagedResult<KRADto>> GetKRAsAsync(Guid organizationId, int page, int limit, string? search);
     Task<KRADto?> GetKRAByIdAsync(Guid kraId);
-    Task<KRADto> CreateKRAAsync(Guid organizationId,Guid CurrentEmpId, CreateKRARequest request);
+    Task<KRADto> CreateKRAAsync(Guid organizationId, Guid CurrentEmpId, CreateKRARequest request);
     Task<KRADto> UpdateKRAAsync(Guid kraId, UpdateKRARequest request);
     Task<bool> DeleteKRAAsync(Guid kraId);
     Task<bool> UpdateKRAStatusAsync(Guid kraId, bool isActive);
@@ -73,15 +73,15 @@ public interface IPerformanceService
     Task<EmployeeAppraisalDto> ReviewAppraisalAsync(Guid appraisalId, ReviewAppraisalRequest request);
     Task<PerformanceReportDto> GeneratePerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
     Task<byte[]> ExportPerformanceReportAsync(Guid organizationId, PerformanceReportFilterRequest filter);
-    
-    Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request, Guid organizationId,Guid CurrentEmployeeId);
+
+    Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request, Guid organizationId, Guid CurrentEmployeeId);
     Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId);
     Task<IEnumerable<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null);
     Task<string> SubmitSelfAssessmentAsync(Guid employeeId, Guid cycleId);
     Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId);
     Task<IEnumerable<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null);
     Task<IEnumerable<SelfAssessmentDto>> GetMyTeamSelfAssessmentsAsync(Guid managerEmployeeId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null);
-    Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request,Guid organizationId,Guid currentEmpId);
+    Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request, Guid organizationId, Guid currentEmpId);
     Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null);
 
     // Appraisal Cycle Management - Enhanced (New methods only)
@@ -94,5 +94,9 @@ public interface IPerformanceService
     Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId);
     Task<Guid> GetEmployeeFromTable(Guid Userid);
     Task<TeamPerformanceOverviewDto> GetTeamPerformanceOverviewAsync(Guid managerEmployeeId, Guid organizationId);
+    Task<SkillWithEmployeesDto?> GetSkillWithEmployeesAsync(Guid skillId);
+    Task<SkillSetDto> ToggleSkillStatusAsync(Guid skillId);
+    Task<PagedResult<EmployeeSkillSummaryDto>> GetEmployeeSkillsSummaryPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit);
+    Task<EmployeeSkillFullDetailDto> GetEmployeeSkillFullDetailAsync(Guid employeeId);
 
 }

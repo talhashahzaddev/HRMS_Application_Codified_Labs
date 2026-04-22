@@ -92,27 +92,6 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
             UpdatedAt = DateTime.UtcNow
         };
     }
-
-    //public async Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId)
-    //{
-    //    var sql = @"
-    //        SELECT ac.cycleid, ac.cyclename, ac.description, ac.startdate, ac.enddate,
-    //               ac.status, ac.ratingscale, ac.selfreviewenabled, ac.peerreviewenabled,
-    //               ac.managerreviewenabled,
-    //               COUNT(ea.appraisalid) as total_appraisals,
-    //               COUNT(CASE WHEN ea.status = 'completed' THEN 1 END) as completed_appraisals
-    //        FROM performance.appraisalcycles ac
-    //        LEFT JOIN performance.employeeappraisals ea ON ac.cycleid = ea.cycleid
-    //        WHERE ac.organizationid = @organizationId
-    //        GROUP BY ac.cycleid, ac.cyclename, ac.description, ac.startdate, ac.enddate,
-    //                 ac.status, ac.ratingscale, ac.selfreviewenabled, ac.peerreviewenabled,
-    //                 ac.managerreviewenabled
-    //        ORDER BY ac.startdate DESC";
-
-    //    var results = await QueryAsync<AppraisalCycleDto>(sql, new { organizationId });
-    //    return results.ToList();
-    //}
-
     public async Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId)
     {
         var sql = @"
@@ -164,9 +143,6 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
         var results = await QueryAsync<AppraisalCycleDto>(sql, new { organizationId });
         return results.ToList();
     }
-
-   
-
     public async Task<EmployeeAppraisal> CreateEmployeeAppraisalAsync(EmployeeAppraisal appraisal)
     {
         try
@@ -235,7 +211,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
             // ---------------------------------------------------------------
             if (existingId != null)
             {
-                                var updateSql = @"
+                var updateSql = @"
                 UPDATE performance.employeeappraisals
                 SET
                     kraratings = COALESCE(kraratings, '{}'::jsonb)
@@ -249,15 +225,15 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
                 RETURNING appraisalid;
                 ";
 
-                                appraisal.AppraisalId = await ExecuteScalarAsync<Guid>(updateSql, new
-                                {
-                                    id = existingId,
-                                    kraRatings = JsonSerializer.Serialize(appraisal.KraRatings),
-                                    feedback = appraisal.Feedback,
-                                    improvementAreas = appraisal.ImprovementAreas,
-                                    developmentPlan = appraisal.DevelopmentPlan,
-                                    status = appraisal.Status
-                                });
+                appraisal.AppraisalId = await ExecuteScalarAsync<Guid>(updateSql, new
+                {
+                    id = existingId,
+                    kraRatings = JsonSerializer.Serialize(appraisal.KraRatings),
+                    feedback = appraisal.Feedback,
+                    improvementAreas = appraisal.ImprovementAreas,
+                    developmentPlan = appraisal.DevelopmentPlan,
+                    status = appraisal.Status
+                });
 
                 return appraisal;
             }
@@ -407,110 +383,239 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
 
     public async Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
     {
+        // No skilllevelscale anymore — fixed 1-10 at app level
         var sql = @"
-INSERT INTO performance.skillsets
-    (organizationid, skillname, category, description, skilllevelscale, isactive)
-VALUES
-    (@organizationId, @skillName, @category, @description, to_jsonb(@skillLevelScale), @isActive)
-RETURNING 
-    skillid, 
-    skillname, 
-    category, 
-    description,
-    ARRAY(SELECT jsonb_array_elements_text(skilllevelscale)::int) AS skilllevelscale,
-    isactive, 
-    createdat;";
-
+            INSERT INTO performance.skillsets
+                (organizationid, skillname, category, description, isactive)
+            VALUES
+                (@organizationId, @skillName, @category, @description, @isActive)
+            RETURNING 
+                skillid, skillname, category, description, isactive, createdat,
+                0 AS employeecount;";
         try
         {
-            // Default scale if none provided
-            var skillScale = request.SkillLevelScale?.Length > 0
-                ? request.SkillLevelScale
-                : new int[] { 1, 2, 3, 4, 5 };
-
-            // Execute query and map to DTO
-            var result = await QuerySingleOrDefaultAsync<SkillSetDto>(sql, new
+            return await QuerySingleOrDefaultAsync<SkillSetDto>(sql, new
             {
                 organizationId,
                 skillName = request.SkillName,
                 category = request.Category ?? "General",
                 description = request.Description,
-                skillLevelScale = skillScale,
                 isActive = request.IsActive
             });
-
-            return result;
         }
-        catch (PostgresException ex)
+        catch (PostgresException ex) when (ex.SqlState == "23505")
         {
-            if (ex.SqlState == "23505") // unique_violation
-            {
-                // Friendly error for duplicate skill names
-                throw new InvalidOperationException("A skill with this name already exists in the organization.");
-            }
-
-            // Log & rethrow for any other DB error
-            throw new Exception("An unexpected database error occurred while creating the skill.", ex);
-        }
-        catch (Exception ex)
-        {
-            // General fallback error
-            throw new Exception("An unexpected error occurred while creating the skill.", ex);
+            throw new InvalidOperationException("A skill with this name already exists in the organization.");
         }
     }
-    //    public async Task<SkillSetDto?> CreateSkillSetAsync(CreateSkillSetRequest request, Guid organizationId)
-    //    {
-    //        var sql = @"
-    //INSERT INTO performance.skillsets
-    //    (organizationid, skillname, category, description, skilllevelscale, isactive)
-    //VALUES
-    //    (@organizationId, @skillName, @category, @description, to_jsonb(@skillLevelScale), @isActive)
-    //RETURNING 
-    //    skillid, 
-    //    skillname, 
-    //    category, 
-    //    description,
-    //    ARRAY(SELECT jsonb_array_elements_text(skilllevelscale)::int) AS skilllevelscale,
-    //    isactive, 
-    //    createdat;";
 
-    //        try
-    //        {
-    //            // Default scale if none provided
-    //            var skillScale = request.SkillLevelScale?.Length > 0
-    //                ? request.SkillLevelScale
-    //                : new int[] { 1, 2, 3, 4, 5 };
+    public async Task<(List<SkillSetDto> Items, int Total)> GetSkillSetsPagedAsync(Guid organizationId, SkillSetFilterRequest filter, int page, int limit)
+    {
+        var conditions = new List<string> { "s.organizationid = @organizationId" };
+        var parameters = new Dictionary<string, object> { { "organizationId", organizationId } };
 
-    //            // Execute query and map to DTO
-    //            var result = await QuerySingleOrDefaultAsync<SkillSetDto>(sql, new
-    //            {
-    //                organizationId,
-    //                skillName = request.SkillName,
-    //                category = request.Category ?? "General",
-    //                description = request.Description,
-    //                skillLevelScale = skillScale,
-    //                isActive = request.IsActive
-    //            });
+        if (!string.IsNullOrWhiteSpace(filter.Category))
+        {
+            conditions.Add("s.category = @category");
+            parameters.Add("category", filter.Category);
+        }
+        if (filter.IsActive.HasValue)
+        {
+            conditions.Add("s.isactive = @isActive");
+            parameters.Add("isActive", filter.IsActive.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            conditions.Add("(LOWER(s.skillname) LIKE LOWER(@search) OR LOWER(s.category) LIKE LOWER(@search))");
+            parameters.Add("search", $"%{filter.Search.Trim()}%");
+        }
 
-    //            return result;
-    //        }
-    //        catch (PostgresException ex)
-    //        {
-    //            if (ex.SqlState == "23505") // unique_violation
-    //            {
-    //                // Friendly error for duplicate skill names
-    //                throw new InvalidOperationException("A skill with this name already exists in the organization.");
-    //            }
+        var where = string.Join(" AND ", conditions);
 
-    //            // Log & rethrow for any other DB error
-    //            throw new Exception("An unexpected database error occurred while creating the skill.", ex);
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            // General fallback error
-    //            throw new Exception("An unexpected error occurred while creating the skill.", ex);
-    //        }
-    //    }
+        var countSql = $"SELECT COUNT(*) FROM performance.skillsets s WHERE {where}";
+        var total = await ExecuteScalarAsync<int>(countSql, parameters);
+
+        var offset = (page - 1) * limit;
+        parameters.Add("limit", limit);
+        parameters.Add("offset", offset);
+
+        var sql = $@"
+            SELECT 
+                s.skillid,
+                s.skillname,
+                s.category,
+                s.description,
+                s.isactive,
+                s.createdat,
+                COUNT(es.employeeskillid) AS employeecount
+            FROM performance.skillsets s
+            LEFT JOIN performance.employeeskills es ON s.skillid = es.skillid
+            WHERE {where}
+            GROUP BY s.skillid, s.skillname, s.category, s.description, s.isactive, s.createdat
+            ORDER BY s.category, s.skillname
+            LIMIT @limit OFFSET @offset";
+
+        var items = (await QueryAsync<SkillSetDto>(sql, parameters)).ToList();
+        return (items, total);
+    }
+
+    public async Task<SkillWithEmployeesDto?> GetSkillWithEmployeesAsync(Guid skillId)
+    {
+        var skillSql = @"
+            SELECT 
+                s.skillid, s.skillname, s.category, s.description, s.isactive, s.createdat,
+                COUNT(es.employeeskillid) AS employeecount
+            FROM performance.skillsets s
+            LEFT JOIN performance.employeeskills es ON s.skillid = es.skillid
+            WHERE s.skillid = @skillId
+            GROUP BY s.skillid, s.skillname, s.category, s.description, s.isactive, s.createdat";
+
+        var skill = await QuerySingleOrDefaultAsync<SkillWithEmployeesDto>(skillSql, new { skillId });
+        if (skill == null) return null;
+
+        var empSql = @"
+            SELECT 
+                es.employeeskillid,
+                es.employeeid,
+                CONCAT(e.firstname, ' ', e.lastname) AS employeename,
+                e.email AS employeeemail,
+                d.departmentname AS department,
+                p.positiontitle AS position,
+                es.proficiencylevel,
+                es.notes,
+                CONCAT(a.firstname, ' ', a.lastname) AS assessorname,
+                es.lastassessed
+            FROM performance.employeeskills es
+            INNER JOIN employee.employees e ON es.employeeid = e.employeeid
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+            LEFT JOIN employee.positions p ON ed.positionid = p.positionid
+            LEFT JOIN employee.employees a ON es.assessedby = a.employeeid
+            WHERE es.skillid = @skillId
+            ORDER BY e.firstname, e.lastname";
+
+        skill.Employees = (await QueryAsync<EmployeeSkillDetailDto>(empSql, new { skillId })).ToList();
+        return skill;
+    }
+
+    public async Task<SkillSetDto> ToggleSkillStatusAsync(Guid skillId)
+    {
+        var sql = @"
+            UPDATE performance.skillsets
+            SET isactive = NOT isactive, updatedat = CURRENT_TIMESTAMP
+            WHERE skillid = @skillId
+            RETURNING skillid, skillname, category, description, isactive, createdat,
+                (SELECT COUNT(*) FROM performance.employeeskills WHERE skillid = @skillId) AS employeecount";
+
+        var result = await QuerySingleOrDefaultAsync<SkillSetDto>(sql, new { skillId });
+        return result ?? throw new KeyNotFoundException($"Skill {skillId} not found");
+    }
+
+    public async Task<(List<EmployeeSkillSummaryDto> Items, int Total)> GetEmployeeSkillsSummaryPagedAsync(
+    Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit)
+    {
+        var conditions = new List<string> { "e.organizationid = @organizationId" };
+        var parameters = new Dictionary<string, object> { { "organizationId", organizationId } };
+
+        if (filter.EmployeeId.HasValue)
+        {
+            conditions.Add("e.employeeid = @employeeId");
+            parameters.Add("employeeId", filter.EmployeeId.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Department))
+        {
+            conditions.Add("d.departmentname ILIKE @department");
+            parameters.Add("department", $"%{filter.Department}%");
+        }
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            conditions.Add(@"(LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@search)
+            OR LOWER(e.email) LIKE LOWER(@search))");
+            parameters.Add("search", $"%{filter.Search.Trim()}%");
+        }
+
+        var where = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(DISTINCT e.employeeid) 
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+            WHERE {where}";
+
+        var total = await ExecuteScalarAsync<int>(countSql, parameters);
+
+        var offset = (page - 1) * limit;
+        parameters.Add("limit", limit);
+        parameters.Add("offset", offset);
+
+        // Get employee rows
+        var empSql = $@"
+            SELECT 
+                e.employeeid,
+                CONCAT(e.firstname, ' ', e.lastname) AS employeename,
+                e.email,
+                d.departmentname AS department,
+                p.positiontitle AS position,
+                COUNT(es.employeeskillid) AS skillcount,
+                ROUND(AVG(es.proficiencylevel)::numeric, 1) AS averageproficiency
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+            LEFT JOIN employee.positions p ON ed.positionid = p.positionid
+            LEFT JOIN performance.employeeskills es ON e.employeeid = es.employeeid
+            WHERE {where}
+            GROUP BY e.employeeid, e.firstname, e.lastname, e.email, d.departmentname, p.positiontitle
+            ORDER BY e.firstname, e.lastname
+            LIMIT @limit OFFSET @offset";
+
+        var employees = (await QueryAsync<EmployeeSkillSummaryDto>(empSql, parameters)).ToList();
+
+        if (employees.Any())
+        {
+            var employeeIds = employees.Select(e => e.EmployeeId).ToList();
+            var skillNamesSql = @"
+                SELECT es.employeeid, s.skillname
+                FROM performance.employeeskills es
+                INNER JOIN performance.skillsets s ON es.skillid = s.skillid
+                WHERE es.employeeid = ANY(@employeeIds)
+                ORDER BY s.skillname";
+
+            var skillRows = (await QueryAsync<(Guid EmployeeId, string SkillName)>(skillNamesSql, new { employeeIds = employeeIds.ToArray() })).ToList();
+
+            var skillsByEmployee = skillRows.GroupBy(r => r.EmployeeId)
+                .ToDictionary(g => g.Key, g => g.Select(r => r.SkillName).ToList());
+
+            foreach (var emp in employees)
+            {
+                emp.SkillNames = skillsByEmployee.TryGetValue(emp.EmployeeId, out var names) ? names : new();
+            }
+        }
+
+        return (employees, total);
+    }
+
+    public async Task<EmployeeSkillFullDetailDto> GetEmployeeSkillFullDetailAsync(Guid employeeId)
+    {
+        var empSql = @"
+            SELECT 
+                e.employeeid,
+                CONCAT(e.firstname, ' ', e.lastname) AS employeename,
+                e.email,
+                d.departmentname AS department,
+                p.positiontitle AS position
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+            LEFT JOIN employee.positions p ON ed.positionid = p.positionid
+            WHERE e.employeeid = @employeeId";
+
+        var emp = await QuerySingleOrDefaultAsync<EmployeeSkillFullDetailDto>(empSql, new { employeeId });
+        if (emp == null) return new EmployeeSkillFullDetailDto();
+
+        emp.Skills = await GetEmployeeSkillsAsync(employeeId);
+        return emp;
+    }
 
     public async Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
     {
@@ -594,9 +699,9 @@ WHERE skillid = @skillSetId";
                 isactive,
                 createdat";
 
-        var skillLevelScale = request.SkillLevelScale?.Length > 0 
-            ? request.SkillLevelScale 
-            : new int[] { 1, 2, 3, 4, 5 };
+        //var skillLevelScale = request.SkillLevelScale?.Length > 0 
+        //    ? request.SkillLevelScale 
+        //    : new int[] { 1, 2, 3, 4, 5 };
 
         var result = await QuerySingleOrDefaultAsync<SkillSetDto>(sql, new
         {
@@ -604,7 +709,7 @@ WHERE skillid = @skillSetId";
             SkillName = request.SkillName,
             Category = request.Category,
             Description = request.Description,
-            SkillLevelScale = skillLevelScale,
+            //SkillLevelScale = skillLevelScale,
             IsActive = request.IsActive
         });
 
@@ -647,7 +752,7 @@ WHERE employeeid = @EmployeeId AND skillid = @SkillId;";
 
         using var connection = CreateConnection();
         var existingCount = await connection.ExecuteScalarAsync<int>(checkSql, new { request.EmployeeId, request.SkillId });
-        
+
         if (existingCount > 0)
         {
             throw new InvalidOperationException("This skill has already been added to the employee. Cannot add duplicate skills.");
@@ -721,12 +826,12 @@ RETURNING
     //            throw;
     //        }
     //    }
-    public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
+    public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid? employeeId)
     {
         try
         {
 
-        var sql = @"
+            var sql = @"
             SELECT 
     es.employeeskillid,
     es.employeeid,
@@ -762,8 +867,8 @@ WHERE es.employeeid = @employeeId
 ORDER BY s.category, s.skillname;
 ";
 
-        var results = await QueryAsync<EmployeeSkillDto>(sql, new { employeeId });
-        return results.ToList();
+            var results = await QueryAsync<EmployeeSkillDto>(sql, new { employeeId });
+            return results.ToList();
         }
         catch (Exception ex)
         {
@@ -947,57 +1052,6 @@ WHERE es.employeeskillid = @employeeSkillId";
         return affected > 0;
     }
 
-    //public async Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(Guid organizationId, Guid? cycleId = null)
-    //{
-    //    // Get summary statistics
-    //    var summarySql = @"
-    //        SELECT 
-    //            COALESCE(AVG(overallrating), 0) as average_rating,
-    //            COUNT(*) as total_appraisals,
-    //            COUNT(CASE WHEN ea.status IN ('draft', 'pending', 'under_review') THEN 1 END) as pending_appraisals
-    //        FROM performance.employeeappraisals ea
-    //        INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
-    //        WHERE e.organizationid = @organizationId
-    //          AND (@cycleId IS NULL OR ea.cycleid = @cycleId)";
-
-    //    var summaryResult = await QuerySingleOrDefaultAsync<dynamic>(summarySql, new { organizationId, cycleId });
-
-    //    // Get rating distribution
-    //    var distributionSql = @"
-    //        SELECT 
-    //            FLOOR(overallrating)::int as rating,
-    //            COUNT(*) as count
-    //        FROM performance.employeeappraisals ea
-    //        INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
-    //        WHERE e.organizationid = @organizationId
-    //          AND (@cycleId IS NULL OR ea.cycleid = @cycleId)
-    //          AND ea.overallrating IS NOT NULL
-    //        GROUP BY FLOOR(overallrating)::int
-    //        ORDER BY rating";
-
-    //    var distributionResults = await QueryAsync<dynamic>(distributionSql, new { organizationId, cycleId });
-
-    //    var ratingDistribution = new Dictionary<string, long>();
-    //    foreach (var item in distributionResults)
-    //    {
-    //        ratingDistribution[item.rating.ToString()] = (long)item.count;
-    //    }
-
-    //    // Get top performers
-    //    var topPerformers = await GetTopPerformersAsync(organizationId, 10);
-
-    //    return new PerformanceSummaryDto
-    //    {
-    //        AverageRating = summaryResult?.average_rating ?? 0,
-    //        TotalAppraisals = summaryResult?.total_appraisals ?? 0,
-    //        PendingAppraisals = summaryResult?.pending_appraisals ?? 0,
-    //        RatingDistribution = ratingDistribution,
-    //        TopPerformers = topPerformers
-    //    };
-    //}
-
-
-
     public async Task<PerformanceSummaryDto> GetPerformanceSummaryAsync(
     Guid organizationId,
     Guid? cycleId = null)
@@ -1115,7 +1169,7 @@ WHERE es.employeeskillid = @employeeSkillId";
     }
     //mm
 
-    public async Task<MYPerformanceSummary> GetMyPerformanceSummaryAsync(Guid organizationId,Guid employeeId,Guid? cycleId)
+    public async Task<MYPerformanceSummary> GetMyPerformanceSummaryAsync(Guid organizationId, Guid employeeId, Guid? cycleId)
     {
         try
         {
@@ -1178,26 +1232,6 @@ WHERE es.employeeskillid = @employeeSkillId";
         var affected = await ExecuteAsync(sql, new { appraisalId, status });
         return affected > 0;
     }
-
-    //public async Task<List<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10)
-    //{
-    //    var sql = @"
-    //        SELECT CONCAT(e.firstname, ' ', e.lastname) as employee_name,
-    //               AVG(ea.overallrating) as rating,
-    //               d.departmentname as department
-    //        FROM performance.employeeappraisals ea
-    //        INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
-    //        LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-    //        LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
-    //        WHERE e.organizationid = @organizationId
-    //          AND ea.overallrating IS NOT NULL
-    //        GROUP BY e.employeeid, e.firstname, e.lastname, d.departmentname
-    //        ORDER BY AVG(ea.overallrating) DESC
-    //        LIMIT @count";
-
-    //    var results = await QueryAsync<TopPerformerDto>(sql, new { organizationId, count });
-    //    return results.ToList();
-    //}
 
     public async Task<List<TopPerformerDto>> GetTopPerformersAsync(
     Guid organizationId,
@@ -1386,7 +1420,7 @@ ORDER BY k.createdat DESC;
             KraId = kraId,
             Title = request.Title,
             KraDescription = request.KraDescription,
-            CycleId=request.CycleId,
+            CycleId = request.CycleId,
             IsActive = request.IsActive
         };
 
@@ -1521,6 +1555,7 @@ WHERE kraid = @KRAId;
         var rowsAffected = await ExecuteAsync(sql, parameters);
         return rowsAffected > 0;
     }
+  
     public async Task<List<GoalDto>> GetAllGoalsAsync(Guid organizationId)
     {
         var sql = @"
@@ -1539,16 +1574,36 @@ SELECT
     CONCAT(ec.firstname, ' ', ec.lastname) AS CreatedByName,
     g.organizationid AS OrganizationId,
     g.isactive       AS IsActive,
-    g.createdat      AS CreatedAt
+    g.createdat      AS CreatedAt,
+
+    ac.isselfassessmentenable AS IsSelfAssessmentEnable,
+    ac.managerreview          AS ManagerReview,
+    ac.isappraisalenable      AS IsAppraisalEnable
+
 FROM performance.goals g
-LEFT JOIN performance.kra k  ON k.kraid        = g.kraid
-LEFT JOIN employee.employees ea ON ea.employeeid = g.assignedto
-LEFT JOIN employee.employees ec ON ec.employeeid = g.createdby
+
+LEFT JOIN performance.kra k 
+    ON k.kraid = g.kraid
+
+LEFT JOIN performance.appraisal_cycle ac 
+    ON ac.cycleid = k.cycleid   -- ✅ FIX HERE
+
+LEFT JOIN employee.employees ea 
+    ON ea.employeeid = g.assignedto
+
+LEFT JOIN employee.employees ec 
+    ON ec.employeeid = g.createdby
+
 WHERE g.organizationid = @OrganizationId
   AND g.isactive = TRUE
+
 ORDER BY g.createdat DESC;";
 
-        var result = await QueryAsync<GoalDto>(sql, new { OrganizationId = organizationId });
+        var result = await QueryAsync<GoalDto>(sql, new
+        {
+            OrganizationId = organizationId
+        });
+
         return result.ToList();
     }
 
@@ -1570,14 +1625,30 @@ SELECT
     CONCAT(ec.firstname, ' ', ec.lastname) AS CreatedByName,
     g.organizationid AS OrganizationId,
     g.isactive       AS IsActive,
-    g.createdat      AS CreatedAt
+    g.createdat      AS CreatedAt,
+
+    ac.isselfassessmentenable AS IsSelfAssessmentEnable,
+    ac.managerreview          AS ManagerReview,
+    ac.isappraisalenable      AS IsAppraisalEnable
+
 FROM performance.goals g
-LEFT JOIN performance.kra k  ON k.kraid        = g.kraid
-LEFT JOIN employee.employees ea ON ea.employeeid = g.assignedto
-LEFT JOIN employee.employees ec ON ec.employeeid = g.createdby
+
+LEFT JOIN performance.kra k 
+    ON k.kraid = g.kraid
+
+LEFT JOIN performance.appraisal_cycle ac 
+    ON ac.cycleid = k.cycleid   -- ✅ FIX HERE
+
+LEFT JOIN employee.employees ea 
+    ON ea.employeeid = g.assignedto
+
+LEFT JOIN employee.employees ec 
+    ON ec.employeeid = g.createdby
+
 WHERE g.organizationid = @OrganizationId
   AND g.assignedto = @EmployeeId
   AND g.isactive = TRUE
+
 ORDER BY g.createdat DESC;";
 
         var result = await QueryAsync<GoalDto>(sql, new
@@ -1588,6 +1659,7 @@ ORDER BY g.createdat DESC;";
 
         return result.ToList();
     }
+
 
     public async Task<GoalDto?> GetGoalByIdAsync(Guid goalId)
     {
@@ -1681,8 +1753,8 @@ WHERE goalid = @GoalId
     public async Task<bool> UpdateGoalAssignmentAsync(
       Guid organizationId,
       Guid goalId,
-      Guid assignedTo ,
-      Guid assignedBy )
+      Guid assignedTo,
+      Guid assignedBy)
     {
         var sql = @"
 UPDATE performance.goals
@@ -1705,39 +1777,6 @@ WHERE goalid = @GoalId
     }
 
 
-
-    //    public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request,Guid organizationId,Guid currentEmployeeid)
-    //    {
-    //        // ---------------------------------------------
-    //        // 1) Check if the same KRA already exists for the employee & cycle
-    //        // ---------------------------------------------
-    //        var checkSql = @"
-    //        SELECT COUNT(*) 
-    //        FROM performance.selfassessments
-    //        WHERE employeeid = @EmployeeId 
-    //          AND kraid = @KraId;
-    //    ";
-
-    //        var existingCount = await QuerySingleOrDefaultAsync<int>(checkSql, request);
-
-    //        if (existingCount > 0)
-    //        {
-    //            throw new Exception("A self-assessment for this KRA already exists for the selected cycle and employee.");
-    //        }
-
-    //        // ---------------------------------------------
-    //        // 2) Insert new self-assessment
-    //        // ---------------------------------------------
-    //        var insertSql = @"
-    //INSERT INTO performance.selfassessments
-    //    (goalid, kraid, organizationid, selfrating, selfcomment, status, createdat, updatedat)
-    //VALUES
-    //    (@GoalId, @KraId, @OrganizationId, @SelfRating, @SelfComment, 'SUBMITTED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    //RETURNING selfassessmentid, goalid, kraid, organizationid, selfrating, selfcomment, status, createdat, updatedat;
-    //";
-
-    //        return await QuerySingleOrDefaultAsync<SelfAssessmentDto>(insertSql, request);
-    //    }
 
     public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request, Guid organizationId, Guid currentEmployeeId)
     {
@@ -1839,51 +1878,55 @@ RETURNING selfassessmentid, employeeid, goalid, kraid, organizationid, selfratin
 
     //mm
 
-   
+
     public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsByEmployeesAsync(List<Guid> employeeIds, Guid organizationId)
     {
         if (employeeIds == null || !employeeIds.Any())
             return Enumerable.Empty<SelfAssessmentDto>();
 
         var sql = @"
-    SELECT 
-        sa.selfassessmentid   AS SelfAssessmentId,
-        sa.goalid             AS GoalId,
-        sa.kraid              AS KraId,
-        sa.organizationid     AS OrganizationId,
-        sa.employeeid         AS EmployeeId,
-        sa.selfrating         AS SelfRating,
-        sa.selfcomment        AS SelfComment,
-        sa.status             AS Status,
-        sa.createdat          AS CreatedAt,
-        sa.updatedat          AS UpdatedAt,
+SELECT 
+    sa.selfassessmentid   AS SelfAssessmentId,
+    sa.goalid             AS GoalId,
+    sa.kraid              AS KraId,
+    sa.organizationid     AS OrganizationId,
+    sa.employeeid         AS EmployeeId,
+    sa.selfrating         AS SelfRating,
+    sa.selfcomment        AS SelfComment,
+    sa.status             AS Status,
+    sa.createdat          AS CreatedAt,
+    sa.updatedat          AS UpdatedAt,
 
-        g.title               AS GoalName,
-        k.kraname             AS KraName,
-        e.firstname || ' ' || e.lastname AS EmployeeName,
+    g.title               AS GoalName,
+    k.kraname             AS KraName,
+    e.firstname || ' ' || e.lastname AS EmployeeName,
 
-        ac.cycleid            AS CycleId,
-        ac.cyclename          AS CycleName
+    ac.cycleid            AS CycleId,
+    ac.cyclename          AS CycleName,
 
-    FROM performance.selfassessments sa
+    ac.isselfassessmentenable AS IsSelfAssessmentEnable,
+    ac.managerreview          AS ManagerReview,
+    ac.isappraisalenable      AS IsAppraisalEnable
 
-    LEFT JOIN performance.goals  g  
-        ON g.goalid  = sa.goalid
+FROM performance.selfassessments sa
 
-    LEFT JOIN performance.kra    k  
-        ON k.kraid   = sa.kraid
+LEFT JOIN performance.goals g  
+    ON g.goalid = sa.goalid
 
-    LEFT JOIN performance.appraisal_cycle ac  
-        ON ac.cycleid = k.cycleid   -- 🔥 IMPORTANT JOIN
+LEFT JOIN performance.kra k  
+    ON k.kraid = sa.kraid
 
-    LEFT JOIN employee.employees e  
-        ON e.employeeid = sa.employeeid
+LEFT JOIN performance.appraisal_cycle ac  
+    ON ac.cycleid = k.cycleid   -- ✅ correct join
 
-    WHERE sa.employeeid = ANY(@EmployeeIds::uuid[])
-      AND sa.organizationid = @OrganizationId
+LEFT JOIN employee.employees e  
+    ON e.employeeid = sa.employeeid
 
-    ORDER BY sa.createdat DESC;
-    ";
+WHERE sa.employeeid = ANY(@EmployeeIds::uuid[])
+  AND sa.organizationid = @OrganizationId
+
+ORDER BY sa.createdat DESC;
+";
 
         return await QueryAsync<SelfAssessmentDto>(
             sql,
@@ -1943,7 +1986,7 @@ RETURNING selfassessmentid, employeeid, goalid, kraid, organizationid, selfratin
             LEFT JOIN performance.kras k ON sa.kraid = k.kraid
             WHERE {whereClause}
             ORDER BY sa.createdat DESC";
-        
+
         var results = await QueryAsync<SelfAssessmentDto>(sql, parameters);
         return results;
     }
@@ -2039,7 +2082,7 @@ RETURNING selfassessmentid, employeeid, goalid, kraid, organizationid, selfratin
             LEFT JOIN performance.kras k ON sa.kraid = k.kraid
             WHERE {whereClause}
             ORDER BY sa.createdat DESC";
-        
+
         var results = await QueryAsync<SelfAssessmentDto>(sql, parameters);
         return results;
     }
@@ -2099,24 +2142,12 @@ RETURNING selfassessmentid, employeeid, goalid, kraid, organizationid, selfratin
             LEFT JOIN performance.kras k ON sa.kraid = k.kraid
             WHERE {whereClause}
             ORDER BY sa.createdat DESC";
-        
+
         var results = await QueryAsync<SelfAssessmentDto>(sql, parameters);
         return results;
     }
 
-    //public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
-    //{
-    //    var sql = @"
-    //    INSERT INTO performance.managerreviews
-    //    (managerid, employeeid, cycleid, overallrating, feedback, improvementareas, developmentplan, createdat, updatedat)
-    //    VALUES
-    //    (@ManagerId, @EmployeeId, @CycleId, @OverallRating, @Feedback, @ImprovementAreas, @DevelopmentPlan, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    //    RETURNING reviewid, managerid, employeeid, cycleid, overallrating, feedback, improvementareas, developmentplan, 'submitted' as status, createdat, updatedat;
-    //";
-
-    //    return await QuerySingleOrDefaultAsync<ManagerReviewDto>(sql, request);
-    //}
-
+  
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(
     ManagerReviewRequest request,
     Guid organizationId,
@@ -2340,10 +2371,10 @@ RETURNING selfassessmentid, employeeid, goalid, kraid, organizationid, selfratin
 
 
     // Submit HR Review
-     public async Task<HrReviewDto> SubmitHrReviewAsync(
-    HrReviewRequest request,
-    Guid organizationId,
-    Guid currentEmployeeId)
+    public async Task<HrReviewDto> SubmitHrReviewAsync(
+   HrReviewRequest request,
+   Guid organizationId,
+   Guid currentEmployeeId)
     {
         var sql = @"
     INSERT INTO performance.hrappraisals
@@ -2551,7 +2582,7 @@ RETURNING selfassessmentid, employeeid, goalid, kraid, organizationid, selfratin
 
     // Get HR own given Reviews by there hr
     // Get all HR Reviews received by the current employee
-   
+
     public async Task<List<HrReviewDto>> GetHrReviewsByEmployeeAsync(Guid organizationId, Guid employeeId)
     {
         var sql = @"
@@ -3174,7 +3205,7 @@ LIMIT @limit OFFSET @offset;
             throw;
         }
     }
-   
+
 
     public async Task<int> GetEmployeeAppraisalsCountAsync(Guid organizationId, AppraisalFilterRequest filter)
     {
@@ -3192,8 +3223,8 @@ LIMIT @limit OFFSET @offset;
                    LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER('%' || @search || '%') OR
                    LOWER(ac.cyclename) LIKE LOWER('%' || @search || '%'))";
 
-        var count = await ExecuteScalarAsync<int>(sql, new 
-        { 
+        var count = await ExecuteScalarAsync<int>(sql, new
+        {
             organizationId,
             appraisalCycleId = filter.AppraisalCycleId,
             status = filter.Status,
@@ -3201,7 +3232,7 @@ LIMIT @limit OFFSET @offset;
             managerId = filter.ManagerId,
             search = filter.Search
         });
-        
+
         return count;
     }
 
@@ -3225,13 +3256,13 @@ LIMIT @limit OFFSET @offset;
             GROUP BY d.departmentid, d.departmentname
             ORDER BY d.departmentname";
 
-        var results = await QueryAsync<DepartmentPerformanceDto>(sql, new 
-        { 
+        var results = await QueryAsync<DepartmentPerformanceDto>(sql, new
+        {
             organizationId,
             startDate,
             endDate
         });
-        
+
         return results.ToList();
     }
 
@@ -3243,7 +3274,7 @@ LIMIT @limit OFFSET @offset;
             INNER JOIN employee.departments d ON ed.departmentid = d.departmentid
             WHERE ed.employeeid = @employeeId AND ed.iscurrent = true
             LIMIT 1";
-        
+
         return await QuerySingleOrDefaultAsync<string>(sql, new { employeeId });
     }
     public async Task<Guid> GetEmployeeFromTable(Guid Userid)
@@ -3252,12 +3283,12 @@ LIMIT @limit OFFSET @offset;
         {
             var sql = @"SELECT employeeid FROM employee.employees WHERE userid = @Userid";
             var employeeId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { Userid });
-            
+
             if (!employeeId.HasValue || employeeId.Value == Guid.Empty)
             {
                 throw new UnauthorizedAccessException($"No employee record found for user {Userid}. Please ensure your user account is linked to an employee record.");
             }
-            
+
             return employeeId.Value;
         }
         catch (UnauthorizedAccessException)
@@ -3289,7 +3320,7 @@ LIMIT @limit OFFSET @offset;
                 ORDER BY employeename";
 
             var employees = await QueryAsync<dynamic>(employeesSql, new { ManagerEmployeeId = managerEmployeeId, OrganizationId = organizationId });
-            
+
             var result = new TeamPerformanceOverviewDto();
 
             foreach (var emp in employees)

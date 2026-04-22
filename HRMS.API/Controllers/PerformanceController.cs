@@ -16,7 +16,7 @@ public class PerformanceController : ControllerBase
     private readonly ILogger<PerformanceController> _logger;
 
     public PerformanceController(
-        IPerformanceService performanceService, 
+        IPerformanceService performanceService,
         IEmployeeService employeeService,
         ILogger<PerformanceController> logger)
     {
@@ -124,7 +124,7 @@ public class PerformanceController : ControllerBase
         }
     }
 
-   
+
     [HttpDelete("delete-cycle/{cycleId}")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAppraisalCycle(Guid cycleId)
@@ -278,7 +278,7 @@ public class PerformanceController : ControllerBase
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
-            
+
             if (currentEmployeeId == Guid.Empty)
             {
                 return Ok(new ServiceResponse<List<EmployeeListItemDto>>
@@ -288,9 +288,9 @@ public class PerformanceController : ControllerBase
                     Message = "No employee record found for this user"
                 });
             }
-            
+
             var employees = await _employeeService.GetEmployeesByManagerAsync(currentEmployeeId, organizationId);
-            
+
             return Ok(new ServiceResponse<List<EmployeeListItemDto>>
             {
                 Success = true,
@@ -331,7 +331,7 @@ public class PerformanceController : ControllerBase
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
-            
+
             if (currentEmployeeId == Guid.Empty)
             {
                 return Ok(new ServiceResponse<PagedResult<EmployeeAppraisalDto>>
@@ -347,7 +347,7 @@ public class PerformanceController : ControllerBase
                     Message = "No employee record found for this user"
                 });
             }
-            
+
             var filter = new AppraisalFilterRequest
             {
                 AppraisalCycleId = appraisalCycleId,
@@ -444,110 +444,227 @@ public class PerformanceController : ControllerBase
         {
             var organizationId = GetCurrentOrganizationId();
             var skill = await _performanceService.CreateSkillSetAsync(request, organizationId);
-
-            return Ok(new ServiceResponse<SkillSetDto>
-            {
-                Success = true,
-                Message = "Skill created successfully",
-                Data = skill
-            });
+            return Ok(new ServiceResponse<SkillSetDto> { Success = true, Message = "Skill created successfully", Data = skill });
         }
         catch (InvalidOperationException ex)
         {
-            // Unique constraint violation handled here
-            return Conflict(new ServiceResponse<SkillSetDto>
-            {
-                Success = false,
-                Message = ex.Message
-            });
+            return Conflict(new ServiceResponse<SkillSetDto> { Success = false, Message = ex.Message });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating skill set");
-            return StatusCode(500, new ServiceResponse<SkillSetDto>
-            {
-                Success = false,
-                Message = "An unexpected error occurred while creating the skill"
-            });
+            return StatusCode(500, new ServiceResponse<SkillSetDto> { Success = false, Message = "An unexpected error occurred" });
         }
     }
 
     [HttpGet("skills")]
-    public async Task<ActionResult<ServiceResponse<List<SkillSetDto>>>> GetSkillSets()
+    public async Task<ActionResult<ServiceResponse<List<SkillSetDto>>>> GetSkillSets([FromQuery] string? search = null, [FromQuery] string? category = null, [FromQuery] bool? isActive = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var skills = await _performanceService.GetSkillSetsAsync(organizationId);
-
-            return Ok(new ServiceResponse<List<SkillSetDto>>
-            {
-                Success = true,
-                Data = skills
-            });
+            var filter = new SkillSetFilterRequest { Search = search, Category = category, IsActive = isActive };
+            var result = await _performanceService.GetSkillSetsPagedAsync(organizationId, filter, page, limit);
+            return Ok(new ServiceResponse<PagedResult<SkillSetDto>> { Success = true, Data = result });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving skill sets");
-            return StatusCode(500, new ServiceResponse<List<SkillSetDto>>
-            {
-                Success = false,
-                Message = "An error occurred while retrieving skill sets"
-            });
+            return StatusCode(500, new ServiceResponse<object> { Success = false, Message = "An error occurred while retrieving skill sets" });
         }
     }
 
-    [HttpPost("create-Employee-skills")]
-    public async Task<IActionResult> CreateEmployeeSkill([FromBody] CreateEmployeeSkillRequest request)
+    [HttpGet("skills/{skillId}")]
+    public async Task<ActionResult<ServiceResponse<SkillWithEmployeesDto>>> GetSkillWithEmployees(Guid skillId)
     {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
         try
         {
-            // Get current logged-in user ID
-            var currentUserId = await GetCurrentEmployeeId();
-            
-            // If AssessedBy is not provided, set it to current user ID (the person assessing)
-            // If it's self-assessment (employeeId == currentUserId), it will already be set correctly from frontend
-            // If it's someone else assessing, AssessedBy should be the current logged-in user
-            if (request.AssessedBy == request.EmployeeId)
-            {
-                // If employee is assessing themselves, use their own ID
-                // Otherwise, use the current logged-in user ID (HR/Manager assessing)
-                 request.EmployeeId = currentUserId;
-                request.AssessedBy = null;
-            }
-            
-            var result = await _performanceService.CreateEmployeeSkillAsync(request);
-
+            var result = await _performanceService.GetSkillWithEmployeesAsync(skillId);
             if (result == null)
-                return StatusCode(500, new { success = false, message = "Failed to add employee skill." });
-
-            return Ok(new
-            {
-                success = true,
-                message = "Employee skill added successfully.",
-                data = result
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            // Handle duplicate skill error
-            return Conflict(new
-            {
-                success = false,
-                message = ex.Message
-            });
+                return NotFound(new ServiceResponse<SkillWithEmployeesDto> { Success = false, Message = "Skill not found" });
+            return Ok(new ServiceResponse<SkillWithEmployeesDto> { Success = true, Data = result });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error while creating employee skill");
-            return StatusCode(500, new
-            {
-                success = false,
-                message = "An unexpected error occurred while creating the employee skill."
-            });
+            _logger.LogError(ex, "Error retrieving skill {SkillId}", skillId);
+            return StatusCode(500, new ServiceResponse<SkillWithEmployeesDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPatch("skills/{skillId}/toggle-status")]
+    public async Task<ActionResult<ServiceResponse<SkillSetDto>>> ToggleSkillStatus(Guid skillId)
+    {
+        try
+        {
+            var result = await _performanceService.ToggleSkillStatusAsync(skillId);
+            return Ok(new ServiceResponse<SkillSetDto> { Success = true, Data = result, Message = "Skill status updated" });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<SkillSetDto> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error toggling skill status {SkillId}", skillId);
+            return StatusCode(500, new ServiceResponse<SkillSetDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("skills/{skillId}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSkill(Guid skillId)
+    {
+        try
+        {
+            var result = await _performanceService.DeleteSkillSetAsync(skillId);
+            return Ok(new ServiceResponse<bool> { Success = true, Data = result, Message = "Skill deleted successfully" });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting skill {SkillId}", skillId);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("my-skills")]
+    public async Task<IActionResult> AddMySkill([FromBody] CreateEmployeeSkillRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var currentUserId = await GetCurrentEmployeeId();
+            request.EmployeeId = currentUserId;
+            request.AssessedBy = null; // Self-added, no assessor yet
+            request.LastAssessed = DateTime.UtcNow;
+
+            var result = await _performanceService.CreateEmployeeSkillAsync(request);
+            return Ok(new { success = true, message = "Skill added successfully.", data = result });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error adding skill for current employee");
+            return StatusCode(500, new { success = false, message = "An unexpected error occurred." });
+        }
+    }
+
+    [HttpGet("my-skills")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeSkillDto>>>> GetMySkills()
+    {
+        try
+        {
+            var employeeId = await GetCurrentEmployeeId();
+            var skills = await _performanceService.GetEmployeeSkillsAsync(employeeId);
+            return Ok(new ServiceResponse<List<EmployeeSkillDto>> { Success = true, Data = skills });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving current employee skills");
+            return StatusCode(500, new ServiceResponse<List<EmployeeSkillDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("my-skills/{employeeSkillId}")]
+    public async Task<IActionResult> UpdateMySkill(Guid employeeSkillId, [FromBody] UpdateEmployeeSkillRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var currentUserId = await GetCurrentEmployeeId();
+            // Employee assesses themselves
+            request.AssessedBy = currentUserId;
+            if (!request.LastAssessed.HasValue) request.LastAssessed = DateTime.UtcNow;
+
+            var result = await _performanceService.UpdateEmployeeSkillAsync(employeeSkillId, request);
+            return Ok(new { success = true, message = "Skill updated successfully.", data = result });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating skill {EmployeeSkillId}", employeeSkillId);
+            return StatusCode(500, new { success = false, message = "An unexpected error occurred." });
+        }
+    }
+
+    [HttpDelete("my-skills/{employeeSkillId}")]
+    public async Task<IActionResult> DeleteMySkill(Guid employeeSkillId)
+    {
+        try
+        {
+            var result = await _performanceService.DeleteEmployeeSkillAsync(employeeSkillId);
+            return Ok(new { success = result, message = result ? "Skill removed successfully." : "Skill not found." });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting skill {EmployeeSkillId}", employeeSkillId);
+            return StatusCode(500, new { success = false, message = "An unexpected error occurred." });
+        }
+    }
+
+    //[HttpGet("employee-skills")]
+    //public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>>> GetAllEmployeeSkills([FromQuery] Guid? employeeId = null, [FromQuery] Guid? skillSetId = null, [FromQuery] string? department = null, [FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
+    //{
+    //    try
+    //    {
+    //        var organizationId = GetCurrentOrganizationId();
+    //        var filter = new EmployeeSkillFilterRequest
+    //        {
+    //            EmployeeId = employeeId,
+    //            SkillSetId = skillSetId,
+    //            Department = department,
+    //            Search = search
+    //        };
+    //        var result = await _performanceService.GetEmployeeSkillsSummaryPagedAsync(organizationId, filter, page, limit);
+    //        return Ok(new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>> { Success = true, Data = result });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error retrieving all employee skills");
+    //        return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>> { Success = false, Message = "An error occurred" });
+    //    }
+    //}
+
+    [HttpGet("employee-skills/detail/{employeeId}")]
+    public async Task<ActionResult<ServiceResponse<EmployeeSkillFullDetailDto>>> GetEmployeeSkillDetail(Guid employeeId)
+    {
+        try
+        {
+            var result = await _performanceService.GetEmployeeSkillFullDetailAsync(employeeId);
+            return Ok(new ServiceResponse<EmployeeSkillFullDetailDto> { Success = true, Data = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employee skill detail {EmployeeId}", employeeId);
+            return StatusCode(500, new ServiceResponse<EmployeeSkillFullDetailDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("employee-skills/{employeeSkillId}/assess")]
+    public async Task<IActionResult> AssessEmployeeSkill(Guid employeeSkillId, [FromBody] UpdateEmployeeSkillRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+        try
+        {
+            var currentUserId = await GetCurrentEmployeeId();
+            request.AssessedBy = currentUserId;
+            if (!request.LastAssessed.HasValue) request.LastAssessed = DateTime.UtcNow;
+
+            var result = await _performanceService.UpdateEmployeeSkillAsync(employeeSkillId, request);
+            return Ok(new { success = true, message = "Skill assessed successfully.", data = result });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error assessing skill {EmployeeSkillId}", employeeSkillId);
+            return StatusCode(500, new { success = false, message = "An unexpected error occurred." });
         }
     }
 
@@ -561,19 +678,19 @@ public class PerformanceController : ControllerBase
         {
             // Get current logged-in user ID
             var currentUserId = await GetCurrentEmployeeId();
-            
+
             // Set AssessedBy to current logged-in user (the person assessing/rating)
             //if (!request.AssessedBy.HasValue || request.AssessedBy == Guid.Empty)
             //{
-                request.AssessedBy = currentUserId;
+            request.AssessedBy = currentUserId;
             //}
-            
+
             // Set LastAssessed to current time if not provided
             if (!request.LastAssessed.HasValue)
             {
                 request.LastAssessed = DateTime.UtcNow;
             }
-            
+
             var result = await _performanceService.UpdateEmployeeSkillAsync(employeeSkillId, request);
 
             if (result == null)
@@ -678,7 +795,7 @@ public class PerformanceController : ControllerBase
         try
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
-            
+
             if (currentEmployeeId == Guid.Empty)
             {
                 return Ok(new ServiceResponse<PagedResult<EmployeeSkillDto>>
@@ -694,7 +811,7 @@ public class PerformanceController : ControllerBase
                     Message = "No employee record found for this user"
                 });
             }
-            
+
             var filter = new EmployeeSkillFilterRequest
             {
                 EmployeeId = employeeId,
@@ -792,7 +909,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("summary")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<MYPerformanceSummary>>> GetPerformanceSummary(Guid? cycleId)
     {
         try
@@ -827,14 +943,13 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("My/summary")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<MYPerformanceSummary>>> GetMyPerformanceSummary()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var currentEmp = await GetCurrentEmployeeId();
-            var summary = await _performanceService.GetMyPerformanceSummaryAsync(organizationId,currentEmp);
+            var summary = await _performanceService.GetMyPerformanceSummaryAsync(organizationId, currentEmp);
 
             return Ok(new ServiceResponse<MYPerformanceSummary>
             {
@@ -863,8 +978,6 @@ public class PerformanceController : ControllerBase
     }
 
 
-
-
     [HttpGet("team-performance-overview")]
     [Authorize(Roles = "Super Admin,Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<TeamPerformanceOverviewDto>>> GetTeamPerformanceOverview()
@@ -873,7 +986,7 @@ public class PerformanceController : ControllerBase
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
-            
+
             if (currentEmployeeId == Guid.Empty)
             {
                 return Ok(new ServiceResponse<TeamPerformanceOverviewDto>
@@ -883,7 +996,7 @@ public class PerformanceController : ControllerBase
                     Message = "No employee record found for this user"
                 });
             }
-            
+
             var result = await _performanceService.GetTeamPerformanceOverviewAsync(currentEmployeeId, organizationId);
 
             return Ok(new ServiceResponse<TeamPerformanceOverviewDto>
@@ -920,8 +1033,8 @@ public class PerformanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var CurrentEmpId= await GetCurrentEmployeeId();
-            var result = await _performanceService.CreateKRAAsync(organizationId,CurrentEmpId, request);
+            var CurrentEmpId = await GetCurrentEmployeeId();
+            var result = await _performanceService.CreateKRAAsync(organizationId, CurrentEmpId, request);
 
             return Ok(new ServiceResponse<KRADto>
             {
@@ -941,7 +1054,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("get-allKra")]
-
     public async Task<ActionResult<ServiceResponse<PagedResult<KRADto>>>> GetKra([FromQuery] string? search = null, [FromQuery] int page = 1,
     [FromQuery] int limit = 10)
     {
@@ -978,7 +1090,6 @@ public class PerformanceController : ControllerBase
 
 
     [HttpGet("KraById/{kraId}")]
-
     public async Task<ActionResult<ServiceResponse<KRADto>>> GetKraById(Guid kraId)
     {
         try
@@ -1023,7 +1134,6 @@ public class PerformanceController : ControllerBase
 
 
     [HttpPut("KraUpdate")]
-
     public async Task<ActionResult<ServiceResponse<KRADto>>> UpdateKra([FromQuery] UpdateKRARequest request, Guid kraId)
     {
         try
@@ -1140,7 +1250,7 @@ public class PerformanceController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var currentEmployeeId = await GetCurrentEmployeeId();
 
-            var result = await _performanceService.GetAllGoalsAsync(organizationId,currentEmployeeId);
+            var result = await _performanceService.GetAllGoalsAsync(organizationId, currentEmployeeId);
             return Ok(new ServiceResponse<List<GoalDto>>
             {
                 Success = true,
@@ -1292,7 +1402,7 @@ public class PerformanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var assignedBy =await GetCurrentEmployeeId(); 
+            var assignedBy = await GetCurrentEmployeeId();
             var result = await _performanceService.AssignGoalAsync(organizationId, goalId, assignedTo, assignedBy);
 
             if (!result)
@@ -1349,36 +1459,6 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    //[HttpPost("SelfAssessment")]
-    //[Authorize(Roles = "Employee,Manager,HR Manager")]
-    //public async Task<ActionResult<ServiceResponse<SelfAssessmentDto>>> CreateSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
-    //{
-    //    try
-    //    {
-    //        var currentEmployeeId = await GetCurrentEmployeeId();
-    //        var organizationId = GetCurrentOrganizationId();
-    //        request.EmployeeId = currentEmployeeId;
-    //        if (request == null)
-    //            return BadRequest("Invalid self-assessment data");
-    //        var result = await _performanceService.CreateSelfAssessmentAsync(request, organizationId);
-
-    //        return Ok(new ServiceResponse<SelfAssessmentDto>
-    //        {
-    //            Success = true,
-    //            Data = result,
-    //            Message = "Self-assessment saved successfully"
-    //        });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error saving self-assessment");
-    //        return StatusCode(500, new ServiceResponse<SelfAssessmentDto>
-    //        {
-    //            Success = false,
-    //            Message = ex.Message
-    //        });
-    //    }
-    //}
 
     [HttpPost("create-selfassessment")]
     public async Task<ActionResult<ServiceResponse<SelfAssessmentDto>>> CreateSelfAssessment([FromBody] CreateSelfAssessmentRequest request)
@@ -1483,11 +1563,6 @@ public class PerformanceController : ControllerBase
         }
     }
 
-
-
-
-
-
     [HttpGet("SelfAssessment/{employeeId}/{cycleId}")]
     [Authorize(Roles = "Employee,Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetSelfAssessment(Guid employeeId, Guid cycleId)
@@ -1551,7 +1626,7 @@ public class PerformanceController : ControllerBase
         try
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
-            
+
             // Check if employee ID is valid (not empty)
             if (currentEmployeeId == Guid.Empty)
             {
@@ -1563,7 +1638,7 @@ public class PerformanceController : ControllerBase
                     Message = "No employee record found for this user"
                 });
             }
-            
+
             var appraisals = await _performanceService.GetEmployeeAppraisalsForEmployeeAsync(currentEmployeeId, cycleId, kraId, search, status);
             return Ok(new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
             {
@@ -1705,7 +1780,7 @@ public class PerformanceController : ControllerBase
         try
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
-            
+
             if (currentEmployeeId == Guid.Empty)
             {
                 return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
@@ -1715,7 +1790,7 @@ public class PerformanceController : ControllerBase
                     Message = "No employee record found for this user"
                 });
             }
-            
+
             var assessments = await _performanceService.GetMyTeamSelfAssessmentsAsync(currentEmployeeId, cycleId, employeeId, kraId, search);
             return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
             {
@@ -1745,7 +1820,6 @@ public class PerformanceController : ControllerBase
 
     // Appraisal Cycle Management - Enhanced
     [HttpGet("cycles/{cycleId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> GetAppraisalCycleById(Guid cycleId)
     {
         try
@@ -1778,7 +1852,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPut("cycles/{cycleId}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> UpdateAppraisalCycle(Guid cycleId, [FromBody] UpdateAppraisalCycleRequest request)
     {
         try
@@ -1819,66 +1892,15 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    //[HttpDelete("cycles/{cycleId}")]
-    //[Authorize(Roles = "Super Admin,HR Manager")]
-    //public async Task<ActionResult<ServiceResponse<bool>>> DeleteAppraisalCycle(Guid cycleId)
-    //{
-    //    try
-    //    {
-    //        var result = await _performanceService.DeleteAppraisalCycleAsync(cycleId);
-    //        if (!result)
-    //        {
-    //            return NotFound(new ServiceResponse<bool>
-    //            {
-    //                Success = false,
-    //                Message = "Appraisal cycle not found or could not be deleted"
-    //            });
-    //        }
-
-    //        return Ok(new ServiceResponse<bool>
-    //        {
-    //            Success = true,
-    //            Message = "Appraisal cycle deleted successfully",
-    //            Data = true
-    //        });
-    //    }
-    //    catch (KeyNotFoundException ex)
-    //    {
-    //        _logger.LogWarning(ex, "Appraisal cycle not found while deleting: {CycleId}", cycleId);
-    //        return NotFound(new ServiceResponse<bool>
-    //        {
-    //            Success = false,
-    //            Message = ex.Message
-    //        });
-    //    }
-    //    catch (InvalidOperationException ex)
-    //    {
-    //        return BadRequest(new ServiceResponse<bool>
-    //        {
-    //            Success = false,
-    //            Message = ex.Message
-    //        });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error deleting appraisal cycle {CycleId}", cycleId);
-    //        return StatusCode(500, new ServiceResponse<bool>
-    //        {
-    //            Success = false,
-    //            Message = "An error occurred while deleting appraisal cycle"
-    //        });
-    //    }
-    //}
 
     [HttpGet("cycles/active")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> GetActiveAppraisalCycle()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var cycle = await _performanceService.GetActiveAppraisalCycleAsync(organizationId);
-            
+
             if (cycle == null)
             {
                 return NotFound(new ServiceResponse<AppraisalCycleDto>
@@ -1958,7 +1980,7 @@ public class PerformanceController : ControllerBase
     //    {
     //        var reviewerId = await GetCurrentEmployeeId();
     //        request.ReviewerId = reviewerId;
-            
+
     //        var appraisal = await _performanceService.ConsolidateAppraisalAsync(request);
     //        return Ok(new ServiceResponse<EmployeeAppraisalDto>
     //        {
@@ -2050,7 +2072,7 @@ public class PerformanceController : ControllerBase
             var userRoles = User.Claims.Where(c => c.Type == System.Security.Claims.ClaimTypes.Role).Select(c => c.Value).ToList();
             if (userRoles.Contains("Employee") && currentEmployeeId != appraisal.EmployeeId)
             {
-                return Forbid(); 
+                return Forbid();
             }
 
             return Ok(new ServiceResponse<EmployeeAppraisalDto>
@@ -2136,7 +2158,7 @@ public class PerformanceController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var managerId = await GetCurrentEmployeeId();
 
-            var result = await _performanceService.GetAllManagerReviewsAsync(organizationId, managerId,search);
+            var result = await _performanceService.GetAllManagerReviewsAsync(organizationId, managerId, search);
 
             return Ok(new ServiceResponse<List<ManagerReviewDto>>
             {
@@ -2241,9 +2263,9 @@ public class PerformanceController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var currenEmpid= await GetCurrentEmployeeId();
+            var currenEmpid = await GetCurrentEmployeeId();
 
-            var result = await _performanceService.GetHrReviewsAsync(organizationId,currenEmpid);
+            var result = await _performanceService.GetHrReviewsAsync(organizationId, currenEmpid);
 
             return Ok(new ServiceResponse<List<HrReviewDto>>
             {
@@ -2331,7 +2353,7 @@ public class PerformanceController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var employeeId = await GetCurrentEmployeeId();
 
-            var result = await _performanceService.GetAllAppraisaAsync(organizationId, employeeId,search);
+            var result = await _performanceService.GetAllAppraisaAsync(organizationId, employeeId, search);
 
             return Ok(new ServiceResponse<List<HrReviewDto>>
             {
@@ -2412,7 +2434,7 @@ public class PerformanceController : ControllerBase
             _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
             throw new UnauthorizedAccessException("Invalid user ID format");
         }
-        var employeeId=await _performanceService.GetEmployeeFromTable(userId);
+        var employeeId = await _performanceService.GetEmployeeFromTable(userId);
         return employeeId;
     }
 

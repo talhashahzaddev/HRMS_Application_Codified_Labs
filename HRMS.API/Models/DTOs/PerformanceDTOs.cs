@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace HRMS.API.Models.DTOs;
 
 
@@ -14,9 +16,9 @@ public class SkillSetDto
     public string SkillName { get; set; } = string.Empty;
     public string? Category { get; set; }
     public string? Description { get; set; }
-    public int[] SkillLevelScale { get; set; } = Array.Empty<int>();
     public bool IsActive { get; set; }
     public DateTime CreatedAt { get; set; }
+    public int EmployeeCount { get; set; }
 }
 
 public class EmployeeSkillDto
@@ -24,6 +26,7 @@ public class EmployeeSkillDto
     public Guid EmployeeSkillId { get; set; }
     public Guid EmployeeId { get; set; }
     public string EmployeeName { get; set; } = string.Empty;
+    public string? EmployeeEmail { get; set; }
     public Guid SkillId { get; set; }
     public string SkillName { get; set; } = string.Empty;
     public string? SkillCategory { get; set; }
@@ -34,20 +37,6 @@ public class EmployeeSkillDto
     public string? AssessorName { get; set; }
 }
 
-//public class AppraisalCycleDto
-//{
-//    public Guid CycleId { get; set; }
-//    public string CycleName { get; set; } = string.Empty;
-//    public string? Description { get; set; }
-//    public DateTime StartDate { get; set; }
-//    public DateTime EndDate { get; set; }
-//    public string Status { get; set; } = string.Empty;
-//    public bool SelfReviewEnabled { get; set; }
-//    public bool PeerReviewEnabled { get; set; }
-//    public bool ManagerReviewEnabled { get; set; }
-//    public int TotalAppraisals { get; set; }
-//    public int CompletedAppraisals { get; set; }
-//}
 public class AppraisalCycleDto
 {
     public Guid CycleId { get; set; }
@@ -190,7 +179,6 @@ public class CreateSkillSetRequest
     public string SkillName { get; set; } = string.Empty;
     public string? Category { get; set; }
     public string? Description { get; set; }
-    public int[] SkillLevelScale { get; set; } = Array.Empty<int>();
     public bool IsActive { get; set; } = true;
 }
 
@@ -199,13 +187,13 @@ public class UpdateSkillSetRequest
     public string SkillName { get; set; } = string.Empty;
     public string? Category { get; set; }
     public string? Description { get; set; }
-    public int[] SkillLevelScale { get; set; } = Array.Empty<int>();
     public bool IsActive { get; set; }
 }
 
 public class CreateEmployeeSkillRequest
 {
-    public Guid EmployeeId { get; set; }
+    [JsonIgnore]
+    public Guid? EmployeeId { get; set; }
     public Guid SkillId { get; set; }
     public int ProficiencyLevel { get; set; }
     public Guid? AssessedBy { get; set; }
@@ -228,7 +216,7 @@ public class KRADto
     public Guid OrganizationId { get; set; }
 
     public Guid CycleId { get; set; }
-    public string CycleName { get; set; } 
+    public string CycleName { get; set; }
 
     public string Title { get; set; } = string.Empty;
 
@@ -290,6 +278,10 @@ public class GoalDto
     public string? CreatedByName { get; set; }
     public string? AssignedtoName { get; set; }
     public bool IsActive { get; set; }
+    public bool? IsSelfAssessmentEnable { get; set; }
+    public bool? ManagerReview { get; set; }
+    public bool? IsAppraisalEnable { get; set; }
+
     public DateTime CreatedAt { get; set; }
 }
 
@@ -359,17 +351,7 @@ public class DepartmentPerformanceDto
     public int PendingAppraisals { get; set; }
 }
 
-//public class CreateSelfAssessmentRequest
-//{
-//    public Guid EmployeeId { get; set; }
-//    public Guid CycleId { get; set; }
-//    public Guid? KraId { get; set; }
-//    public Guid? SkillId { get; set; }
-//    public decimal Rating { get; set; }
-//    public string? Comments { get; set; }
-//    public List<string>? EvidenceUrls { get; set; }
-//    public string Status { get; set; } = "draft";  // draft | submitted
-//}
+
 
 public class CreateSelfAssessmentRequest
 {
@@ -393,12 +375,15 @@ public class SelfAssessmentDto
     public string Status { get; set; } = "SUBMITTED"; // Default status
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
-    public Guid? EmployeeId { get; set; }  
+    public Guid? EmployeeId { get; set; }
     public string? GoalName { get; set; }
     public string? KraName { get; set; }
     public string? EmployeeName { get; set; }
     public Guid? CycleId { get; set; }
     public string? CycleName { get; set; }
+    public bool? IsSelfAssessmentEnable { get; set; }
+    public bool? ManagerReview { get; set; }
+    public bool? IsAppraisalEnable { get; set; }
 }
 
 public class ManagerReviewRequest
@@ -463,19 +448,6 @@ public class ManagerReviewDto
 // HR Review Request DTO
 
 
-//public class HrReviewRequest
-//{
-//    public Guid EmployeeId { get; set; }
-//    public Guid CycleId { get; set; }
-//    public Guid KraId { get; set; }
-//    public Guid GoalId { get; set; }
-//    public decimal FinalRating { get; set; }
-//    public string? HrComments { get; set; }
-//    public string? ImprovementArea { get; set; }
-//    public string? Feedback { get; set; }
-//    public string Status { get; set; } = "SUBMITTED";
-//}
-
 public class HrReviewRequest
 {
     public Guid EmployeeId { get; set; }
@@ -490,28 +462,6 @@ public class HrReviewRequest
 }
 
 // HR Review Response DTO
-//public class HrReviewDto
-//{
-//    public Guid HrReviewId { get; set; }
-//    public Guid OrganizationId { get; set; }
-//    public Guid CycleId { get; set; }
-//    public string CycleName { get; set; } = string.Empty;
-//    public string HrName { get; set; }
-//    public Guid HrId { get; set; }
-//    public Guid KraId { get; set; }
-//    public string KraName { get; set; } = string.Empty;
-//    public Guid GoalId { get; set; }
-//    public string GoalName { get; set; } = string.Empty;
-//    public Guid EmployeeId { get; set; }
-//    public string EmployeeName { get; set; } = string.Empty;
-//    public decimal FinalRating { get; set; }
-//    public string? HrComments { get; set; }
-//    public string? ImprovementArea { get; set; }
-//    public string? Feedback { get; set; }
-//    public string Status { get; set; } = string.Empty;
-//    public DateTime CreatedAt { get; set; }
-//    public DateTime UpdatedAt { get; set; }
-//}
 
 public class HrReviewDto
 {
@@ -591,4 +541,48 @@ public class CycleRatingDto
     public Guid CycleId { get; set; }
     public string CycleName { get; set; } = string.Empty;
     public decimal? Rating { get; set; }
+}
+public class EmployeeSkillSummaryDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public string? Department { get; set; }
+    public string? Position { get; set; }
+    public List<string> SkillNames { get; set; } = new();
+    public int SkillCount { get; set; }
+    public double? AverageProficiency { get; set; }
+}
+public class EmployeeSkillFullDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public string? Department { get; set; }
+    public string? Position { get; set; }
+    public List<EmployeeSkillDto> Skills { get; set; } = new();
+}
+public class SkillWithEmployeesDto
+{
+    public Guid SkillId { get; set; }
+    public string SkillName { get; set; } = string.Empty;
+    public string? Category { get; set; }
+    public string? Description { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public int EmployeeCount { get; set; }
+    public List<EmployeeSkillDetailDto> Employees { get; set; } = new();
+}
+public class EmployeeSkillDetailDto
+{
+    public Guid EmployeeSkillId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? EmployeeEmail { get; set; }
+    public string? Department { get; set; }
+    public string? Position { get; set; }
+    public int ProficiencyLevel { get; set; }
+    public string? Notes { get; set; }
+    public string? AssessorName { get; set; }
+    public DateTime? LastAssessed { get; set; }
 }
