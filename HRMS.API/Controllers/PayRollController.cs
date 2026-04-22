@@ -1880,6 +1880,24 @@ public class PayRollController : ControllerBase
         }
     }
 
+    [HttpGet("tax-categories/regime/{regimeId}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetTaxCategoriesByRegimeId(Guid regimeId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxCategoriesByRegimeIdAsync(regimeId, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax categories by regime ID: {RegimeId}", regimeId);
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpPost("tax-categories")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<TaxCategoryDto>>> CreateTaxCategory([FromBody] CreateTaxCategoryDto dto)
@@ -2155,19 +2173,19 @@ public class PayRollController : ControllerBase
     // Tax Transactions
     [HttpGet("tax-transactions")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxTransactionDto>>>> GetAllTaxTransactions()
+    public async Task<ActionResult<ServiceResponse<PagedResult<TaxTransactionDto>>>> GetAllTaxTransactions([FromQuery] TaxTransactionFilterDto filter)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var response = await _payRollService.GetAllTaxTransactionsAsync(organizationId);
+            var response = await _payRollService.GetAllTaxTransactionsAsync(organizationId, filter);
             if (!response.Success) return BadRequest(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tax transactions");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<PagedResult<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
         }
     }
 

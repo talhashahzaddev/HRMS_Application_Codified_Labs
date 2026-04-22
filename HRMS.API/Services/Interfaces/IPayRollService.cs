@@ -136,6 +136,7 @@ public interface IPayRollService
     // Tax Categories
     Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetAllTaxCategoriesAsync(Guid organizationId);
     Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetActiveTaxCategoriesAsync(Guid organizationId);
+    Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId);
     Task<ServiceResponse<TaxCategoryDto>> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId);
     Task<ServiceResponse<TaxCategoryDto>> CreateTaxCategoryAsync(Guid organizationId, CreateTaxCategoryDto dto);
     Task<ServiceResponse<TaxCategoryDto>> UpdateTaxCategoryAsync(Guid categoryId, Guid organizationId, UpdateTaxCategoryDto dto);
@@ -158,7 +159,7 @@ public interface IPayRollService
     Task<ServiceResponse<bool>> DeleteTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId);
 
     // Tax Transactions
-    Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId);
+    Task<ServiceResponse<PagedResult<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId, TaxTransactionFilterDto filter);
     Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetActiveTaxTransactionsAsync(Guid organizationId);
     Task<ServiceResponse<TaxTransactionDto>> GetTaxTransactionByIdAsync(Guid id, Guid organizationId);
     Task<ServiceResponse<TaxTransactionDto>> CreateTaxTransactionAsync(Guid organizationId, CreateTaxTransactionDto dto);

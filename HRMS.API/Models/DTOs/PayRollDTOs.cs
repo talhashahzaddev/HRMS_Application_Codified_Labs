@@ -703,8 +703,8 @@ public class CreateTaxSlabDto
     public int SlabOrder { get; set; }
     public decimal MinIncome { get; set; }
     public decimal? MaxIncome { get; set; }
-    public decimal FixedAmount { get; set; } = 0;
-    public decimal Percentage { get; set; } = 0;
+    public decimal? FixedAmount { get; set; } = 0;
+    public decimal? Percentage { get; set; } = 0;
 }
 
 public class UpdateTaxSlabDto : CreateTaxSlabDto
@@ -731,8 +731,8 @@ public class CreateTaxComponentRuleDto
     public Guid RegimeId { get; set; }
     public string? ComponentName { get; set; }
     public string? Taxability { get; set; }
-    public decimal LimitAmount { get; set; } = 0;
-    public decimal LimitPercentage { get; set; } = 0;
+    public decimal? LimitAmount { get; set; } = 0;
+    public decimal? LimitPercentage { get; set; } = 0;
     public string? ApplyStage { get; set; }
 }
 
@@ -770,6 +770,15 @@ public class CreateTaxTransactionDto
 
 public class UpdateTaxTransactionDto : CreateTaxTransactionDto
 {
+}
+
+public class TaxTransactionFilterDto
+{
+    public string? EmployeeName { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid? CategoryId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
 }
 
 public class CreateProvidentFundEnrollmentDto
