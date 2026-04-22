@@ -609,23 +609,17 @@ public class PerformanceService : IPerformanceService
 
     public async Task<List<GoalDto>> GetAllGoalsAsync(Guid organizationId, Guid currentEmployeeId)
     {
-        // Check if user is Super Admin or HR Manager
-        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
-        if (isAdminOrHR)
-        {
-            _logger.LogInformation("Fetching all Goals for Organization: {OrgId}", organizationId);
-            return await _performanceRepository.GetAllGoalsAsync(organizationId);
-
-        }
-        else
-        {
-            //return only goals assigned to the employee
-            return await _performanceRepository.GetEmployeeAssignedGoalAsync(organizationId, currentEmployeeId);
-
-        }
-
+      
+     _logger.LogInformation("Fetching all Goals for Organization: {OrgId}", organizationId);
+       return await _performanceRepository.GetAllGoalsAsync(organizationId);
+      
     }
 
+    public async Task<List<GoalDto>> GetEmployeeAssignedGoalsAsync(Guid organizationId, Guid currentEmployeeId)
+    {
+       return await _performanceRepository.GetEmployeeAssignedGoalAsync(organizationId, currentEmployeeId);
+    }
+    
     public async Task<GoalDto?> GetGoalByIdAsync(Guid organizationId, Guid goalId)
     {
         _logger.LogInformation("Fetching Goal {GoalId} for Organization: {OrgId}", goalId, organizationId);
