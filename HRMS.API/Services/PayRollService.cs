@@ -1890,17 +1890,17 @@ public class PayRollService : IPayRollService
     }
 
     // Tax Transactions
-    public async Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId)
+    public async Task<ServiceResponse<PagedResult<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId, TaxTransactionFilterDto filter)
     {
         try
         {
-            var result = await _payRollRepository.GetAllTaxTransactionsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = true, Data = result };
+            var result = await _payRollRepository.GetAllTaxTransactionsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<TaxTransactionDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting all tax transactions");
-            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
+            _logger.LogError(ex, "Error getting tax transactions");
+            return new ServiceResponse<PagedResult<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
         }
     }
 

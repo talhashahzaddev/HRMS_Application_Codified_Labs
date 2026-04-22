@@ -772,6 +772,15 @@ public class UpdateTaxTransactionDto : CreateTaxTransactionDto
 {
 }
 
+public class TaxTransactionFilterDto
+{
+    public string? EmployeeName { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid? CategoryId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
 public class CreateProvidentFundEnrollmentDto
 {
     public Guid RuleId { get; set; }

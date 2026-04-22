@@ -3418,9 +3418,34 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Tax Transactions
-    public async Task<IEnumerable<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId)
+    public async Task<PagedResult<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId, TaxTransactionFilterDto filter)
     {
-        var sql = @"
+        filter ??= new TaxTransactionFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var conditions = new List<string> { "tt.organizationid = @organizationId" };
+
+        if (filter.PeriodId.HasValue)
+            conditions.Add("tt.periodid = @PeriodId");
+
+        if (filter.CategoryId.HasValue)
+            conditions.Add("tt.categoryid = @CategoryId");
+
+        if (!string.IsNullOrWhiteSpace(filter.EmployeeName))
+            conditions.Add("CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) ILIKE '%' || @EmployeeName || '%'");
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.taxtransactions tt
+            INNER JOIN employee.employees e ON e.employeeid = tt.employeeid AND e.organizationid = tt.organizationid
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = tt.periodid AND pp.organizationid = tt.organizationid
+            LEFT JOIN payroll.taxcategories tc ON tc.categoryid = tt.categoryid
+            WHERE {whereClause};";
+
+        var sql = $@"
             SELECT
                 tt.id AS Id,
                 tt.organizationid AS OrganizationId,
@@ -3439,10 +3464,30 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             INNER JOIN employee.employees e ON e.employeeid = tt.employeeid AND e.organizationid = tt.organizationid
             INNER JOIN payroll.payrollperiods pp ON pp.periodid = tt.periodid AND pp.organizationid = tt.organizationid
             LEFT JOIN payroll.taxcategories tc ON tc.categoryid = tt.categoryid
-            WHERE tt.organizationid = @organizationId
-            ORDER BY tt.createdat DESC;";
+            WHERE {whereClause}
+            ORDER BY tt.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
 
-        return await QueryAsync<TaxTransactionDto>(sql, new { organizationId });
+        var parameters = new
+        {
+            organizationId,
+            filter.PeriodId,
+            filter.CategoryId,
+            filter.EmployeeName,
+            PageSize = filter.PageSize,
+            Offset = (filter.Page - 1) * filter.PageSize
+        };
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<TaxTransactionDto>(sql, parameters);
+
+        return new PagedResult<TaxTransactionDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
     }
 
     public async Task<IEnumerable<TaxTransactionDto>> GetActiveTaxTransactionsAsync(Guid organizationId)
