@@ -1780,29 +1780,7 @@ WHERE goalid = @GoalId
 
     public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request, Guid organizationId, Guid currentEmployeeId)
     {
-        if (request == null)
-            throw new ArgumentNullException(nameof(request));
-
-        // ---------------------------------------------
-        // 1) Check if the same KRA already exists for the employee
-        // ---------------------------------------------
-        var checkSql = @"
-        SELECT COUNT(*) 
-        FROM performance.selfassessments
-        WHERE employeeid = @EmployeeId 
-          AND kraid = @KraId;
-    ";
-
-        var existingCount = await QuerySingleOrDefaultAsync<int>(checkSql, new
-        {
-            EmployeeId = currentEmployeeId,
-            KraId = request.KraId
-        });
-
-        if (existingCount > 0)
-        {
-            throw new Exception("A self-assessment for this KRA already exists for the selected employee.");
-        }
+  
 
         // ---------------------------------------------
         // 2) Insert new self-assessment
@@ -2758,25 +2736,25 @@ ORDER BY sa.createdat DESC;
     public async Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId)
     {
         var sql = @"
-    SELECT 
-        cycleid,
-        cyclename,
-        cycletype,
-        description,
-        startdate,
-        enddate,
-        reviewstartdate,
-        reviewenddate,
-        status,
-        isselfassessmentenable,
-        managerreview,          -- ✅ FIXED
-        isappraisalenable,
-        createdby,
-        createdat,
-        updatedat,
-        organizationid
-    FROM performance.appraisal_cycle
-    WHERE cycleid = @cycleId";
+   SELECT 
+    cycleid AS CycleId,
+    cyclename AS CycleName,
+    cycletype AS CycleType,
+    description,
+    startdate AS StartDate,
+    enddate AS EndDate,
+    reviewstartdate AS ReviewStartDate,
+    reviewenddate AS ReviewEndDate,
+    status,
+    isselfassessmentenable AS SelfReviewEnabled,
+    managerreview AS ManagerReviewEnabled,
+    isappraisalenable AS AppraisalEnabled,
+    createdby AS CreatedBy,
+    createdat AS CreatedAt,
+    updatedat AS UpdatedAt,
+    organizationid AS OrganizationId
+FROM performance.appraisal_cycle
+WHERE cycleid = @cycleId";
 
         var result = await QuerySingleOrDefaultAsync<AppraisalCycleDto>(
             sql,

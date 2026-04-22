@@ -6,7 +6,7 @@ namespace HRMS.API.Services.Interfaces;
 
 public interface IPerformanceService
 {
-    //Task<PerformanceSummaryDto> GetMyPerformanceSummaryAsync(Guid organizationId, Guid currentEmpid);
+    Task<List<GoalDto>> GetEmployeeAssignedGoalsAsync(Guid organizationId, Guid currentEmployeeId);
     Task<MYPerformanceSummary> GetMyPerformanceSummaryAsync(Guid organizationId, Guid currentEmpid);
     Task<List<ManagerReviewDto>> GetAllManagerReviewsAsync(Guid organizationId, Guid managerId, SearchManagersDto search);
     Task<List<HrReviewDto>> GetAllAppraisaAsync(Guid organizationId, Guid employeeId, SearchAppraisalDto search);

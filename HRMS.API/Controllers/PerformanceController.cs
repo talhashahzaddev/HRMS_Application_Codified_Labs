@@ -2,6 +2,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
 using System.Security.Claims;
 
 namespace HRMS.API.Controllers;
@@ -1268,6 +1269,33 @@ public class PerformanceController : ControllerBase
         }
     }
 
+    [HttpGet("employee/Assigned/goals")]
+    public async Task<ActionResult<ServiceResponse<List<GoalDto>>>> GetEmployeeAssignedGoals()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var result = await _performanceService.GetEmployeeAssignedGoalsAsync(organizationId, currentEmployeeId);
+            return Ok(new ServiceResponse<List<GoalDto>>
+            {
+                Success = true,
+                Data = result
+            
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error while fetching Goals");
+            return StatusCode(500, new ServiceResponse<List<GoalDto>>
+            {
+                Success = false,
+                Message = "Error while fetching Goals"
+            });
+        }
+    }
+
     [HttpGet("goals/{goalId}")]
     [Authorize(Roles = "Super Admin,HR Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<GoalDto>>> GetGoalById(Guid goalId)
@@ -2208,7 +2236,7 @@ public class PerformanceController : ControllerBase
     }
 
     // Submit HR Review
-    [HttpPost("HR/Review")]
+    [HttpPost("Create/HR/Appraisal")]
     public async Task<ActionResult<ServiceResponse<HrReviewDto>>> SubmitHrReview([FromBody] HrReviewRequest request)
     {
         try
@@ -2217,7 +2245,6 @@ public class PerformanceController : ControllerBase
             var currentEmployeeId = await GetCurrentEmployeeId(); // HR employee ID
 
             var result = await _performanceService.SubmitHrReviewAsync(request, organizationId, currentEmployeeId);
-
             return Ok(new ServiceResponse<HrReviewDto>
             {
                 Success = true,
