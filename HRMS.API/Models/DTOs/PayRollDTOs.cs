@@ -636,6 +636,142 @@ public class UpdateProvidentFundRuleDto : CreateProvidentFundRuleDto
 {
 }
 
+public class TaxRegimeDto
+{
+    public Guid RegimeId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string? Country { get; set; }
+    public string? RegimeName { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CreateTaxRegimeDto
+{
+    public string? Country { get; set; }
+    public string? RegimeName { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateTaxRegimeDto : CreateTaxRegimeDto
+{
+}
+
+public class TaxCategoryDto
+{
+    public Guid CategoryId { get; set; }
+    public Guid RegimeId { get; set; }
+    public string? RegimeName { get; set; }
+    public string? CategoryName { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CreateTaxCategoryDto
+{
+    public Guid RegimeId { get; set; }
+    public string? CategoryName { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateTaxCategoryDto : CreateTaxCategoryDto
+{
+}
+
+public class TaxSlabDto
+{
+    public Guid SlabId { get; set; }
+    public Guid CategoryId { get; set; }
+    public string? CategoryName { get; set; }
+    public int SlabOrder { get; set; }
+    public decimal MinIncome { get; set; }
+    public decimal? MaxIncome { get; set; }
+    public decimal FixedAmount { get; set; }
+    public decimal Percentage { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CreateTaxSlabDto
+{
+    public Guid CategoryId { get; set; }
+    public int SlabOrder { get; set; }
+    public decimal MinIncome { get; set; }
+    public decimal? MaxIncome { get; set; }
+    public decimal FixedAmount { get; set; } = 0;
+    public decimal Percentage { get; set; } = 0;
+}
+
+public class UpdateTaxSlabDto : CreateTaxSlabDto
+{
+}
+
+public class TaxComponentRuleDto
+{
+    public Guid ComponentRuleId { get; set; }
+    public Guid RegimeId { get; set; }
+    public string? RegimeName { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string? ComponentName { get; set; }
+    public string? Taxability { get; set; }
+    public decimal LimitAmount { get; set; }
+    public decimal LimitPercentage { get; set; }
+    public string? ApplyStage { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CreateTaxComponentRuleDto
+{
+    public Guid RegimeId { get; set; }
+    public string? ComponentName { get; set; }
+    public string? Taxability { get; set; }
+    public decimal LimitAmount { get; set; } = 0;
+    public decimal LimitPercentage { get; set; } = 0;
+    public string? ApplyStage { get; set; }
+}
+
+public class UpdateTaxComponentRuleDto : CreateTaxComponentRuleDto
+{
+}
+
+public class TaxTransactionDto
+{
+    public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string? EmployeeName { get; set; }
+    public Guid PeriodId { get; set; }
+    public string? PeriodName { get; set; }
+    public Guid? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
+    public decimal? GrossIncome { get; set; }
+    public decimal? TaxableIncome { get; set; }
+    public decimal? TaxAmount { get; set; }
+    public decimal? MonthlyTax { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class CreateTaxTransactionDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? CategoryId { get; set; }
+    public decimal? GrossIncome { get; set; }
+    public decimal? TaxableIncome { get; set; }
+    public decimal? TaxAmount { get; set; }
+    public decimal? MonthlyTax { get; set; }
+}
+
+public class UpdateTaxTransactionDto : CreateTaxTransactionDto
+{
+}
+
 public class CreateProvidentFundEnrollmentDto
 {
     public Guid RuleId { get; set; }
