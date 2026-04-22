@@ -1,8 +1,11 @@
 using AutoMapper;
+using HRMS.API.Controllers;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
+using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using NPOI.SS.Formula.Functions;
 using static HRMS.API.Models.DTOs.NotificationDto;
 
 namespace HRMS.API.Services;
@@ -12,6 +15,7 @@ public class PerformanceService : IPerformanceService
     private readonly IPerformanceRepository _performanceRepository;
     private readonly INotificationService _notificationService;
     private readonly INotificationRepository _notificationRepository;
+    private readonly IAttendanceRepository _attendanceRepository;
     private readonly IEmployeeRepository _employeeRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<PerformanceService> _logger;
@@ -20,6 +24,7 @@ public class PerformanceService : IPerformanceService
         IPerformanceRepository performanceRepository,
         INotificationService notificationService,
         INotificationRepository notificationRepository,
+        IAttendanceRepository attendanceRepository,
         IEmployeeRepository employeeRepository,
         IMapper mapper,
         ILogger<PerformanceService> logger)
@@ -27,34 +32,43 @@ public class PerformanceService : IPerformanceService
         _performanceRepository = performanceRepository;
         _notificationService = notificationService;
         _notificationRepository = notificationRepository;
+        _attendanceRepository = attendanceRepository;
         _employeeRepository = employeeRepository;
         _mapper = mapper;
         _logger = logger;
     }
 
-    public async Task<AppraisalCycleDto> CreateAppraisalCycleAsync(string cycleName, DateTime startDate, DateTime endDate, Guid organizationId, string? description = null)
-    {
-        _logger.LogInformation("Creating appraisal cycle: {CycleName}", cycleName);
-        if (organizationId == Guid.Empty)
-        {
-            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
-        }
-        if (string.IsNullOrWhiteSpace(cycleName))
-        {
-            throw new ArgumentException("Cycle name is required", nameof(cycleName));
-        }
-        if (endDate < startDate)
-        {
-            throw new ArgumentException("End date cannot be earlier than start date", nameof(endDate));
-        }
 
-        var cycle = await _performanceRepository.CreateAppraisalCycleAsync(organizationId, cycleName, startDate, endDate, description);
+    public async Task<AppraisalCycleDto> CreateAppraisalCycleAsync(CreateAppraisalCycleRequest request, Guid organizationId, Guid currentEmployeeId)
+    {
+        _logger.LogInformation("Creating appraisal cycle: {CycleName}", request.CycleName);
+
+        // 🔹 Basic validations
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+
+        if (string.IsNullOrWhiteSpace(request.CycleName))
+            throw new ArgumentException("Cycle name is required", nameof(request.CycleName));
+
+        if (request.EndDate < request.StartDate)
+            throw new ArgumentException("End date cannot be earlier than start date", nameof(request.EndDate));
+
+        // 🔹 Default status (if not provided)
+        var status = string.IsNullOrWhiteSpace(request.Status)
+            ? "upcoming"
+            : request.Status.ToLower();
+
+        // 🔹 Create entity via repository
+        var cycle = await _performanceRepository.CreateAppraisalCycleAsync(request, organizationId, currentEmployeeId);
+
         if (cycle == null)
-        {
             throw new InvalidOperationException("Failed to create appraisal cycle");
-        }
+
         return _mapper.Map<AppraisalCycleDto>(cycle);
     }
+
+
+
 
     public async Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId)
     {
@@ -134,17 +148,14 @@ public class PerformanceService : IPerformanceService
     {
         _logger.LogInformation("Creating skill set: {SkillName}", request?.SkillName);
         if (organizationId == Guid.Empty)
-        {
-            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
-        }
+            throw new ArgumentException("Organization ID cannot be empty.", nameof(organizationId));
         if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request), "Request cannot be null");
-        }
+            throw new ArgumentNullException(nameof(request));
         if (string.IsNullOrWhiteSpace(request.SkillName))
-        {
-            throw new ArgumentException("Skill name is required", nameof(request.SkillName));
-        }
+            throw new ArgumentException("Skill name is required.", nameof(request.SkillName));
+
+        _logger.LogInformation("Creating skill set: {SkillName} for org: {OrgId}", request.SkillName, organizationId);
+
         try
         {
             return await _performanceRepository.CreateSkillSetAsync(request, organizationId);
@@ -154,18 +165,15 @@ public class PerformanceService : IPerformanceService
             throw;
         }
     }
-
-
-
     public async Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
     {
         return await _performanceRepository.GetSkillSetsAsync(organizationId);
     }
-
-
-
     public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
     {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty.", nameof(employeeId));
+
         return await _performanceRepository.GetEmployeeSkillsAsync(employeeId);
     }
 
@@ -175,6 +183,13 @@ public class PerformanceService : IPerformanceService
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _performanceRepository.GetPerformanceSummaryAsync(organizationId, cycleId);
+    }
+    //My performance summary
+    public async Task<MYPerformanceSummary> GetMyPerformanceSummaryAsync(Guid organizationId, Guid currentEmpid)
+    {
+        //getting current cycleid of employee so by cycle id we can get current rating for its performance
+        var CurrentCycleId = await _performanceRepository.GetCurrentCycleid(organizationId);
+        return await _performanceRepository.GetMyPerformanceSummaryAsync(organizationId, currentEmpid, CurrentCycleId);
     }
 
     public async Task<List<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10)
@@ -199,33 +214,42 @@ public class PerformanceService : IPerformanceService
 
     public async Task<PagedResult<SkillSetDto>> GetSkillSetsPagedAsync(Guid organizationId, SkillSetFilterRequest filter, int page, int limit)
     {
-        _logger.LogInformation("Getting paged skill sets for organization: {OrganizationId}", organizationId);
         if (organizationId == Guid.Empty)
-            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+            throw new ArgumentException("Organization ID cannot be empty.", nameof(organizationId));
         if (page <= 0)
-            throw new ArgumentException("Page must be greater than zero", nameof(page));
+            throw new ArgumentException("Page must be greater than zero.", nameof(page));
         if (limit <= 0)
-            throw new ArgumentException("Page size must be greater than zero", nameof(limit));
-        var skillSets = await GetSkillSetsAsync(organizationId);
+            throw new ArgumentException("Limit must be greater than zero.", nameof(limit));
 
-        // Apply filters
-        if (!string.IsNullOrEmpty(filter.Category))
-            skillSets = skillSets.Where(s => s.Category == filter.Category).ToList();
-        if (filter.IsActive.HasValue)
-            skillSets = skillSets.Where(s => s.IsActive == filter.IsActive.Value).ToList();
-        if (!string.IsNullOrEmpty(filter.Search))
-            skillSets = skillSets.Where(s => s.SkillName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase)).ToList();
+        _logger.LogInformation("Getting paged skill sets for org: {OrgId}, page: {Page}", organizationId, page);
 
-        var totalItems = skillSets.Count;
-        var pagedItems = skillSets.Skip((page - 1) * limit).Take(limit).ToList();
+        var (items, total) = await _performanceRepository.GetSkillSetsPagedAsync(organizationId, filter, page, limit);
 
         return new PagedResult<SkillSetDto>
         {
-            Data = pagedItems,
-            TotalCount = totalItems,
+            Data = items,
+            TotalCount = total,
             Page = page,
             PageSize = limit
         };
+    }
+    public async Task<SkillWithEmployeesDto?> GetSkillWithEmployeesAsync(Guid skillId)
+    {
+        if (skillId == Guid.Empty)
+            throw new ArgumentException("Skill ID cannot be empty.", nameof(skillId));
+
+        _logger.LogInformation("Getting skill with employees: {SkillId}", skillId);
+
+        return await _performanceRepository.GetSkillWithEmployeesAsync(skillId);
+    }
+    public async Task<SkillSetDto> ToggleSkillStatusAsync(Guid skillId)
+    {
+        if (skillId == Guid.Empty)
+            throw new ArgumentException("Skill ID cannot be empty.", nameof(skillId));
+
+        _logger.LogInformation("Toggling skill status: {SkillId}", skillId);
+
+        return await _performanceRepository.ToggleSkillStatusAsync(skillId);
     }
 
     public async Task<SkillSetDto?> GetSkillSetByIdAsync(Guid skillSetId)
@@ -260,10 +284,14 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.UpdateSkillSetAsync(skillSetId, request);
     }
 
-    public async Task<bool> DeleteSkillSetAsync(Guid skillSetId)
+    public async Task<bool> DeleteSkillSetAsync(Guid skillId)
     {
-        _logger.LogInformation("Deleting skill set: {SkillSetId}", skillSetId);
-        return await _performanceRepository.DeleteSkillSetAsync(skillSetId);
+        if (skillId == Guid.Empty)
+            throw new ArgumentException("Skill ID cannot be empty.", nameof(skillId));
+
+        _logger.LogInformation("Deleting skill set: {SkillId}", skillId);
+
+        return await _performanceRepository.DeleteSkillSetAsync(skillId);
     }
 
     public async Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit)
@@ -283,7 +311,7 @@ public class PerformanceService : IPerformanceService
         if (filter.ProficiencyLevel.HasValue)
             allSkills = allSkills.Where(s => s.ProficiencyLevel == filter.ProficiencyLevel.Value).ToList();
         if (!string.IsNullOrEmpty(filter.Search))
-            allSkills = allSkills.Where(s => 
+            allSkills = allSkills.Where(s =>
                 s.SkillName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase) ||
                 s.EmployeeName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase)).ToList();
 
@@ -338,59 +366,30 @@ public class PerformanceService : IPerformanceService
 
     public async Task<EmployeeSkillDto> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request)
     {
-        try
-        {
-            // ✅ 1. Basic validation
-            if (request.EmployeeId == Guid.Empty || request.SkillId == Guid.Empty)
-                throw new ArgumentException("EmployeeId and SkillId are required.");
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+        if (request.EmployeeId == Guid.Empty || request.SkillId == Guid.Empty)
+            throw new ArgumentException("EmployeeId and SkillId are required.");
 
-            if (request.ProficiencyLevel < 1 || request.ProficiencyLevel > 5)
-                throw new ArgumentException("Proficiency level must be between 1 and 5.");
+        if (request.ProficiencyLevel < 1 || request.ProficiencyLevel > 10)
+            throw new ArgumentException("Proficiency level must be between 1 and 10.");
 
-            // ✅ 2. Default values
-            if (!request.LastAssessed.HasValue)
-                request.LastAssessed = DateTime.UtcNow;
+        if (!request.LastAssessed.HasValue)
+            request.LastAssessed = DateTime.UtcNow;
 
-            // AssessedBy should already be set by the controller from the current user context
-            // Only validate it's not empty GUID here
-            //if (!request.AssessedBy.HasValue || request.AssessedBy == Guid.Empty)
-            //{
-            //    _logger.LogWarning("AssessedBy is not set. This should be handled by the controller.");
-            //    throw new ArgumentException("AssessedBy must be provided. The assessor ID is required.");
-            //}
+        // Check for duplicate
+        var existingSkills = await _performanceRepository.GetEmployeeSkillsAsync(request.EmployeeId);
+        if (existingSkills.Any(s => s.SkillId == request.SkillId))
+            throw new InvalidOperationException("This skill has already been added to the employee.");
 
-            // ✅ 3. Check for duplicate skill
-            var existingSkills = await _performanceRepository.GetEmployeeSkillsAsync(request.EmployeeId);
-            if (existingSkills.Any(s => s.SkillId == request.SkillId))
-            {
-                throw new InvalidOperationException("This skill has already been added to the employee. Cannot add duplicate skills.");
-            }
+        _logger.LogInformation("Creating employee skill for employee: {EmployeeId}, skill: {SkillId}", request.EmployeeId, request.SkillId);
 
-            // ✅ 4. Call repository
-            var result = await _performanceRepository.CreateEmployeeSkillAsync(request);
+        var result = await _performanceRepository.CreateEmployeeSkillAsync(request);
 
-            if (result == null)
-                throw new Exception("Failed to create employee skill record.");
+        if (result == null)
+            throw new Exception("Failed to create employee skill record.");
 
-            _logger.LogInformation("✅ Successfully created skill for employee {EmployeeId}", request.EmployeeId);
-
-            return result;
-        }
-        catch (InvalidOperationException ex)
-        {
-            _logger.LogWarning(ex, "⚠ Duplicate skill detected for employee");
-            throw;
-        }
-        catch (ArgumentException ex)
-        {
-            _logger.LogWarning(ex, "⚠ Validation failed for employee skill creation");
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "❌ Error while creating employee skill");
-            throw;
-        }
+        return result;
     }
 
 
@@ -437,31 +436,33 @@ public class PerformanceService : IPerformanceService
 
     public async Task<EmployeeSkillDto> UpdateEmployeeSkillAsync(Guid employeeSkillId, UpdateEmployeeSkillRequest request)
     {
-        _logger.LogInformation("Updating employee skill: {EmployeeSkillId}", employeeSkillId);
         if (employeeSkillId == Guid.Empty)
-            throw new ArgumentException("Employee skill ID cannot be empty", nameof(employeeSkillId));
+            throw new ArgumentException("Employee skill ID cannot be empty.", nameof(employeeSkillId));
         if (request == null)
-            throw new ArgumentNullException(nameof(request), "Request cannot be null");
-        if (request.ProficiencyLevel < 1 || request.ProficiencyLevel > 5)
-            throw new ArgumentException("Proficiency level must be between 1 and 5.", nameof(request.ProficiencyLevel));
+            throw new ArgumentNullException(nameof(request));
+
+        if (request.ProficiencyLevel < 1 || request.ProficiencyLevel > 10)
+            throw new ArgumentException("Proficiency level must be between 1 and 10.");
+
         if (!request.LastAssessed.HasValue)
             request.LastAssessed = DateTime.UtcNow;
 
-        var skill = await GetEmployeeSkillByIdAsync(employeeSkillId);
-        if (skill == null)
-            throw new KeyNotFoundException($"Employee skill with ID {employeeSkillId} not found");
+        var existing = await _performanceRepository.GetEmployeeSkillByIdAsync(employeeSkillId);
+        if (existing == null)
+            throw new KeyNotFoundException($"Employee skill with ID {employeeSkillId} not found.");
+
+        _logger.LogInformation("Updating employee skill: {EmployeeSkillId}", employeeSkillId);
 
         return await _performanceRepository.UpdateEmployeeSkillAsync(employeeSkillId, request);
     }
 
     public async Task<bool> DeleteEmployeeSkillAsync(Guid employeeSkillId)
     {
-        _logger.LogInformation("Deleting employee skill: {EmployeeSkillId}", employeeSkillId);
         if (employeeSkillId == Guid.Empty)
-            throw new ArgumentException("Employee skill ID cannot be empty", nameof(employeeSkillId));
-        var existing = await GetEmployeeSkillByIdAsync(employeeSkillId);
-        if (existing == null)
-            throw new KeyNotFoundException($"Employee skill with ID {employeeSkillId} not found");
+            throw new ArgumentException("Employee skill ID cannot be empty.", nameof(employeeSkillId));
+
+        _logger.LogInformation("Deleting employee skill: {EmployeeSkillId}", employeeSkillId);
+
         return await _performanceRepository.DeleteEmployeeSkillAsync(employeeSkillId);
     }
 
@@ -505,7 +506,7 @@ public class PerformanceService : IPerformanceService
 
     }
 
-    public async Task<KRADto> CreateKRAAsync(Guid organizationId, CreateKRARequest request)
+    public async Task<KRADto> CreateKRAAsync(Guid organizationId, Guid CurrentEmpId, CreateKRARequest request)
     {
         _logger.LogInformation("Creating KRA: {Title}", request.Title);
         if (organizationId == Guid.Empty)
@@ -515,7 +516,7 @@ public class PerformanceService : IPerformanceService
         if (string.IsNullOrWhiteSpace(request.Title))
             throw new ArgumentException("KRA title is required", nameof(request.Title));
 
-        var result = await _performanceRepository.CreateKRAAsync(request, organizationId);
+        var result = await _performanceRepository.CreateKRAAsync(request, organizationId, CurrentEmpId);
 
 
         return result;
@@ -568,6 +569,105 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.DeleteKRAAsync(kraId);
     }
 
+    public async Task<GoalDto> CreateGoalAsync(Guid organizationId, Guid createdBy, CreateGoalRequest request)
+    {
+        _logger.LogInformation("Creating Goal for Organization: {OrgId}, CreatedBy: {CreatedBy}", organizationId, createdBy);
+
+        // Validation
+        if (string.IsNullOrWhiteSpace(request.Title))
+            throw new ArgumentException("Goal title cannot be empty", nameof(request.Title));
+
+        if (request.StartDate.HasValue && request.EndDate.HasValue && request.EndDate < request.StartDate)
+            throw new ArgumentException("EndDate cannot be earlier than StartDate");
+
+        // Create the goal
+        var goal = await _performanceRepository.CreateGoalAsync(request, organizationId, createdBy);
+
+        if (request.KRAId != null)
+        {
+            // Fetch all goals for this KRA
+            var allGoals = await _performanceRepository.GetCompletedGoalsByKRAAsync(request.KRAId);
+
+            // Total goals count
+            int totalGoals = allGoals.Count;
+
+            // Count completed goals
+            int completedCount = allGoals.Count(g => g.Progress?.ToLower() == "completed");
+
+            // Calculate average progress rate (completed / total * 100)
+            decimal averageRate = totalGoals == 0 ? 0 : (decimal)completedCount / totalGoals * 100;
+
+            // Convert decimal average to string (e.g., "75.00")
+            var krarateString = Math.Round(averageRate, 2).ToString();
+
+            // Update KRA's progress and number of goals
+            await _performanceRepository.UpdateKRAProgressAsync(request.KRAId, krarateString, totalGoals);
+        }
+
+        return goal;
+    }
+
+    public async Task<List<GoalDto>> GetAllGoalsAsync(Guid organizationId, Guid currentEmployeeId)
+    {
+        // Check if user is Super Admin or HR Manager
+        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+        if (isAdminOrHR)
+        {
+            _logger.LogInformation("Fetching all Goals for Organization: {OrgId}", organizationId);
+            return await _performanceRepository.GetAllGoalsAsync(organizationId);
+
+        }
+        else
+        {
+            //return only goals assigned to the employee
+            return await _performanceRepository.GetEmployeeAssignedGoalAsync(organizationId, currentEmployeeId);
+
+        }
+
+    }
+
+    public async Task<GoalDto?> GetGoalByIdAsync(Guid organizationId, Guid goalId)
+    {
+        _logger.LogInformation("Fetching Goal {GoalId} for Organization: {OrgId}", goalId, organizationId);
+        return await _performanceRepository.GetGoalByIdAsync(goalId);
+    }
+
+    public async Task<GoalDto?> UpdateGoalAsync(Guid organizationId, UpdateGoalRequest request)
+    {
+
+        if (request.StartDate.HasValue && request.EndDate.HasValue && request.EndDate < request.StartDate)
+            throw new ArgumentException("EndDate cannot be earlier than StartDate");
+
+        var updated = await _performanceRepository.UpdateGoalAsync(organizationId, request);
+
+        if (updated != null)
+        {
+            var allGoals = await _performanceRepository.GetCompletedGoalsByKRAAsync(request.KRAId);
+            int totalGoals = allGoals.Count;
+            int completedCount = allGoals.Count(g => g.Progress?.ToLower() == "completed");
+            decimal averageRate = totalGoals == 0 ? 0 : (decimal)completedCount / totalGoals * 100;
+            await _performanceRepository.UpdateKRAProgressAsync(request.KRAId, Math.Round(averageRate, 2).ToString(), totalGoals);
+        }
+
+        return updated;
+    }
+
+    public async Task DeleteGoalAsync(Guid organizationId, Guid goalId)
+    {
+        _logger.LogInformation("Deleting Goal {GoalId} for Organization: {OrgId}", goalId, organizationId);
+        await _performanceRepository.DeleteGoalAsync(organizationId, goalId);
+    }
+    public async Task<bool> AssignGoalAsync(Guid organizationId, Guid goalId, Guid assignedTo, Guid assignedBy)
+    {
+        _logger.LogInformation(
+            "Assigning Goal {GoalId} in Org: {OrgId} to {AssignedTo} by {AssignedBy}",
+            goalId, organizationId, assignedTo, assignedBy);
+        var result = await _performanceRepository
+            .UpdateGoalAssignmentAsync(organizationId, goalId, assignedTo, assignedBy);
+
+        return result;
+    }
+
     public async Task<PagedResult<AppraisalCycleDto>> GetAppraisalCyclesPagedAsync(Guid organizationId, int page, int limit, string? search)
     {
         _logger.LogInformation("Getting paged appraisal cycles for organization: {OrganizationId}", organizationId);
@@ -610,6 +710,12 @@ public class PerformanceService : IPerformanceService
             throw new ArgumentException("Cycle ID cannot be empty", nameof(cycleId));
         if (request == null)
             throw new ArgumentNullException(nameof(request), "Request cannot be null");
+        var appraisalCycle = await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
+        if (appraisalCycle.StartDate <= DateTime.UtcNow)
+        {
+            throw new InvalidOperationException("Cannot Update appraisal cycle because it has already started.");
+        }
+
         return await _performanceRepository.UpdateAppraisalCycleAsync(cycleId, request);
     }
 
@@ -618,9 +724,11 @@ public class PerformanceService : IPerformanceService
         _logger.LogInformation("Deleting appraisal cycle: {CycleId}", cycleId);
         if (cycleId == Guid.Empty)
             throw new ArgumentException("Cycle ID cannot be empty", nameof(cycleId));
-        var existing = await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
-        if (existing == null)
-            throw new KeyNotFoundException($"Appraisal cycle with ID {cycleId} not found");
+        var appraisalCycle = await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
+        if (appraisalCycle.StartDate <= DateTime.UtcNow)
+        {
+            throw new InvalidOperationException("Cannot delete appraisal cycle because it has already started.");
+        }
         return await _performanceRepository.DeleteAppraisalCycleAsync(cycleId);
     }
 
@@ -726,13 +834,13 @@ public class PerformanceService : IPerformanceService
 
         // Get all appraisals for the organization
         var allAppraisals = await _performanceRepository.GetEmployeeAppraisalsPagedAsync(
-            organizationId, 
-            cycleFilter, 
-            1, 
+            organizationId,
+            cycleFilter,
+            1,
             10000); // Get all appraisals
 
         // Filter by date range if provided
-        var filteredAppraisals = allAppraisals.Where(a => 
+        var filteredAppraisals = allAppraisals.Where(a =>
             (!filter.StartDate.HasValue || (a.SubmittedAt ?? a.ReviewedAt ?? DateTime.MinValue) >= filter.StartDate.Value) &&
             (!filter.EndDate.HasValue || (a.SubmittedAt ?? a.ReviewedAt ?? DateTime.MinValue) <= filter.EndDate.Value)
         ).ToList();
@@ -747,16 +855,16 @@ public class PerformanceService : IPerformanceService
         // Filter by rating if provided
         if (filter.Rating.HasValue)
         {
-            filteredAppraisals = filteredAppraisals.Where(a => 
-                a.OverallRating.HasValue && 
+            filteredAppraisals = filteredAppraisals.Where(a =>
+                a.OverallRating.HasValue &&
                 Math.Floor(a.OverallRating.Value) == Math.Floor(filter.Rating.Value)
             ).ToList();
         }
 
         // Get department breakdown
         var departmentBreakdown = await _performanceRepository.GetDepartmentPerformanceBreakdownAsync(
-            organizationId, 
-            filter.StartDate, 
+            organizationId,
+            filter.StartDate,
             filter.EndDate);
 
         // Get summary
@@ -781,65 +889,72 @@ public class PerformanceService : IPerformanceService
 
         // Generate CSV from actual data
         var csvData = "Employee,Department,OverallRating,Status,CompletionDate,Cycle\n";
-        
+
         foreach (var appraisal in report.Appraisals)
         {
             // Get department for employee
             var departmentName = await _performanceRepository.GetEmployeeDepartmentAsync(appraisal.EmployeeId) ?? "N/A";
-            
-            var completionDate = appraisal.ReviewedAt?.ToString("yyyy-MM-dd") 
-                ?? appraisal.SubmittedAt?.ToString("yyyy-MM-dd") 
+
+            var completionDate = appraisal.ReviewedAt?.ToString("yyyy-MM-dd")
+                ?? appraisal.SubmittedAt?.ToString("yyyy-MM-dd")
                 ?? "N/A";
-            
+
             csvData += $"{appraisal.EmployeeName},{departmentName},{appraisal.OverallRating?.ToString("F2") ?? "N/A"},{appraisal.Status},{completionDate},{appraisal.CycleName}\n";
         }
 
         return System.Text.Encoding.UTF8.GetBytes(csvData);
     }
 
-
-    public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request, Guid organizationId)
+    public async Task<bool> UpdateGoalStatusAsync(Guid goalId, string status)
     {
-        var result = await _performanceRepository.CreateSelfAssessmentAsync(request);
-        
+        var goal = await _performanceRepository.GetGoalByIdAsync(goalId);
+
+        if (goal == null)
+            return false;
+
+        // 1. Update goal status first
+        var result = await _performanceRepository.UpdateGoalStatusAsync(goalId, status);
+
+        if (!result)
+            return false;
+
+        // 2. Get KRA ID from goal (IMPORTANT)
+        var kraId = goal.KRAId; // adjust property name if different
+
+        // 3. Fetch all goals under same KRA
+        var allGoals = await _performanceRepository.GetCompletedGoalsByKRAAsync(kraId.Value);
+
+        int totalGoals = allGoals.Count;
+
+        int completedCount = allGoals.Count(g =>
+            g.Progress?.ToLower() == "completed");
+
+        decimal averageRate = totalGoals == 0
+            ? 0
+            : (decimal)completedCount / totalGoals * 100;
+
+        var kraRateString = Math.Round(averageRate, 2).ToString();
+
+        // 4. Update KRA progress
+        await _performanceRepository.UpdateKRAProgressAsync(
+            kraId.Value,
+            kraRateString,
+            totalGoals
+        );
+
+        return true;
+    }
+
+    public async Task<SelfAssessmentDto> CreateSelfAssessmentAsync(CreateSelfAssessmentRequest request, Guid organizationId, Guid CurrentEmployeeId)
+    {
+        var result = await _performanceRepository.CreateSelfAssessmentAsync(request, organizationId, CurrentEmployeeId);
+
         // Create notification for the reporting manager
         try
         {
             // Get employee details for the sender (current employee who created self-assessment)
-            var employeeDetails = await _employeeRepository.GetEmployeedetailsAsync(request.EmployeeId);
-            
-            if (employeeDetails != null)
-            {
-                // Get reporting manager ID from employment details
-                var reportingManagerEmployeeId = await _notificationRepository.GetReciveridAsync(request.EmployeeId);
-                
-                if (reportingManagerEmployeeId != Guid.Empty)
-                {
-                    // Get reporting manager employee details
-                    var managerDetails = await _employeeRepository.GetEmployeedetailsAsync(reportingManagerEmployeeId);
-                    
-                    if (managerDetails != null)
-                    {
-                        var employeeName = $"{employeeDetails.FirstName} {employeeDetails.LastName}".Trim();
-                        
-                        var notification = new NotificationCreateDto
-                        {
-                            Receiveruserid = new List<Guid> { reportingManagerEmployeeId }, // Reporting manager
-                            Senderuserid = request.EmployeeId, // Employee who created self-assessment
-                            Title = "Self-Assessment Created",
-                            Notificationtype = "Performance",
-                            Message = $"{employeeName} has submitted a self-assessment",
-                            Redirecturl = "/performance/appraisals",
-                            moduletype = "Performance",
-                            RequestId = result.SelfAssessmentId,
-                            Createdby = request.EmployeeId,
-                            organizationId = organizationId
-                        };
+            var employeeDetails = await _employeeRepository.GetEmployeedetailsAsync(CurrentEmployeeId);
 
-                        await _notificationService.CreateNotificationAsync(organizationId, notification);
-                    }
-                }
-            }
         }
         catch (Exception ex)
         {
@@ -847,9 +962,32 @@ public class PerformanceService : IPerformanceService
             _logger.LogError(ex, "Error creating notification for self-assessment {SelfAssessmentId}", result.SelfAssessmentId);
             throw;
         }
-        
+
         return result;
     }
+    //my function
+    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsByEmployeeAsync(Guid employeeId, Guid organizationId)
+    {
+        return await _performanceRepository.GetSelfAssessmentsByEmployeeAsync(employeeId, organizationId);
+    }
+    //mm
+
+    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsForManagerAsync(Guid managerId, Guid organizationId)
+    {
+        // 1) Get all employees reporting to this manager
+        var employees = await _employeeRepository.GetEmployeesReportingToManagerAsync(managerId);
+
+        if (employees == null || !employees.Any())
+            return Enumerable.Empty<SelfAssessmentDto>();
+
+        var employeeIds = employees.Select(e => e.EmployeeId).ToList();
+
+        // 2) Get self-assessments for these employees
+        return await _performanceRepository.GetSelfAssessmentsByEmployeesAsync(employeeIds, organizationId);
+    }
+
+
+
 
     public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
     {
@@ -881,9 +1019,60 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetMyTeamSelfAssessmentsAsync(managerEmployeeId, cycleId, employeeId, kraId, search);
     }
 
-    public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request)
+    public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request, Guid organizationId, Guid currentEmpId)
     {
-        return await _performanceRepository.SubmitManagerReviewAsync(request);
+        return await _performanceRepository.SubmitManagerReviewAsync(request, organizationId, currentEmpId);
+    }
+
+    //Manager review and employee reviews
+    public async Task<List<ManagerReviewDto>> GetManagerReviewsAsync(Guid organizationId, Guid managerId)
+    {
+        return await _performanceRepository.GetManagerReviewsAsync(organizationId, managerId);
+    }
+    //Getting all record from managers table
+    public async Task<List<ManagerReviewDto>> GetAllManagerReviewsAsync(Guid organizationId, Guid managerId, SearchManagersDto search)
+    {
+        return await _performanceRepository.GetAllManagerReviewsAsync(organizationId, search);
+    }
+
+    public async Task<List<ManagerReviewDto>> GetEmployeeReviewsAsync(Guid organizationId, Guid employeeId)
+    {
+        return await _performanceRepository.GetEmployeeReviewsAsync(organizationId, employeeId);
+    }
+    //Hr review
+
+    public async Task<HrReviewDto> SubmitHrReviewAsync(
+   HrReviewRequest request, Guid organizationId, Guid currentEmployeeId)
+    {
+        //get hr appraisal for cy
+        var cycle=await _performanceRepository.GetAppraisalCycleByIdAsync(request.CycleId);
+        if (cycle.AppraisalEnabled == false)
+        {
+            throw new InvalidOperationException("Appraisal is not allowed for this appraisal cycle.");
+        }
+
+        var alreadyAppraisal = await _performanceRepository.GetEmployeeAppraisal(organizationId, request.CycleId, request.EmployeeId);
+        if (alreadyAppraisal != null)
+        {
+            throw new InvalidOperationException("Cannot submit HR appraisal because employee appraisal against this cycle already exists.");
+        }
+        return await _performanceRepository.SubmitHrReviewAsync(request, organizationId, currentEmployeeId);
+    }
+
+    public async Task<List<HrReviewDto>> GetHrReviewsAsync(Guid organizationId, Guid CurrentEmpId)
+    {
+        return await _performanceRepository.GetHrReviewsAsync(organizationId, CurrentEmpId);
+    }
+
+    public async Task<List<HrReviewDto>> GetHrReviewsByEmployeeAsync(Guid organizationId, Guid employeeId)
+    {
+        return await _performanceRepository.GetHrReviewsByEmployeeAsync(organizationId, employeeId);
+    }
+    //Get all appraisals 
+
+    public async Task<List<HrReviewDto>> GetAllAppraisaAsync(Guid organizationId, Guid employeeId, SearchAppraisalDto search)
+    {
+        return await _performanceRepository.GetAllAppraisalAsync(organizationId, employeeId, search);
     }
 
     public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null)
@@ -899,11 +1088,12 @@ public class PerformanceService : IPerformanceService
     }
 
     // Appraisal Consolidation
-    public async Task<EmployeeAppraisalDto> ConsolidateAppraisalAsync(ConsolidateAppraisalRequest request)
-    {
-        _logger.LogInformation("Consolidating appraisal for employee: {EmployeeId}, cycle: {CycleId}", request.EmployeeId, request.CycleId);
-        return await _performanceRepository.ConsolidateAppraisalAsync(request);
-    }
+    //public async Task<EmployeeAppraisalDto> ConsolidateAppraisalAsync(ConsolidateAppraisalRequest request)
+    //{
+    //    _logger.LogInformation("Consolidating appraisal for employee: {EmployeeId}, cycle: {CycleId}", request.EmployeeId, request.CycleId);
+    //    return await _performanceRepository.GetActiveAppraisalCycleAsync(request);
+
+    //}
 
     // Reports and Analytics
     public async Task<EmployeePerformanceHistoryDto> GetEmployeePerformanceHistoryAsync(Guid employeeId)
@@ -921,5 +1111,36 @@ public class PerformanceService : IPerformanceService
     {
         _logger.LogInformation("Getting team performance overview for manager: {ManagerEmployeeId}, organization: {OrganizationId}", managerEmployeeId, organizationId);
         return await _performanceRepository.GetTeamPerformanceOverviewAsync(managerEmployeeId, organizationId);
+    }
+    public async Task<PagedResult<EmployeeSkillSummaryDto>> GetEmployeeSkillsSummaryPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty.", nameof(organizationId));
+        if (page <= 0)
+            throw new ArgumentException("Page must be greater than zero.", nameof(page));
+        if (limit <= 0)
+            throw new ArgumentException("Limit must be greater than zero.", nameof(limit));
+
+        _logger.LogInformation("Getting employee skills summary for org: {OrgId}, page: {Page}", organizationId, page);
+
+        var (items, total) = await _performanceRepository.GetEmployeeSkillsSummaryPagedAsync(organizationId, filter, page, limit);
+
+        return new PagedResult<EmployeeSkillSummaryDto>
+        {
+            Data = items,
+            TotalCount = total,
+            Page = page,
+            PageSize = limit
+        };
+    }
+
+    public async Task<EmployeeSkillFullDetailDto> GetEmployeeSkillFullDetailAsync(Guid employeeId)
+    {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty.", nameof(employeeId));
+
+        _logger.LogInformation("Getting full skill detail for employee: {EmployeeId}", employeeId);
+
+        return await _performanceRepository.GetEmployeeSkillFullDetailAsync(employeeId);
     }
 }

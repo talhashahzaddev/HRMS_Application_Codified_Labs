@@ -6,6 +6,7 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IEmployeeRepository
 {
+    Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId);
     Task<List<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId);
     //adding this now
     Task<Guid?> getemployeeid(Guid userId);
