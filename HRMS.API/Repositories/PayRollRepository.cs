@@ -150,15 +150,15 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 UNION ALL
 
                 SELECT
-                    t.slabid AS id,
+                    t.regimeid AS id,
                     t.organizationid,
-                    t.slabrulename AS rulename,
-                    t.description,
+                    t.regimename AS rulename,
+                    t.country AS description,
                     t.isactive,
                     t.isdeleted,
                     t.createdat,
                     'IncomeTaxPolicy' AS policyname
-                FROM payroll.taxslabs t
+                FROM payroll.taxregimes t
                 WHERE t.organizationid = @organizationId
 
                 UNION ALL
@@ -2933,6 +2933,28 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             ORDER BY tc.createdat DESC;";
 
         return await QueryAsync<TaxCategoryDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<TaxCategoryDto>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                tc.categoryid AS CategoryId,
+                tc.regimeid AS RegimeId,
+                tr.regimename AS RegimeName,
+                tc.categoryname AS CategoryName,
+                tc.isactive AS IsActive,
+                tc.isdeleted AS IsDeleted,
+                tc.createdat AS CreatedAt
+            FROM payroll.taxcategories tc
+            INNER JOIN payroll.taxregimes tr ON tr.regimeid = tc.regimeid
+            WHERE tc.regimeid = @regimeId
+              AND tr.organizationid = @organizationId
+              AND tr.isdeleted = false
+              AND tc.isdeleted = false
+            ORDER BY tc.createdat DESC;";
+
+        return await QueryAsync<TaxCategoryDto>(sql, new { regimeId, organizationId });
     }
 
     public async Task<TaxCategoryDto?> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId)

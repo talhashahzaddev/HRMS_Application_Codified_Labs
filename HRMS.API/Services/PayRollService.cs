@@ -1613,6 +1613,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetTaxCategoriesByRegimeIdAsync(regimeId, organizationId);
+            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tax categories by regime ID");
+            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<TaxCategoryDto>> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId)
     {
         try
