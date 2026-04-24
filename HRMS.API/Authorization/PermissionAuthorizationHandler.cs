@@ -32,19 +32,19 @@ namespace HRMS.API.Authorization
 
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
         {
-            var roleIdClaim = context.User.FindFirst("roleId")?.Value;
-            if (!Guid.TryParse(roleIdClaim, out var roleId))
+            var roleId = await ResolveRoleIdAsync(context.User);
+            if (!roleId.HasValue)
             {
                 _logger.LogWarning("Authorization failed: roleId claim missing or invalid");
                 return;
             }
 
-            var cacheKey = $"permissions:role:{roleId}";
+            var cacheKey = $"permissions:role:{roleId.Value}";
             var userPermissions = await _memoryCache.GetOrCreateAsync(cacheKey, async entry =>
             {
                 entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10);
 
-                var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(roleId);
+                var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(roleId.Value);
                 return permissions
                     .Where(p => p.HasPermission && !string.IsNullOrWhiteSpace(p.ActionKey))
                     .Select(p => p.ActionKey)
@@ -66,6 +66,25 @@ namespace HRMS.API.Authorization
                     string.Join(", ", requirement.Permissions),
                     userPermissions == null ? string.Empty : string.Join(", ", userPermissions));
             }
+        }
+
+        private async Task<Guid?> ResolveRoleIdAsync(ClaimsPrincipal user)
+        {
+            var roleIdClaim = user.FindFirst(CustomClaimTypes.RoleId)?.Value;
+            if (Guid.TryParse(roleIdClaim, out var parsedRoleId))
+            {
+                return parsedRoleId;
+            }
+
+            var roleName = user.FindFirst(ClaimTypes.Role)?.Value;
+            var organizationIdClaim = user.FindFirst(CustomClaimTypes.OrganizationId)?.Value;
+            if (string.IsNullOrWhiteSpace(roleName) || !Guid.TryParse(organizationIdClaim, out var organizationId))
+            {
+                return null;
+            }
+
+            var role = await _authRepository.GetRoleByNameforTokenAsync(roleName, organizationId);
+            return role.RoleId;
         }
     }
 
