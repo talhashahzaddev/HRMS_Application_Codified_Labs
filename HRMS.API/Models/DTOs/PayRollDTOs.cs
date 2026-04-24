@@ -1222,6 +1222,38 @@ public class AddLoanPaymentDto
     public string PaymentMethod { get; set; } = "cash"; // cash, bank_transfer, etc.
 }
 
+public class CalculatePayrollDto
+{
+    public Guid PeriodId { get; set; }
+}
+
+public class PayrollLoanDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid LoanId { get; set; }
+    public decimal BasicSalary { get; set; }
+    public decimal InstallmentAmount { get; set; }
+    public decimal NetSalaryAfterLoanDeduction { get; set; }
+    public decimal RemainingLoanAmountBefore { get; set; }
+    public decimal RemainingLoanAmountAfter { get; set; }
+    public int InstallmentNumber { get; set; }
+}
+
+public class PayrollCalculationResultDto
+{
+    public Guid PeriodId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public DateTime PeriodStartDate { get; set; }
+    public DateTime PeriodEndDate { get; set; }
+    public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
+
+    // Keep module details separate so future modules can be appended.
+    public int EmployeesConsidered { get; set; }
+    public int LoanDeductionsApplied { get; set; }
+    public decimal TotalLoanDeductionAmount { get; set; }
+    public List<PayrollLoanDeductionDetailDto> LoanDeductionDetails { get; set; } = new();
+}
+
 public class UpdateLoanPaymentDto
 {
     public Guid Id { get; set; }

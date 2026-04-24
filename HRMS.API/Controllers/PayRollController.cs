@@ -2173,19 +2173,19 @@ public class PayRollController : ControllerBase
     // Tax Transactions
     [HttpGet("tax-transactions")]
     [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<PagedResult<TaxTransactionDto>>>> GetAllTaxTransactions([FromQuery] TaxTransactionFilterDto filter)
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxTransactionDto>>>> GetAllTaxTransactions()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var response = await _payRollService.GetAllTaxTransactionsAsync(organizationId, filter);
+            var response = await _payRollService.GetAllTaxTransactionsAsync(organizationId);
             if (!response.Success) return BadRequest(response);
             return Ok(response);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tax transactions");
-            return StatusCode(500, new ServiceResponse<PagedResult<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -3016,6 +3016,25 @@ public class PayRollController : ControllerBase
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
     }
+
+    [HttpPost("calculate-payroll")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollCalculationResultDto>>> CalculatePayroll([FromBody] CalculatePayrollDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CalculatePayrollAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating payroll");
+            return StatusCode(500, new ServiceResponse<PayrollCalculationResultDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpPut("loans/payment")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateLoanPayment([FromBody] UpdateLoanPaymentDto dto)

@@ -3418,34 +3418,9 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Tax Transactions
-    public async Task<PagedResult<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId, TaxTransactionFilterDto filter)
+    public async Task<IEnumerable<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId)
     {
-        filter ??= new TaxTransactionFilterDto();
-        if (filter.Page <= 0) filter.Page = 1;
-        if (filter.PageSize <= 0) filter.PageSize = 10;
-
-        var conditions = new List<string> { "tt.organizationid = @organizationId" };
-
-        if (filter.PeriodId.HasValue)
-            conditions.Add("tt.periodid = @PeriodId");
-
-        if (filter.CategoryId.HasValue)
-            conditions.Add("tt.categoryid = @CategoryId");
-
-        if (!string.IsNullOrWhiteSpace(filter.EmployeeName))
-            conditions.Add("CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) ILIKE '%' || @EmployeeName || '%'");
-
-        var whereClause = string.Join(" AND ", conditions);
-
-        var countSql = $@"
-            SELECT COUNT(1)
-            FROM payroll.taxtransactions tt
-            INNER JOIN employee.employees e ON e.employeeid = tt.employeeid AND e.organizationid = tt.organizationid
-            INNER JOIN payroll.payrollperiods pp ON pp.periodid = tt.periodid AND pp.organizationid = tt.organizationid
-            LEFT JOIN payroll.taxcategories tc ON tc.categoryid = tt.categoryid
-            WHERE {whereClause};";
-
-        var sql = $@"
+        var sql = @"
             SELECT
                 tt.id AS Id,
                 tt.organizationid AS OrganizationId,
@@ -3464,30 +3439,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             INNER JOIN employee.employees e ON e.employeeid = tt.employeeid AND e.organizationid = tt.organizationid
             INNER JOIN payroll.payrollperiods pp ON pp.periodid = tt.periodid AND pp.organizationid = tt.organizationid
             LEFT JOIN payroll.taxcategories tc ON tc.categoryid = tt.categoryid
-            WHERE {whereClause}
-            ORDER BY tt.createdat DESC
-            LIMIT @PageSize OFFSET @Offset;";
+            WHERE tt.organizationid = @organizationId
+            ORDER BY tt.createdat DESC;";
 
-        var parameters = new
-        {
-            organizationId,
-            filter.PeriodId,
-            filter.CategoryId,
-            filter.EmployeeName,
-            PageSize = filter.PageSize,
-            Offset = (filter.Page - 1) * filter.PageSize
-        };
-
-        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
-        var data = await QueryAsync<TaxTransactionDto>(sql, parameters);
-
-        return new PagedResult<TaxTransactionDto>
-        {
-            Data = data.ToList(),
-            TotalCount = totalCount,
-            Page = filter.Page,
-            PageSize = filter.PageSize
-        };
+        return await QueryAsync<TaxTransactionDto>(sql, new { organizationId });
     }
 
     public async Task<IEnumerable<TaxTransactionDto>> GetActiveTaxTransactionsAsync(Guid organizationId)
@@ -5900,6 +5855,183 @@ ORDER BY l.createdat DESC;";
 
             transaction.Commit();
             return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<PayrollCalculationResultDto?> CalculatePayrollAsync(Guid organizationId, CalculatePayrollDto dto)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var periodSql = @"
+                SELECT periodid, startdate, enddate
+                FROM payroll.payrollperiods
+                WHERE periodid = @PeriodId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false
+                LIMIT 1;";
+
+            var period = await connection.QuerySingleOrDefaultAsync<dynamic>(periodSql, new
+            {
+                dto.PeriodId,
+                organizationId
+            }, transaction);
+
+            if (period == null)
+            {
+                transaction.Rollback();
+                return null;
+            }
+
+            var candidatesSql = @"
+                SELECT
+                    e.employeeid AS EmployeeId,
+                    l.loanid AS LoanId,
+                    COALESCE(ed.basicsalary, 0) AS BasicSalary,
+                    COALESCE(l.monthlyinstallment, 0) AS MonthlyInstallment,
+                    COALESCE(l.remainingamount, 0) AS RemainingAmount
+                FROM employee.employees e
+                INNER JOIN payroll.loans l
+                    ON l.employeeid = e.employeeid
+                   AND l.organizationid = @organizationId
+                LEFT JOIN LATERAL (
+                    SELECT ed2.basicsalary
+                    FROM employee.employmentdetails ed2
+                    WHERE ed2.employeeid = e.employeeid
+                    ORDER BY ed2.iscurrent DESC, ed2.effectivedate DESC, ed2.createdat DESC
+                    LIMIT 1
+                ) ed ON true
+                WHERE e.organizationid = @organizationId
+                  AND LOWER(COALESCE(e.status, '')) = 'active'
+                  AND LOWER(COALESCE(l.loanstatus, '')) = 'active'
+                  AND LOWER(COALESCE(l.repaymenttype, '')) = 'installment'
+                  AND COALESCE(l.remainingamount, 0) > 0
+                  AND COALESCE(l.monthlyinstallment, 0) > 0;";
+
+            var candidates = (await connection.QueryAsync<dynamic>(candidatesSql, new { organizationId }, transaction)).ToList();
+
+            var result = new PayrollCalculationResultDto
+            {
+                PeriodId = dto.PeriodId,
+                OrganizationId = organizationId,
+                PeriodStartDate = (DateTime)period.startdate,
+                PeriodEndDate = (DateTime)period.enddate,
+                EmployeesConsidered = candidates.Select(c => (Guid)c.employeeid).Distinct().Count()
+            };
+
+            foreach (var row in candidates)
+            {
+                var employeeId = (Guid)row.employeeid;
+                var loanId = (Guid)row.loanid;
+                var basicSalary = Convert.ToDecimal(row.basicsalary);
+                var monthlyInstallment = Convert.ToDecimal(row.monthlyinstallment);
+                var remainingBefore = Convert.ToDecimal(row.remainingamount);
+                var installmentAmount = Math.Min(monthlyInstallment, remainingBefore);
+
+                if (installmentAmount <= 0)
+                {
+                    continue;
+                }
+
+                var installmentNoSql = @"
+                    SELECT COALESCE(MAX(installmentnumber), 0)
+                    FROM payroll.loanpayments
+                    WHERE organizationid = @organizationId
+                      AND loanid = @loanId
+                      AND employeeid = @employeeId;";
+
+                var previousInstallmentNumber = await connection.QuerySingleAsync<int>(installmentNoSql, new
+                {
+                    organizationId,
+                    loanId,
+                    employeeId
+                }, transaction);
+                var nextInstallmentNumber = previousInstallmentNumber + 1;
+
+                var updateLoanSql = @"
+                    UPDATE payroll.loans
+                    SET
+                        remainingamount = GREATEST(0, remainingamount - @InstallmentAmount),
+                        paidinstallments = @InstallmentNumber,
+                        loanstatus = CASE
+                            WHEN (remainingamount - @InstallmentAmount) <= 0 THEN 'completed'
+                            ELSE loanstatus
+                        END,
+                        disbursementstatus = CASE
+                            WHEN (remainingamount - @InstallmentAmount) <= 0 THEN 'recovered'
+                            ELSE disbursementstatus
+                        END,
+                        updatedat = CURRENT_TIMESTAMP
+                    WHERE loanid = @loanId
+                      AND organizationid = @organizationId
+                      AND employeeid = @employeeId
+                      AND LOWER(COALESCE(loanstatus, '')) = 'active'
+                      AND COALESCE(remainingamount, 0) > 0
+                    RETURNING remainingamount;";
+
+                var remainingAfter = await connection.QuerySingleOrDefaultAsync<decimal?>(updateLoanSql, new
+                {
+                    loanId,
+                    organizationId,
+                    employeeId,
+                    InstallmentAmount = installmentAmount,
+                    InstallmentNumber = nextInstallmentNumber
+                }, transaction);
+
+                if (remainingAfter == null)
+                {
+                    continue;
+                }
+
+                var insertPaymentSql = @"
+                    INSERT INTO payroll.loanpayments (
+                        organizationid, loanid, employeeid, periodid,
+                        installmentnumber, installmentamount, remainingamount,
+                        repaymenttype, paymentdate, paymentmethod, paymentstatus
+                    ) VALUES (
+                        @organizationId, @loanId, @employeeId, @PeriodId,
+                        @InstallmentNumber, @InstallmentAmount, @RemainingAmount,
+                        'installment', CURRENT_DATE, 'payroll_deduction', 'deducted'
+                    );";
+
+                await connection.ExecuteAsync(insertPaymentSql, new
+                {
+                    organizationId,
+                    loanId,
+                    employeeId,
+                    PeriodId = dto.PeriodId,
+                    InstallmentNumber = nextInstallmentNumber,
+                    InstallmentAmount = installmentAmount,
+                    RemainingAmount = remainingAfter.Value
+                }, transaction);
+
+                var detail = new PayrollLoanDeductionDetailDto
+                {
+                    EmployeeId = employeeId,
+                    LoanId = loanId,
+                    BasicSalary = basicSalary,
+                    InstallmentAmount = installmentAmount,
+                    NetSalaryAfterLoanDeduction = basicSalary - installmentAmount,
+                    RemainingLoanAmountBefore = remainingBefore,
+                    RemainingLoanAmountAfter = remainingAfter.Value,
+                    InstallmentNumber = nextInstallmentNumber
+                };
+
+                result.LoanDeductionsApplied += 1;
+                result.TotalLoanDeductionAmount += installmentAmount;
+                result.LoanDeductionDetails.Add(detail);
+            }
+
+            transaction.Commit();
+            return result;
         }
         catch
         {
