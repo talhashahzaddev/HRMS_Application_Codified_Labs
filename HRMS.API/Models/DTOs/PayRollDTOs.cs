@@ -1239,6 +1239,24 @@ public class PayrollLoanDeductionDetailDto
     public int InstallmentNumber { get; set; }
 }
 
+public class PayrollSalaryAdvanceDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid AdvanceId { get; set; }
+    public decimal DeductedAmount { get; set; }
+    public decimal NetSalaryAfterSalaryAdvanceDeduction { get; set; }
+}
+
+public class PayrollProvidentFundDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PfId { get; set; }
+    public decimal SalaryBasisAmount { get; set; }
+    public decimal EmployeeAmount { get; set; }
+    public decimal EmployerAmount { get; set; }
+    public decimal NetSalaryAfterProvidentFundDeduction { get; set; }
+}
+
 public class PayrollCalculationResultDto
 {
     public Guid PeriodId { get; set; }
@@ -1252,6 +1270,16 @@ public class PayrollCalculationResultDto
     public int LoanDeductionsApplied { get; set; }
     public decimal TotalLoanDeductionAmount { get; set; }
     public List<PayrollLoanDeductionDetailDto> LoanDeductionDetails { get; set; } = new();
+
+    public int SalaryAdvanceDeductionsApplied { get; set; }
+    public decimal TotalSalaryAdvanceDeductionAmount { get; set; }
+    public List<PayrollSalaryAdvanceDeductionDetailDto> SalaryAdvanceDeductionDetails { get; set; } = new();
+
+    public int ProvidentFundDeductionsApplied { get; set; }
+    public decimal TotalProvidentFundDeductionAmount { get; set; }
+    public List<PayrollProvidentFundDeductionDetailDto> ProvidentFundDeductionDetails { get; set; } = new();
+
+    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount;
 }
 
 public class UpdateLoanPaymentDto

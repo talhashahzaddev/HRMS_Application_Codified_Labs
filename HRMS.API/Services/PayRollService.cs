@@ -2637,7 +2637,7 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<PayrollCalculationResultDto>
             {
                 Success = true,
-                Message = "Payroll calculated successfully (loan module).",
+                Message = "Payroll calculated successfully (loan + salary advance + provident fund modules).",
                 Data = result
             };
         }

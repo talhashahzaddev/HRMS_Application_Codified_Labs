@@ -5862,8 +5862,9 @@ ORDER BY l.createdat DESC;";
             throw;
         }
     }
-
+    
     public async Task<PayrollCalculationResultDto?> CalculatePayrollAsync(Guid organizationId, CalculatePayrollDto dto)
+    #region
     {
         using var connection = CreateConnection();
         connection.Open();
@@ -5890,6 +5891,27 @@ ORDER BY l.createdat DESC;";
                 transaction.Rollback();
                 return null;
             }
+
+            var activeEmployeesSql = @"
+                SELECT
+                    e.employeeid AS EmployeeId,
+                    COALESCE(ed.basicsalary, 0) AS BasicSalary
+                FROM employee.employees e
+                LEFT JOIN LATERAL (
+                    SELECT ed2.basicsalary
+                    FROM employee.employmentdetails ed2
+                    WHERE ed2.employeeid = e.employeeid
+                    ORDER BY ed2.iscurrent DESC, ed2.effectivedate DESC, ed2.createdat DESC
+                    LIMIT 1
+                ) ed ON true
+                WHERE e.organizationid = @organizationId
+                  AND LOWER(COALESCE(e.status, '')) = 'active';";
+
+            var activeEmployees = (await connection.QueryAsync<dynamic>(activeEmployeesSql, new { organizationId }, transaction)).ToList();
+            var remainingSalaryByEmployee = activeEmployees.ToDictionary(
+                e => (Guid)e.employeeid,
+                e => Convert.ToDecimal(e.basicsalary)
+            );
 
             var candidatesSql = @"
                 SELECT
@@ -5924,7 +5946,7 @@ ORDER BY l.createdat DESC;";
                 OrganizationId = organizationId,
                 PeriodStartDate = (DateTime)period.startdate,
                 PeriodEndDate = (DateTime)period.enddate,
-                EmployeesConsidered = candidates.Select(c => (Guid)c.employeeid).Distinct().Count()
+                EmployeesConsidered = remainingSalaryByEmployee.Keys.Count
             };
 
             foreach (var row in candidates)
@@ -6019,15 +6041,219 @@ ORDER BY l.createdat DESC;";
                     LoanId = loanId,
                     BasicSalary = basicSalary,
                     InstallmentAmount = installmentAmount,
-                    NetSalaryAfterLoanDeduction = basicSalary - installmentAmount,
+                    NetSalaryAfterLoanDeduction = remainingSalaryByEmployee.TryGetValue(employeeId, out var netAfterLoan)
+                        ? netAfterLoan - installmentAmount
+                        : basicSalary - installmentAmount,
                     RemainingLoanAmountBefore = remainingBefore,
                     RemainingLoanAmountAfter = remainingAfter.Value,
                     InstallmentNumber = nextInstallmentNumber
                 };
 
+                if (remainingSalaryByEmployee.ContainsKey(employeeId))
+                {
+                    remainingSalaryByEmployee[employeeId] -= installmentAmount;
+                }
+
                 result.LoanDeductionsApplied += 1;
                 result.TotalLoanDeductionAmount += installmentAmount;
                 result.LoanDeductionDetails.Add(detail);
+            }
+
+            var salaryAdvanceSql = @"
+                SELECT
+                    sa.advanceid AS AdvanceId,
+                    sa.employeeid AS EmployeeId,
+                    COALESCE(sa.amount, 0) AS Amount
+                FROM payroll.salaryadvance sa
+                INNER JOIN employee.employees e
+                    ON e.employeeid = sa.employeeid
+                   AND e.organizationid = sa.organizationid
+                WHERE sa.organizationid = @organizationId
+                  AND LOWER(COALESCE(e.status, '')) = 'active'
+                  AND LOWER(COALESCE(sa.advancestatus, '')) = 'disbursed'
+                  AND sa.deductedperiodid IS NULL
+                ORDER BY sa.createdat ASC;";
+
+            var salaryAdvances = await connection.QueryAsync<dynamic>(salaryAdvanceSql, new { organizationId }, transaction);
+
+            foreach (var salaryAdvance in salaryAdvances)
+            {
+                var advanceId = (Guid)salaryAdvance.advanceid;
+                var employeeId = (Guid)salaryAdvance.employeeid;
+                var advanceAmount = Convert.ToDecimal(salaryAdvance.amount);
+
+                if (advanceAmount <= 0 || !remainingSalaryByEmployee.ContainsKey(employeeId))
+                {
+                    continue;
+                }
+
+                var updateSalaryAdvanceSql = @"
+                    UPDATE payroll.salaryadvance
+                    SET
+                        advancestatus = 'deducted',
+                        deductedperiodid = @PeriodId,
+                        deductedat = CURRENT_TIMESTAMP,
+                        updatedat = CURRENT_TIMESTAMP
+                    WHERE advanceid = @AdvanceId
+                      AND organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND LOWER(COALESCE(advancestatus, '')) = 'disbursed'
+                      AND deductedperiodid IS NULL
+                    RETURNING advanceid;";
+
+                var updatedAdvanceId = await connection.QuerySingleOrDefaultAsync<Guid?>(updateSalaryAdvanceSql, new
+                {
+                    PeriodId = dto.PeriodId,
+                    AdvanceId = advanceId,
+                    organizationId,
+                    EmployeeId = employeeId
+                }, transaction);
+
+                if (updatedAdvanceId == null)
+                {
+                    continue;
+                }
+
+                remainingSalaryByEmployee[employeeId] -= advanceAmount;
+
+                result.SalaryAdvanceDeductionsApplied += 1;
+                result.TotalSalaryAdvanceDeductionAmount += advanceAmount;
+                result.SalaryAdvanceDeductionDetails.Add(new PayrollSalaryAdvanceDeductionDetailDto
+                {
+                    EmployeeId = employeeId,
+                    AdvanceId = advanceId,
+                    DeductedAmount = advanceAmount,
+                    NetSalaryAfterSalaryAdvanceDeduction = remainingSalaryByEmployee[employeeId]
+                });
+            }
+
+            var activeProvidentFundsSql = @"
+                SELECT
+                    pf.pfid AS PfId,
+                    pf.employeeid AS EmployeeId,
+                    COALESCE(pf.employeepct, 0) AS EmployeePct,
+                    COALESCE(pf.employerpct, 0) AS EmployerPct
+                FROM payroll.providentfund pf
+                INNER JOIN employee.employees e
+                    ON e.employeeid = pf.employeeid
+                   AND e.organizationid = pf.organizationid
+                WHERE pf.organizationid = @organizationId
+                  AND LOWER(COALESCE(e.status, '')) = 'active'
+                  AND LOWER(COALESCE(pf.pfstatus, '')) = 'active'
+                  AND pf.isactive = true;";
+
+            var activeProvidentFunds = await connection.QueryAsync<dynamic>(activeProvidentFundsSql, new { organizationId }, transaction);
+
+            foreach (var pf in activeProvidentFunds)
+            {
+                var pfId = (Guid)pf.pfid;
+                var employeeId = (Guid)pf.employeeid;
+                var employeePct = Convert.ToDecimal(pf.employeepct);
+                var employerPct = Convert.ToDecimal(pf.employerpct);
+
+                if (!remainingSalaryByEmployee.TryGetValue(employeeId, out var remainingSalary))
+                {
+                    continue;
+                }
+
+                var salaryBasisAmount = Math.Max(0m, remainingSalary);
+                if (salaryBasisAmount <= 0)
+                {
+                    continue;
+                }
+
+                var employeeAmount = Math.Round((salaryBasisAmount * employeePct) / 100m, 2);
+                var employerAmount = Math.Round((salaryBasisAmount * employerPct) / 100m, 2);
+
+                if (employeeAmount <= 0 && employerAmount <= 0)
+                {
+                    continue;
+                }
+
+                var existingMonthlyTxSql = @"
+                    SELECT transactionid
+                    FROM payroll.pftransactions
+                    WHERE organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND pfid = @PfId
+                      AND periodid = @PeriodId
+                      AND LOWER(COALESCE(transactiontype, '')) = 'monthly'
+                    LIMIT 1;";
+
+                var existingTxId = await connection.QuerySingleOrDefaultAsync<Guid?>(existingMonthlyTxSql, new
+                {
+                    organizationId,
+                    EmployeeId = employeeId,
+                    PfId = pfId,
+                    PeriodId = dto.PeriodId
+                }, transaction);
+
+                if (existingTxId != null && existingTxId != Guid.Empty)
+                {
+                    continue;
+                }
+
+                var existingSumsSql = @"
+                    SELECT
+                        COALESCE(SUM(employeeamount), 0) AS totalemployeeamount,
+                        COALESCE(SUM(employeramount), 0) AS totalemployeramount
+                    FROM payroll.pftransactions
+                    WHERE organizationid = @organizationId
+                      AND employeeid = @EmployeeId
+                      AND pfid = @PfId;";
+
+                var sums = await connection.QuerySingleAsync<dynamic>(existingSumsSql, new
+                {
+                    organizationId,
+                    EmployeeId = employeeId,
+                    PfId = pfId
+                }, transaction);
+
+                decimal runningBalance = (decimal)sums.totalemployeeamount + (decimal)sums.totalemployeramount + employeeAmount + employerAmount;
+
+                var insertPfTxSql = @"
+                    INSERT INTO payroll.pftransactions (
+                        organizationid, employeeid, periodid, pfid,
+                        salarybasisamount, employeepct, employerpct,
+                        employeeamount, employeramount, runningbalance, transactiontype
+                    ) VALUES (
+                        @organizationId, @EmployeeId, @PeriodId, @PfId,
+                        @SalaryBasisAmount, @EmployeePct, @EmployerPct,
+                        @EmployeeAmount, @EmployerAmount, @RunningBalance, 'monthly'
+                    ) RETURNING transactionid;";
+
+                var insertedTransactionId = await connection.QuerySingleOrDefaultAsync<Guid?>(insertPfTxSql, new
+                {
+                    organizationId,
+                    EmployeeId = employeeId,
+                    PeriodId = dto.PeriodId,
+                    PfId = pfId,
+                    SalaryBasisAmount = salaryBasisAmount,
+                    EmployeePct = employeePct,
+                    EmployerPct = employerPct,
+                    EmployeeAmount = employeeAmount,
+                    EmployerAmount = employerAmount,
+                    RunningBalance = runningBalance
+                }, transaction);
+
+                if (insertedTransactionId == null || insertedTransactionId == Guid.Empty)
+                {
+                    continue;
+                }
+
+                remainingSalaryByEmployee[employeeId] -= employeeAmount;
+
+                result.ProvidentFundDeductionsApplied += 1;
+                result.TotalProvidentFundDeductionAmount += employeeAmount;
+                result.ProvidentFundDeductionDetails.Add(new PayrollProvidentFundDeductionDetailDto
+                {
+                    EmployeeId = employeeId,
+                    PfId = pfId,
+                    SalaryBasisAmount = salaryBasisAmount,
+                    EmployeeAmount = employeeAmount,
+                    EmployerAmount = employerAmount,
+                    NetSalaryAfterProvidentFundDeduction = remainingSalaryByEmployee[employeeId]
+                });
             }
 
             transaction.Commit();
@@ -6038,6 +6264,7 @@ ORDER BY l.createdat DESC;";
             transaction.Rollback();
             throw;
         }
+    #endregion
     }
 
     public async Task<LoanPaymentDto?> GetLoanPaymentByIdAsync(Guid paymentId, Guid organizationId)
