@@ -1,5 +1,6 @@
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
+using HRMS.API.Authorization;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -1161,8 +1162,11 @@ public class AuthController : ControllerBase
 
     private Guid? GetOrganizationIdFromClaims()
     {
-        var organizationIdClaim = User.FindFirst("OrganizationId");
-        if (organizationIdClaim != null && Guid.TryParse(organizationIdClaim.Value, out var organizationId))
+        var organizationIdClaim =
+            User.FindFirst(CustomClaimTypes.OrganizationId)?.Value
+            ?? User.FindFirst("OrganizationId")?.Value;
+
+        if (!string.IsNullOrWhiteSpace(organizationIdClaim) && Guid.TryParse(organizationIdClaim, out var organizationId))
         {
             return organizationId;
         }

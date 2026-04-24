@@ -157,6 +157,54 @@ public interface IPayRollRepository
     Task<bool> RejectSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid rejectedBy, RejectSalaryAdvanceDto dto);
     Task<bool> DisburseSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid disbursedBy, DisburseSalaryAdvanceDto dto);
 
+    // Tax Slabs
+    Task<PagedResult<TaxSlabDto>> GetAllTaxSlabsAsync(Guid organizationId, TaxSlabFilterDto filter);
+    Task<IEnumerable<TaxSlabDto>> GetActiveTaxSlabsAsync(Guid organizationId);
+    Task<TaxSlabDto?> GetTaxSlabByIdAsync(Guid slabId, Guid organizationId);
+    Task<TaxSlabDto> CreateTaxSlabAsync(Guid organizationId, CreateTaxSlabDto dto);
+    Task<TaxSlabDto?> UpdateTaxSlabAsync(Guid slabId, Guid organizationId, UpdateTaxSlabDto dto);
+    Task<bool> DeleteTaxSlabAsync(Guid slabId, Guid organizationId);
+
+    // Tax Transactions
+    Task<PagedResult<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId, TaxTransactionFilterDto filter);
+    Task<TaxTransactionDto?> GetTaxTransactionByIdAsync(Guid id, Guid organizationId);
+    Task<TaxTransactionDto> CreateTaxTransactionAsync(Guid organizationId, CreateTaxTransactionDto dto);
+    Task<TaxTransactionDto?> UpdateTaxTransactionAsync(Guid id, Guid organizationId, UpdateTaxTransactionDto dto);
+    Task<bool> DeleteTaxTransactionAsync(Guid id, Guid organizationId);
+    Task<PagedResult<TaxTransactionDto>> GetMyTaxTransactionsAsync(Guid organizationId, Guid employeeId, MyTaxTransactionFilterDto filter);
+
+    // Social Security Config
+    Task<IEnumerable<SocialSecurityJurisdictionDto>> GetSocialSecurityJurisdictionsAsync(Guid organizationId);
+    Task<IEnumerable<SocialSecurityAuthorityDto>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId);
+    Task<IEnumerable<SocialSecuritySchemeDto>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId);
+    Task<IEnumerable<SocialSecurityRuleDto>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId);
+    Task<SocialSecurityJurisdictionDto> CreateSocialSecurityJurisdictionAsync(Guid organizationId, CreateSocialSecurityJurisdictionDto dto);
+    Task<SocialSecurityJurisdictionDto?> UpdateSocialSecurityJurisdictionAsync(Guid id, Guid organizationId, UpdateSocialSecurityJurisdictionDto dto);
+    Task<bool> DeleteSocialSecurityJurisdictionAsync(Guid id, Guid organizationId);
+    Task<SocialSecurityAuthorityDto> CreateSocialSecurityAuthorityAsync(Guid organizationId, CreateSocialSecurityAuthorityDto dto);
+    Task<SocialSecurityAuthorityDto?> UpdateSocialSecurityAuthorityAsync(Guid id, Guid organizationId, UpdateSocialSecurityAuthorityDto dto);
+    Task<bool> DeleteSocialSecurityAuthorityAsync(Guid id, Guid organizationId);
+    Task<SocialSecuritySchemeDto> CreateSocialSecuritySchemeAsync(Guid organizationId, CreateSocialSecuritySchemeDto dto);
+    Task<SocialSecuritySchemeDto?> UpdateSocialSecuritySchemeAsync(Guid id, Guid organizationId, UpdateSocialSecuritySchemeDto dto);
+    Task<bool> DeleteSocialSecuritySchemeAsync(Guid id, Guid organizationId);
+    Task<SocialSecurityRuleDto> CreateSocialSecurityRuleAsync(Guid organizationId, CreateSocialSecurityRuleDto dto);
+    Task<SocialSecurityRuleDto?> UpdateSocialSecurityRuleAsync(Guid id, Guid organizationId, UpdateSocialSecurityRuleDto dto);
+    Task<bool> DeleteSocialSecurityRuleAsync(Guid id, Guid organizationId);
+    Task<PagedResult<SocialSecurityConfigDto>> GetAllSocialSecurityConfigsAsync(Guid organizationId, SocialSecurityConfigFilterDto filter);
+    Task<IEnumerable<SocialSecurityConfigDto>> GetActiveSocialSecurityConfigsAsync(Guid organizationId);
+    Task<SocialSecurityConfigDto?> GetSocialSecurityConfigByIdAsync(Guid id, Guid organizationId);
+    Task<SocialSecurityConfigDto> CreateSocialSecurityConfigAsync(Guid organizationId, CreateSocialSecurityConfigDto dto);
+    Task<SocialSecurityConfigDto?> UpdateSocialSecurityConfigAsync(Guid id, Guid organizationId, UpdateSocialSecurityConfigDto dto);
+    Task<bool> DeleteSocialSecurityConfigAsync(Guid id, Guid organizationId);
+
+    // Social Security Transactions
+    Task<PagedResult<SocialSecurityTransactionDto>> GetAllSocialSecurityTransactionsAsync(Guid organizationId, SocialSecurityTransactionFilterDto filter);
+    Task<SocialSecurityTransactionDto?> GetSocialSecurityTransactionByIdAsync(Guid id, Guid organizationId);
+    Task<SocialSecurityTransactionDto> CreateSocialSecurityTransactionAsync(Guid organizationId, CreateSocialSecurityTransactionDto dto);
+    Task<SocialSecurityTransactionDto?> UpdateSocialSecurityTransactionAsync(Guid id, Guid organizationId, UpdateSocialSecurityTransactionDto dto);
+    Task<bool> DeleteSocialSecurityTransactionAsync(Guid id, Guid organizationId);
+    Task<PagedResult<SocialSecurityTransactionDto>> GetMySocialSecurityTransactionsAsync(Guid organizationId, Guid employeeId, MySocialSecurityTransactionFilterDto filter);
+
     // Loans
     Task<LoanDto?> GetLoanByIdAsync(Guid loanId, Guid organizationId);
     Task<LoanDto> CreateLoanRequestAsync(Guid organizationId, Guid employeeId, CreateLoanRequestDto dto);

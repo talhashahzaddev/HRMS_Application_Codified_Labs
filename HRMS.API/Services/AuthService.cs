@@ -1,6 +1,7 @@
 using AutoMapper;
 using BCrypt.Net;
 using HRMS.API.Configuration;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories;
@@ -588,30 +589,24 @@ public class AuthService : IAuthService
         {
             new(ClaimTypes.Name, user.Email),
             new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new("organizationId", user.OrganizationId.ToString()),
+            new(CustomClaimTypes.OrganizationId, user.OrganizationId.ToString()),
             new(ClaimTypes.Role, user.Role?.RoleName ?? "Employee"),
             new("firstName", user.FirstName),
             new("lastName", user.LastName)
         };
         var role_id = await _authRepository.GetRoleByNameforTokenAsync(user.Role?.RoleName ?? "Employee", user.OrganizationId);
-        // Add permissions as claims if user has a role
+
+        // Keep JWT compact: store roleId only and evaluate permissions server-side from cache/database.
         if (role_id.RoleId.HasValue)
         {
-            
-            var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(role_id.RoleId.Value);
-
-            // Add each permission as a claim with the action key
-            foreach (var permission in permissions.Where(p => p.HasPermission))
-            {
-                // Add permission claim with format "permission.{actionKey}"
-                claims.Add(new Claim("permission", permission.ActionKey));
-
-                // Also add more specific claims if needed for different scenarios
-                claims.Add(new Claim($"permission.{permission.ActionKey}", "true"));
-            }
-
-            _logger.LogInformation("Added {PermissionCount} permission claims for user {UserId}",
-                permissions.Count(p => p.HasPermission), user.UserId);
+            claims.Add(new Claim(CustomClaimTypes.RoleId, role_id.RoleId.Value.ToString()));
+        }
+        else
+        {
+            _logger.LogWarning("RoleId not resolved for user {UserId} (RoleName: {RoleName}, OrganizationId: {OrganizationId})",
+                user.UserId,
+                user.Role?.RoleName,
+                user.OrganizationId);
         }
 
         // Debug: Log all claims

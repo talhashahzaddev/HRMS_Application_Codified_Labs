@@ -601,6 +601,403 @@ public class UpdateSalaryAdvanceRuleDto : CreateSalaryAdvanceRuleDto
 {
 }
 
+public class TaxSlabDto
+{
+    public Guid SlabId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string SlabName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string FiscalYear { get; set; } = string.Empty;
+    public decimal MinIncome { get; set; }
+    public decimal? MaxIncome { get; set; }
+    public decimal FixedAmount { get; set; }
+    public decimal Percentage { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateTaxSlabDto
+{
+    public string SlabName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string FiscalYear { get; set; } = string.Empty;
+    public decimal MinIncome { get; set; }
+    public decimal? MaxIncome { get; set; }
+    public decimal FixedAmount { get; set; }
+    public decimal Percentage { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateTaxSlabDto : CreateTaxSlabDto
+{
+}
+
+public class TaxSlabFilterDto
+{
+    public string? FiscalYear { get; set; }
+    public bool? IsActive { get; set; }
+    public string? SearchTerm { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class TaxTransactionDto
+{
+    public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public Guid? SlabId { get; set; }
+    public string? SlabName { get; set; }
+    public decimal AnnualSalary { get; set; }
+    public decimal TaxableIncome { get; set; }
+    public decimal FixedAmount { get; set; }
+    public decimal TaxPercentage { get; set; }
+    public decimal TaxAmount { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class CreateTaxTransactionDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid SlabId { get; set; }
+    public decimal AnnualSalary { get; set; }
+    public decimal TaxableIncome { get; set; }
+}
+
+public class UpdateTaxTransactionDto
+{
+    public Guid? SlabId { get; set; }
+    public decimal AnnualSalary { get; set; }
+    public decimal TaxableIncome { get; set; }
+}
+
+public class TaxTransactionFilterDto
+{
+    public string? SearchTerm { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid? SlabId { get; set; }
+    public string? FiscalYear { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class MyTaxTransactionFilterDto
+{
+    public Guid? PeriodId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class SocialSecurityJurisdictionDto
+{
+    public Guid JurisdictionId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string JurisdictionCode { get; set; } = string.Empty;
+    public string JurisdictionName { get; set; } = string.Empty;
+    public string CountryCode { get; set; } = string.Empty;
+    public string? Currency { get; set; }
+    public string? Timezone { get; set; }
+    public bool IsDefault { get; set; }
+    public bool IsActive { get; set; }
+    public string? Metadata { get; set; }
+}
+
+public class SocialSecurityAuthorityDto
+{
+    public Guid AuthorityId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid JurisdictionId { get; set; }
+    public string AuthorityCode { get; set; } = string.Empty;
+    public string AuthorityName { get; set; } = string.Empty;
+    public string? PortalUrl { get; set; }
+    public string? RemittanceFrequency { get; set; }
+    public string? FilingMode { get; set; }
+    public string? PaymentMode { get; set; }
+    public int? DueOffsetDays { get; set; }
+    public bool IsActive { get; set; }
+    public string? Metadata { get; set; }
+}
+
+public class SocialSecuritySchemeDto
+{
+    public Guid SchemeId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid JurisdictionId { get; set; }
+    public Guid? AuthorityId { get; set; }
+    public string SchemeCode { get; set; } = string.Empty;
+    public string SchemeName { get; set; } = string.Empty;
+    public string? SchemeType { get; set; }
+    public string? MandatoryMode { get; set; }
+    public bool EmployeeMandatory { get; set; }
+    public bool EmployerMandatory { get; set; }
+    public bool AllowVoluntaryTopup { get; set; }
+    public bool AllowCrossBorder { get; set; }
+    public DateTime VersionStartDate { get; set; }
+    public DateTime? VersionEndDate { get; set; }
+    public bool IsActive { get; set; }
+    public string? Metadata { get; set; }
+}
+
+public class SocialSecurityRuleDto
+{
+    public Guid RuleId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid SchemeId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string ContributionBasis { get; set; } = "gross";
+    public decimal EmployeeDefaultPct { get; set; }
+    public decimal EmployerDefaultPct { get; set; }
+    public decimal? EmployeeFixedAmount { get; set; }
+    public decimal? EmployerFixedAmount { get; set; }
+    public decimal? MinSalaryLimit { get; set; }
+    public decimal? MaxSalaryLimit { get; set; }
+    public decimal? AnnualSalaryCap { get; set; }
+    public DateTime EffectiveFrom { get; set; }
+    public DateTime? EffectiveTo { get; set; }
+    public bool IsActive { get; set; }
+}
+
+public class CreateSocialSecurityJurisdictionDto
+{
+    public string JurisdictionCode { get; set; } = string.Empty;
+    public string JurisdictionName { get; set; } = string.Empty;
+    public string? CountryCode { get; set; }
+    public string? Currency { get; set; }
+    public string? Timezone { get; set; }
+    public bool IsDefault { get; set; } = false;
+    public bool IsActive { get; set; } = true;
+    public string? Metadata { get; set; }
+}
+
+public class UpdateSocialSecurityJurisdictionDto : CreateSocialSecurityJurisdictionDto
+{
+}
+
+public class CreateSocialSecurityAuthorityDto
+{
+    public Guid JurisdictionId { get; set; }
+    public string AuthorityCode { get; set; } = string.Empty;
+    public string AuthorityName { get; set; } = string.Empty;
+    public string? PortalUrl { get; set; }
+    public string? RemittanceFrequency { get; set; }
+    public string? FilingMode { get; set; }
+    public string? PaymentMode { get; set; }
+    public int? DueOffsetDays { get; set; }
+    public bool IsActive { get; set; } = true;
+    public string? Metadata { get; set; }
+}
+
+public class UpdateSocialSecurityAuthorityDto : CreateSocialSecurityAuthorityDto
+{
+}
+
+public class CreateSocialSecuritySchemeDto
+{
+    public Guid JurisdictionId { get; set; }
+    public Guid? AuthorityId { get; set; }
+    public string SchemeCode { get; set; } = string.Empty;
+    public string SchemeName { get; set; } = string.Empty;
+    public string? SchemeType { get; set; }
+    public string? MandatoryMode { get; set; }
+    public bool EmployeeMandatory { get; set; } = true;
+    public bool EmployerMandatory { get; set; } = true;
+    public bool AllowVoluntaryTopup { get; set; } = false;
+    public bool AllowCrossBorder { get; set; } = false;
+    public DateTime? VersionStartDate { get; set; }
+    public DateTime? VersionEndDate { get; set; }
+    public bool IsActive { get; set; } = true;
+    public string? Metadata { get; set; }
+}
+
+public class UpdateSocialSecuritySchemeDto : CreateSocialSecuritySchemeDto
+{
+}
+
+public class CreateSocialSecurityRuleDto
+{
+    public Guid SchemeId { get; set; }
+    public string RuleName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string ContributionBasis { get; set; } = "gross";
+    public decimal EmployeeDefaultPct { get; set; }
+    public decimal EmployerDefaultPct { get; set; }
+    public decimal? EmployeeFixedAmount { get; set; }
+    public decimal? EmployerFixedAmount { get; set; }
+    public decimal? MinSalaryLimit { get; set; }
+    public decimal? MaxSalaryLimit { get; set; }
+    public decimal? AnnualSalaryCap { get; set; }
+    public DateTime? EffectiveFrom { get; set; }
+    public DateTime? EffectiveTo { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateSocialSecurityRuleDto : CreateSocialSecurityRuleDto
+{
+}
+
+public class SocialSecurityConfigDto
+{
+    public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string ConfigName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public Guid? JurisdictionId { get; set; }
+    public string? JurisdictionCode { get; set; }
+    public string? JurisdictionName { get; set; }
+    public Guid? AuthorityId { get; set; }
+    public string? AuthorityCode { get; set; }
+    public string? AuthorityName { get; set; }
+    public string? PortalUrl { get; set; }
+    public Guid? SchemeId { get; set; }
+    public string? SchemeCode { get; set; }
+    public string? SchemeName { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public string? ContributionBasis { get; set; }
+    public decimal EmployeeContributionPct { get; set; }
+    public decimal EmployerContributionPct { get; set; }
+    public decimal? EmployeeFixedAmount { get; set; }
+    public decimal? EmployerFixedAmount { get; set; }
+    public decimal? MinSalaryLimit { get; set; }
+    public decimal? MaxSalaryCap { get; set; }
+    public string? Currency { get; set; }
+    public bool IsStatutory { get; set; }
+    public bool AllowVoluntary { get; set; }
+    public bool AllowWithdrawal { get; set; }
+    public string? Metadata { get; set; }
+    public DateTime? EffectiveFrom { get; set; }
+    public DateTime? EffectiveTo { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsDeleted { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateSocialSecurityConfigDto
+{
+    public string ConfigName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public Guid? JurisdictionId { get; set; }
+    public Guid? AuthorityId { get; set; }
+    public Guid? SchemeId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? ContributionBasis { get; set; }
+    public decimal EmployeeContributionPct { get; set; }
+    public decimal EmployerContributionPct { get; set; }
+    public decimal? EmployeeFixedAmount { get; set; }
+    public decimal? EmployerFixedAmount { get; set; }
+    public decimal? MinSalaryLimit { get; set; }
+    public decimal? MaxSalaryCap { get; set; }
+    public string? Currency { get; set; }
+    public bool IsStatutory { get; set; } = true;
+    public bool AllowVoluntary { get; set; } = false;
+    public bool AllowWithdrawal { get; set; } = true;
+    public string? Metadata { get; set; }
+    public DateTime? EffectiveFrom { get; set; }
+    public DateTime? EffectiveTo { get; set; }
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateSocialSecurityConfigDto : CreateSocialSecurityConfigDto
+{
+}
+
+public class SocialSecurityConfigFilterDto
+{
+    public bool? IsActive { get; set; }
+    public string? SearchTerm { get; set; }
+    public Guid? JurisdictionId { get; set; }
+    public Guid? SchemeId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class SocialSecurityTransactionDto
+{
+    public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public Guid? ConfigId { get; set; }
+    public string? ConfigName { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public Guid? SchemeId { get; set; }
+    public string? SchemeName { get; set; }
+    public Guid? JurisdictionId { get; set; }
+    public string? JurisdictionName { get; set; }
+    public Guid? AuthorityId { get; set; }
+    public string? AuthorityName { get; set; }
+    public decimal? ActualSalary { get; set; }
+    public decimal? SalaryCapped { get; set; }
+    public decimal? ContributionBase { get; set; }
+    public string? ContributionBasis { get; set; }
+    public decimal? EmployeeRate { get; set; }
+    public decimal? EmployerRate { get; set; }
+    public decimal EmployeeAmount { get; set; }
+    public decimal EmployerAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string? ReferenceCode { get; set; }
+    public string? TransactionType { get; set; }
+    public string RequestStatus { get; set; } = string.Empty;
+    public bool IsEnrolled { get; set; }
+    public bool WithdrawalRequest { get; set; }
+    public string? WithdrawalStatus { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class CreateSocialSecurityTransactionDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public Guid? ConfigId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal ActualSalary { get; set; }
+    public bool IsEnrolled { get; set; } = true;
+    public string RequestStatus { get; set; } = "pending";
+}
+
+public class UpdateSocialSecurityTransactionDto
+{
+    public Guid? ConfigId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal ActualSalary { get; set; }
+    public bool IsEnrolled { get; set; } = true;
+    public string RequestStatus { get; set; } = "pending";
+}
+
+public class SocialSecurityTransactionFilterDto
+{
+    public string? SearchTerm { get; set; }
+    public Guid? PeriodId { get; set; }
+    public Guid? ConfigId { get; set; }
+    public Guid? SchemeId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? RequestStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class MySocialSecurityTransactionFilterDto
+{
+    public Guid? PeriodId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
 public class ProvidentFundRuleDto
 {
     public Guid RuleId { get; set; }

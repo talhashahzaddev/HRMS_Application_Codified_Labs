@@ -2560,6 +2560,736 @@ public class PayRollController : ControllerBase
         }
     }
 
+    // ─── Tax Slabs ───────────────────────────────────────────────────────────
+
+    [HttpGet("tax-slabs")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<TaxSlabDto>>>> GetAllTaxSlabs([FromQuery] TaxSlabFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllTaxSlabsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax slabs");
+            return StatusCode(500, new ServiceResponse<PagedResult<TaxSlabDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-slabs/active")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxSlabDto>>>> GetActiveTaxSlabs()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveTaxSlabsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active tax slabs");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-slabs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> GetTaxSlabById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxSlabByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax slab by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("tax-slabs")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> CreateTaxSlab([FromBody] CreateTaxSlabDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateTaxSlabAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetTaxSlabById), new { id = response.Data?.SlabId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax slab");
+            return StatusCode(500, new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("tax-slabs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> UpdateTaxSlab(Guid id, [FromBody] UpdateTaxSlabDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateTaxSlabAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax slab: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("tax-slabs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxSlab(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteTaxSlabAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax slab: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // ─── Tax Transactions ────────────────────────────────────────────────────
+
+    [HttpGet("tax-transactions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<TaxTransactionDto>>>> GetAllTaxTransactions([FromQuery] TaxTransactionFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllTaxTransactionsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax transactions");
+            return StatusCode(500, new ServiceResponse<PagedResult<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> GetTaxTransactionById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxTransactionByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax transaction by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("tax-transactions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> CreateTaxTransaction([FromBody] CreateTaxTransactionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateTaxTransactionAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetTaxTransactionById), new { id = response.Data?.Id }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax transaction");
+            return StatusCode(500, new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("tax-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> UpdateTaxTransaction(Guid id, [FromBody] UpdateTaxTransactionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateTaxTransactionAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("tax-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxTransaction(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteTaxTransactionAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-transactions/my")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<PagedResult<TaxTransactionDto>>>> GetMyTaxTransactions([FromQuery] MyTaxTransactionFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMyTaxTransactionsAsync(organizationId, employeeId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my tax transactions");
+            return StatusCode(500, new ServiceResponse<PagedResult<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // ─── Social Security Config ──────────────────────────────────────────────
+
+    [HttpGet("social-security/jurisdictions")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>>>> GetSocialSecurityJurisdictions()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSocialSecurityJurisdictionsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving social security jurisdictions");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("social-security/jurisdictions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityJurisdictionDto>>> CreateSocialSecurityJurisdiction([FromBody] CreateSocialSecurityJurisdictionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateSocialSecurityJurisdictionAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security jurisdiction");
+            return StatusCode(500, new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("social-security/jurisdictions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityJurisdictionDto>>> UpdateSocialSecurityJurisdiction(Guid id, [FromBody] UpdateSocialSecurityJurisdictionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateSocialSecurityJurisdictionAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security jurisdiction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("social-security/jurisdictions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityJurisdiction(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteSocialSecurityJurisdictionAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security jurisdiction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security/authorities")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>>>> GetSocialSecurityAuthorities([FromQuery] Guid? jurisdictionId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSocialSecurityAuthoritiesAsync(organizationId, jurisdictionId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving social security authorities");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("social-security/authorities")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityAuthorityDto>>> CreateSocialSecurityAuthority([FromBody] CreateSocialSecurityAuthorityDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateSocialSecurityAuthorityAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security authority");
+            return StatusCode(500, new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("social-security/authorities/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityAuthorityDto>>> UpdateSocialSecurityAuthority(Guid id, [FromBody] UpdateSocialSecurityAuthorityDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateSocialSecurityAuthorityAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security authority: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("social-security/authorities/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityAuthority(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteSocialSecurityAuthorityAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security authority: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security/schemes")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecuritySchemeDto>>>> GetSocialSecuritySchemes([FromQuery] Guid? jurisdictionId, [FromQuery] Guid? authorityId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSocialSecuritySchemesAsync(organizationId, jurisdictionId, authorityId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving social security schemes");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecuritySchemeDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("social-security/schemes")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecuritySchemeDto>>> CreateSocialSecurityScheme([FromBody] CreateSocialSecuritySchemeDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateSocialSecuritySchemeAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security scheme");
+            return StatusCode(500, new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("social-security/schemes/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecuritySchemeDto>>> UpdateSocialSecurityScheme(Guid id, [FromBody] UpdateSocialSecuritySchemeDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateSocialSecuritySchemeAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security scheme: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("social-security/schemes/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityScheme(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteSocialSecuritySchemeAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security scheme: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security/rules")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityRuleDto>>>> GetSocialSecurityRules([FromQuery] Guid? schemeId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSocialSecurityRulesAsync(organizationId, schemeId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving social security rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("social-security/rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityRuleDto>>> CreateSocialSecurityRule([FromBody] CreateSocialSecurityRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateSocialSecurityRuleAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security rule");
+            return StatusCode(500, new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("social-security/rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityRuleDto>>> UpdateSocialSecurityRule(Guid id, [FromBody] UpdateSocialSecurityRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateSocialSecurityRuleAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("social-security/rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityRule(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteSocialSecurityRuleAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security-configs")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<SocialSecurityConfigDto>>>> GetAllSocialSecurityConfigs([FromQuery] SocialSecurityConfigFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllSocialSecurityConfigsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving social security configs");
+            return StatusCode(500, new ServiceResponse<PagedResult<SocialSecurityConfigDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security-configs/active")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityConfigDto>>>> GetActiveSocialSecurityConfigs()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveSocialSecurityConfigsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active social security configs");
+            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityConfigDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security-configs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityConfigDto>>> GetSocialSecurityConfigById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSocialSecurityConfigByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving social security config by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("social-security-configs")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityConfigDto>>> CreateSocialSecurityConfig([FromBody] CreateSocialSecurityConfigDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateSocialSecurityConfigAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetSocialSecurityConfigById), new { id = response.Data?.Id }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security config");
+            return StatusCode(500, new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("social-security-configs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityConfigDto>>> UpdateSocialSecurityConfig(Guid id, [FromBody] UpdateSocialSecurityConfigDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateSocialSecurityConfigAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security config: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("social-security-configs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityConfig(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteSocialSecurityConfigAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security config: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // ─── Social Security Transactions ────────────────────────────────────────
+
+    [HttpGet("social-security-transactions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<SocialSecurityTransactionDto>>>> GetAllSocialSecurityTransactions([FromQuery] SocialSecurityTransactionFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllSocialSecurityTransactionsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving social security transactions");
+            return StatusCode(500, new ServiceResponse<PagedResult<SocialSecurityTransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityTransactionDto>>> GetSocialSecurityTransactionById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSocialSecurityTransactionByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving social security transaction by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("social-security-transactions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityTransactionDto>>> CreateSocialSecurityTransaction([FromBody] CreateSocialSecurityTransactionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateSocialSecurityTransactionAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetSocialSecurityTransactionById), new { id = response.Data?.Id }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security transaction");
+            return StatusCode(500, new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("social-security-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<SocialSecurityTransactionDto>>> UpdateSocialSecurityTransaction(Guid id, [FromBody] UpdateSocialSecurityTransactionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateSocialSecurityTransactionAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("social-security-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityTransaction(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteSocialSecurityTransactionAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security-transactions/my")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<PagedResult<SocialSecurityTransactionDto>>>> GetMySocialSecurityTransactions([FromQuery] MySocialSecurityTransactionFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMySocialSecurityTransactionsAsync(organizationId, employeeId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving my social security transactions");
+            return StatusCode(500, new ServiceResponse<PagedResult<SocialSecurityTransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     // ─── Gratuity Config ─────────────────────────────────────────────────────
 
     [HttpGet("gratuity-configs")]

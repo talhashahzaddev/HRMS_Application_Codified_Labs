@@ -2144,7 +2144,7 @@ create table if not exists payroll.socialsecurityconfig
     effectiveto         date,
     createdat           timestamptz default current_timestamp,
     updatedat           timestamptz default current_timestamp,
-    constraint uqssconfig unique (organizationid, configname)
+    constraint uqssconfig unique (organizationid, configrulename)
 );
 
 create table if not exists payroll.socialsecuritytransactions
@@ -2154,6 +2154,7 @@ create table if not exists payroll.socialsecuritytransactions
     employeeid          uuid not null,
     periodid            uuid not null,
     configid            uuid references payroll.socialsecurityconfig(id),
+    actualsalary        numeric(15,2),
     salarycapped        numeric(15,2),
     employeeamount      numeric(15,2) default 0,
     employeramount      numeric(15,2) default 0,
