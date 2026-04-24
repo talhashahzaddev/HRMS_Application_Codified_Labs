@@ -10,13 +10,37 @@ namespace HRMS.API.Authorization
 
         private static Guid? GetRoleId(this ClaimsPrincipal user)
         {
-            var roleIdClaim = user.FindFirst("roleId")?.Value;
+            var roleIdClaim = user.FindFirst(CustomClaimTypes.RoleId)?.Value;
             return Guid.TryParse(roleIdClaim, out var roleId) ? roleId : null;
+        }
+
+        private static Guid? ResolveRoleId(this ClaimsPrincipal user, IAuthRepository authRepository)
+        {
+            var roleId = user.GetRoleId();
+            if (roleId.HasValue)
+            {
+                return roleId;
+            }
+
+            var roleName = user.FindFirst(ClaimTypes.Role)?.Value;
+            var organizationIdClaim = user.FindFirst(CustomClaimTypes.OrganizationId)?.Value;
+
+            if (string.IsNullOrWhiteSpace(roleName) || !Guid.TryParse(organizationIdClaim, out var organizationId))
+            {
+                return null;
+            }
+
+            var role = authRepository
+                .GetRoleByNameforTokenAsync(roleName, organizationId)
+                .GetAwaiter()
+                .GetResult();
+
+            return role.RoleId;
         }
 
         private static HashSet<string> GetPermissionsFromStore(this ClaimsPrincipal user, IAuthRepository authRepository, IMemoryCache memoryCache)
         {
-            var roleId = user.GetRoleId();
+            var roleId = user.ResolveRoleId(authRepository);
             if (!roleId.HasValue)
             {
                 return new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -43,7 +67,7 @@ namespace HRMS.API.Authorization
         // Check if user has a specific permission
         public static bool HasPermission(this ClaimsPrincipal user, string permission)
         {
-            return user.HasClaim(c => c.Type == "permission" && c.Value == permission);
+            return user.HasClaim(c => c.Type == CustomClaimTypes.Permission && c.Value == permission);
         }
 
         public static bool HasPermission(this ClaimsPrincipal user, string permission, IAuthRepository authRepository, IMemoryCache memoryCache)
@@ -54,7 +78,7 @@ namespace HRMS.API.Authorization
             }
 
             var tokenClaimPermission = user.Claims
-                .Where(c => c.Type == "permission")
+                .Where(c => c.Type == CustomClaimTypes.Permission)
                 .Select(c => c.Value)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
@@ -93,7 +117,7 @@ namespace HRMS.API.Authorization
         public static List<string> GetPermissions(this ClaimsPrincipal user)
         {
             return user.Claims
-                .Where(c => c.Type == "permission")
+                .Where(c => c.Type == CustomClaimTypes.Permission)
                 .Select(c => c.Value)
                 .ToList();
         }
@@ -101,7 +125,7 @@ namespace HRMS.API.Authorization
         public static List<string> GetPermissions(this ClaimsPrincipal user, IAuthRepository authRepository, IMemoryCache memoryCache)
         {
             var tokenClaimPermissions = user.Claims
-                .Where(c => c.Type == "permission")
+                .Where(c => c.Type == CustomClaimTypes.Permission)
                 .Select(c => c.Value)
                 .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
