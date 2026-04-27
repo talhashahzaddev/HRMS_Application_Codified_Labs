@@ -7,7 +7,6 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Npgsql;
-
 namespace HRMS.API.Repositories;
 
 /// <summary>
@@ -431,5 +430,135 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                 FileUrl = w.FileUrl
             }).ToList()
         };
+    }
+    // PolicyRepository.cs
+    public class PolicyRepository : BaseRepository, IPolicyRepository
+    {
+        public PolicyRepository(IDatabaseConnectionFactory connectionFactory)
+            : base(connectionFactory) { }
+
+        // ── SELECT helpers ────────────────────────────────────────────────────────
+
+        public async Task<List<PolicyDto>> GetAllAsync(Guid organizationId)
+        {
+            const string sql = @"
+            SELECT policyid, organizationid, policyname, category,
+                   policycontent, ispublished, fileurl, filename, fieldstoggles,
+                   createdat, updatedat
+            FROM   onboarding.policies
+            WHERE  organizationid = @OrganizationId
+            ORDER  BY createdat DESC";
+
+            var results = await QueryAsync<PolicyDto>(sql, new { OrganizationId = organizationId });
+            return results.ToList();
+        }
+
+        public async Task<List<PolicyDto>> GetPublishedAsync(Guid organizationId)
+        {
+            const string sql = @"
+            SELECT policyid, organizationid, policyname, category,
+                   policycontent, ispublished, fileurl, filename, fieldstoggles,
+                   createdat, updatedat
+            FROM   onboarding.policies
+            WHERE  organizationid = @OrganizationId
+              AND  ispublished    = true
+            ORDER  BY createdat DESC";
+
+            var results = await QueryAsync<PolicyDto>(sql, new { OrganizationId = organizationId });
+            return results.ToList();
+        }
+
+        public async Task<PolicyDto?> GetByIdAsync(Guid policyId, Guid organizationId)
+        {
+            const string sql = @"
+            SELECT policyid, organizationid, policyname, category,
+                   policycontent, ispublished, fileurl, filename, fieldstoggles,
+                   createdat, updatedat
+            FROM   onboarding.policies
+            WHERE  policyid       = @PolicyId
+              AND  organizationid = @OrganizationId
+            LIMIT  1";
+
+            return await QuerySingleOrDefaultAsync<PolicyDto>(sql,
+                new { PolicyId = policyId, OrganizationId = organizationId });
+        }
+
+        // ── INSERT ────────────────────────────────────────────────────────────────
+
+        public async Task<PolicyDto> CreateAsync(PolicyDto policy)
+        {
+            const string sql = @"
+            INSERT INTO onboarding.policies
+                (organizationid, policyname, category, policycontent,
+                 ispublished, fileurl, filename, fieldstoggles)
+            VALUES
+                (@OrganizationId, @PolicyName, @Category, @PolicyContent,
+                 @IsPublished, @FileUrl, @FileName, @FieldToggles)
+            RETURNING policyid";
+
+            var id = await ExecuteScalarAsync<Guid>(sql, new
+            {
+                policy.OrganizationId,
+                policy.PolicyName,
+                policy.Category,
+                policy.PolicyContent,
+                policy.IsPublished,
+                policy.FileUrl,
+                policy.FileName,
+                policy.FieldToggles
+            });
+
+            policy.PolicyId = id;
+            policy.CreatedAt = DateTime.UtcNow;
+            policy.UpdatedAt = DateTime.UtcNow;
+            return policy;
+        }
+
+        // ── UPDATE ────────────────────────────────────────────────────────────────
+
+        public async Task<bool> UpdateAsync(PolicyDto policy)
+        {
+            const string sql = @"
+            UPDATE onboarding.policies
+            SET    policyname    = @PolicyName,
+                   category      = @Category,
+                   policycontent = @PolicyContent,
+                   ispublished   = @IsPublished,
+                   fileurl       = COALESCE(@FileUrl,  fileurl),
+                   filename      = COALESCE(@FileName, filename),
+                   fieldstoggles = @FieldToggles,
+                   updatedat     = CURRENT_TIMESTAMP
+            WHERE  policyid       = @PolicyId
+              AND  organizationid = @OrganizationId";
+
+            var affected = await ExecuteAsync(sql, new
+            {
+                policy.PolicyId,
+                policy.OrganizationId,
+                policy.PolicyName,
+                policy.Category,
+                policy.PolicyContent,
+                policy.IsPublished,
+                policy.FileUrl,
+                policy.FileName,
+                policy.FieldToggles
+            });
+
+            return affected > 0;
+        }
+
+        // ── DELETE ────────────────────────────────────────────────────────────────
+
+        public async Task<bool> DeleteAsync(Guid policyId, Guid organizationId)
+        {
+            const string sql = @"
+            DELETE FROM onboarding.policies
+            WHERE  policyid       = @PolicyId
+              AND  organizationid = @OrganizationId";
+
+            var affected = await ExecuteAsync(sql,
+                new { PolicyId = policyId, OrganizationId = organizationId });
+            return affected > 0;
+        }
     }
 }

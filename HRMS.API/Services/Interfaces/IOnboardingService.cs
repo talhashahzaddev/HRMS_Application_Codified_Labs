@@ -31,3 +31,31 @@ public interface IOnboardingService
     // GET /onboarding/my-status
     Task<OnboardingStatusResponse?> GetMyStatusAsync(Guid userId, Guid organizationId);
 }
+// IPolicyService.cs
+// ============================================================
+// FILE: Services/Interfaces/IPolicyService.cs
+// ============================================================
+
+public interface IPolicyService
+{
+    Task<List<PolicyDto>> GetPoliciesAsync(Guid organizationId, bool isSuperAdmin);
+
+    Task<PolicyDto?> GetByIdAsync(Guid policyId, Guid organizationId);
+
+    /// <summary>
+    /// Creates a new policy. File (if any) has already been uploaded separately;
+    /// its public URL is provided in request.FileUrl.
+    /// </summary>
+    Task<PolicyDto> CreateAsync(Guid organizationId, CreatePolicyRequest request);
+
+    /// <summary>
+    /// Updates an existing policy. If request.FileUrl is non-null, the file was
+    /// replaced; otherwise the existing DB URL is kept unchanged.
+    /// </summary>
+    Task<(bool found, bool updated)> UpdateAsync(
+        Guid organizationId,
+        Guid policyId,
+        UpdatePolicyRequest request);
+
+    Task<bool> DeleteAsync(Guid policyId, Guid organizationId);
+}

@@ -2,6 +2,7 @@
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using System.Text.Json;
 
 namespace HRMS.API.Services;
 
@@ -435,5 +436,186 @@ public class OnboardingService : IOnboardingService
         if (employeeId is null) return null;
 
         return await _repo.GetFullStatusAsync(employeeId.Value, organizationId);
+    }
+}
+// PolicyService.cs
+
+
+// ============================================================
+// FILE: Services/PolicyService.cs
+// ============================================================
+
+public class PolicyService : IPolicyService
+{
+    private readonly IPolicyRepository _repo;
+    private readonly ILogger<PolicyService> _logger;
+
+    public PolicyService(
+        IPolicyRepository repo,
+        ILogger<PolicyService> logger)
+    {
+        _repo = repo;
+        _logger = logger;
+    }
+
+    // ── Read ──────────────────────────────────────────────────────────────────
+
+    /// <summary>Super Admin sees ALL; employees see published only.</summary>
+    public async Task<List<PolicyDto>> GetPoliciesAsync(Guid organizationId, bool isSuperAdmin)
+        => isSuperAdmin
+            ? await _repo.GetAllAsync(organizationId)
+            : await _repo.GetPublishedAsync(organizationId);
+
+    public async Task<PolicyDto?> GetByIdAsync(Guid policyId, Guid organizationId)
+        => await _repo.GetByIdAsync(policyId, organizationId);
+
+    // ── Create ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Creates a policy.
+    ///
+    /// The file is NOT uploaded here. The frontend uploads it first via
+    /// POST /api/uploads/files and passes the returned public URL as
+    /// request.FileUrl. We store that URL string directly in the DB.
+    /// </summary>
+    public async Task<PolicyDto> CreateAsync(
+        Guid organizationId,
+        CreatePolicyRequest request)
+    {
+        var toggles = DeserializeToggles(request.FieldToggles);
+
+        ValidateByToggles(
+            request.PolicyName,
+            request.Category,
+            request.PolicyContent,
+            hasAttachment: !string.IsNullOrWhiteSpace(request.FileUrl),
+            toggles: toggles,
+            isPublishIntent: request.IsPublished);
+
+        var policy = new PolicyDto
+        {
+            OrganizationId = organizationId,
+            PolicyName = (request.PolicyName ?? string.Empty).Trim(),
+            Category = (request.Category ?? string.Empty).Trim(),
+            PolicyContent = (request.PolicyContent ?? string.Empty).Trim(),
+            IsPublished = request.IsPublished,
+            // Store the pre-uploaded public URL exactly as received.
+            // No path manipulation — the frontend gives us a ready-to-use URL.
+            FileUrl = string.IsNullOrWhiteSpace(request.FileUrl) ? null : request.FileUrl.Trim(),
+            FileName = string.IsNullOrWhiteSpace(request.FileName) ? null : request.FileName.Trim(),
+            FieldToggles = request.FieldToggles
+        };
+
+        return await _repo.CreateAsync(policy);
+    }
+
+    // ── Update ────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Updates a policy.
+    ///
+    /// If request.FileUrl is non-null → a new file was uploaded, use it.
+    /// If request.FileUrl is null     → keep the existing URL in DB (COALESCE).
+    /// </summary>
+    public async Task<(bool found, bool updated)> UpdateAsync(
+        Guid organizationId,
+        Guid policyId,
+        UpdatePolicyRequest request)
+    {
+        var existing = await _repo.GetByIdAsync(policyId, organizationId);
+        if (existing is null) return (false, false);
+
+        var toggles = DeserializeToggles(request.FieldToggles);
+
+        // For attachment validation: a file exists if a new URL was provided
+        // OR an old URL is already in DB
+        var hasAttachment = !string.IsNullOrWhiteSpace(request.FileUrl)
+                         || !string.IsNullOrWhiteSpace(existing.FileUrl);
+
+        ValidateByToggles(
+            request.PolicyName,
+            request.Category,
+            request.PolicyContent,
+            hasAttachment: hasAttachment,
+            toggles: toggles,
+            isPublishIntent: request.IsPublished);
+
+        existing.PolicyName = (request.PolicyName ?? string.Empty).Trim();
+        existing.Category = (request.Category ?? string.Empty).Trim();
+        existing.PolicyContent = (request.PolicyContent ?? string.Empty).Trim();
+        existing.IsPublished = request.IsPublished;
+        existing.FieldToggles = request.FieldToggles;
+
+        // Only overwrite file fields when a new URL was actually provided
+        if (!string.IsNullOrWhiteSpace(request.FileUrl))
+        {
+            existing.FileUrl = request.FileUrl.Trim();
+            existing.FileName = string.IsNullOrWhiteSpace(request.FileName)
+                ? null
+                : request.FileName.Trim();
+        }
+
+        var updated = await _repo.UpdateAsync(existing);
+        return (true, updated);
+    }
+
+    // ── Delete ────────────────────────────────────────────────────────────────
+
+    public async Task<bool> DeleteAsync(Guid policyId, Guid organizationId)
+    {
+        var existing = await _repo.GetByIdAsync(policyId, organizationId);
+        if (existing is null) return false;
+        return await _repo.DeleteAsync(policyId, organizationId);
+    }
+
+    // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private static PolicyFieldToggle DeserializeToggles(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new PolicyFieldToggle();
+        try
+        {
+            return JsonSerializer.Deserialize<PolicyFieldToggle>(
+                       json,
+                       new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                   ?? new PolicyFieldToggle();
+        }
+        catch
+        {
+            return new PolicyFieldToggle();
+        }
+    }
+
+    private static void ValidateByToggles(
+        string? name,
+        string? category,
+        string? content,
+        bool hasAttachment,
+        PolicyFieldToggle toggles,
+        bool isPublishIntent)
+    {
+        var errors = new List<string>();
+
+        if (isPublishIntent)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                errors.Add("Policy name is required when publishing.");
+            if (string.IsNullOrWhiteSpace(content))
+                errors.Add("Policy content is required when publishing.");
+        }
+        else
+        {
+            if (toggles.NameRequired && string.IsNullOrWhiteSpace(name))
+                errors.Add("Policy name is required (enabled by toggle).");
+            if (toggles.CategoryRequired && string.IsNullOrWhiteSpace(category))
+                errors.Add("Category is required (enabled by toggle).");
+            if (toggles.ContentRequired && string.IsNullOrWhiteSpace(content))
+                errors.Add("Policy content is required (enabled by toggle).");
+            if (toggles.AttachmentRequired && !hasAttachment)
+                errors.Add("An attachment is required (enabled by toggle).");
+        }
+
+        if (errors.Count > 0)
+            throw new InvalidOperationException(string.Join(" | ", errors));
     }
 }
