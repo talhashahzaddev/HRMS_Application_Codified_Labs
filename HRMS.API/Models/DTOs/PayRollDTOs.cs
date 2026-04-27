@@ -1276,6 +1276,14 @@ public class PayrollGeneralBonusDetailDto
     public decimal NetSalaryAfterBonus { get; set; }
 }
 
+public class PayrollGratuityDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid TransactionId { get; set; }
+    public decimal GratuityAmount { get; set; }
+    public decimal NetSalaryAfterGratuity { get; set; }
+}
+
 public class PayrollCalculationResultDto
 {
     public Guid PeriodId { get; set; }
@@ -1305,6 +1313,10 @@ public class PayrollCalculationResultDto
     public int GeneralBonusApplied { get; set; }
     public decimal TotalGeneralBonusAmount { get; set; }
     public List<PayrollGeneralBonusDetailDto> GeneralBonusDetails { get; set; } = new();
+
+    public int GratuityApplied { get; set; }
+    public decimal TotalGratuityAmount { get; set; }
+    public List<PayrollGratuityDetailDto> GratuityDetails { get; set; } = new();
 
     public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount;
 }

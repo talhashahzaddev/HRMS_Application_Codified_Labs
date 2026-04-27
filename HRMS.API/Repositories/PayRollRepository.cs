@@ -6474,6 +6474,38 @@ ORDER BY l.createdat DESC;";
                 }
             }
 
+            var gratuitySql = @"
+                SELECT id, employeeid, totalamount
+                FROM payroll.gratuitytransactions
+                WHERE organizationid = @organizationId
+                  AND periodid = @PeriodId
+                  AND isdeleted = false
+                  AND paymentstatus != 'cancelled';";
+
+            var gratuities = await connection.QueryAsync<dynamic>(gratuitySql, new { organizationId, PeriodId = dto.PeriodId }, transaction);
+
+            foreach (var grat in gratuities)
+            {
+                var employeeId = (Guid)grat.employeeid;
+                var amount = Convert.ToDecimal(grat.totalamount);
+                var transactionId = (Guid)grat.id;
+
+                if (amount <= 0 || !remainingSalaryByEmployee.ContainsKey(employeeId))
+                    continue;
+
+                remainingSalaryByEmployee[employeeId] += amount;
+
+                result.GratuityApplied += 1;
+                result.TotalGratuityAmount += amount;
+                result.GratuityDetails.Add(new PayrollGratuityDetailDto
+                {
+                    EmployeeId = employeeId,
+                    TransactionId = transactionId,
+                    GratuityAmount = amount,
+                    NetSalaryAfterGratuity = remainingSalaryByEmployee[employeeId]
+                });
+            }
+
             transaction.Commit();
             return result;
         }
