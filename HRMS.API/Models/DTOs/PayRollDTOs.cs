@@ -1225,6 +1225,7 @@ public class AddLoanPaymentDto
 public class CalculatePayrollDto
 {
     public Guid PeriodId { get; set; }
+    public Guid CycleId { get; set; }
 }
 
 public class PayrollLoanDeductionDetailDto
@@ -1257,6 +1258,15 @@ public class PayrollProvidentFundDeductionDetailDto
     public decimal NetSalaryAfterProvidentFundDeduction { get; set; }
 }
 
+public class PayrollPerformanceBonusDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid RuleId { get; set; }
+    public decimal Score { get; set; }
+    public decimal BonusAmount { get; set; }
+    public decimal NetSalaryAfterBonus { get; set; }
+}
+
 public class PayrollCalculationResultDto
 {
     public Guid PeriodId { get; set; }
@@ -1278,6 +1288,10 @@ public class PayrollCalculationResultDto
     public int ProvidentFundDeductionsApplied { get; set; }
     public decimal TotalProvidentFundDeductionAmount { get; set; }
     public List<PayrollProvidentFundDeductionDetailDto> ProvidentFundDeductionDetails { get; set; } = new();
+
+    public int PerformanceBonusApplied { get; set; }
+    public decimal TotalPerformanceBonusAmount { get; set; }
+    public List<PayrollPerformanceBonusDetailDto> PerformanceBonusDetails { get; set; } = new();
 
     public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount;
 }

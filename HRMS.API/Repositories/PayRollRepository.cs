@@ -5912,6 +5912,10 @@ ORDER BY l.createdat DESC;";
                 e => (Guid)e.employeeid,
                 e => Convert.ToDecimal(e.basicsalary)
             );
+            var baseSalaryByEmployee = activeEmployees.ToDictionary(
+                e => (Guid)e.employeeid,
+                e => Convert.ToDecimal(e.basicsalary)
+            );
 
             var candidatesSql = @"
                 SELECT
@@ -6254,6 +6258,106 @@ ORDER BY l.createdat DESC;";
                     EmployerAmount = employerAmount,
                     NetSalaryAfterProvidentFundDeduction = remainingSalaryByEmployee[employeeId]
                 });
+            }
+
+            if (dto.CycleId != Guid.Empty)
+            {
+                var performanceRulesSql = @"
+                    SELECT ruleid, minscore, maxscore, fixedamount, percentage
+                    FROM payroll.performancerules
+                    WHERE organizationid = @organizationId
+                      AND isactive = true
+                      AND isdeleted = false;";
+
+                var performanceRules = (await connection.QueryAsync<dynamic>(performanceRulesSql, new { organizationId }, transaction)).ToList();
+
+                var appraisalsSql = @"
+                    SELECT employeeid, finalrating
+                    FROM performance.hrappraisals
+                    WHERE organizationid = @organizationId
+                      AND cycleid = @CycleId
+                      AND LOWER(status) = 'submitted';";
+
+                var appraisals = await connection.QueryAsync<dynamic>(appraisalsSql, new { organizationId, CycleId = dto.CycleId }, transaction);
+
+                foreach (var appraisal in appraisals)
+                {
+                    var employeeId = (Guid)appraisal.employeeid;
+                    var finalRating = appraisal.finalrating != null ? Convert.ToDecimal(appraisal.finalrating) : 0m;
+
+                    if (!remainingSalaryByEmployee.TryGetValue(employeeId, out var currentSalary))
+                    {
+                        continue;
+                    }
+
+                    if (!baseSalaryByEmployee.TryGetValue(employeeId, out var baseSalary))
+                    {
+                        continue;
+                    }
+
+                    var matchedRule = performanceRules.FirstOrDefault(r => 
+                        finalRating >= Convert.ToDecimal(r.minscore) && 
+                        finalRating <= Convert.ToDecimal(r.maxscore));
+
+                    if (matchedRule == null) continue;
+
+                    var ruleId = (Guid)matchedRule.ruleid;
+                    var fixedAmount = matchedRule.fixedamount != null ? Convert.ToDecimal(matchedRule.fixedamount) : 0m;
+                    var percentage = matchedRule.percentage != null ? Convert.ToDecimal(matchedRule.percentage) : 0m;
+
+                    decimal bonusAmount = 0;
+                    if (fixedAmount > 0)
+                    {
+                        bonusAmount = fixedAmount;
+                    }
+                    else if (percentage > 0)
+                    {
+                        bonusAmount = Math.Round((baseSalary * percentage) / 100m, 2);
+                    }
+
+                    if (bonusAmount <= 0) continue;
+
+                    var existingBonusSql = @"
+                        SELECT performancepayid
+                        FROM payroll.performancepay
+                        WHERE employeeid = @EmployeeId
+                          AND periodid = @PeriodId
+                        LIMIT 1;";
+
+                    var existingBonus = await connection.QuerySingleOrDefaultAsync<Guid?>(existingBonusSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
+                    if (existingBonus != null) continue;
+
+                    var insertBonusSql = @"
+                        INSERT INTO payroll.performancepay (
+                            employeeid, periodid, ruleid, score, finalamount
+                        ) VALUES (
+                            @EmployeeId, @PeriodId, @RuleId, @Score, @FinalAmount
+                        ) RETURNING performancepayid;";
+
+                    var bonusId = await connection.QuerySingleOrDefaultAsync<Guid?>(insertBonusSql, new
+                    {
+                        EmployeeId = employeeId,
+                        PeriodId = dto.PeriodId,
+                        RuleId = ruleId,
+                        Score = finalRating,
+                        FinalAmount = bonusAmount
+                    }, transaction);
+
+                    if (bonusId == null || bonusId == Guid.Empty) continue;
+
+                    remainingSalaryByEmployee[employeeId] += bonusAmount;
+
+                    result.PerformanceBonusApplied += 1;
+                    result.TotalPerformanceBonusAmount += bonusAmount;
+                    result.PerformanceBonusDetails.Add(new PayrollPerformanceBonusDetailDto
+                    {
+                        EmployeeId = employeeId,
+                        RuleId = ruleId,
+                        Score = finalRating,
+                        BonusAmount = bonusAmount,
+                        NetSalaryAfterBonus = remainingSalaryByEmployee[employeeId]
+                    });
+                }
             }
 
             transaction.Commit();
