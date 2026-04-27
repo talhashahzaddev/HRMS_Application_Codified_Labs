@@ -6360,6 +6360,120 @@ ORDER BY l.createdat DESC;";
                 }
             }
 
+            if (dto.BonusRuleId.HasValue && dto.BonusRuleId.Value != Guid.Empty)
+            {
+                var bonusRuleSql = @"
+                    SELECT ruleid, bonustype, bonusamount, bonuspercentage
+                    FROM payroll.bonusrules
+                    WHERE organizationid = @organizationId
+                      AND ruleid = @RuleId
+                      AND isactive = true
+                      AND isdeleted = false
+                    LIMIT 1;";
+                var bonusRule = await connection.QuerySingleOrDefaultAsync<dynamic>(bonusRuleSql, new { organizationId, RuleId = dto.BonusRuleId.Value }, transaction);
+
+                if (bonusRule != null)
+                {
+                    var isFixed = ((string)bonusRule.bonustype).ToLower() == "fixed";
+                    var fixedAmount = bonusRule.bonusamount != null ? Convert.ToDecimal(bonusRule.bonusamount) : 0m;
+                    var percentage = bonusRule.bonuspercentage != null ? Convert.ToDecimal(bonusRule.bonuspercentage) : 0m;
+
+                    foreach (var employeeId in baseSalaryByEmployee.Keys)
+                    {
+                        if (!remainingSalaryByEmployee.TryGetValue(employeeId, out _))
+                            continue;
+
+                        decimal bonusAmt = 0;
+                        if (isFixed)
+                        {
+                            bonusAmt = fixedAmount;
+                        }
+                        else
+                        {
+                            var baseSalary = baseSalaryByEmployee[employeeId];
+                            bonusAmt = Math.Round((baseSalary * percentage) / 100m, 2);
+                        }
+
+                        if (bonusAmt <= 0) continue;
+
+                        var existingBonusEntrySql = @"
+                            SELECT bonusid 
+                            FROM payroll.bonusentries 
+                            WHERE employeeid = @EmployeeId 
+                              AND periodid = @PeriodId 
+                              AND ruleid = @RuleId
+                            LIMIT 1;";
+                        var existingEntry = await connection.QuerySingleOrDefaultAsync<Guid?>(existingBonusEntrySql, new 
+                        { 
+                            EmployeeId = employeeId, 
+                            PeriodId = dto.PeriodId, 
+                            RuleId = dto.BonusRuleId.Value 
+                        }, transaction);
+
+                        if (existingEntry == null)
+                        {
+                            var insertBonusEntrySql = @"
+                                INSERT INTO payroll.bonusentries (
+                                    organizationid, employeeid, periodid, ruleid, bonousamount
+                                ) VALUES (
+                                    @organizationId, @EmployeeId, @PeriodId, @RuleId, @BonousAmount
+                                ) RETURNING bonusid;";
+                            await connection.QuerySingleOrDefaultAsync<Guid?>(insertBonusEntrySql, new
+                            {
+                                organizationId,
+                                EmployeeId = employeeId,
+                                PeriodId = dto.PeriodId,
+                                RuleId = dto.BonusRuleId.Value,
+                                BonousAmount = bonusAmt
+                            }, transaction);
+                        }
+
+                        remainingSalaryByEmployee[employeeId] += bonusAmt;
+
+                        result.GeneralBonusApplied += 1;
+                        result.TotalGeneralBonusAmount += bonusAmt;
+                        result.GeneralBonusDetails.Add(new PayrollGeneralBonusDetailDto
+                        {
+                            EmployeeId = employeeId,
+                            RuleId = dto.BonusRuleId.Value,
+                            BonusAmount = bonusAmt,
+                            NetSalaryAfterBonus = remainingSalaryByEmployee[employeeId]
+                        });
+                    }
+                }
+            }
+            else
+            {
+                var bonusEntriesSql = @"
+                    SELECT bonusid, employeeid, ruleid, bonousamount
+                    FROM payroll.bonusentries
+                    WHERE organizationid = @organizationId
+                      AND periodid = @PeriodId;";
+                var bonusEntries = await connection.QueryAsync<dynamic>(bonusEntriesSql, new { organizationId, PeriodId = dto.PeriodId }, transaction);
+
+                foreach (var entry in bonusEntries)
+                {
+                    var employeeId = (Guid)entry.employeeid;
+                    var bonusAmt = Convert.ToDecimal(entry.bonousamount);
+                    var ruleId = entry.ruleid != null ? (Guid?)entry.ruleid : null;
+
+                    if (bonusAmt <= 0 || !remainingSalaryByEmployee.ContainsKey(employeeId))
+                        continue;
+
+                    remainingSalaryByEmployee[employeeId] += bonusAmt;
+
+                    result.GeneralBonusApplied += 1;
+                    result.TotalGeneralBonusAmount += bonusAmt;
+                    result.GeneralBonusDetails.Add(new PayrollGeneralBonusDetailDto
+                    {
+                        EmployeeId = employeeId,
+                        RuleId = ruleId,
+                        BonusAmount = bonusAmt,
+                        NetSalaryAfterBonus = remainingSalaryByEmployee[employeeId]
+                    });
+                }
+            }
+
             transaction.Commit();
             return result;
         }
