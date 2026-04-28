@@ -1020,6 +1020,80 @@ CREATE TABLE expense.recurringexpenses (
 ALTER TABLE ONLY expense.recurringexpenses
     ADD CONSTRAINT recurringexpenses_pkey PRIMARY KEY (recurringexpenseid);
 
+    -- Table: overtime
+    
+CREATE TABLE IF NOT EXISTS attendance.overtime
+(
+    overtimeid uuid NOT NULL DEFAULT gen_random_uuid(),
+    employeeid uuid NOT NULL,
+    requestid uuid NOT NULL,
+    attendanceid uuid,
+    requesttype character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    overtimetype character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    overtimedate date NOT NULL,
+    overtimestart time without time zone NOT NULL,
+    overtimeend time without time zone NOT NULL,
+    requestedhours numeric(5,2),
+    isfinalized boolean DEFAULT false,
+    createdat timestamp with time zone DEFAULT now(),
+    updatedat timestamp with time zone DEFAULT now(),
+    totalactualovertime numeric(5,2),
+    CONSTRAINT overtime_pkey PRIMARY KEY (overtimeid)
+)
+
+TABLESPACE pg_default;
+
+
+-- Table: overtime request
+
+CREATE TABLE IF NOT EXISTS attendance.overtime_requests
+(
+    requestid uuid NOT NULL DEFAULT gen_random_uuid(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    requestedby uuid NOT NULL,
+    requesttype character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    overtimetype character varying(20) COLLATE pg_catalog."default",
+    overtimedate date NOT NULL,
+    overtimestart time without time zone NOT NULL,
+    overtimeend time without time zone NOT NULL,
+    requestedhours numeric(5,2),
+    reason text COLLATE pg_catalog."default",
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    createdat timestamp with time zone DEFAULT now(),
+    updatedat timestamp with time zone,
+    CONSTRAINT overtime_requests_pkey PRIMARY KEY (requestid)
+)
+
+TABLESPACE pg_default;
+
+
+-- Table: overtime-employee request
+
+
+CREATE TABLE IF NOT EXISTS attendance.employee_overtime_requests
+(
+    requestid uuid NOT NULL DEFAULT gen_random_uuid(),
+    organizationid uuid NOT NULL,
+    employeeid uuid NOT NULL,
+    managerid uuid NOT NULL,
+    attendanceid uuid,
+    requesttype character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT 'employee'::character varying,
+    overtimetype character varying(20) COLLATE pg_catalog."default",
+    overtimedate date NOT NULL,
+    overtimestart time without time zone NOT NULL,
+    overtimeend time without time zone NOT NULL,
+    requestedhours numeric(5,2),
+    reason text COLLATE pg_catalog."default",
+    status character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    createdat timestamp with time zone DEFAULT now(),
+    updatedat timestamp with time zone,
+    CONSTRAINT employee_overtime_requests_pkey PRIMARY KEY (requestid)
+)
+
+TABLESPACE pg_default;
+
+
 
 -- ============================================================
 -- SCHEMA: HELPDESK

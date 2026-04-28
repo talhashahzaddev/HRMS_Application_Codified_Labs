@@ -2,6 +2,7 @@ using AutoMapper;
 using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Drawing.Charts;
 using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
+using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
@@ -97,9 +98,20 @@ public class AttendanceService : IAttendanceService
         var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(
             DateTime.UtcNow,
             TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+        var overtimeRequest = await _attendanceRepository.GetEmployeeTodayOvertimeRequestAsync(employeeId,nowInPk);
 
+        //if (await IsEmployeeHolidayAsync(employeeId, nowInPk.Date))
+        //    throw new InvalidOperationException("You cannot clock in on a holiday.");
         if (await IsEmployeeHolidayAsync(employeeId, nowInPk.Date))
-            throw new InvalidOperationException("You cannot clock in on a holiday.");
+        {
+            if (overtimeRequest == null ||
+                (!overtimeRequest.OvertimeType.Equals("Holiday", StringComparison.OrdinalIgnoreCase) &&
+                 !overtimeRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException(
+                    "You cannot clock in on a holiday without a valid overtime request (Holiday/Weekend).");
+            }
+        }
 
         var allowedIp = await _ipAddressRepository.GetByIpAsync(ipAddress);
         string locationType = allowedIp != null ? "Office" : "Outside";
@@ -115,8 +127,16 @@ public class AttendanceService : IAttendanceService
         var shiftStart = shiftStartDateTime.AddHours(+shift.marginHours);
         var allowedFrom = shiftStartDateTime.AddHours(-shift.marginHours);
         var today = (int)now.DayOfWeek;
-        // Check if today is included in shift days
-        if (shift.DaysOfWeek == null || !shift.DaysOfWeek.Contains(today))
+        //    // Check if today is included in shift days
+        //    bool isWeekendOvertime =
+        //overtimeRequest != null &&
+        //overtimeRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase);
+        bool isWeekendOrHolidayOvertime =
+        overtimeRequest != null &&
+        (overtimeRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase) ||
+         overtimeRequest.OvertimeType.Equals("Holiday", StringComparison.OrdinalIgnoreCase));
+        bool isShiftDay = shift.DaysOfWeek != null && shift.DaysOfWeek.Contains(today);
+        if (!isShiftDay && !isWeekendOrHolidayOvertime)
         {
             throw new InvalidOperationException("You have no shift assigned for today, so you cannot clock in.");
         }
@@ -154,6 +174,11 @@ public class AttendanceService : IAttendanceService
 
         await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
         await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
+        if (overtimeRequest != null)
+        {
+
+            await _attendanceRepository.UpdateAttendanceOverTimeType(employeeId, nowInPk.Date,overtimeRequest.OvertimeType);
+        }
 
         _logger.LogInformation(
             "Employee {EmployeeId} clocked in from {IP} as {LocationType}",
@@ -236,6 +261,7 @@ public class AttendanceService : IAttendanceService
         { "locationType", locationType }
     };
 
+
         await _attendanceRepository.ClockInOutAsync(
             employeeId,
             "out",
@@ -244,6 +270,7 @@ public class AttendanceService : IAttendanceService
             request.Notes);
         await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
         await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
+        var result = await OverTimeHandlingAsync(employeeId);
 
         _logger.LogInformation(
             "Employee {EmployeeId} clocked out from {IP} as {LocationType}",
@@ -258,6 +285,81 @@ public class AttendanceService : IAttendanceService
         };
     }
 
+    public async Task<bool> OverTimeHandlingAsync(Guid employeeId)
+    {
+        var pakistanZone = TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time");
+
+        var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, pakistanZone);
+
+        // Get today's attendance
+        var attendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
+        if (attendance == null || attendance.TotalHours <= 0)
+            return false;
+
+        // Get overtime request
+        var overtimeRequest = await _attendanceRepository
+            .GetEmployeeTodayOvertimeRequestAsync(employeeId, nowInPk.Date);
+
+        if (overtimeRequest == null)
+            return false;
+
+        // Get shift
+        var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+        if (shift == null)
+            return false;
+
+        // ✅ Convert shift to decimal hours
+        decimal shiftHours =
+            (decimal)(shift.EndTime - shift.StartTime).TotalHours;
+
+        // Handle overnight shift
+        if (shiftHours < 0)
+            shiftHours += 24;
+
+
+        decimal totalWorked = attendance.TotalHours;
+
+        // Safety fix (rare case)
+        if (totalWorked < 0)
+            totalWorked += 24;
+
+        decimal overtimeHours = 0;
+
+        // ✅ CASE 1: Holiday or Weekend (no shift comparison)
+        if (overtimeRequest.OvertimeType.Equals("Holiday", StringComparison.OrdinalIgnoreCase) ||
+            overtimeRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase))
+        {
+            overtimeHours = totalWorked;
+
+            await _attendanceRepository.CreateOvertimeFromRequestAsync(
+                overtimeRequest,
+                overtimeHours,
+                attendance.AttendanceId
+            );
+            await _attendanceRepository.UpdateOverTimehourAttendanceAsync(attendance.AttendanceId,overtimeHours);
+
+            return true;
+        }
+
+        // ✅ CASE 2: Normal overtime
+        if (overtimeRequest.OvertimeType.Equals("Regular", StringComparison.OrdinalIgnoreCase)
+        && totalWorked > shiftHours)
+        {
+            overtimeHours = totalWorked - shiftHours;
+            await _attendanceRepository.CreateOvertimeFromRequestAsync(
+                overtimeRequest,
+                overtimeHours,
+                attendance.AttendanceId
+            );
+            await _attendanceRepository.UpdateOverTimehourAttendanceAsync(attendance.AttendanceId,overtimeHours);
+            return true;
+        }
+
+        return false;
+    }
+
+
+
 
     public async Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId)
     {
@@ -270,14 +372,7 @@ public class AttendanceService : IAttendanceService
     }
 
 
-    //public async Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId)
-    //{
-    //    //get attendce id of curernt date using employee id 
-    //    var attendaceid = await _attendanceRepository.GetAttendanceIdAsync(employeeId);
-    //    //passing attendace id to get today sessions 
-    //    return await _attendanceRepository.GetTodaySessionAsync(attendaceid);
-    //}
-
+ 
     public async Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId, DateTime? date = null)
     {
         if (employeeId == Guid.Empty)
@@ -770,6 +865,280 @@ public class AttendanceService : IAttendanceService
         var result = await _attendanceRepository.CreateShiftAsync(organizationId, request);
 
         return true;
+    }
+
+    //overtime 
+
+    public async Task<bool> CreateEmployeeOvertimeRequestAsync(Guid organizationId, Guid employeeId, CreateEmployeeOvertimeDto request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        if (request.OvertimeEndTime <= request.OvertimeStartTime)
+            throw new ArgumentException("Overtime end time must be greater than start time.");
+
+        if (string.IsNullOrWhiteSpace(request.OvertimeType))
+            throw new ArgumentException("Overtime type is required.");
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            throw new ArgumentException("Reason is required.");
+
+        // ✅ TimeSpan subtraction directly
+        decimal requestedhours = Math.Round(
+            (decimal)(request.OvertimeEndTime - request.OvertimeStartTime).TotalHours, 2);
+
+        if (requestedhours <= 0)
+            throw new ArgumentException("Invalid overtime duration.");
+
+        var reportingManager = await _notificationRepository.GetReciveridAsync(employeeId);
+        var status = "pending";
+        var attendanceId = await _attendanceRepository.GetAttendanceIdAsync(employeeId, request.OverTimeDate.Date);
+
+        var result = await _attendanceRepository.CreateEmployeeOvertimeRequestAsync(
+            organizationId,
+            employeeId,
+            request,
+            reportingManager,
+            status,
+            requestedhours,
+            attendanceId
+        );
+
+        return result;
+    }
+
+    public async Task<bool> UpdateEmployeeOvertimeStatusAsync(Guid organizationId,Guid requestId,Guid managerId,string status)
+    {
+        try
+        {
+            var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+            if (organizationId == Guid.Empty)
+                throw new ArgumentException("OrganizationId cannot be empty");
+
+            if (requestId == Guid.Empty)
+                throw new ArgumentException("RequestId cannot be empty");
+
+            if (managerId == Guid.Empty)
+                throw new ArgumentException("ManagerId cannot be empty");
+
+            if (string.IsNullOrWhiteSpace(status))
+                throw new ArgumentException("Status is required");
+            // 3. Update status in DB
+            var result = await _attendanceRepository.UpdateEmployeeOvertimeStatusAsync(requestId, status);
+            if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase)) 
+            {
+                var existingRequest = await _attendanceRepository
+                .GetEmployeeOvertimeRequestByIdAsync(requestId);
+                //Getting attendace for that day
+                var attendance = await _attendanceRepository.GetAttendanceByIdAsync(existingRequest.AttendanceId);
+                var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(attendance.EmployeeId);
+                // ✅ Convert shift to decimal hours
+                decimal shiftHours =
+                    (decimal)(shift.EndTime - shift.StartTime).TotalHours;
+                if (existingRequest.OvertimeType.Equals("Regular", StringComparison.OrdinalIgnoreCase))
+                {
+                    decimal actualovertimeHours = attendance.TotalHours - shiftHours;
+                    var overtimeDto = new OvertimeRequestDto
+                    {
+                        RequestId = existingRequest.RequestId,
+                        EmployeeId = attendance.EmployeeId,
+                        RequestType = existingRequest.RequestType,
+                        OvertimeType = existingRequest.OvertimeType,
+                        OvertimeDate = existingRequest.OvertimeDate,
+                        OvertimeStart = existingRequest.OvertimeStart,
+                        OvertimeEnd = existingRequest.OvertimeEnd,
+                        RequestedHours = existingRequest.RequestedHours,
+                        Status = existingRequest.Status,
+                        CreatedAt = existingRequest.CreatedAt
+                    };
+                    //First insert it into OverTime Tabel where every overtime iscoming
+                    await _attendanceRepository.CreateOvertimeFromRequestAsync(
+                                    overtimeDto,
+                                    actualovertimeHours,
+                                    attendance.AttendanceId
+                                );
+                    await _attendanceRepository.UpdateOverTimehourAttendanceAsync(attendance.AttendanceId, actualovertimeHours);
+                    await _attendanceRepository.UpdateAttendanceOverTimeType(existingRequest.EmployeeId, nowInPk.Date, existingRequest.OvertimeType);
+
+                }
+                else if (existingRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase) ||
+                         existingRequest.OvertimeType.Equals("Holiday", StringComparison.OrdinalIgnoreCase))
+                {
+                    decimal actualovertimeHours = attendance.TotalHours;
+                    var overtimeDto = new OvertimeRequestDto
+                    {
+                        RequestId = existingRequest.RequestId,
+                        EmployeeId = attendance.EmployeeId,
+                        RequestType = existingRequest.RequestType,
+                        OvertimeType = existingRequest.OvertimeType,
+                        OvertimeDate = existingRequest.OvertimeDate,
+                        OvertimeStart = existingRequest.OvertimeStart,
+                        OvertimeEnd = existingRequest.OvertimeEnd,
+                        RequestedHours = existingRequest.RequestedHours,
+                        Status = existingRequest.Status,
+                        CreatedAt = existingRequest.CreatedAt
+                    };
+                    //First insert it into OverTime Tabel where every overtime iscoming
+                    await _attendanceRepository.CreateOvertimeFromRequestAsync(
+                                    overtimeDto,
+                                    actualovertimeHours,
+                                    attendance.AttendanceId
+                                );
+                    await _attendanceRepository.UpdateOverTimehourAttendanceAsync(attendance.AttendanceId, actualovertimeHours);
+                    await _attendanceRepository.UpdateAttendanceOverTimeType(existingRequest.EmployeeId, nowInPk.Date, existingRequest.OvertimeType);
+
+                }
+            }
+
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error updating overtime status for RequestId {RequestId}",
+                requestId);
+
+            throw;
+        }
+    }
+
+   
+    public async Task<bool> CreateManagerOvertimeAsync(Guid organizationId, Guid managerId, ManagerOvertimeRequestDto request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        if (request.OvertimeEndTime <= request.OvertimeStartTime)
+            throw new ArgumentException("Overtime end time must be greater than start time.");
+
+        if (string.IsNullOrWhiteSpace(request.OvertimeType))
+            throw new ArgumentException("Overtime type is required.");
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            throw new ArgumentException("Reason is required.");
+
+        if (request.EmployeeId == Guid.Empty)
+            throw new ArgumentException("EmployeeId is required.");
+
+        // ✅ TimeSpan subtraction directly
+        decimal requestedhours = Math.Round(
+            (decimal)(request.OvertimeEndTime - request.OvertimeStartTime).TotalHours, 2);
+
+        if (requestedhours <= 0)
+            throw new ArgumentException("Invalid overtime duration.");
+
+        var status = "pending";
+
+        var result = await _attendanceRepository.CreateManagerOvertimeAsync(
+            organizationId,
+            managerId,
+            request,
+            status,
+            requestedhours
+        );
+
+        return result;
+    }
+
+    //Updating approving status of request that are assigned by manager for overtime 
+    public async Task<bool> RespondToAssignedOvertimeRequestAsync(Guid requestId,Guid employeeId,string response)
+    {
+       
+        // 3. Update status
+        string newStatus = response == "accept"
+            ? "approved"
+            : "rejected";
+
+        return await _attendanceRepository.UpdateOvertimeAssignedStatusAsync(
+            requestId,
+            newStatus
+        );
+    }
+
+
+
+    //Employee overtime request of accept reject manager
+    public async Task<List<OvertimeRequestDto>> GetEmployeeOvertimeRequestsAsync(Guid organizationId, Guid employeeId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("EmployeeId is required.");
+
+        // ✅ Call repository
+        var result = await _attendanceRepository.GetEmployeeOvertimeRequestsAsync(
+            organizationId,
+            employeeId
+        );
+
+        // Optional: handle null
+        if (result == null || !result.Any())
+            return new List<OvertimeRequestDto>();
+
+        return result;
+    }
+    //Getting all employee assigned overtime request that manager request him 
+    public async Task<List<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("EmployeeId is required.");
+
+        // ✅ Call repository
+        var result = await _attendanceRepository.GetAllEmployeeOvertimeAssignedRequests(
+            organizationId,
+            employeeId
+        );
+
+        // Optional: handle null
+        if (result == null || !result.Any())
+            return new List<OvertimeRequestDto>();
+
+        return result;
+    }
+
+    //Employee overtime request shows to manager for approval or reject
+    public async Task<List<EmployeeOverTimeDto>> EmplyeOverTimeRequesForManagerAsync(Guid organizationId, Guid managerId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (managerId == Guid.Empty)
+            throw new ArgumentException("ManagerId is required.");
+
+        // ✅ Call repository (updated to return EmployeeOverTimeDto)
+        var result = await _attendanceRepository.EmplyeOverTimeRequesForManagerAsync(
+            organizationId,
+            managerId
+        );
+
+        // Safety fallback
+        return result?.ToList() ?? new List<EmployeeOverTimeDto>();
+    }
+    //Get all employee created Overtime requests
+
+    public async Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequest(Guid organizationId, Guid managerId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (managerId == Guid.Empty)
+            throw new ArgumentException("ManagerId is required.");
+        // ✅ Call repository (updated to return EmployeeOverTimeDto)
+        var result = await _attendanceRepository.GetAllEmployeeCreatedOverTimeRequests(
+            organizationId,
+            managerId
+        );
+
+        // Safety fallback
+        return result?.ToList() ?? new List<EmployeeOverTimeDto>();
     }
 
     public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request, Guid currentEmpid)
