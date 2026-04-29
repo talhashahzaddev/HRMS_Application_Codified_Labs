@@ -284,7 +284,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     {
         var sql = @"
             SELECT leavetypeid, typename, description, maxdaysperyear, 
-                   ispaid, carryforwardallowed, maxcarryforwarddays, color, isactive
+                   ispaid,ishalfpaid, carryforwardallowed, maxcarryforwarddays, color, isactive
             FROM attendance.leavetypes 
             WHERE organizationid = @organizationId 
             ORDER BY typename";
@@ -331,10 +331,10 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         var sqlInsert = @"
         INSERT INTO attendance.leavetypes 
             (leavetypeid, organizationid, typename, description, maxdaysperyear, 
-             ispaid, carryforwardallowed, maxcarryforwarddays, color, isactive, createdat)
+             ispaid,ishalfpaid,carryforwardallowed, maxcarryforwarddays, color, isactive, createdat)
         VALUES
             (@LeaveTypeId, @OrganizationId, @TypeName, @Description, @MaxDaysPerYear, 
-             @IsPaid, @CarryForwardAllowed, @maxcarryforwarddays, @Color, @IsActive, NOW());
+             @IsPaid,@IsHalfPaid, @CarryForwardAllowed, @maxcarryforwarddays, @Color, @IsActive, NOW());
     ";
 
         var sqlInitEntitlements = @"
@@ -356,6 +356,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                         dto.Description,
                         dto.MaxDaysPerYear,
                         dto.IsPaid,
+                        dto.IsHalfPaid,
                         dto.CarryForwardAllowed,
                         dto.MaxCarryForwardDays,
                         dto.Color,
