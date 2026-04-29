@@ -586,3 +586,69 @@ public class DepartmentAttendanceStatsDto
     public int AbsentEmployees { get; set; }
     public decimal AttendanceRate { get; set; }
 }
+
+
+public class CreateEmployeeOvertimeDto
+{
+    public DateTime OverTimeDate { get; set; }
+    public string OvertimeType { get; set; }
+    public string Reason { get; set; }
+    public TimeSpan OvertimeStartTime { get; set; }  // ✅ Changed
+    public TimeSpan OvertimeEndTime { get; set; }    // ✅ Changed
+}
+
+public class ManagerOvertimeRequestDto
+{
+    public Guid EmployeeId { get; set; }
+    public DateTime OvertimeDate { get; set; }
+    public string OvertimeType { get; set; }
+    public string Reason { get; set; }
+    public TimeSpan OvertimeStartTime { get; set; }  // ✅ Changed
+    public TimeSpan OvertimeEndTime { get; set; }    // ✅ Changed
+}
+
+public class OvertimeRequestDto
+{
+    public Guid RequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid RequestedBy { get; set; }
+    public string RequestedByName { get; set; }
+    public string RequestType { get; set; }
+    public string OvertimeType { get; set; }
+    public DateTime OvertimeDate { get; set; }
+    public TimeSpan OvertimeStart { get; set; }  // ✅ Changed
+    public TimeSpan OvertimeEnd { get; set; }    // ✅ Changed
+    public decimal RequestedHours { get; set; }
+    public string Reason { get; set; }
+    public string Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class EmployeeOverTimeDto
+{
+    public Guid RequestId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid Managerid { get; set; }
+    public Guid? AttendanceId { get; set; }
+    public string RequestedByName { get; set; } = string.Empty;
+    public string RequestType { get; set; } = string.Empty;
+    public string OvertimeType { get; set; } = string.Empty;
+    public DateTime OvertimeDate { get; set; }
+    public TimeSpan OvertimeStart { get; set; }  // ✅ Changed
+    public TimeSpan OvertimeEnd { get; set; }    // ✅ Changed
+    public decimal RequestedHours { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+
+
+
+// DTOs/Attendance/GetOvertimesQueryDto.cs
+public class GetOvertimesQueryDto
+{
+    public Guid? EmployeeId { get; set; }
+    public DateTime? StartDate { get; set; }
+    public DateTime? EndDate { get; set; }
+}
