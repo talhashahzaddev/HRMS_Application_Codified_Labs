@@ -1284,6 +1284,18 @@ public class PayrollGratuityDetailDto
     public decimal NetSalaryAfterGratuity { get; set; }
 }
 
+public class PayrollTaxDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public decimal MonthlyGross { get; set; }
+    public decimal PFExemptAmount { get; set; }
+    public decimal MonthlyTaxableIncome { get; set; }
+    public decimal AnnualTaxableIncome { get; set; }
+    public decimal TaxAmount { get; set; }
+    public decimal MonthlyTax { get; set; }
+    public decimal NetSalaryAfterTaxDeduction { get; set; }
+}
+
 public class PayrollCalculationResultDto
 {
     public Guid PeriodId { get; set; }
@@ -1318,7 +1330,11 @@ public class PayrollCalculationResultDto
     public decimal TotalGratuityAmount { get; set; }
     public List<PayrollGratuityDetailDto> GratuityDetails { get; set; } = new();
 
-    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount;
+    public int TaxDeductionsApplied { get; set; }
+    public decimal TotalTaxDeductionAmount { get; set; }
+    public List<PayrollTaxDeductionDetailDto> TaxDeductionDetails { get; set; } = new();
+
+    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalTaxDeductionAmount;
 }
 
 public class UpdateLoanPaymentDto
