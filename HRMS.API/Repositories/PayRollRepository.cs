@@ -6351,8 +6351,8 @@ ORDER BY l.createdat DESC;";
                         // Calculate Regular overtime
                         if (regularRule != null && regularOtHours > 0)
                         {
-                            decimal fixedAmt = regularRule.fixedamount != null ? Convert.ToDecimal(regularRule.fixedamount) : 0m;
-                            decimal pct      = regularRule.percentage != null  ? Convert.ToDecimal(regularRule.percentage)  : 0m;
+                            decimal fixedAmt = regularRule!.fixedamount != null ? Convert.ToDecimal(regularRule!.fixedamount) : 0m;
+                            decimal pct      = regularRule!.percentage != null  ? Convert.ToDecimal(regularRule!.percentage)  : 0m;
                             if (fixedAmt > 0)
                                 regularOtAmount = Math.Round(fixedAmt * regularOtHours, 2);
                             else if (pct > 0)
@@ -6362,8 +6362,8 @@ ORDER BY l.createdat DESC;";
                         // Calculate Weekend overtime
                         if (weekendRule != null && weekendOtHours > 0)
                         {
-                            decimal fixedAmt = weekendRule.fixedamount != null ? Convert.ToDecimal(weekendRule.fixedamount) : 0m;
-                            decimal pct      = weekendRule.percentage != null  ? Convert.ToDecimal(weekendRule.percentage)  : 0m;
+                            decimal fixedAmt = weekendRule!.fixedamount != null ? Convert.ToDecimal(weekendRule!.fixedamount) : 0m;
+                            decimal pct      = weekendRule!.percentage != null  ? Convert.ToDecimal(weekendRule!.percentage)  : 0m;
                             if (fixedAmt > 0)
                                 weekendOtAmount = Math.Round(fixedAmt * weekendOtHours, 2);
                             else if (pct > 0)
@@ -6373,8 +6373,8 @@ ORDER BY l.createdat DESC;";
                         // Calculate Holiday overtime
                         if (holidayRule != null && holidayOtHours > 0)
                         {
-                            decimal fixedAmt = holidayRule.fixedamount != null ? Convert.ToDecimal(holidayRule.fixedamount) : 0m;
-                            decimal pct      = holidayRule.percentage != null  ? Convert.ToDecimal(holidayRule.percentage)  : 0m;
+                            decimal fixedAmt = holidayRule!.fixedamount != null ? Convert.ToDecimal(holidayRule!.fixedamount) : 0m;
+                            decimal pct      = holidayRule!.percentage != null  ? Convert.ToDecimal(holidayRule!.percentage)  : 0m;
                             if (fixedAmt > 0)
                                 holidayOtAmount = Math.Round(fixedAmt * holidayOtHours, 2);
                             else if (pct > 0)
@@ -6397,7 +6397,7 @@ ORDER BY l.createdat DESC;";
                             {
                                 if (otRule != null && otHours > 0 && otAmount > 0)
                                 {
-                                    var otRuleId = (Guid)otRule.ruleid;
+                                    var otRuleId = (Guid)otRule!.ruleid;
                                     var existingOtSql = @"SELECT overtimeid FROM payroll.overtimeentries WHERE employeeid = @EmployeeId AND periodid = @PeriodId AND ruleid = @RuleId LIMIT 1;";
                                     var existingOt = await connection.QuerySingleOrDefaultAsync<Guid?>(existingOtSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId, RuleId = otRuleId }, transaction);
                                     if (existingOt == null)
