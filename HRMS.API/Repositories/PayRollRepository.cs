@@ -5928,7 +5928,14 @@ ORDER BY l.createdat DESC;";
                        SUM(present_days) as present_days,
                        SUM(absent_days) as absent_days,
                        SUM(half_days) as half_days,
-                       SUM(late_minutes) as late_minutes
+                       SUM(late_minutes) as late_minutes,
+                       SUM(leave_days_total) as leave_days_total,
+                       SUM(paid_leave_days) as paid_leave_days,
+                       SUM(unpaid_leave_days) as unpaid_leave_days,
+                       SUM(half_paid_leave_days) as half_paid_leave_days,
+                       SUM(regular_overtime_hours) as regular_overtime_hours,
+                       SUM(weekend_overtime_hours) as weekend_overtime_hours,
+                       SUM(holiday_overtime_hours) as holiday_overtime_hours
                 FROM attendance.timesheet_payroll_summary 
                 WHERE organization_id = @organizationId 
                   AND period_end <= @PeriodEndDate 
@@ -5958,6 +5965,18 @@ ORDER BY l.createdat DESC;";
                 var shiftsSql = @"SELECT shiftid, starttime, endtime FROM attendance.shifts WHERE shiftid = ANY(@ShiftIds) AND organizationid = @organizationId AND isactive = true;";
                 shifts = (await connection.QueryAsync<dynamic>(shiftsSql, new { ShiftIds = distinctShiftIds.ToArray(), organizationId }, transaction)).ToList();
             }
+
+            // Prefetch leave rule
+            dynamic? leaveRule = null;
+            if (dto.LeaveRuleId.HasValue && dto.LeaveRuleId.Value != Guid.Empty)
+            {
+                var leaveRuleSql = @"SELECT ruleid, unpaidmultiplier, halfpaidmultiplier FROM payroll.leaverules WHERE ruleid = @RuleId AND organizationid = @organizationId AND isactive = true AND isdeleted = false LIMIT 1;";
+                leaveRule = await connection.QuerySingleOrDefaultAsync<dynamic?>(leaveRuleSql, new { organizationId, RuleId = dto.LeaveRuleId.Value }, transaction);
+            }
+
+            // Prefetch overtime rules (up to 3 — one per type: Regular, Weekend, Holiday)
+            var overtimeRulesSql = @"SELECT ruleid, overtimetype, fixedamount, percentage FROM payroll.overtimerules WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false;";
+            var overtimeRules = (await connection.QueryAsync<dynamic>(overtimeRulesSql, new { organizationId }, transaction)).ToList();
 
             var performanceRules = new List<dynamic>();
             var appraisals = new List<dynamic>();
@@ -6217,6 +6236,211 @@ ORDER BY l.createdat DESC;";
                                     LateMinutes = totalLateMinutes
                                 }, transaction);
                             }
+                        }
+                    }
+                }
+
+                // 0c. Leave Deduction
+                if (leaveRule != null)
+                {
+                    var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
+                    if (ts != null)
+                    {
+                        decimal paidDays     = ts.paid_leave_days != null ? Convert.ToDecimal(ts.paid_leave_days) : 0m;
+                        decimal unpaidDays   = ts.unpaid_leave_days != null ? Convert.ToDecimal(ts.unpaid_leave_days) : 0m;
+                        decimal halfPaidDays = ts.half_paid_leave_days != null ? Convert.ToDecimal(ts.half_paid_leave_days) : 0m;
+
+                        decimal unpaidMultiplier   = leaveRule!.unpaidmultiplier != null ? Convert.ToDecimal(leaveRule!.unpaidmultiplier) : 1.00m;
+                        decimal halfPaidMultiplier = leaveRule!.halfpaidmultiplier != null ? Convert.ToDecimal(leaveRule!.halfpaidmultiplier) : 0.50m;
+
+                        if (unpaidDays > 0 || halfPaidDays > 0)
+                        {
+                            decimal perDaySalary      = basicSalary / 30m;
+                            decimal unpaidDeduction   = Math.Round(unpaidDays * unpaidMultiplier * perDaySalary, 2);
+                            decimal halfPaidDeduction = Math.Round(halfPaidDays * halfPaidMultiplier * perDaySalary, 2);
+                            decimal totalLeaveDeduction = unpaidDeduction + halfPaidDeduction;
+
+                            if (totalLeaveDeduction > 0)
+                            {
+                                var existingLeaveSumSql = @"SELECT id FROM payroll.payrollleavesummary WHERE employeeid = @EmployeeId AND periodid = @PeriodId LIMIT 1;";
+                                var existingLeaveSum = await connection.QuerySingleOrDefaultAsync<Guid?>(existingLeaveSumSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
+
+                                if (existingLeaveSum == null)
+                                {
+                                    var insertLeaveSql = @"
+                                        INSERT INTO payroll.payrollleavesummary (
+                                            employeeid, periodid, ruleid, paiddays, unpaiddays, halfpaiddays,
+                                            unpaiddeduction, halfpaiddeduction, totaldeduction
+                                        ) VALUES (
+                                            @EmployeeId, @PeriodId, @RuleId, @PaidDays, @UnpaidDays, @HalfPaidDays,
+                                            @UnpaidDeduction, @HalfPaidDeduction, @TotalDeduction
+                                        ) RETURNING id;";
+                                    await connection.QuerySingleOrDefaultAsync<Guid?>(insertLeaveSql, new
+                                    {
+                                        EmployeeId = employeeId,
+                                        PeriodId = dto.PeriodId,
+                                        RuleId = dto.LeaveRuleId!.Value,
+                                        PaidDays = paidDays,
+                                        UnpaidDays = unpaidDays,
+                                        HalfPaidDays = halfPaidDays,
+                                        UnpaidDeduction = unpaidDeduction,
+                                        HalfPaidDeduction = halfPaidDeduction,
+                                        TotalDeduction = totalLeaveDeduction
+                                    }, transaction);
+
+                                    remainingSalary -= totalLeaveDeduction;
+                                    result.LeaveDeductionsApplied += 1;
+                                    result.TotalLeaveDeductionAmount += totalLeaveDeduction;
+                                    result.LeaveDeductionDetails.Add(new PayrollLeaveDeductionDetailDto
+                                    {
+                                        EmployeeId      = employeeId,
+                                        PaidDays        = paidDays,
+                                        UnpaidDays      = unpaidDays,
+                                        HalfPaidDays    = halfPaidDays,
+                                        PerDaySalary    = Math.Round(perDaySalary, 2),
+                                        UnpaidMultiplier   = unpaidMultiplier,
+                                        HalfPaidMultiplier = halfPaidMultiplier,
+                                        UnpaidDeduction    = unpaidDeduction,
+                                        HalfPaidDeduction  = halfPaidDeduction,
+                                        TotalDeduction     = totalLeaveDeduction,
+                                        NetSalaryAfterLeaveDeduction = remainingSalary
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 0d. Overtime Bonus
+                if (overtimeRules.Any())
+                {
+                    var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
+                    if (ts != null)
+                    {
+                        decimal regularOtHours = ts.regular_overtime_hours != null ? Convert.ToDecimal(ts.regular_overtime_hours) : 0m;
+                        decimal weekendOtHours = ts.weekend_overtime_hours != null ? Convert.ToDecimal(ts.weekend_overtime_hours) : 0m;
+                        decimal holidayOtHours = ts.holiday_overtime_hours != null ? Convert.ToDecimal(ts.holiday_overtime_hours) : 0m;
+
+                        // Resolve shift hours for per-hour salary calculation
+                        Guid? tsShiftId = ts.shiftid != null ? (Guid?)ts.shiftid : null;
+                        decimal shiftHoursForOt = 8m; // fallback default
+                        if (tsShiftId.HasValue)
+                        {
+                            var shift = shifts.FirstOrDefault(s => s.shiftid == tsShiftId.Value);
+                            if (shift != null)
+                            {
+                                TimeSpan st = (TimeSpan)shift.starttime;
+                                TimeSpan et = (TimeSpan)shift.endtime;
+                                shiftHoursForOt = et > st
+                                    ? (decimal)(et - st).TotalHours
+                                    : (decimal)(et.Add(TimeSpan.FromHours(24)) - st).TotalHours;
+                            }
+                        }
+
+                        // per-hour salary = (basicSalary / 30) / shiftHours
+                        decimal perHourSalary = shiftHoursForOt > 0 ? Math.Round((basicSalary / 30m) / shiftHoursForOt, 6) : 0m;
+
+                        decimal regularOtAmount = 0m;
+                        decimal weekendOtAmount = 0m;
+                        decimal holidayOtAmount = 0m;
+
+                        var regularRule = overtimeRules.FirstOrDefault(r => ((string)r.overtimetype).Equals("Regular", StringComparison.OrdinalIgnoreCase));
+                        var weekendRule = overtimeRules.FirstOrDefault(r => ((string)r.overtimetype).Equals("Weekend", StringComparison.OrdinalIgnoreCase));
+                        var holidayRule = overtimeRules.FirstOrDefault(r => ((string)r.overtimetype).Equals("Holiday", StringComparison.OrdinalIgnoreCase));
+
+                        // Calculate Regular overtime
+                        if (regularRule != null && regularOtHours > 0)
+                        {
+                            decimal fixedAmt = regularRule.fixedamount != null ? Convert.ToDecimal(regularRule.fixedamount) : 0m;
+                            decimal pct      = regularRule.percentage != null  ? Convert.ToDecimal(regularRule.percentage)  : 0m;
+                            if (fixedAmt > 0)
+                                regularOtAmount = Math.Round(fixedAmt * regularOtHours, 2);
+                            else if (pct > 0)
+                                regularOtAmount = Math.Round(perHourSalary * (pct / 100m) * regularOtHours, 2);
+                        }
+
+                        // Calculate Weekend overtime
+                        if (weekendRule != null && weekendOtHours > 0)
+                        {
+                            decimal fixedAmt = weekendRule.fixedamount != null ? Convert.ToDecimal(weekendRule.fixedamount) : 0m;
+                            decimal pct      = weekendRule.percentage != null  ? Convert.ToDecimal(weekendRule.percentage)  : 0m;
+                            if (fixedAmt > 0)
+                                weekendOtAmount = Math.Round(fixedAmt * weekendOtHours, 2);
+                            else if (pct > 0)
+                                weekendOtAmount = Math.Round(perHourSalary * (pct / 100m) * weekendOtHours, 2);
+                        }
+
+                        // Calculate Holiday overtime
+                        if (holidayRule != null && holidayOtHours > 0)
+                        {
+                            decimal fixedAmt = holidayRule.fixedamount != null ? Convert.ToDecimal(holidayRule.fixedamount) : 0m;
+                            decimal pct      = holidayRule.percentage != null  ? Convert.ToDecimal(holidayRule.percentage)  : 0m;
+                            if (fixedAmt > 0)
+                                holidayOtAmount = Math.Round(fixedAmt * holidayOtHours, 2);
+                            else if (pct > 0)
+                                holidayOtAmount = Math.Round(perHourSalary * (pct / 100m) * holidayOtHours, 2);
+                        }
+
+                        decimal totalOvertimeBonus = regularOtAmount + weekendOtAmount + holidayOtAmount;
+
+                        if (totalOvertimeBonus > 0)
+                        {
+                            // Insert one entry per OT type that has hours
+                            var typesToInsert = new[]
+                            {
+                                (Rule: regularRule, Hours: regularOtHours, Amount: regularOtAmount),
+                                (Rule: weekendRule, Hours: weekendOtHours, Amount: weekendOtAmount),
+                                (Rule: holidayRule, Hours: holidayOtHours, Amount: holidayOtAmount)
+                            };
+
+                            foreach (var (otRule, otHours, otAmount) in typesToInsert)
+                            {
+                                if (otRule != null && otHours > 0 && otAmount > 0)
+                                {
+                                    var otRuleId = (Guid)otRule.ruleid;
+                                    var existingOtSql = @"SELECT overtimeid FROM payroll.overtimeentries WHERE employeeid = @EmployeeId AND periodid = @PeriodId AND ruleid = @RuleId LIMIT 1;";
+                                    var existingOt = await connection.QuerySingleOrDefaultAsync<Guid?>(existingOtSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId, RuleId = otRuleId }, transaction);
+                                    if (existingOt == null)
+                                    {
+                                        var insertOtSql = @"
+                                            INSERT INTO payroll.overtimeentries (
+                                                employeeid, periodid, ruleid, hoursworked, finalamount, entrystatus, overtimedate
+                                            ) VALUES (
+                                                @EmployeeId, @PeriodId, @RuleId, @HoursWorked, @FinalAmount, 'approved', CURRENT_DATE
+                                            ) RETURNING overtimeid;";
+                                        await connection.QuerySingleOrDefaultAsync<Guid?>(insertOtSql, new
+                                        {
+                                            EmployeeId = employeeId,
+                                            PeriodId = dto.PeriodId,
+                                            RuleId = otRuleId,
+                                            HoursWorked = otHours,
+                                            FinalAmount = otAmount
+                                        }, transaction);
+                                    }
+                                }
+                            }
+
+                            remainingSalary += totalOvertimeBonus;
+                            totalBonuses    += totalOvertimeBonus;
+                            result.OvertimeBonusApplied += 1;
+                            result.TotalOvertimeBonusAmount  += totalOvertimeBonus;
+                            result.TotalRegularOvertimeAmount += regularOtAmount;
+                            result.TotalWeekendOvertimeAmount += weekendOtAmount;
+                            result.TotalHolidayOvertimeAmount += holidayOtAmount;
+                            result.OvertimeDetails.Add(new PayrollOvertimeDetailDto
+                            {
+                                EmployeeId             = employeeId,
+                                RegularOvertimeHours   = regularOtHours,
+                                WeekendOvertimeHours   = weekendOtHours,
+                                HolidayOvertimeHours   = holidayOtHours,
+                                ShiftHours             = shiftHoursForOt,
+                                PerHourSalary          = Math.Round(perHourSalary, 2),
+                                RegularOvertimeAmount  = regularOtAmount,
+                                WeekendOvertimeAmount  = weekendOtAmount,
+                                HolidayOvertimeAmount  = holidayOtAmount,
+                                TotalOvertimeAmount    = totalOvertimeBonus,
+                                NetSalaryAfterOvertime = remainingSalary
+                            });
                         }
                     }
                 }

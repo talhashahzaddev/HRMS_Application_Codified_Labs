@@ -1229,6 +1229,7 @@ public class CalculatePayrollDto
     public Guid? BonusRuleId { get; set; }
     public Guid? AttendanceRuleId { get; set; }
     public Guid? LateAttendanceRuleId { get; set; }
+    public Guid? LeaveRuleId { get; set; }
 }
 
 public class PayrollLoanDeductionDetailDto
@@ -1359,7 +1360,33 @@ public class PayrollCalculationResultDto
     public decimal TotalLateAttendanceDeductionAmount { get; set; }
     public List<PayrollLateAttendanceDeductionDetailDto> LateAttendanceDeductionDetails { get; set; } = new();
 
-    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount;
+    public int LeaveDeductionsApplied { get; set; }
+    public decimal TotalLeaveDeductionAmount { get; set; }
+    public List<PayrollLeaveDeductionDetailDto> LeaveDeductionDetails { get; set; } = new();
+
+    public int OvertimeBonusApplied { get; set; }
+    public decimal TotalOvertimeBonusAmount { get; set; }
+    public decimal TotalRegularOvertimeAmount { get; set; }
+    public decimal TotalWeekendOvertimeAmount { get; set; }
+    public decimal TotalHolidayOvertimeAmount { get; set; }
+    public List<PayrollOvertimeDetailDto> OvertimeDetails { get; set; } = new();
+
+    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount + TotalLeaveDeductionAmount;
+}
+
+public class PayrollLeaveDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public decimal PaidDays { get; set; }
+    public decimal UnpaidDays { get; set; }
+    public decimal HalfPaidDays { get; set; }
+    public decimal PerDaySalary { get; set; }
+    public decimal UnpaidMultiplier { get; set; }
+    public decimal HalfPaidMultiplier { get; set; }
+    public decimal UnpaidDeduction { get; set; }
+    public decimal HalfPaidDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
+    public decimal NetSalaryAfterLeaveDeduction { get; set; }
 }
 
 public class PayrollLateAttendanceDeductionDetailDto
@@ -1373,6 +1400,21 @@ public class PayrollLateAttendanceDeductionDetailDto
     public decimal TotalDeduction { get; set; }
     public bool IsGrace { get; set; }
     public decimal NetSalaryAfterLateDeduction { get; set; }
+}
+
+public class PayrollOvertimeDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public decimal RegularOvertimeHours { get; set; }
+    public decimal WeekendOvertimeHours { get; set; }
+    public decimal HolidayOvertimeHours { get; set; }
+    public decimal ShiftHours { get; set; }
+    public decimal PerHourSalary { get; set; }
+    public decimal RegularOvertimeAmount { get; set; }
+    public decimal WeekendOvertimeAmount { get; set; }
+    public decimal HolidayOvertimeAmount { get; set; }
+    public decimal TotalOvertimeAmount { get; set; }
+    public decimal NetSalaryAfterOvertime { get; set; }
 }
 
 public class UpdateLoanPaymentDto
