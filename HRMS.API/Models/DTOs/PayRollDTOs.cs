@@ -1227,6 +1227,8 @@ public class CalculatePayrollDto
     public Guid PeriodId { get; set; }
     public Guid CycleId { get; set; }
     public Guid? BonusRuleId { get; set; }
+    public Guid? AttendanceRuleId { get; set; }
+    public Guid? LateAttendanceRuleId { get; set; }
 }
 
 public class PayrollLoanDeductionDetailDto
@@ -1296,6 +1298,21 @@ public class PayrollTaxDeductionDetailDto
     public decimal NetSalaryAfterTaxDeduction { get; set; }
 }
 
+public class PayrollAttendanceDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public int ScheduledDays { get; set; }
+    public int TotalDays { get; set; }
+    public int PresentDays { get; set; }
+    public int AbsentDays { get; set; }
+    public int HalfDays { get; set; }
+    public decimal EffectiveAbsents { get; set; }
+    public decimal AbsentDeduction { get; set; }
+    public decimal HalfDayDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
+    public decimal NetSalaryAfterAttendanceDeduction { get; set; }
+}
+
 public class PayrollCalculationResultDto
 {
     public Guid PeriodId { get; set; }
@@ -1334,7 +1351,28 @@ public class PayrollCalculationResultDto
     public decimal TotalTaxDeductionAmount { get; set; }
     public List<PayrollTaxDeductionDetailDto> TaxDeductionDetails { get; set; } = new();
 
-    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalTaxDeductionAmount;
+    public int AttendanceDeductionsApplied { get; set; }
+    public decimal TotalAttendanceDeductionAmount { get; set; }
+    public List<PayrollAttendanceDeductionDetailDto> AttendanceDeductionDetails { get; set; } = new();
+
+    public int LateAttendanceDeductionsApplied { get; set; }
+    public decimal TotalLateAttendanceDeductionAmount { get; set; }
+    public List<PayrollLateAttendanceDeductionDetailDto> LateAttendanceDeductionDetails { get; set; } = new();
+
+    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount;
+}
+
+public class PayrollLateAttendanceDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public int TotalLateMinutes { get; set; }
+    public int GraceMinutes { get; set; }
+    public int BillableMinutes { get; set; }
+    public decimal ShiftHours { get; set; }
+    public decimal DeductionPerMinute { get; set; }
+    public decimal TotalDeduction { get; set; }
+    public bool IsGrace { get; set; }
+    public decimal NetSalaryAfterLateDeduction { get; set; }
 }
 
 public class UpdateLoanPaymentDto

@@ -5913,6 +5913,52 @@ ORDER BY l.createdat DESC;";
             };
 
             // Prefetch components
+            dynamic? attendanceRule = null;
+            if (dto.AttendanceRuleId.HasValue && dto.AttendanceRuleId.Value != Guid.Empty)
+            {
+                var attRuleSql = @"SELECT ruleid, fixeddeduction, percentagededuction, halfdaymultiplier FROM payroll.attendancedeductionrules WHERE ruleid = @RuleId AND organizationid = @organizationId AND isactive = true AND isdeleted = false LIMIT 1;";
+                attendanceRule = await connection.QuerySingleOrDefaultAsync<dynamic?>(attRuleSql, new { organizationId, RuleId = dto.AttendanceRuleId.Value }, transaction);
+            }
+
+            var timesheetsSql = @"
+                SELECT employee_id,
+                       MAX(shiftid) as shiftid,
+                       SUM(scheduled_working_days) as scheduled_working_days,
+                       SUM(total_calendar_days) as total_calendar_days,
+                       SUM(present_days) as present_days,
+                       SUM(absent_days) as absent_days,
+                       SUM(half_days) as half_days,
+                       SUM(late_minutes) as late_minutes
+                FROM attendance.timesheet_payroll_summary 
+                WHERE organization_id = @organizationId 
+                  AND period_end <= @PeriodEndDate 
+                  AND is_consumed_by_payroll = FALSE
+                GROUP BY employee_id;";
+
+            var timesheets = (await connection.QueryAsync<dynamic>(timesheetsSql, new { organizationId, PeriodEndDate = (DateTime)period.enddate }, transaction)).ToList();
+
+            // Prefetch late attendance rule
+            dynamic? lateAttendanceRule = null;
+            if (dto.LateAttendanceRuleId.HasValue && dto.LateAttendanceRuleId.Value != Guid.Empty)
+            {
+                var lateRuleSql = @"SELECT ruleid, fixeddeduction, percentagededuction, graceminutes FROM payroll.lateattendancerules WHERE ruleid = @RuleId AND organizationid = @organizationId AND isactive = true AND isdeleted = false LIMIT 1;";
+                lateAttendanceRule = await connection.QuerySingleOrDefaultAsync<dynamic?>(lateRuleSql, new { organizationId, RuleId = dto.LateAttendanceRuleId.Value }, transaction);
+            }
+
+            // Prefetch distinct shifts used in timesheets
+            var distinctShiftIds = timesheets
+                .Where(t => t.shiftid != null)
+                .Select(t => (Guid)t.shiftid)
+                .Distinct()
+                .ToList();
+
+            var shifts = new List<dynamic>();
+            if (distinctShiftIds.Any())
+            {
+                var shiftsSql = @"SELECT shiftid, starttime, endtime FROM attendance.shifts WHERE shiftid = ANY(@ShiftIds) AND organizationid = @organizationId AND isactive = true;";
+                shifts = (await connection.QueryAsync<dynamic>(shiftsSql, new { ShiftIds = distinctShiftIds.ToArray(), organizationId }, transaction)).ToList();
+            }
+
             var performanceRules = new List<dynamic>();
             var appraisals = new List<dynamic>();
             if (dto.CycleId != Guid.Empty)
@@ -5973,6 +6019,207 @@ ORDER BY l.createdat DESC;";
 
                 decimal remainingSalary = basicSalary;
                 decimal totalBonuses = 0;
+
+                // 0. Attendance Deduction
+                if (attendanceRule != null)
+                {
+                    var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
+                    if (ts != null)
+                    {
+                        int absentDays = Convert.ToInt32(ts.absent_days);
+                        int halfDays = Convert.ToInt32(ts.half_days);
+                        int scheduledDays = Convert.ToInt32(ts.scheduled_working_days);
+                        int totalDays = Convert.ToInt32(ts.total_calendar_days);
+                        int presentDays = Convert.ToInt32(ts.present_days);
+
+                        decimal fixedDeduction = attendanceRule.fixeddeduction != null ? Convert.ToDecimal(attendanceRule.fixeddeduction) : 0m;
+                        decimal percentageDeduction = attendanceRule.percentagededuction != null ? Convert.ToDecimal(attendanceRule.percentagededuction) : 0m;
+                        decimal halfDayMultiplier = attendanceRule.halfdaymultiplier != null ? Convert.ToDecimal(attendanceRule.halfdaymultiplier) : 0.50m;
+
+                        decimal effectiveAbsents = absentDays + (halfDays * halfDayMultiplier);
+                        
+                        if (effectiveAbsents > 0)
+                        {
+                            decimal deductionPerAbsent = 0;
+                            if (fixedDeduction > 0)
+                            {
+                                deductionPerAbsent = fixedDeduction;
+                            }
+                            else if (percentageDeduction > 0)
+                            {
+                                decimal perDaySalary = basicSalary / 30m;
+                                deductionPerAbsent = Math.Round(perDaySalary * (percentageDeduction / 100m), 2);
+                            }
+
+                            decimal absentDeductionAmt = absentDays * deductionPerAbsent;
+                            decimal halfDayDeductionAmt = (halfDays * halfDayMultiplier) * deductionPerAbsent;
+                            decimal totalAttDeduction = absentDeductionAmt + halfDayDeductionAmt;
+
+                            if (totalAttDeduction > 0)
+                            {
+                                var existingAttSumSql = @"SELECT id FROM payroll.attendancesummary WHERE employeeid = @EmployeeId AND periodid = @PeriodId LIMIT 1;";
+                                var existingAttSum = await connection.QuerySingleOrDefaultAsync<Guid?>(existingAttSumSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
+                                
+                                if (existingAttSum == null)
+                                {
+                                    var insertAttSumSql = @"
+                                        INSERT INTO payroll.attendancesummary (
+                                            employeeid, periodid, ruleid, scheduleddays, totaldays, presentdays, absentdays, halfdays, effectiveabsents, absentdeduction, halfdaydeduction, totaldeduction
+                                        ) VALUES (
+                                            @EmployeeId, @PeriodId, @RuleId, @ScheduledDays, @TotalDays, @PresentDays, @AbsentDays, @HalfDays, @EffectiveAbsents, @AbsentDeduction, @HalfDayDeduction, @TotalDeduction
+                                        ) RETURNING id;";
+                                    await connection.QuerySingleOrDefaultAsync<Guid?>(insertAttSumSql, new 
+                                    {
+                                        EmployeeId = employeeId,
+                                        PeriodId = dto.PeriodId,
+                                        RuleId = dto.AttendanceRuleId!.Value,
+                                        ScheduledDays = scheduledDays,
+                                        TotalDays = totalDays,
+                                        PresentDays = presentDays,
+                                        AbsentDays = absentDays,
+                                        HalfDays = halfDays,
+                                        EffectiveAbsents = effectiveAbsents,
+                                        AbsentDeduction = absentDeductionAmt,
+                                        HalfDayDeduction = halfDayDeductionAmt,
+                                        TotalDeduction = totalAttDeduction
+                                    }, transaction);
+
+                                    var updateTsSql = @"
+                                        UPDATE attendance.timesheet_payroll_summary 
+                                        SET is_consumed_by_payroll = TRUE, consumed_at = CURRENT_TIMESTAMP, payroll_period_id = @PeriodId
+                                        WHERE employee_id = @EmployeeId AND organization_id = @organizationId AND period_end <= @PeriodEndDate AND is_consumed_by_payroll = FALSE;";
+                                    await connection.ExecuteAsync(updateTsSql, new { EmployeeId = employeeId, organizationId, PeriodEndDate = (DateTime)period.enddate, PeriodId = dto.PeriodId }, transaction);
+
+                                    remainingSalary -= totalAttDeduction;
+                                    
+                                    result.AttendanceDeductionsApplied += 1;
+                                    result.TotalAttendanceDeductionAmount += totalAttDeduction;
+                                    result.AttendanceDeductionDetails.Add(new PayrollAttendanceDeductionDetailDto
+                                    {
+                                        EmployeeId = employeeId,
+                                        ScheduledDays = scheduledDays,
+                                        TotalDays = totalDays,
+                                        PresentDays = presentDays,
+                                        AbsentDays = absentDays,
+                                        HalfDays = halfDays,
+                                        EffectiveAbsents = effectiveAbsents,
+                                        AbsentDeduction = absentDeductionAmt,
+                                        HalfDayDeduction = halfDayDeductionAmt,
+                                        TotalDeduction = totalAttDeduction,
+                                        NetSalaryAfterAttendanceDeduction = remainingSalary
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 0b. Late Attendance Deduction
+                if (lateAttendanceRule != null)
+                {
+                    var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
+                    if (ts != null)
+                    {
+                        int totalLateMinutes = Convert.ToInt32(ts.late_minutes);
+                        Guid? tsShiftId = ts.shiftid != null ? (Guid?)ts.shiftid : null;
+
+                        int graceMinutes = lateAttendanceRule!.graceminutes != null ? Convert.ToInt32(lateAttendanceRule!.graceminutes) : 0;
+                        int billableMinutes = Math.Max(0, totalLateMinutes - graceMinutes);
+                        bool isGrace = totalLateMinutes > 0 && billableMinutes == 0;
+
+                        if (billableMinutes > 0 && tsShiftId.HasValue)
+                        {
+                            var shift = shifts.FirstOrDefault(s => s.shiftid == tsShiftId.Value);
+                            if (shift != null)
+                            {
+                                TimeSpan startTime = (TimeSpan)shift.starttime;
+                                TimeSpan endTime = (TimeSpan)shift.endtime;
+                                decimal shiftHours = endTime > startTime
+                                    ? (decimal)(endTime - startTime).TotalHours
+                                    : (decimal)(endTime.Add(TimeSpan.FromHours(24)) - startTime).TotalHours;
+
+                                decimal lateFixedDeduction = lateAttendanceRule!.fixeddeduction != null ? Convert.ToDecimal(lateAttendanceRule!.fixeddeduction) : 0m;
+                                decimal latePercentageDeduction = lateAttendanceRule!.percentagededuction != null ? Convert.ToDecimal(lateAttendanceRule!.percentagededuction) : 0m;
+
+                                decimal deductionPerMinute = 0m;
+                                if (lateFixedDeduction > 0)
+                                {
+                                    deductionPerMinute = lateFixedDeduction;
+                                }
+                                else if (latePercentageDeduction > 0 && shiftHours > 0)
+                                {
+                                    // (BasicSalary / 30 days) / shiftHours / 60 minutes = cost per minute (100%)
+                                    decimal perMinuteSalary = (basicSalary / 30m) / shiftHours / 60m;
+                                    deductionPerMinute = Math.Round(perMinuteSalary * (latePercentageDeduction / 100m), 6);
+                                }
+
+                                decimal totalLateDeduction = Math.Round(deductionPerMinute * billableMinutes, 2);
+
+                                if (totalLateDeduction > 0)
+                                {
+                                    var existingLateSql = @"SELECT id FROM payroll.lateattendance WHERE employeeid = @EmployeeId AND periodid = @PeriodId LIMIT 1;";
+                                    var existingLate = await connection.QuerySingleOrDefaultAsync<Guid?>(existingLateSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
+
+                                    if (existingLate == null)
+                                    {
+                                        var insertLateSql = @"
+                                            INSERT INTO payroll.lateattendance (
+                                                employeeid, periodid, ruleid, lateminutes, deduction, isgrace, attendancedate
+                                            ) VALUES (
+                                                @EmployeeId, @PeriodId, @RuleId, @LateMinutes, @Deduction, FALSE, CURRENT_DATE
+                                            ) RETURNING id;";
+                                        await connection.QuerySingleOrDefaultAsync<Guid?>(insertLateSql, new
+                                        {
+                                            EmployeeId = employeeId,
+                                            PeriodId = dto.PeriodId,
+                                            RuleId = dto.LateAttendanceRuleId!.Value,
+                                            LateMinutes = billableMinutes,
+                                            Deduction = totalLateDeduction
+                                        }, transaction);
+
+                                        remainingSalary -= totalLateDeduction;
+                                        result.LateAttendanceDeductionsApplied += 1;
+                                        result.TotalLateAttendanceDeductionAmount += totalLateDeduction;
+                                        result.LateAttendanceDeductionDetails.Add(new PayrollLateAttendanceDeductionDetailDto
+                                        {
+                                            EmployeeId = employeeId,
+                                            TotalLateMinutes = totalLateMinutes,
+                                            GraceMinutes = graceMinutes,
+                                            BillableMinutes = billableMinutes,
+                                            ShiftHours = shiftHours,
+                                            DeductionPerMinute = deductionPerMinute,
+                                            TotalDeduction = totalLateDeduction,
+                                            IsGrace = false,
+                                            NetSalaryAfterLateDeduction = remainingSalary
+                                        });
+                                    }
+                                }
+                            }
+                        }
+                        else if (isGrace)
+                        {
+                            // Employee was late but within grace period — log with zero deduction
+                            var existingLateSql = @"SELECT id FROM payroll.lateattendance WHERE employeeid = @EmployeeId AND periodid = @PeriodId LIMIT 1;";
+                            var existingLate = await connection.QuerySingleOrDefaultAsync<Guid?>(existingLateSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
+                            if (existingLate == null)
+                            {
+                                var insertGraceSql = @"
+                                    INSERT INTO payroll.lateattendance (
+                                        employeeid, periodid, ruleid, lateminutes, deduction, isgrace, attendancedate
+                                    ) VALUES (
+                                        @EmployeeId, @PeriodId, @RuleId, @LateMinutes, 0, TRUE, CURRENT_DATE
+                                    ) RETURNING id;";
+                                await connection.QuerySingleOrDefaultAsync<Guid?>(insertGraceSql, new
+                                {
+                                    EmployeeId = employeeId,
+                                    PeriodId = dto.PeriodId,
+                                    RuleId = dto.LateAttendanceRuleId!.Value,
+                                    LateMinutes = totalLateMinutes
+                                }, transaction);
+                            }
+                        }
+                    }
+                }
 
                 // 1. Performance Bonus
                 if (dto.CycleId != Guid.Empty && performanceRules.Any() && appraisals.Any(a => a.employeeid == employeeId))
