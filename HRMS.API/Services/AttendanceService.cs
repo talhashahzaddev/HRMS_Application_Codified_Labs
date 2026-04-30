@@ -1823,8 +1823,12 @@ public class AttendanceService : IAttendanceService
         if (snapshot == null)
             return new ServiceResponse<List<EmployeeTimesheetDto>> { Success = false, Message = "Snapshot not found" };
 
-        var startDate = new DateTime(snapshot.Year, snapshot.Month, 1);
-        var endDate = startDate.AddMonths(1).AddDays(-1);
+        var startDate = snapshot.StartDate != default
+            ? snapshot.StartDate
+            : new DateTime(snapshot.Year ?? DateTime.Today.Year, snapshot.Month ?? DateTime.Today.Month, 1);
+        var endDate = snapshot.EndDate != default
+            ? snapshot.EndDate
+            : startDate.AddMonths(1).AddDays(-1);
         var today = DateTime.Today;
 
         var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
@@ -1880,12 +1884,24 @@ public class AttendanceService : IAttendanceService
                     CheckOutTime = r.CheckOutTime,
                     Status = EffectiveStatus(r, today),
                     TotalHours = r.TotalHours,
+                    OvertimeHours = r.OvertimeHours,
+                    OvertimeType = r.OvertimeType,
+                    LateMinutes = r.LateMinutes,
+                    LeaveTypeId = r.LeaveTypeId,
+                    LeaveTypeName = r.LeaveTypeName,
+                    LeavePayType = r.LeavePayType,
                     IsFinalized = r.IsFinalized,
                     HasPendingRequest = r.HasPendingRequest,
                     HasDraftRequest = r.HasDraftRequest,
                     RequestedCheckIn = r.RequestedCheckIn,
                     RequestedCheckOut = r.RequestedCheckOut,
                     RequestedStatus = r.RequestedStatus,
+                    RequestedLeaveTypeId = r.RequestedLeaveTypeId,
+                    RequestedLeaveTypeName = r.RequestedLeaveTypeName,
+                    RequestedLeavePayType = r.RequestedLeavePayType,
+                    RequestedOvertimeHours = r.RequestedOvertimeHours,
+                    RequestedOvertimeType = r.RequestedOvertimeType,
+                    RequestedLateMinutes = r.RequestedLateMinutes,
                     IsManagerOverride = r.IsManagerOverride
                 }).OrderBy(d => d.Date).ToList();
 
@@ -1902,8 +1918,16 @@ public class AttendanceService : IAttendanceService
                 });
 
                 int halfDays = g.Count(r => EffectiveStatus(r, today) == "half_day");
-                int lateDays = g.Count(r => EffectiveStatus(r, today) == "late");
-                
+                // late_days: any day with positive late minutes (status-independent so half-day-and-late still counts).
+                int lateDays = g.Count(r => r.LateMinutes > 0);
+                int totalLateMinutes = g.Sum(r => r.LateMinutes);
+                decimal totalLateHours = Math.Round(totalLateMinutes / 60m, 2);
+                int weekendDays = g.Count(r => EffectiveStatus(r, today) == "weekend");
+                int holidayDays = g.Count(r => EffectiveStatus(r, today) == "holiday");
+                decimal totalHours = g.Sum(r => r.TotalHours);
+                decimal totalOvertimeHours = g.Sum(r => r.OvertimeHours);
+                decimal regularHours = Math.Max(totalHours - totalOvertimeHours, 0m);
+
                 int workedOrAbsentDays = g.Count(r => {
                     var s = EffectiveStatus(r, today);
                     return r.WorkDate.Date <= today
@@ -1931,12 +1955,18 @@ public class AttendanceService : IAttendanceService
                     && !string.Equals(s, "no_record", StringComparison.OrdinalIgnoreCase)
                     && r.WorkDate.Date <= today;
                      }).All(r => r.IsFinalized),
-                    TotalHoursWorked = g.Sum(r => r.TotalHours),
+                    TotalHoursWorked = totalHours,
+                    RegularHours = regularHours,
+                    OvertimeHours = totalOvertimeHours,
                     PresentDays = presentDays,
                     AbsentDays = absentDays,
                     LeaveDays = leaveDays,
                     HalfDays = halfDays,
                     LateDays = lateDays,
+                    LateMinutes = totalLateMinutes,
+                    LateHours = totalLateHours,
+                    HolidayDays = holidayDays,
+                    WeekendDays = weekendDays,
                     AttendancePercentage = attendancePct
                 };
             }).ToList();
@@ -2120,8 +2150,13 @@ public class AttendanceService : IAttendanceService
 
         foreach (var snapshot in snapshots)
         {
-            var start = new DateTime(snapshot.Year, snapshot.Month, 1);
-            var end = start.AddMonths(1).AddDays(-1);
+            // Prefer the new period_start/period_end columns; fall back to month/year for legacy rows.
+            var start = snapshot.StartDate != default
+                ? snapshot.StartDate
+                : new DateTime(snapshot.Year ?? DateTime.Today.Year, snapshot.Month ?? DateTime.Today.Month, 1);
+            var end = snapshot.EndDate != default
+                ? snapshot.EndDate
+                : start.AddMonths(1).AddDays(-1);
 
             var allRosterData = await _attendanceRepository.GetConsolidatedAttendanceAsync(
                 organizationId, start, end,
@@ -2315,7 +2350,10 @@ public class AttendanceService : IAttendanceService
         if (snapshot == null) return new ServiceResponse<int> { Success = false, Message = "Timesheet not found" };
 
         // 1. Flip all 'draft' requests for this employee and period to 'pending'
-        int updatedCount = await _attendanceRepository.FlipDraftsToPendingAsync(employeeId, snapshot.Month, snapshot.Year,timesheetId);
+        var snapStart = snapshot.StartDate != default
+            ? snapshot.StartDate
+            : new DateTime(snapshot.Year ?? DateTime.Today.Year, snapshot.Month ?? DateTime.Today.Month, 1);
+        int updatedCount = await _attendanceRepository.FlipDraftsToPendingAsync(employeeId, snapStart.Month, snapStart.Year, timesheetId);
 
         if (updatedCount > 0)
         {
@@ -2399,8 +2437,12 @@ public class AttendanceService : IAttendanceService
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
         if (snapshot == null) return new ServiceResponse<List<EmployeeReviewPackage>> { Success = false, Message = "Timesheet period not found" };
 
-        var start = new DateTime(snapshot.Year, snapshot.Month, 1);
-        var end = start.AddMonths(1).AddDays(-1);
+        var start = snapshot.StartDate != default
+            ? snapshot.StartDate
+            : new DateTime(snapshot.Year ?? DateTime.Today.Year, snapshot.Month ?? DateTime.Today.Month, 1);
+        var end = snapshot.EndDate != default
+            ? snapshot.EndDate
+            : start.AddMonths(1).AddDays(-1);
 
         Guid? filterManagerId = isGlobalViewer ? null : currentUserId;
         var rawLogs = await _attendanceRepository.GetConsolidatedAttendanceAsync(organizationId, start, end, targetEmployeeId, filterManagerId);
@@ -2416,8 +2458,8 @@ public class AttendanceService : IAttendanceService
                 EmployeeId = g.Key.EmployeeId,
                 EmployeeName = g.Key.EmployeeName,
                 EmployeeCode = g.Key.EmployeeCode,
-                Month = snapshot.Month,
-                Year = snapshot.Year,
+                Month = start.Month,
+                Year = start.Year,
                 TimesheetId = timesheetId,
                 Department = g.Key.DepartmentName ?? "Unassigned",
                 FullMonthRecords = Enumerable.Range(0, (end - start).Days + 1)
@@ -2460,17 +2502,29 @@ public class AttendanceService : IAttendanceService
             CheckOutTime = log?.CheckOutTime,
             Status = calculatedStatus,
             TotalHours = log?.TotalHours ?? 0,
+            OvertimeHours = log?.OvertimeHours ?? 0,
+            OvertimeType = log?.OvertimeType,
+            LateMinutes = log?.LateMinutes ?? 0,
+            LeaveTypeId = log?.LeaveTypeId,
+            LeaveTypeName = log?.LeaveTypeName,
+            LeavePayType = log?.LeavePayType,
             RequestStatus = req?.Status ?? "none",
             RequestedCheckIn = req?.RequestedCheckIn,
             RequestedCheckOut = req?.RequestedCheckOut,
             RequestedStatus = req?.RequestedStatus,
+            RequestedLeaveTypeId = log?.RequestedLeaveTypeId,
+            RequestedLeaveTypeName = log?.RequestedLeaveTypeName,
+            RequestedLeavePayType = log?.RequestedLeavePayType,
+            RequestedOvertimeHours = log?.RequestedOvertimeHours,
+            RequestedOvertimeType = log?.RequestedOvertimeType,
+            RequestedLateMinutes = log?.RequestedLateMinutes,
             ReasonForEdit = req?.ReasonForEdit,
             IsFinalized = log?.IsFinalized ?? false,
             HasPendingRequest = (req != null && req.Status == "pending")
                     || (log?.HasPendingRequest ?? false),
             HasDraftRequest = (req != null && req.Status == "Draft")
                     || (log?.HasDraftRequest ?? false),
-            HasApprovedRequest = (req != null && req.Status == "approved") 
+            HasApprovedRequest = (req != null && req.Status == "approved")
         || (log?.HasApprovedRequest ?? false),
             IsManagerOverride = log?.IsManagerOverride ?? false
         };
@@ -2559,5 +2613,72 @@ public class AttendanceService : IAttendanceService
         }
 
         return result;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // PAYROLL BRIDGE
+    // ────────────────────────────────────────────────────────────────────────────
+
+    public async Task<ServiceResponse<List<TimesheetPeriodLinkDto>>> GetFinalizedTimesheetLinksAsync(Guid organizationId)
+    {
+        try
+        {
+            var data = (await _attendanceRepository.GetFinalizedTimesheetLinksAsync(organizationId)).ToList();
+            return new ServiceResponse<List<TimesheetPeriodLinkDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch finalized timesheet links for org {OrgId}", organizationId);
+            return new ServiceResponse<List<TimesheetPeriodLinkDto>>
+            {
+                Success = false,
+                Message = "Failed to fetch finalized timesheets."
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<TimesheetPayrollSummaryDto?>> GetTimesheetPayrollSummaryAsync(Guid timesheetId)
+    {
+        try
+        {
+            var data = await _attendanceRepository.GetTimesheetPayrollSummaryAsync(timesheetId);
+            if (data == null)
+            {
+                return new ServiceResponse<TimesheetPayrollSummaryDto?>
+                {
+                    Success = false,
+                    Message = "Timesheet not found or has no payroll summary yet."
+                };
+            }
+            return new ServiceResponse<TimesheetPayrollSummaryDto?> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch timesheet payroll summary for {TimesheetId}", timesheetId);
+            return new ServiceResponse<TimesheetPayrollSummaryDto?>
+            {
+                Success = false,
+                Message = "Failed to fetch timesheet payroll summary."
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> LockTimesheetAsync(Guid timesheetId, Guid lockedBy, Guid? payrollPeriodId)
+    {
+        try
+        {
+            var locked = await _attendanceRepository.LockTimesheetAsync(timesheetId, lockedBy, payrollPeriodId);
+            return new ServiceResponse<bool>
+            {
+                Success = locked,
+                Data    = locked,
+                Message = locked ? "Timesheet locked." : "Timesheet not in Finalized state — cannot lock."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to lock timesheet {TimesheetId}", timesheetId);
+            return new ServiceResponse<bool> { Success = false, Message = "Failed to lock timesheet." };
+        }
     }
 }

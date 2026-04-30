@@ -2342,6 +2342,45 @@ public class AttendanceController : ControllerBase
         return Ok(result);
     }
 
+    // ────────────────────────────────────────────────────────────────────────────
+    // PAYROLL BRIDGE — endpoints the payroll module consumes.
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>List finalized timesheets the payroll module can attach to a payroll run.</summary>
+    [HttpGet("timesheet/finalized-links")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> GetFinalizedTimesheetLinks()
+    {
+        var orgId = GetCurrentOrganizationId();
+        var result = await _attendanceService.GetFinalizedTimesheetLinksAsync(orgId);
+        return Ok(result);
+    }
+
+    /// <summary>Returns the per-employee payroll summary derived from a finalized timesheet.</summary>
+    [HttpGet("timesheet/payroll-summary")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> GetTimesheetPayrollSummary([FromQuery] Guid timesheetId)
+    {
+        if (timesheetId == Guid.Empty)
+            return BadRequest(new ServiceResponse<object> { Success = false, Message = "timesheetId is required." });
+
+        var result = await _attendanceService.GetTimesheetPayrollSummaryAsync(timesheetId);
+        return Ok(result);
+    }
+
+    /// <summary>Locks a finalized timesheet — called by payroll when it consumes the period.</summary>
+    [HttpPost("timesheet/lock")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<IActionResult> LockTimesheet([FromBody] LockTimesheetRequestDto dto)
+    {
+        if (dto?.TimesheetId == Guid.Empty)
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = "TimesheetId is required." });
+
+        var lockedBy = await GetCurrentEmployeeId();
+        var result = await _attendanceService.LockTimesheetAsync(dto.TimesheetId, lockedBy, dto.PayrollPeriodId);
+        return Ok(result);
+    }
+
     [HttpPost("admin-override")]
     [PermissionAuthorize("edit_or_override_attendace_recored")]
     public async Task<IActionResult> AdminOverride([FromBody] ManualAttendanceUpdateDto dto)

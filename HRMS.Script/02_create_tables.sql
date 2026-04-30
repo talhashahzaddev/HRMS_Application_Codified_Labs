@@ -404,6 +404,7 @@ CREATE TABLE attendance.attendance (
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     islate boolean DEFAULT false,
+    late_minutes integer NOT NULL DEFAULT 0,
     is_finalized boolean DEFAULT false,
     geofenceid uuid,
     clock_in_latitude numeric(10,7),
@@ -589,14 +590,22 @@ CREATE TABLE attendance.finalized_timesheet_records (
     final_checkin timestamp with time zone,
     final_checkout timestamp with time zone,
     final_total_hours numeric(5,2),
+    final_regular_hours numeric(5,2) DEFAULT 0,
     final_overtime_hours numeric(5,2),
+    final_late_hours numeric(5,2) NOT NULL DEFAULT 0,
+    final_late_minutes integer NOT NULL DEFAULT 0,
+    final_early_departure_minutes integer DEFAULT 0,
     final_status character varying(20),
+    leave_type character varying(50),
+    leave_pay_type character varying(20),
+    is_holiday boolean DEFAULT false,
+    is_weekend boolean DEFAULT false,
     approved_by uuid,
     approved_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     attendance_id uuid,
     override_reason text,
     record_status character varying(20) DEFAULT 'finalized'::character varying NOT NULL,
-    final_late_hours numeric(5,2)
+    CONSTRAINT chk_ftr_leave_pay_type CHECK (leave_pay_type IS NULL OR leave_pay_type IN ('paid','unpaid','half_paid'))
 );
 
 ALTER TABLE ONLY attendance.finalized_timesheet_records
@@ -611,6 +620,8 @@ ALTER TABLE ONLY attendance.finalized_timesheet_records
     ADD CONSTRAINT finalized_timesheet_records_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES employee.employees(employeeid);
 ALTER TABLE ONLY attendance.finalized_timesheet_records
     ADD CONSTRAINT finalized_timesheet_records_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES auth.organizations(organizationid);
+CREATE INDEX IF NOT EXISTS ix_ftr_timesheet_employee
+    ON attendance.finalized_timesheet_records (timesheet_id, employee_id);
 
 -- Table: attendance.geo_fence_violations
 CREATE TABLE attendance.geo_fence_violations (
@@ -775,7 +786,9 @@ CREATE TABLE attendance.leavetypes (
     advancenoticedays integer DEFAULT 0,
     color character varying(7) DEFAULT '#2196F3'::character varying,
     isactive boolean DEFAULT true,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    ishalfpaid boolean DEFAULT false,
+
 );
 
 ALTER TABLE ONLY attendance.leavetypes
@@ -784,25 +797,101 @@ ALTER TABLE ONLY attendance.leavetypes
     ADD CONSTRAINT uq_leavetypes UNIQUE (organizationid, typename);
 
 -- Table: attendance.monthly_timesheets
+-- Date-range based timesheet period (start/end). Legacy month/year kept nullable for back-compat.
 CREATE TABLE attendance.monthly_timesheets (
     timesheet_id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     organization_id uuid NOT NULL,
     timesheet_name character varying(150) NOT NULL,
-    month integer NOT NULL,
-    year integer NOT NULL,
+    period_start date NOT NULL,
+    period_end   date NOT NULL,
+    -- legacy (kept nullable): older records may still populate these
+    month integer,
+    year  integer,
     generated_by uuid NOT NULL,
     created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    submitted_at timestamp with time zone,
+    submitted_by uuid,
+    finalized_at timestamp with time zone,
+    finalized_by uuid,
+    locked_at    timestamp with time zone,
+    locked_by    uuid,
+    payroll_period_id uuid,
     status character varying(20) DEFAULT 'Draft'::character varying NOT NULL,
-    CONSTRAINT chk_timesheet_status CHECK (((status)::text = ANY (ARRAY[('Draft'::character varying)::text, ('Submitted'::character varying)::text, ('Finalized'::character varying)::text, ('Archived'::character varying)::text]))),
-    CONSTRAINT monthly_timesheets_month_check CHECK (((month >= 1) AND (month <= 12)))
+    CONSTRAINT chk_timesheet_status CHECK (status IN ('Draft','InProgress','Submitted','UnderReview','Approved','Finalized','Locked','Archived')),
+    CONSTRAINT chk_monthly_timesheets_period_range CHECK (period_end >= period_start),
+    CONSTRAINT monthly_timesheets_month_check CHECK (month IS NULL OR (month >= 1 AND month <= 12))
 );
 
 ALTER TABLE ONLY attendance.monthly_timesheets
     ADD CONSTRAINT monthly_timesheets_pkey PRIMARY KEY (timesheet_id);
 ALTER TABLE ONLY attendance.monthly_timesheets
-    ADD CONSTRAINT uq_org_month_year_name UNIQUE (organization_id, month, year, timesheet_name);
+    ADD CONSTRAINT uq_org_period_name UNIQUE (organization_id, period_start, period_end, timesheet_name);
 ALTER TABLE ONLY attendance.monthly_timesheets
     ADD CONSTRAINT monthly_timesheets_generated_by_fkey FOREIGN KEY (generated_by) REFERENCES employee.employees(employeeid);
+ALTER TABLE ONLY attendance.monthly_timesheets
+    ADD CONSTRAINT monthly_timesheets_submitted_by_fkey FOREIGN KEY (submitted_by) REFERENCES employee.employees(employeeid);
+ALTER TABLE ONLY attendance.monthly_timesheets
+    ADD CONSTRAINT monthly_timesheets_finalized_by_fkey FOREIGN KEY (finalized_by) REFERENCES employee.employees(employeeid);
+ALTER TABLE ONLY attendance.monthly_timesheets
+    ADD CONSTRAINT monthly_timesheets_locked_by_fkey    FOREIGN KEY (locked_by)    REFERENCES employee.employees(employeeid);
+CREATE INDEX IF NOT EXISTS ix_monthly_timesheets_org_period
+    ON attendance.monthly_timesheets (organization_id, period_start, period_end);
+
+-- Table: attendance.timesheet_payroll_summary  (BRIDGE between timesheet & payroll)
+-- One row per (timesheet_id, employee_id) — holds every counter payroll needs.
+CREATE TABLE attendance.timesheet_payroll_summary (
+    summary_id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+    timesheet_id uuid NOT NULL,
+    organization_id uuid NOT NULL,
+    employee_id uuid NOT NULL,
+    period_start date NOT NULL,
+    period_end   date NOT NULL,
+    total_calendar_days     integer NOT NULL DEFAULT 0,
+    scheduled_working_days  integer NOT NULL DEFAULT 0,
+    weekend_days            integer NOT NULL DEFAULT 0,
+    holiday_days            integer NOT NULL DEFAULT 0,
+    present_days            integer NOT NULL DEFAULT 0,
+    absent_days             integer NOT NULL DEFAULT 0,
+    late_days               integer NOT NULL DEFAULT 0,
+    half_days               integer NOT NULL DEFAULT 0,
+    early_departure_days    integer NOT NULL DEFAULT 0,
+    leave_days_total        numeric(6,2) NOT NULL DEFAULT 0,
+    paid_leave_days         numeric(6,2) NOT NULL DEFAULT 0,
+    unpaid_leave_days       numeric(6,2) NOT NULL DEFAULT 0,
+    half_paid_leave_days    numeric(6,2) NOT NULL DEFAULT 0,
+    total_hours_worked      numeric(8,2) NOT NULL DEFAULT 0,
+    regular_hours           numeric(8,2) NOT NULL DEFAULT 0,
+    overtime_hours          numeric(8,2) NOT NULL DEFAULT 0,
+    late_minutes            integer NOT NULL DEFAULT 0,
+    late_hours              numeric(6,2) NOT NULL DEFAULT 0,
+    early_departure_minutes integer NOT NULL DEFAULT 0,
+    effective_present_days  numeric(6,2) NOT NULL DEFAULT 0,
+    attendance_percentage   numeric(5,2) NOT NULL DEFAULT 0,
+    payroll_period_id       uuid,
+    is_consumed_by_payroll  boolean NOT NULL DEFAULT false,
+    consumed_at             timestamp with time zone,
+    aggregated_at           timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    created_at              timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at              timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE ONLY attendance.timesheet_payroll_summary
+    ADD CONSTRAINT timesheet_payroll_summary_pkey PRIMARY KEY (summary_id);
+ALTER TABLE ONLY attendance.timesheet_payroll_summary
+    ADD CONSTRAINT uq_timesheet_payroll_summary_emp UNIQUE (timesheet_id, employee_id);
+ALTER TABLE ONLY attendance.timesheet_payroll_summary
+    ADD CONSTRAINT tps_timesheet_id_fkey  FOREIGN KEY (timesheet_id)    REFERENCES attendance.monthly_timesheets(timesheet_id) ON DELETE CASCADE;
+ALTER TABLE ONLY attendance.timesheet_payroll_summary
+    ADD CONSTRAINT tps_employee_id_fkey   FOREIGN KEY (employee_id)     REFERENCES employee.employees(employeeid);
+ALTER TABLE ONLY attendance.timesheet_payroll_summary
+    ADD CONSTRAINT tps_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES auth.organizations(organizationid);
+
+CREATE INDEX IF NOT EXISTS ix_tps_org_period       ON attendance.timesheet_payroll_summary (organization_id, period_start, period_end);
+CREATE INDEX IF NOT EXISTS ix_tps_employee         ON attendance.timesheet_payroll_summary (employee_id, period_start);
+CREATE INDEX IF NOT EXISTS ix_tps_payroll_period   ON attendance.timesheet_payroll_summary (payroll_period_id) WHERE payroll_period_id IS NOT NULL;
+
+COMMENT ON TABLE  attendance.timesheet_payroll_summary IS
+    'Bridge between a finalized timesheet and payroll. One row per (timesheet, employee) holding every attendance-derived counter the payroll engine consumes.';
 ALTER TABLE ONLY attendance.monthly_timesheets
     ADD CONSTRAINT monthly_timesheets_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES auth.organizations(organizationid);
 
