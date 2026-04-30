@@ -81,6 +81,10 @@ public interface IAttendanceRepository
     Task<bool> UpdateEmployeeOvertimeStatusAsync(Guid requestId, string status);
     //Manaager
 
+    // Payroll bridge
+    Task<IEnumerable<TimesheetPeriodLinkDto>> GetFinalizedTimesheetLinksAsync(Guid organizationId);
+    Task<TimesheetPayrollSummaryDto?> GetTimesheetPayrollSummaryAsync(Guid timesheetId);
+    Task<bool> LockTimesheetAsync(Guid timesheetId, Guid lockedBy, Guid? payrollPeriodId);
     Task<bool> CreateManagerOvertimeAsync(Guid organizationId, Guid managerId, ManagerOvertimeRequestDto request, string status, decimal requestedHours);
     Task<OvertimeRequestDto?> GetEmployeeTodayOvertimeRequestAsync(Guid employeeId, DateTime today);
     Task<bool> CreateOvertimeFromRequestAsync(OvertimeRequestDto request, decimal actualOvertimeHours, Guid? attendanceId);

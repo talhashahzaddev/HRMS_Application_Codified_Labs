@@ -88,20 +88,44 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
     public async Task<bool> CreateMonthlySnapshotAsync(Guid organizationId, Guid generatedBy, MonthlyTimesheetCreateDto dto)
     {
+        // Resolve to a date range. New callers pass StartDate/EndDate; legacy callers
+        // may still pass Month/Year, so derive when needed.
+        var (startDate, endDate) = ResolveTimesheetDateRange(dto);
+
         var sql = @"
-        INSERT INTO attendance.monthly_timesheets (organization_id, timesheet_name, month, year, generated_by)
-        VALUES (@organizationId, @TimesheetName, @Month, @Year, @generatedBy)
-        ON CONFLICT ON CONSTRAINT uq_org_month_year_name DO NOTHING;";
+        INSERT INTO attendance.monthly_timesheets
+            (organization_id, timesheet_name, period_start, period_end, month, year, generated_by)
+        VALUES
+            (@organizationId, @TimesheetName, @StartDate, @EndDate, @Month, @Year, @generatedBy)
+        ON CONFLICT ON CONSTRAINT uq_org_period_name DO NOTHING;";
 
         var rows = await ExecuteAsync(sql, new
         {
             organizationId,
             dto.TimesheetName,
-            dto.Month,
-            dto.Year,
+            StartDate = startDate,
+            EndDate   = endDate,
+            // keep legacy month/year populated when the period falls inside one calendar month
+            Month     = (startDate.Year == endDate.Year && startDate.Month == endDate.Month) ? (int?)startDate.Month : null,
+            Year      = (startDate.Year == endDate.Year && startDate.Month == endDate.Month) ? (int?)startDate.Year  : null,
             generatedBy
         });
         return rows > 0;
+    }
+
+    private static (DateTime StartDate, DateTime EndDate) ResolveTimesheetDateRange(MonthlyTimesheetCreateDto dto)
+    {
+        if (dto.StartDate != default && dto.EndDate != default)
+            return (dto.StartDate.Date, dto.EndDate.Date);
+
+        if (dto.Month is int m && dto.Year is int y)
+        {
+            var start = new DateTime(y, m, 1);
+            var end   = start.AddMonths(1).AddDays(-1);
+            return (start, end);
+        }
+
+        throw new ArgumentException("Either (StartDate, EndDate) or (Month, Year) must be provided on MonthlyTimesheetCreateDto.");
     }
     public async Task<IEnumerable<PendingAttendanceRequest>> GetAllPendingRequestsAsync(Guid organizationId, Guid? managerId = null)
     {
@@ -143,16 +167,20 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         {
             var sql = @"
             SELECT attendance.fn_submit_attendance_request(
-                @employeeId::uuid, 
-                @organizationId::uuid, 
-                @AttendanceId::uuid, 
-                @WorkDate::date, 
-                @RequestedCheckIn::timestamptz, 
-                @RequestedCheckOut::timestamptz, 
-                @RequestedStatus::varchar, 
-                @ReasonForEdit::text, 
+                @employeeId::uuid,
+                @organizationId::uuid,
+                @AttendanceId::uuid,
+                @WorkDate::date,
+                @RequestedCheckIn::timestamptz,
+                @RequestedCheckOut::timestamptz,
+                @RequestedStatus::varchar,
+                @ReasonForEdit::text,
                 @RequestedNotes::text,
-                @TimesheetId::uuid 
+                @TimesheetId::uuid,
+                @RequestedLeaveTypeId::uuid,
+                @RequestedOvertimeHours::numeric,
+                @RequestedOvertimeType::varchar,
+                @RequestedLateMinutes::integer
             )";
 
             return await ExecuteScalarAsync<Guid>(sql, new
@@ -166,7 +194,11 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 dto.RequestedStatus,
                 dto.ReasonForEdit,
                 dto.RequestedNotes,
-                dto.TimesheetId
+                dto.TimesheetId,
+                dto.RequestedLeaveTypeId,
+                dto.RequestedOvertimeHours,
+                dto.RequestedOvertimeType,
+                dto.RequestedLateMinutes
             });
         }
         catch (Exception ex)
@@ -183,16 +215,20 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     public async Task<AttendanceUpdateRequestDto?> GetAttendanceUpdateRequestDetailsAsync(Guid requestId)
     {
         const string sql = @"
-        SELECT 
+        SELECT
             request_id AS RequestId,
             attendance_id AS AttendanceId,
             employee_id AS EmployeeId,
-            workdate    AS WorkDate, 
+            workdate    AS WorkDate,
             requested_checkin AS RequestedCheckIn,
             requested_checkout AS RequestedCheckOut,
             requested_status AS RequestedStatus,
             requested_notes AS RequestedNotes,
-            reason_for_edit AS ReasonForEdit
+            reason_for_edit AS ReasonForEdit,
+            requested_leave_type_id AS RequestedLeaveTypeId,
+            requested_overtime_hours AS RequestedOvertimeHours,
+            requested_overtime_type  AS RequestedOvertimeType,
+            requested_late_minutes   AS RequestedLateMinutes
         FROM attendance.attendance_update_requests
         WHERE request_id = @requestId";
 
@@ -200,29 +236,32 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     }
     public async Task<int> BatchFinalizeMonthAsync(Guid timesheetId, Guid organizationId, Guid actionedBy)
     {
-        var snapshot = await QuerySingleOrDefaultAsync<(int Month, int Year)>(
-            "SELECT month, year FROM attendance.monthly_timesheets WHERE timesheet_id = @timesheetId",
-            new { timesheetId });
-
-        if (snapshot == default) return 0;
-
+        // Delegates to the date-range-aware fn_batch_finalize_timesheet, which:
+        //   • reads period_start/period_end from monthly_timesheets,
+        //   • upserts finalized_timesheet_records,
+        //   • aggregates timesheet_payroll_summary,
+        //   • flips status → 'Finalized'.
         const string sql = @"
-        SELECT (fn_result).finalized_count
-        FROM (
-            SELECT attendance.fn_batch_finalize_month(
-                @timesheetId, @organizationId, @month, @year
-            ) AS fn_result
-        ) t";
+            SELECT finalized_count
+              FROM attendance.fn_batch_finalize_timesheet(@timesheetId, @actionedBy, NULL);";
 
-        return await ExecuteScalarAsync<int>(sql, new
-        {
-            timesheetId,
-            organizationId,
-            month = snapshot.Month,
-            year = snapshot.Year
-        });
+        return await ExecuteScalarAsync<int>(sql, new { timesheetId, actionedBy });
     }
     public async Task<int> BatchFinalizeForEmployeeAsync(Guid employeeId, Guid timesheetId)
+    {
+        // Per-employee finalization: use the same date-range function with p_employee_id set.
+        // This will (a) finalize records, (b) refresh the bridge summary for that employee.
+        const string sql = @"
+            SELECT finalized_count
+              FROM attendance.fn_batch_finalize_timesheet(@timesheetId, @employeeId, @employeeId);";
+
+        return await ExecuteScalarAsync<int>(sql, new { timesheetId, employeeId });
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // Legacy per-employee finalize implementation kept below (private) for fallback.
+    // ────────────────────────────────────────────────────────────────────────────
+    private async Task<int> LegacyBatchFinalizeForEmployeeAsync(Guid employeeId, Guid timesheetId)
     {
         using var connection = CreateConnection();
         connection.Open();
@@ -394,10 +433,24 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     public async Task<IEnumerable<FinalizedTimesheetRecordDto>> GetFinalizedRecordsAsync(Guid timesheetId, Guid? employeeId = null)
     {
         const string sql = @"
-        SELECT 
-            f.record_id AS RecordId, f.timesheet_id AS TimesheetId, f.employee_id AS EmployeeId, 
-            f.work_date AS WorkDate, f.final_checkin AS FinalCheckIn, f.final_checkout AS FinalCheckOut, 
-            f.final_total_hours AS FinalTotalHours, f.final_status AS FinalStatus,
+        SELECT
+            f.record_id                     AS RecordId,
+            f.timesheet_id                  AS TimesheetId,
+            f.employee_id                   AS EmployeeId,
+            f.work_date                     AS WorkDate,
+            f.final_checkin                 AS FinalCheckIn,
+            f.final_checkout                AS FinalCheckOut,
+            COALESCE(f.final_total_hours,0)            AS FinalTotalHours,
+            COALESCE(f.final_regular_hours,0)          AS FinalRegularHours,
+            COALESCE(f.final_overtime_hours,0)         AS FinalOvertimeHours,
+            COALESCE(f.final_late_minutes,0)           AS FinalLateMinutes,
+            COALESCE(f.final_late_hours,0)             AS FinalLateHours,
+            COALESCE(f.final_early_departure_minutes,0) AS FinalEarlyDepartureMinutes,
+            f.final_status                  AS FinalStatus,
+            f.leave_type                    AS LeaveType,
+            f.leave_pay_type                AS LeavePayType,
+            COALESCE(f.is_holiday, FALSE)   AS IsHoliday,
+            COALESCE(f.is_weekend, FALSE)   AS IsWeekend,
             e.firstname || ' ' || e.lastname AS EmployeeName
         FROM attendance.finalized_timesheet_records f
         JOIN employee.employees e ON f.employee_id = e.employeeid
@@ -408,24 +461,175 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         return await QueryAsync<FinalizedTimesheetRecordDto>(sql, new { timesheetId, employeeId });
     }
 
+    // ────────────────────────────────────────────────────────────────────────────
+    // PAYROLL BRIDGE — accessors for the new timesheet_payroll_summary table.
+    // ────────────────────────────────────────────────────────────────────────────
+
+    public async Task<IEnumerable<TimesheetPeriodLinkDto>> GetFinalizedTimesheetLinksAsync(Guid organizationId)
+    {
+        const string sql = @"
+            SELECT
+                timesheet_id    AS TimesheetId,
+                timesheet_name  AS TimesheetName,
+                period_start    AS PeriodStart,
+                period_end      AS PeriodEnd,
+                status          AS Status,
+                total_employees AS TotalEmployees,
+                finalized_at    AS FinalizedAt
+              FROM attendance.fn_get_finalized_timesheet_links(@organizationId);";
+
+        return await QueryAsync<TimesheetPeriodLinkDto>(sql, new { organizationId });
+    }
+
+    public async Task<TimesheetPayrollSummaryDto?> GetTimesheetPayrollSummaryAsync(Guid timesheetId)
+    {
+        const string sql = @"
+            SELECT
+                timesheet_id, timesheet_name, period_start, period_end, status,
+                finalized_at, locked_at,
+                employee_id, employee_code, employee_name, department, designation,
+                total_calendar_days, scheduled_working_days, weekend_days, holiday_days,
+                present_days, absent_days, late_days, half_days, early_departure_days,
+                leave_days_total, paid_leave_days, unpaid_leave_days, half_paid_leave_days,
+                total_hours_worked, regular_hours, overtime_hours,
+                regular_overtime_hours, weekend_overtime_hours, holiday_overtime_hours,
+                late_minutes, late_hours, early_departure_minutes,
+                effective_present_days, attendance_percentage,
+                is_consumed_by_payroll, aggregated_at
+              FROM attendance.fn_get_timesheet_payroll_summary(@timesheetId);";
+
+        var rows = (await QueryAsync<TimesheetPayrollSummaryRow>(sql, new { timesheetId })).ToList();
+        if (rows.Count == 0) return null;
+
+        var header = rows[0];
+        var dto = new TimesheetPayrollSummaryDto
+        {
+            TimesheetId   = header.timesheet_id,
+            TimesheetName = header.timesheet_name ?? string.Empty,
+            PeriodStart   = header.period_start,
+            PeriodEnd     = header.period_end,
+            Status        = header.status ?? string.Empty,
+            FinalizedAt   = header.finalized_at,
+            LockedAt      = header.locked_at
+        };
+
+        foreach (var r in rows.Where(r => r.employee_id != Guid.Empty && r.employee_id != null))
+        {
+            dto.Employees.Add(new EmployeePayrollSummaryDto
+            {
+                TimesheetId             = r.timesheet_id,
+                EmployeeId              = r.employee_id!.Value,
+                EmployeeCode            = r.employee_code ?? string.Empty,
+                EmployeeName            = r.employee_name ?? string.Empty,
+                Department              = r.department,
+                Designation             = r.designation,
+                PeriodStart             = r.period_start,
+                PeriodEnd               = r.period_end,
+                TotalCalendarDays       = r.total_calendar_days,
+                ScheduledWorkingDays    = r.scheduled_working_days,
+                WeekendDays             = r.weekend_days,
+                HolidayDays             = r.holiday_days,
+                PresentDays             = r.present_days,
+                AbsentDays              = r.absent_days,
+                LateDays                = r.late_days,
+                HalfDays                = r.half_days,
+                EarlyDepartureDays      = r.early_departure_days,
+                LeaveDaysTotal          = r.leave_days_total,
+                PaidLeaveDays           = r.paid_leave_days,
+                UnpaidLeaveDays         = r.unpaid_leave_days,
+                HalfPaidLeaveDays       = r.half_paid_leave_days,
+                TotalHoursWorked        = r.total_hours_worked,
+                RegularHours            = r.regular_hours,
+                OvertimeHours           = r.overtime_hours,
+                RegularOvertimeHours    = r.regular_overtime_hours,
+                WeekendOvertimeHours    = r.weekend_overtime_hours,
+                HolidayOvertimeHours    = r.holiday_overtime_hours,
+                LateMinutes             = r.late_minutes,
+                LateHours               = r.late_hours,
+                EarlyDepartureMinutes   = r.early_departure_minutes,
+                EffectivePresentDays    = r.effective_present_days,
+                AttendancePercentage    = r.attendance_percentage,
+                IsConsumedByPayroll     = r.is_consumed_by_payroll,
+                AggregatedAt            = r.aggregated_at
+            });
+        }
+
+        dto.TotalEmployees = dto.Employees.Count;
+        return dto;
+    }
+
+    public async Task<bool> LockTimesheetAsync(Guid timesheetId, Guid lockedBy, Guid? payrollPeriodId)
+    {
+        const string sql = @"SELECT attendance.fn_lock_timesheet(@timesheetId, @lockedBy, @payrollPeriodId);";
+        return await ExecuteScalarAsync<bool>(sql, new { timesheetId, lockedBy, payrollPeriodId });
+    }
+
+    /// <summary>Flat row used to materialize the result of fn_get_timesheet_payroll_summary.</summary>
+    private sealed class TimesheetPayrollSummaryRow
+    {
+        public Guid     timesheet_id           { get; set; }
+        public string?  timesheet_name         { get; set; }
+        public DateTime period_start           { get; set; }
+        public DateTime period_end             { get; set; }
+        public string?  status                 { get; set; }
+        public DateTime? finalized_at          { get; set; }
+        public DateTime? locked_at             { get; set; }
+        public Guid?    employee_id            { get; set; }
+        public string?  employee_code          { get; set; }
+        public string?  employee_name          { get; set; }
+        public string?  department             { get; set; }
+        public string?  designation            { get; set; }
+        public int      total_calendar_days    { get; set; }
+        public int      scheduled_working_days { get; set; }
+        public int      weekend_days           { get; set; }
+        public int      holiday_days           { get; set; }
+        public int      present_days           { get; set; }
+        public int      absent_days            { get; set; }
+        public int      late_days              { get; set; }
+        public int      half_days              { get; set; }
+        public int      early_departure_days   { get; set; }
+        public decimal  leave_days_total       { get; set; }
+        public decimal  paid_leave_days        { get; set; }
+        public decimal  unpaid_leave_days      { get; set; }
+        public decimal  half_paid_leave_days   { get; set; }
+        public decimal  total_hours_worked     { get; set; }
+        public decimal  regular_hours          { get; set; }
+        public decimal  overtime_hours         { get; set; }
+        public decimal  regular_overtime_hours { get; set; }
+        public decimal  weekend_overtime_hours { get; set; }
+        public decimal  holiday_overtime_hours { get; set; }
+        public int      late_minutes           { get; set; }
+        public decimal  late_hours             { get; set; }
+        public int      early_departure_minutes{ get; set; }
+        public decimal  effective_present_days { get; set; }
+        public decimal  attendance_percentage  { get; set; }
+        public bool     is_consumed_by_payroll { get; set; }
+        public DateTime? aggregated_at         { get; set; }
+    }
+
     public async Task<IEnumerable<MonthlyTimesheetSummary>> GetMonthlySnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
     {
         var sql = @"
-        SELECT 
-            t.timesheet_id AS TimesheetId,
+        SELECT
+            t.timesheet_id   AS TimesheetId,
             t.timesheet_name AS TimesheetName,
-            t.month AS Month,
-            t.year AS Year,
-            t.status AS Status,
-            t.created_at AS CreatedAt,
-            (SELECT COUNT(*) FROM employee.employees e 
+            t.period_start   AS StartDate,
+            t.period_end     AS EndDate,
+            t.month          AS Month,
+            t.year           AS Year,
+            t.status         AS Status,
+            t.created_at     AS CreatedAt,
+            t.submitted_at   AS SubmittedAt,
+            t.finalized_at   AS FinalizedAt,
+            t.locked_at      AS LockedAt,
+            (SELECT COUNT(*) FROM employee.employees e
              WHERE e.organizationid = @organizationId
             ) AS TotalEmployees
         FROM attendance.monthly_timesheets t
         WHERE t.organization_id = @organizationId
-          AND (@startDate::timestamp IS NULL OR t.created_at >= @startDate::timestamp)
-          AND (@endDate::timestamp IS NULL OR t.created_at <= @endDate::timestamp)
-        ORDER BY t.year DESC, t.month DESC";
+          AND (@startDate::timestamp IS NULL OR t.period_end   >= @startDate::date)
+          AND (@endDate::timestamp   IS NULL OR t.period_start <= @endDate::date)
+        ORDER BY t.period_end DESC, t.period_start DESC";
 
         return await QueryAsync<MonthlyTimesheetSummary>(sql, new { organizationId, startDate, endDate });
     }
@@ -477,6 +681,18 @@ SELECT
     v.checkouttime,
     v.status,
     COALESCE(v.totalhours, 0)           AS totalhours,
+    COALESCE(raw_a.late_minutes, 0)     AS LateMinutes,
+    COALESCE(raw_a.overtimehours, 0)    AS OvertimeHours,
+    raw_a.overtimetype                   AS OvertimeType,
+    -- Current leave classification for the day (when status='on_leave').
+    raw_a.leave_type_id                  AS LeaveTypeId,
+    cur_lt.typename                      AS LeaveTypeName,
+    CASE
+        WHEN raw_a.leave_type_id IS NULL THEN NULL
+        WHEN COALESCE(cur_lt.ishalfpaid, FALSE) THEN 'half_paid'
+        WHEN COALESCE(cur_lt.ispaid,     TRUE)  THEN 'paid'
+        ELSE 'unpaid'
+    END                                  AS LeavePayType,
     COALESCE(v.is_finalized,   FALSE)   AS ""IsFinalized"",
     COALESCE(v.is_manager_override, FALSE) AS ""IsManagerOverride"",
     COALESCE(v.has_pending_request, FALSE) AS ""HasPendingRequest"",
@@ -484,11 +700,42 @@ SELECT
     COALESCE(v.has_approved_request,FALSE) AS ""HasApprovedRequest"",
     v.requested_checkin  AS ""RequestedCheckIn"",
     v.requested_checkout AS ""RequestedCheckOut"",
-    v.requested_status   AS ""RequestedStatus""
+    v.requested_status   AS ""RequestedStatus"",
+    -- Latest pending/draft/approved request for surfacing all editable fields as draft.
+    lr.requested_leave_type_id        AS ""RequestedLeaveTypeId"",
+    req_lt.typename                   AS ""RequestedLeaveTypeName"",
+    CASE
+        WHEN lr.requested_leave_type_id IS NULL THEN NULL
+        WHEN COALESCE(req_lt.ishalfpaid, FALSE) THEN 'half_paid'
+        WHEN COALESCE(req_lt.ispaid,     TRUE)  THEN 'paid'
+        ELSE 'unpaid'
+    END                               AS ""RequestedLeavePayType"",
+    lr.requested_overtime_hours       AS ""RequestedOvertimeHours"",
+    lr.requested_overtime_type        AS ""RequestedOvertimeType"",
+    lr.requested_late_minutes         AS ""RequestedLateMinutes""
 FROM emp_dates ed
 LEFT JOIN attendance.vw_employee_timesheet_details v
        ON v.employeeid = ed.employeeid
       AND v.workdate   = ed.workdate
+LEFT JOIN attendance.attendance raw_a
+       ON raw_a.employeeid = ed.employeeid
+      AND raw_a.workdate   = ed.workdate
+LEFT JOIN attendance.leavetypes cur_lt
+       ON cur_lt.leavetypeid = raw_a.leave_type_id
+LEFT JOIN LATERAL (
+    SELECT r.requested_leave_type_id,
+           r.requested_overtime_hours,
+           r.requested_overtime_type,
+           r.requested_late_minutes
+      FROM attendance.attendance_update_requests r
+     WHERE r.employee_id = ed.employeeid
+       AND r.workdate    = ed.workdate
+       AND LOWER(r.status) IN ('pending','draft','approved')
+     ORDER BY r.submitted_at DESC
+     LIMIT 1
+) lr ON TRUE
+LEFT JOIN attendance.leavetypes req_lt
+       ON req_lt.leavetypeid = lr.requested_leave_type_id
 ORDER BY ed.employeename, ed.workdate ASC";
 
             var result = await QueryAsync<AttendanceDto>(sql, new
@@ -754,6 +1001,8 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
             string sql;
 
+            // leave_type / leave_pay_type are derived inline from attendance.leavetypes when
+            // the override Status is on_leave AND the manager picked a LeaveTypeId. NULL otherwise.
             if (attendanceId.HasValue)
             {
                 sql = @"
@@ -766,13 +1015,21 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 final_checkin,
                 final_checkout,
                 final_status,
+                leave_type,
+                leave_pay_type,
+                final_overtime_hours,
+                final_regular_overtime_hours,
+                final_weekend_overtime_hours,
+                final_holiday_overtime_hours,
+                final_late_minutes,
+                final_late_hours,
                 approved_by,
                 approved_at,
                 attendance_id,
                 override_reason,
                 record_status
             )
-            VALUES (
+            SELECT
                 uuid_generate_v4(),
                 @TimesheetId,
                 @EmployeeId,
@@ -781,22 +1038,47 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 @CheckInTime,
                 @CheckOutTime,
                 @Status,
+                CASE WHEN LOWER(COALESCE(@Status, '')) = 'on_leave' THEN lt.typename ELSE NULL END,
+                CASE
+                    WHEN LOWER(COALESCE(@Status, '')) = 'on_leave' THEN
+                        CASE
+                            WHEN COALESCE(lt.ishalfpaid, FALSE) THEN 'half_paid'
+                            WHEN COALESCE(lt.ispaid,     TRUE)  THEN 'paid'
+                            ELSE 'unpaid'
+                        END
+                    ELSE NULL
+                END,
+                COALESCE(@OvertimeHours, 0),
+                CASE WHEN LOWER(COALESCE(@OvertimeType,'regular')) = 'regular' THEN COALESCE(@OvertimeHours, 0) ELSE 0 END,
+                CASE WHEN LOWER(COALESCE(@OvertimeType,'regular')) = 'weekend' THEN COALESCE(@OvertimeHours, 0) ELSE 0 END,
+                CASE WHEN LOWER(COALESCE(@OvertimeType,'regular')) = 'holiday' THEN COALESCE(@OvertimeHours, 0) ELSE 0 END,
+                COALESCE(@LateMinutes, 0),
+                ROUND(COALESCE(@LateMinutes, 0) / 60.0, 2),
                 @ManagerId,
                 NOW(),
                 @AttendanceId,
                 @Reason,
                 'overridden'
-            )
+            FROM (SELECT 1) AS x
+            LEFT JOIN attendance.leavetypes lt ON lt.leavetypeid = @LeaveTypeId
             ON CONFLICT (attendance_id) WHERE attendance_id IS NOT NULL
             DO UPDATE SET
-                final_checkin   = EXCLUDED.final_checkin,
-                final_checkout  = EXCLUDED.final_checkout,
-                final_status    = EXCLUDED.final_status,
-                approved_by     = EXCLUDED.approved_by,
-                approved_at     = NOW(),
-                attendance_id   = EXCLUDED.attendance_id,
-                override_reason = EXCLUDED.override_reason,
-                record_status   = 'overridden';";
+                final_checkin                = EXCLUDED.final_checkin,
+                final_checkout               = EXCLUDED.final_checkout,
+                final_status                 = EXCLUDED.final_status,
+                leave_type                   = EXCLUDED.leave_type,
+                leave_pay_type               = EXCLUDED.leave_pay_type,
+                final_overtime_hours         = EXCLUDED.final_overtime_hours,
+                final_regular_overtime_hours = EXCLUDED.final_regular_overtime_hours,
+                final_weekend_overtime_hours = EXCLUDED.final_weekend_overtime_hours,
+                final_holiday_overtime_hours = EXCLUDED.final_holiday_overtime_hours,
+                final_late_minutes           = EXCLUDED.final_late_minutes,
+                final_late_hours             = EXCLUDED.final_late_hours,
+                approved_by                  = EXCLUDED.approved_by,
+                approved_at                  = NOW(),
+                attendance_id                = EXCLUDED.attendance_id,
+                override_reason              = EXCLUDED.override_reason,
+                record_status                = 'overridden';";
             }
             else
             {
@@ -810,13 +1092,15 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 final_checkin,
                 final_checkout,
                 final_status,
+                leave_type,
+                leave_pay_type,
                 approved_by,
                 approved_at,
                 attendance_id,
                 override_reason,
                 record_status
             )
-            VALUES (
+            SELECT
                 uuid_generate_v4(),
                 @TimesheetId,
                 @EmployeeId,
@@ -825,17 +1109,30 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 @CheckInTime,
                 @CheckOutTime,
                 @Status,
+                CASE WHEN LOWER(COALESCE(@Status, '')) = 'on_leave' THEN lt.typename ELSE NULL END,
+                CASE
+                    WHEN LOWER(COALESCE(@Status, '')) = 'on_leave' THEN
+                        CASE
+                            WHEN COALESCE(lt.ishalfpaid, FALSE) THEN 'half_paid'
+                            WHEN COALESCE(lt.ispaid,     TRUE)  THEN 'paid'
+                            ELSE 'unpaid'
+                        END
+                    ELSE NULL
+                END,
                 @ManagerId,
                 NOW(),
                 NULL,
                 @Reason,
                 'overridden'
-            )
+            FROM (SELECT 1) AS x
+            LEFT JOIN attendance.leavetypes lt ON lt.leavetypeid = @LeaveTypeId
             ON CONFLICT (employee_id, work_date) WHERE attendance_id IS NULL
             DO UPDATE SET
                 final_checkin   = EXCLUDED.final_checkin,
                 final_checkout  = EXCLUDED.final_checkout,
                 final_status    = EXCLUDED.final_status,
+                leave_type      = EXCLUDED.leave_type,
+                leave_pay_type  = EXCLUDED.leave_pay_type,
                 approved_by     = EXCLUDED.approved_by,
                 approved_at     = NOW(),
                 override_reason = EXCLUDED.override_reason,
@@ -855,6 +1152,10 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 dto.CheckInTime,
                 dto.CheckOutTime,
                 dto.Status,
+                LeaveTypeId  = dto.LeaveTypeId,
+                OvertimeHours = dto.OvertimeHours,
+                OvertimeType  = dto.OvertimeType,
+                LateMinutes   = dto.LateMinutes,
                 Reason = dto.Notes
             }) > 0;
         }
@@ -917,21 +1218,26 @@ ORDER BY ed.employeename, ed.workdate ASC";
     {
         try
         {
+            // Lateness is now driven by attendance.fn_calculate_late_minutes which:
+            //   - resolves the employee's current shift starttime
+            //   - applies the org-configured grace from payroll.lateattendancerules
+            //     (defaulting to 15 minutes when the org has not configured a rule)
+            // We persist both islate (boolean) and the actual late_minutes count.
+            // status is bumped to 'late' when applicable, but half_day always wins.
             var sql = @"
         UPDATE attendance.attendance a
-        SET 
-            islate = CASE
-                        WHEN a.checkintime IS NULL THEN false
-                        WHEN a.checkintime::time >= s.starttime + INTERVAL '1 hour' THEN true
-                        ELSE false
-                     END,
-            updatedat = NOW() AT TIME ZONE 'UTC'
-        FROM employee.employmentdetails e
-        JOIN attendance.shifts s ON e.shiftid = s.shiftid
-        WHERE a.employeeid = e.employeeid
-          AND a.employeeid = @employeeId
-          AND e.iscurrent = true
-          AND a.workdate = (NOW() AT TIME ZONE 'UTC')::date
+        SET
+            late_minutes = attendance.fn_calculate_late_minutes(a.employeeid, a.workdate, a.checkintime),
+            islate       = (attendance.fn_calculate_late_minutes(a.employeeid, a.workdate, a.checkintime) > 0),
+            status       = CASE
+                              WHEN LOWER(COALESCE(a.status,'present')) = 'half_day' THEN a.status
+                              WHEN attendance.fn_calculate_late_minutes(a.employeeid, a.workdate, a.checkintime) > 0
+                                   THEN 'late'
+                              ELSE COALESCE(a.status, 'present')
+                           END,
+            updatedat    = NOW() AT TIME ZONE 'UTC'
+        WHERE a.employeeid = @employeeId
+          AND a.workdate   = (NOW() AT TIME ZONE 'UTC')::date
         RETURNING a.*;
         ";
 
@@ -2037,10 +2343,12 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 
             var sql = @"
         INSERT INTO attendance.shifts
-        (organizationid, shiftname, starttime, endtime, applymarginhours, marginhours, breakduration, breakstarttime, breakendtime,
+        (organizationid, shiftname, starttime, endtime, applymarginhours, marginhours, grace_minutes,
+         breakduration, breakstarttime, breakendtime,
          overtimestarttime, maxovertimeinminutes, daysofweek, timezone, createdat)
         VALUES
-        (@OrganizationId, @ShiftName, @StartTime, @EndTime,@ApplyMarginhours,@marginHours, @BreakDuration, @BreakStartTime, @BreakEndTime,
+        (@OrganizationId, @ShiftName, @StartTime, @EndTime, @ApplyMarginhours, @marginHours, @GraceMinutes,
+         @BreakDuration, @BreakStartTime, @BreakEndTime,
          @OvertimeStartTime, @MaxOvertimeInMinutes, @DaysofWeek, @Timezone, @CreatedAt);
     ";
 
@@ -2052,6 +2360,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 EndTime = request.EndTime,
                 ApplyMarginhours = request.ApplyMarginhours ?? false,
                 marginHours = request.marginHours,
+                GraceMinutes = request.GraceMinutes ?? 0,
 
                 BreakDuration = request.BreakDuration ?? 0,
                 BreakStartTime = request.BreakStartTime,
@@ -2513,6 +2822,7 @@ WHERE ed.employeeid = @EmployeeId
             endtime AS EndTime,
             applymarginhours AS ApplyMarginhours,
             marginhours AS marginHours,
+            grace_minutes AS GraceMinutes,
             breakstarttime AS BreakStartTime,
             breakendtime AS BreakEndTime,
             overtimestarttime AS OvertimeStartTime,
@@ -2602,6 +2912,7 @@ WHERE ed.employeeid = @EmployeeId
             endtime = @EndTime,
             marginhours = @marginHours,
             applymarginhours = @ApplyMarginhours,
+            grace_minutes = @GraceMinutes,
             breakstarttime = @BreakStartTime,
             breakendtime = @BreakEndTime,
             overtimestarttime = @OvertimeStartTime,
@@ -2622,6 +2933,7 @@ WHERE ed.employeeid = @EmployeeId
                 EndTime = request.EndTime,
                 ApplyMarginhours = request.ApplyMarginhours,
                 MarginHours = request.marginHours,
+                GraceMinutes = request.GraceMinutes ?? 0,
                 BreakStartTime = request.BreakStartTime,
                 BreakEndTime = request.BreakEndTime,
                 OvertimeStartTime = request.OvertimeStartTime,

@@ -16,7 +16,15 @@ public class AttendanceDto
     public decimal TotalHours { get; set; }
     public int SessionsCount { get; set; } = 0;
     public decimal OvertimeHours { get; set; }
+    public string? OvertimeType { get; set; }
+    public int LateMinutes { get; set; }
     public string Status { get; set; } = string.Empty;
+    /// <summary>Leavetype FK on the day (set when status = on_leave). Drives leave_type / leave_pay_type.</summary>
+    public Guid? LeaveTypeId { get; set; }
+    /// <summary>Hydrated leavetype.typename for display.</summary>
+    public string? LeaveTypeName { get; set; }
+    /// <summary>Derived: 'paid' / 'unpaid' / 'half_paid' from leavetypes flags.</summary>
+    public string? LeavePayType { get; set; }
     public string? Notes { get; set; }
     public bool IsManagerOverride { get; set; }
     public bool IsFinalized { get; set; }
@@ -26,6 +34,13 @@ public class AttendanceDto
     public DateTime? RequestedCheckIn { get; set; }
     public DateTime? RequestedCheckOut { get; set; }
     public string? RequestedStatus { get; set; }
+    /// <summary>Latest pending/draft/approved request's leavetype id.</summary>
+    public Guid? RequestedLeaveTypeId { get; set; }
+    public string? RequestedLeaveTypeName { get; set; }
+    public string? RequestedLeavePayType { get; set; }
+    public decimal? RequestedOvertimeHours { get; set; }
+    public string? RequestedOvertimeType { get; set; }
+    public int? RequestedLateMinutes { get; set; }
     public Guid? ShiftId { get; set; }
     public string? Location { get; set; }
     public string? checkinip { get; set; }
@@ -140,6 +155,13 @@ public class CreateShiftDto
     public TimeSpan? OvertimeStartTime { get; set; }      // Added: From when overtime begins
     public int? MaxOvertimeInMinutes { get; set; } = 0;   // Added: Maximum overtime allowed
 
+    /// <summary>
+    /// Per-shift grace period in minutes for late calculation. Used by the timesheet
+    /// late-minutes function so orgs without the payroll module can still configure
+    /// lateness behaviour. 0 means "fall back to payroll late-arrival rule, then 15-min default".
+    /// </summary>
+    public int? GraceMinutes { get; set; } = 0;
+
     public int[]? DaysofWeek { get; set; }
         = new int[] { 1, 2, 3, 4, 5 };                    // Days of week
 
@@ -158,6 +180,7 @@ public class UpdateShiftDto
     public TimeSpan? BreakEndTime { get; set; }            // Optional: Break end time
     public TimeSpan? OvertimeStartTime { get; set; }       // Optional: Overtime start time
     public int? MaxOvertimeInMinutes { get; set; }         // Optional: Maximum overtime in minutes
+    public int? GraceMinutes { get; set; } = 0;            // See CreateShiftDto.GraceMinutes
 
     public int? BreakDuration { get; set; } = 0;          // Optional: Break duration in minutes
     public int[]? DaysofWeek { get; set; } = new int[] { 1, 2, 3, 4, 5 }; // Optional: Days of week
@@ -211,6 +234,7 @@ public class ShiftDto
     public int? MaxOvertimeInMinutes { get; set; }     // optional
 
     public int BreakDuration { get; set; }
+    public int GraceMinutes { get; set; }
     public int[] DaysOfWeek { get; set; }
     public string Timezone { get; set; }
     public bool IsActive { get; set; }
@@ -311,7 +335,19 @@ public class FinalizedTimesheetRecordDto
     public DateTime? FinalCheckIn { get; set; }
     public DateTime? FinalCheckOut { get; set; }
     public decimal FinalTotalHours { get; set; }
+    public decimal FinalRegularHours { get; set; }
+    public decimal FinalOvertimeHours { get; set; }
+    public decimal FinalRegularOvertimeHours { get; set; }
+    public decimal FinalWeekendOvertimeHours { get; set; }
+    public decimal FinalHolidayOvertimeHours { get; set; }
+    public int FinalLateMinutes { get; set; }
+    public decimal FinalLateHours { get; set; }
+    public int FinalEarlyDepartureMinutes { get; set; }
     public string FinalStatus { get; set; }
+    public string? LeaveType { get; set; }
+    public string? LeavePayType { get; set; }
+    public bool IsHoliday { get; set; }
+    public bool IsWeekend { get; set; }
     public string EmployeeName { get; set; }
 }
 
@@ -321,21 +357,40 @@ public class EmployeeTimesheetDto
     public string EmployeeName { get; set; }
     public string? EmployeeCode { get; set; }
     public string? Department { get; set; }
+    public string? Designation { get; set; }
     public List<DailyAttendanceRecord> DailyRecords { get; set; } = new();
     public decimal TotalHoursWorked { get; set; }
+    public decimal RegularHours { get; set; }
+    public decimal OvertimeHours { get; set; }
+    public decimal RegularOvertimeHours { get; set; }
+    public decimal WeekendOvertimeHours { get; set; }
+    public decimal HolidayOvertimeHours { get; set; }
+    public int LateMinutes { get; set; }
+    public decimal LateHours { get; set; }
     public bool IsFinalized { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? FinalizedAt { get; set; }
     public int PresentDays { get; set; }
     public int AbsentDays { get; set; }
     public int LateDays { get; set; }
     public int LeaveDays { get; set; }
     public int HalfDays { get; set; }
+    public int HolidayDays { get; set; }
+    public int WeekendDays { get; set; }
     public decimal AttendancePercentage { get; set; }
 }
 public class MonthlyTimesheetCreateDto
 {
     public string TimesheetName { get; set; }
-    public int Month { get; set; }
-    public int Year { get; set; }
+    /// <summary>Period start (inclusive). Replaces Month/Year.</summary>
+    public DateTime StartDate { get; set; }
+    /// <summary>Period end (inclusive). Replaces Month/Year.</summary>
+    public DateTime EndDate { get; set; }
+
+    /// <summary>Legacy. Optional; ignored if StartDate/EndDate are provided.</summary>
+    public int? Month { get; set; }
+    /// <summary>Legacy. Optional; ignored if StartDate/EndDate are provided.</summary>
+    public int? Year { get; set; }
 }
 public class TimeZoneDto
 {
@@ -376,6 +431,21 @@ public class AttendanceUpdateRequestDto
     public string ReasonForEdit { get; set; }
     public string? RequestedNotes { get; set; }
     public Guid? TimesheetId { get; set; }
+    /// <summary>
+    /// Optional. Required when RequestedStatus = 'on_leave'. The attendance.leavetypes row
+    /// the employee is requesting. On approval, this is copied onto attendance.attendance.leave_type_id
+    /// and ultimately drives finalized_timesheet_records.leave_type / leave_pay_type.
+    /// </summary>
+    public Guid? RequestedLeaveTypeId { get; set; }
+
+    /// <summary>Optional. Hours of overtime the employee is claiming for the day.</summary>
+    public decimal? RequestedOvertimeHours { get; set; }
+
+    /// <summary>Optional. 'regular' | 'weekend' | 'holiday' — drives typed OT bucket on the bridge.</summary>
+    public string? RequestedOvertimeType { get; set; }
+
+    /// <summary>Optional. Minutes-late override (0 to waive a late mark, positive to set explicitly).</summary>
+    public int? RequestedLateMinutes { get; set; }
 }
 
 public class ProcessAttendanceRequestDto
@@ -388,18 +458,35 @@ public class MonthlyTimesheetSummary
 {
     public Guid TimesheetId { get; set; }
     public string TimesheetName { get; set; } = string.Empty;
-    public int Month { get; set; }
-    public int Year { get; set; }
+
+    /// <summary>Inclusive period start.</summary>
+    public DateTime StartDate { get; set; }
+    /// <summary>Inclusive period end.</summary>
+    public DateTime EndDate   { get; set; }
+
+    /// <summary>Legacy month (nullable). Derive from StartDate when reading new data.</summary>
+    public int? Month { get; set; }
+    /// <summary>Legacy year (nullable). Derive from StartDate when reading new data.</summary>
+    public int? Year  { get; set; }
+
     public string Status { get; set; } = "Draft";
     public DateTime CreatedAt { get; set; }
-    public int TotalEmployees { get; set; }
-    public decimal TotalHoursWorked { get; set; }
-    public int TotalPresentDays { get; set; }
-    public int TotalAbsentDays { get; set; }
-    public int TotalLateDays { get; set; }
+
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? FinalizedAt { get; set; }
+    public DateTime? LockedAt    { get; set; }
+
+    public int     TotalEmployees       { get; set; }
+    public decimal TotalHoursWorked     { get; set; }
+    public decimal TotalOvertimeHours   { get; set; }
+    public int     TotalPresentDays     { get; set; }
+    public int     TotalAbsentDays      { get; set; }
+    public int     TotalLateDays        { get; set; }
     public decimal AttendancePercentage { get; set; }
-    public string MonthName => System.Globalization.CultureInfo.CurrentCulture
-        .DateTimeFormat.GetMonthName(Month);
+
+    public string MonthName =>
+        System.Globalization.CultureInfo.CurrentCulture
+              .DateTimeFormat.GetMonthName(StartDate == default ? (Month ?? 1) : StartDate.Month);
 }
 public class PendingAttendanceRequest
 {
@@ -518,6 +605,12 @@ public class DailyAttendanceRecord
     public DateTime? CheckOutTime { get; set; }
     public string Status { get; set; }
     public decimal TotalHours { get; set; }
+    public decimal OvertimeHours { get; set; }
+    public string? OvertimeType { get; set; }
+    public int LateMinutes { get; set; }
+    public Guid? LeaveTypeId { get; set; }
+    public string? LeaveTypeName { get; set; }
+    public string? LeavePayType { get; set; }
     public string? Notes { get; set; }
     public bool IsManagerOverride { get; set; }
     public bool IsFinalized { get; set; }
@@ -527,6 +620,14 @@ public class DailyAttendanceRecord
     public DateTime? RequestedCheckIn { get; set; }
     public DateTime? RequestedCheckOut { get; set; }
     public string? RequestedStatus { get; set; }
+    /// <summary>Draft/pending request: leavetype the employee asked for.</summary>
+    public Guid? RequestedLeaveTypeId { get; set; }
+    public string? RequestedLeaveTypeName { get; set; }
+    public string? RequestedLeavePayType { get; set; }
+    /// <summary>Draft/pending request: payroll-relevant counter overrides.</summary>
+    public decimal? RequestedOvertimeHours { get; set; }
+    public string? RequestedOvertimeType { get; set; }
+    public int? RequestedLateMinutes { get; set; }
 }
 public class AttendanceReportDto
 {
@@ -575,6 +676,21 @@ public class ManualAttendanceUpdateDto
     public string? Notes { get; set; }
     public string? Reason { get; set; }
     public Guid EmployeeId { get; set; }
+    /// <summary>
+    /// Manager-supplied leavetype when override Status = 'on_leave'. Used to set
+    /// finalized_timesheet_records.leave_type / leave_pay_type directly so the
+    /// override is payroll-correct without going through attendance.leaverequests.
+    /// </summary>
+    public Guid? LeaveTypeId { get; set; }
+
+    /// <summary>Manager override of total OT hours for the day.</summary>
+    public decimal? OvertimeHours { get; set; }
+
+    /// <summary>'regular' | 'weekend' | 'holiday' — routes OT into the matching typed bucket on the bridge.</summary>
+    public string? OvertimeType { get; set; }
+
+    /// <summary>Manager override of late minutes (0 waives, positive sets explicitly).</summary>
+    public int? LateMinutes { get; set; }
 }
 
 public class DepartmentAttendanceStatsDto
@@ -651,4 +767,102 @@ public class GetOvertimesQueryDto
     public Guid? EmployeeId { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+}
+
+
+// ============================================================================
+// PAYROLL BRIDGE DTOs
+// Provided by AttendanceController.GetTimesheetPayrollSummary so the payroll
+// module can compute deductions/overtime/leave-impact from a finalized timesheet.
+// ============================================================================
+
+/// <summary>
+/// Lightweight reference to a finalized timesheet — used to populate the payroll
+/// module's "select timesheet for this payroll period" picker.
+/// </summary>
+public class TimesheetPeriodLinkDto
+{
+    public Guid TimesheetId { get; set; }
+    public string TimesheetName { get; set; } = string.Empty;
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public int TotalEmployees { get; set; }
+    public DateTime? FinalizedAt { get; set; }
+}
+
+/// <summary>
+/// Per-employee attendance counters derived from a finalized timesheet — every field
+/// payroll needs to compute absent/late/leave deductions, overtime pay, etc.
+/// </summary>
+public class EmployeePayrollSummaryDto
+{
+    public Guid EmployeeId { get; set; }
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? Department { get; set; }
+    public string? Designation { get; set; }
+    public Guid TimesheetId { get; set; }
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd   { get; set; }
+
+    public int TotalCalendarDays    { get; set; }
+    public int ScheduledWorkingDays { get; set; }
+    public int WeekendDays          { get; set; }
+    public int HolidayDays          { get; set; }
+
+    public int PresentDays          { get; set; }
+    public int AbsentDays           { get; set; }
+    public int LateDays             { get; set; }
+    public int HalfDays             { get; set; }
+    public int EarlyDepartureDays   { get; set; }
+
+    public decimal LeaveDaysTotal     { get; set; }
+    public decimal PaidLeaveDays      { get; set; }
+    public decimal UnpaidLeaveDays    { get; set; }
+    public decimal HalfPaidLeaveDays  { get; set; }
+
+    public decimal TotalHoursWorked   { get; set; }
+    public decimal RegularHours       { get; set; }
+    public decimal OvertimeHours      { get; set; }
+    public decimal RegularOvertimeHours { get; set; }
+    public decimal WeekendOvertimeHours { get; set; }
+    public decimal HolidayOvertimeHours { get; set; }
+
+    public int LateMinutes            { get; set; }
+    public decimal LateHours          { get; set; }
+    public int EarlyDepartureMinutes  { get; set; }
+
+    public decimal EffectivePresentDays { get; set; }
+    public decimal AttendancePercentage { get; set; }
+
+    public bool IsConsumedByPayroll   { get; set; }
+    public DateTime? AggregatedAt     { get; set; }
+}
+
+/// <summary>
+/// Full payroll-ready snapshot for a finalized timesheet: header + per-employee rows.
+/// Returned by GET /api/attendance/timesheet/payroll-summary?timesheetId=...
+/// </summary>
+public class TimesheetPayrollSummaryDto
+{
+    public Guid TimesheetId { get; set; }
+    public string TimesheetName { get; set; } = string.Empty;
+    public DateTime PeriodStart { get; set; }
+    public DateTime PeriodEnd   { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public int TotalEmployees { get; set; }
+    public DateTime? FinalizedAt { get; set; }
+    public DateTime? LockedAt    { get; set; }
+    public List<EmployeePayrollSummaryDto> Employees { get; set; } = new();
+}
+
+/// <summary>
+/// Payload for POST /api/attendance/timesheet/lock — fired when payroll consumes
+/// a finalized timesheet so it can no longer be edited.
+/// </summary>
+public class LockTimesheetRequestDto
+{
+    public Guid TimesheetId { get; set; }
+    public Guid? PayrollPeriodId { get; set; }
 }
