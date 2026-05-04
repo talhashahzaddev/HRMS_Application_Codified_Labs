@@ -1222,6 +1222,201 @@ public class AddLoanPaymentDto
     public string PaymentMethod { get; set; } = "cash"; // cash, bank_transfer, etc.
 }
 
+public class CalculatePayrollDto
+{
+    public Guid PeriodId { get; set; }
+    public Guid CycleId { get; set; }
+    public Guid? BonusRuleId { get; set; }
+    public Guid? AttendanceRuleId { get; set; }
+    public Guid? LateAttendanceRuleId { get; set; }
+    public Guid? LeaveRuleId { get; set; }
+}
+
+public class PayrollLoanDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid LoanId { get; set; }
+    public decimal BasicSalary { get; set; }
+    public decimal InstallmentAmount { get; set; }
+    public decimal NetSalaryAfterLoanDeduction { get; set; }
+    public decimal RemainingLoanAmountBefore { get; set; }
+    public decimal RemainingLoanAmountAfter { get; set; }
+    public int InstallmentNumber { get; set; }
+}
+
+public class PayrollSalaryAdvanceDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid AdvanceId { get; set; }
+    public decimal DeductedAmount { get; set; }
+    public decimal NetSalaryAfterSalaryAdvanceDeduction { get; set; }
+}
+
+public class PayrollProvidentFundDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid PfId { get; set; }
+    public decimal SalaryBasisAmount { get; set; }
+    public decimal EmployeeAmount { get; set; }
+    public decimal EmployerAmount { get; set; }
+    public decimal NetSalaryAfterProvidentFundDeduction { get; set; }
+}
+
+public class PayrollPerformanceBonusDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid RuleId { get; set; }
+    public decimal Score { get; set; }
+    public decimal BonusAmount { get; set; }
+    public decimal NetSalaryAfterBonus { get; set; }
+}
+
+public class PayrollGeneralBonusDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid? RuleId { get; set; }
+    public decimal BonusAmount { get; set; }
+    public decimal NetSalaryAfterBonus { get; set; }
+}
+
+public class PayrollGratuityDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid TransactionId { get; set; }
+    public decimal GratuityAmount { get; set; }
+    public decimal NetSalaryAfterGratuity { get; set; }
+}
+
+public class PayrollTaxDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public decimal MonthlyGross { get; set; }
+    public decimal PFExemptAmount { get; set; }
+    public decimal MonthlyTaxableIncome { get; set; }
+    public decimal AnnualTaxableIncome { get; set; }
+    public decimal TaxAmount { get; set; }
+    public decimal MonthlyTax { get; set; }
+    public decimal NetSalaryAfterTaxDeduction { get; set; }
+}
+
+public class PayrollAttendanceDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public int ScheduledDays { get; set; }
+    public int TotalDays { get; set; }
+    public int PresentDays { get; set; }
+    public int AbsentDays { get; set; }
+    public int HalfDays { get; set; }
+    public decimal EffectiveAbsents { get; set; }
+    public decimal AbsentDeduction { get; set; }
+    public decimal HalfDayDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
+    public decimal NetSalaryAfterAttendanceDeduction { get; set; }
+}
+
+public class PayrollCalculationResultDto
+{
+    public Guid PeriodId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public DateTime PeriodStartDate { get; set; }
+    public DateTime PeriodEndDate { get; set; }
+    public DateTime CalculatedAt { get; set; } = DateTime.UtcNow;
+
+    // Keep module details separate so future modules can be appended.
+    public int EmployeesConsidered { get; set; }
+    public int LoanDeductionsApplied { get; set; }
+    public decimal TotalLoanDeductionAmount { get; set; }
+    public List<PayrollLoanDeductionDetailDto> LoanDeductionDetails { get; set; } = new();
+
+    public int SalaryAdvanceDeductionsApplied { get; set; }
+    public decimal TotalSalaryAdvanceDeductionAmount { get; set; }
+    public List<PayrollSalaryAdvanceDeductionDetailDto> SalaryAdvanceDeductionDetails { get; set; } = new();
+
+    public int ProvidentFundDeductionsApplied { get; set; }
+    public decimal TotalProvidentFundDeductionAmount { get; set; }
+    public List<PayrollProvidentFundDeductionDetailDto> ProvidentFundDeductionDetails { get; set; } = new();
+
+    public int PerformanceBonusApplied { get; set; }
+    public decimal TotalPerformanceBonusAmount { get; set; }
+    public List<PayrollPerformanceBonusDetailDto> PerformanceBonusDetails { get; set; } = new();
+
+    public int GeneralBonusApplied { get; set; }
+    public decimal TotalGeneralBonusAmount { get; set; }
+    public List<PayrollGeneralBonusDetailDto> GeneralBonusDetails { get; set; } = new();
+
+    public int GratuityApplied { get; set; }
+    public decimal TotalGratuityAmount { get; set; }
+    public List<PayrollGratuityDetailDto> GratuityDetails { get; set; } = new();
+
+    public int TaxDeductionsApplied { get; set; }
+    public decimal TotalTaxDeductionAmount { get; set; }
+    public List<PayrollTaxDeductionDetailDto> TaxDeductionDetails { get; set; } = new();
+
+    public int AttendanceDeductionsApplied { get; set; }
+    public decimal TotalAttendanceDeductionAmount { get; set; }
+    public List<PayrollAttendanceDeductionDetailDto> AttendanceDeductionDetails { get; set; } = new();
+
+    public int LateAttendanceDeductionsApplied { get; set; }
+    public decimal TotalLateAttendanceDeductionAmount { get; set; }
+    public List<PayrollLateAttendanceDeductionDetailDto> LateAttendanceDeductionDetails { get; set; } = new();
+
+    public int LeaveDeductionsApplied { get; set; }
+    public decimal TotalLeaveDeductionAmount { get; set; }
+    public List<PayrollLeaveDeductionDetailDto> LeaveDeductionDetails { get; set; } = new();
+
+    public int OvertimeBonusApplied { get; set; }
+    public decimal TotalOvertimeBonusAmount { get; set; }
+    public decimal TotalRegularOvertimeAmount { get; set; }
+    public decimal TotalWeekendOvertimeAmount { get; set; }
+    public decimal TotalHolidayOvertimeAmount { get; set; }
+    public List<PayrollOvertimeDetailDto> OvertimeDetails { get; set; } = new();
+
+    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount + TotalLeaveDeductionAmount;
+}
+
+public class PayrollLeaveDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public decimal PaidDays { get; set; }
+    public decimal UnpaidDays { get; set; }
+    public decimal HalfPaidDays { get; set; }
+    public decimal PerDaySalary { get; set; }
+    public decimal UnpaidMultiplier { get; set; }
+    public decimal HalfPaidMultiplier { get; set; }
+    public decimal UnpaidDeduction { get; set; }
+    public decimal HalfPaidDeduction { get; set; }
+    public decimal TotalDeduction { get; set; }
+    public decimal NetSalaryAfterLeaveDeduction { get; set; }
+}
+
+public class PayrollLateAttendanceDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public int TotalLateMinutes { get; set; }
+    public int GraceMinutes { get; set; }
+    public int BillableMinutes { get; set; }
+    public decimal ShiftHours { get; set; }
+    public decimal DeductionPerMinute { get; set; }
+    public decimal TotalDeduction { get; set; }
+    public bool IsGrace { get; set; }
+    public decimal NetSalaryAfterLateDeduction { get; set; }
+}
+
+public class PayrollOvertimeDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public decimal RegularOvertimeHours { get; set; }
+    public decimal WeekendOvertimeHours { get; set; }
+    public decimal HolidayOvertimeHours { get; set; }
+    public decimal ShiftHours { get; set; }
+    public decimal PerHourSalary { get; set; }
+    public decimal RegularOvertimeAmount { get; set; }
+    public decimal WeekendOvertimeAmount { get; set; }
+    public decimal HolidayOvertimeAmount { get; set; }
+    public decimal TotalOvertimeAmount { get; set; }
+    public decimal NetSalaryAfterOvertime { get; set; }
+}
+
 public class UpdateLoanPaymentDto
 {
     public Guid Id { get; set; }

@@ -1890,17 +1890,17 @@ public class PayRollService : IPayRollService
     }
 
     // Tax Transactions
-    public async Task<ServiceResponse<PagedResult<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId, TaxTransactionFilterDto filter)
+    public async Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId)
     {
         try
         {
-            var result = await _payRollRepository.GetAllTaxTransactionsAsync(organizationId, filter);
-            return new ServiceResponse<PagedResult<TaxTransactionDto>> { Success = true, Data = result };
+            var result = await _payRollRepository.GetAllTaxTransactionsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting tax transactions");
-            return new ServiceResponse<PagedResult<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
+            _logger.LogError(ex, "Error getting all tax transactions");
+            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -2617,6 +2617,38 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error adding loan payment");
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollCalculationResultDto>> CalculatePayrollAsync(Guid organizationId, CalculatePayrollDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CalculatePayrollAsync(organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<PayrollCalculationResultDto>
+                {
+                    Success = false,
+                    Message = "Payroll period not found for this organization."
+                };
+            }
+
+            return new ServiceResponse<PayrollCalculationResultDto>
+            {
+                Success = true,
+                Message = "Payroll calculated successfully (loan + salary advance + provident fund modules).",
+                Data = result
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating payroll");
+            return new ServiceResponse<PayrollCalculationResultDto>
+            {
+                Success = false,
+                Message = "An error occurred."
+            };
         }
     }
 

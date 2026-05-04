@@ -159,7 +159,7 @@ public interface IPayRollService
     Task<ServiceResponse<bool>> DeleteTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId);
 
     // Tax Transactions
-    Task<ServiceResponse<PagedResult<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId, TaxTransactionFilterDto filter);
+    Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId);
     Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetActiveTaxTransactionsAsync(Guid organizationId);
     Task<ServiceResponse<TaxTransactionDto>> GetTaxTransactionByIdAsync(Guid id, Guid organizationId);
     Task<ServiceResponse<TaxTransactionDto>> CreateTaxTransactionAsync(Guid organizationId, CreateTaxTransactionDto dto);
@@ -208,6 +208,7 @@ public interface IPayRollService
     Task<ServiceResponse<PagedResult<MyActiveLoanDto>>> GetDisbursedActiveLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter);
     Task<ServiceResponse<PagedResult<RepaymentHistoryDto>>> GetAllRepaymentsAsync(Guid organizationId, RepaymentFilterDto filter);
     Task<ServiceResponse<bool>> AddLoanPaymentAsync(Guid organizationId, AddLoanPaymentDto dto);
+    Task<ServiceResponse<PayrollCalculationResultDto>> CalculatePayrollAsync(Guid organizationId, CalculatePayrollDto dto);
     Task<ServiceResponse<bool>> UpdateLoanPaymentAsync(Guid organizationId, UpdateLoanPaymentDto dto);
     Task<ServiceResponse<LoanPaymentDto>> GetLoanPaymentByIdAsync(Guid paymentId, Guid organizationId);
 
