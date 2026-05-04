@@ -81,7 +81,10 @@ public class Employee : BaseEntity
 
     [Column("reporting_manager_id")]
     public Guid? ReportingManagerId { get; set; }
-
+    [Column("categoryid")]
+    public Guid? taxCategoryId { get; set; }
+    [Column("categoryname")]
+    public string? TaxCategoryName { get; set; }
     public string employmenttype { get; set; }
     public string ReportingManagerName { get; set; }
 
@@ -104,6 +107,7 @@ public class Employee : BaseEntity
     // Computed properties
     [NotMapped]
     public string FullName => $"{FirstName} {LastName}";
+    
     
     [NotMapped]
     public bool IsActive => Status == "active";

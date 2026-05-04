@@ -1082,6 +1082,28 @@ public class AttendanceService : IAttendanceService
 
         return result;
     }
+
+
+    public async Task<OvertimeRequestDto?> GetEmployeeTodayOvertimeRequestsAsync(Guid organizationId, Guid employeeId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("EmployeeId is required.");
+        var todayDate = DateTime.UtcNow.Date;
+
+
+        // ✅ Call repository
+        var result = await _attendanceRepository.GetEmployeeTodayOvertimeRequestAsync(
+            employeeId,
+            todayDate 
+        );
+
+        return result;
+    }
+
+
     //Getting all employee assigned overtime request that manager request him 
     public async Task<List<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId)
     {

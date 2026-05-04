@@ -442,9 +442,33 @@ $$;
 -- ============================================================
 
 -- Function: employee.fn_create_employee(uuid, uuid, character varying, character varying, character varying, character varying, character varying, timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb, character varying, uuid, character varying, character varying, character varying, character varying, jsonb)
-CREATE FUNCTION employee.fn_create_employee(p_organization_id uuid, p_user_id uuid, p_employee_code character varying, p_first_name character varying, p_last_name character varying, p_email character varying, p_phone character varying, p_date_of_birth timestamp with time zone, p_hire_date timestamp with time zone, p_department_id uuid, p_position_id uuid, p_basic_salary numeric, p_address jsonb, p_work_location character varying DEFAULT NULL::character varying, p_reporting_manager_id uuid DEFAULT NULL::uuid, p_employment_type character varying DEFAULT NULL::character varying, p_nationality character varying DEFAULT NULL::character varying, p_gender character varying DEFAULT NULL::character varying, p_marital_status character varying DEFAULT NULL::character varying, p_emergency_contact jsonb DEFAULT '{}'::jsonb) RETURNS uuid
-    LANGUAGE plpgsql
-    AS $$
+
+CREATE OR REPLACE FUNCTION employee.fn_create_employee(
+	p_organization_id uuid,
+	p_user_id uuid,
+	p_employee_code character varying,
+	p_first_name character varying,
+	p_last_name character varying,
+	p_email character varying,
+	p_phone character varying,
+	p_date_of_birth timestamp with time zone,
+	p_hire_date timestamp with time zone,
+	p_department_id uuid,
+	p_position_id uuid,
+	p_basic_salary numeric,
+	p_address jsonb,
+	p_work_location character varying DEFAULT NULL::character varying,
+	p_reporting_manager_id uuid DEFAULT NULL::uuid,
+	p_employment_type character varying DEFAULT NULL::character varying,
+	p_nationality character varying DEFAULT NULL::character varying,
+	p_gender character varying DEFAULT NULL::character varying,
+	p_marital_status character varying DEFAULT NULL::character varying,
+	p_emergency_contact jsonb DEFAULT '{}'::jsonb)
+    RETURNS uuid
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+AS $BODY$
 DECLARE
     v_employee_id UUID;
 BEGIN
@@ -509,49 +533,26 @@ BEGIN
 
     RETURN v_employee_id;
 END;
-$$;
-
--- Function: employee.fn_get_employee_by_id(uuid)
-CREATE FUNCTION employee.fn_get_employee_by_id(p_employee_id uuid) RETURNS TABLE(employeeid uuid, organizationid uuid, userid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, address jsonb, dateofbirth date, hiredate date, status character varying, departmentname character varying, positiontitle character varying, basicsalary numeric, managername character varying, createdat timestamp with time zone)
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-    RETURN QUERY
-    SELECT 
-        e.employee_id AS "employeeId",
-        e.organization_id AS "organizationId",
-        e.user_id AS "userId",
-        e.employee_code AS "employeeCode",
-        e.first_name AS "firstName",
-        e.last_name AS "lastName",
-        e.email,
-        e.phone,
-        e.address,
-        e.date_of_birth AS "dateOfBirth",
-        e.hire_date AS "hireDate",
-        e.status,
-        d.department_name AS "departmentName",
-        p.position_title AS "positionTitle",
-        ed.basic_salary AS "basicSalary",
-        CONCAT(m.first_name, ' ', m.last_name) AS "managerName",
-        e.created_at AS "createdAt"
-    FROM employee.employees e
-    LEFT JOIN employee.employment_details ed 
-           ON e.employee_id = ed.employee_id AND ed.is_current = true
-    LEFT JOIN employee.departments d 
-           ON ed.department_id = d.department_id
-    LEFT JOIN employee.positions p 
-           ON ed.position_id = p.position_id
-    LEFT JOIN employee.employees m 
-           ON ed.reporting_manager_id = m.employee_id
-    WHERE e.employee_id = p_employee_id;
-END;
-$$;
+$BODY$;
 
 -- Function: employee.fn_get_employees(uuid, character varying, uuid, uuid, character varying, character varying, integer, integer)
-CREATE FUNCTION employee.fn_get_employees(p_organization_id uuid DEFAULT NULL::uuid, p_search_term character varying DEFAULT NULL::character varying, p_department_id uuid DEFAULT NULL::uuid, p_position_id uuid DEFAULT NULL::uuid, p_employment_type character varying DEFAULT NULL::character varying, p_status character varying DEFAULT NULL::character varying, p_limit integer DEFAULT 50, p_offset integer DEFAULT 0) RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentid uuid, departmentname character varying, profilepictureurl character varying, positionid uuid, positiontitle character varying, employmenttype character varying, paytype character varying, basicsalary numeric, reportingmanagerid uuid, reportingmanagername character varying, gender character varying, nationality character varying, maritalstatus character varying, dateofbirth date, address jsonb, emergencycontact jsonb, roleid uuid, rolename character varying, totalcount bigint)
-    LANGUAGE plpgsql
-    AS $$
+
+CREATE OR REPLACE FUNCTION employee.fn_get_employees(
+	p_organization_id uuid DEFAULT NULL::uuid,
+	p_search_term character varying DEFAULT NULL::character varying,
+	p_department_id uuid DEFAULT NULL::uuid,
+	p_position_id uuid DEFAULT NULL::uuid,
+	p_employment_type character varying DEFAULT NULL::character varying,
+	p_status character varying DEFAULT NULL::character varying,
+	p_limit integer DEFAULT 50,
+	p_offset integer DEFAULT 0)
+    RETURNS TABLE(employeeid uuid, employeecode character varying, firstname character varying, lastname character varying, email character varying, phone character varying, hiredate date, status character varying, departmentid uuid, departmentname character varying, profilepictureurl character varying, positionid uuid, positiontitle character varying, employmenttype character varying, paytype character varying, basicsalary numeric, reportingmanagerid uuid, reportingmanagername character varying, gender character varying, nationality character varying, maritalstatus character varying, dateofbirth date, address jsonb, emergencycontact jsonb, roleid uuid, rolename character varying, totalcount bigint) 
+    LANGUAGE 'plpgsql'
+    COST 100
+    VOLATILE PARALLEL UNSAFE
+    ROWS 1000
+
+AS $BODY$
 DECLARE
     total_records BIGINT;
 BEGIN
@@ -626,7 +627,7 @@ BEGIN
     LIMIT p_limit OFFSET p_offset;
 
 END;
-$$;
+$BODY$;
 
 
 -- ============================================================
