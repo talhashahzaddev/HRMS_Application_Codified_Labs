@@ -175,7 +175,8 @@ public class EmployeeService : IEmployeeService
 
         var employee = await _employeeRepository.GetEmployeeByIdAsync(empid);
 
-        return employee != null ? _mapper.Map<EmployeeDto>(employee) : null;
+        return _mapper.Map<EmployeeDto>(employee);
+
     }
     public async Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid userId,Guid organizationid)
     {

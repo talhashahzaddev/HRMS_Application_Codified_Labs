@@ -28,7 +28,8 @@ public class EmployeeDto
     public Guid ReportingManagerId { get; set; }
     public string? ReportingManagerName { get; set; }
     public DateTime CreatedAt { get; set; }
-
+    public Guid? TaxCategoryId { get; set; }
+    public string? TaxCategoryName { get; set; }
     public Guid? DepartmentId { get; set; }       // ? Added
     public Guid? PositionId { get; set; }
 }
@@ -83,6 +84,8 @@ public class EmployeeListItemDto
     public decimal? BasicSalary { get; set; }
     public Guid? ReportingManagerId { get; set; }
     public string? ReportingManagerName { get; set; } = string.Empty;
+    public Guid? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
 
     public string? Gender { get; set; }
     public string? Nationality { get; set; }
@@ -117,7 +120,8 @@ public class CreateEmployeeRequest
     public string employmentType { get; set; }
     public string? Gender { get; set; }
     public string? MaritalStatus { get; set; }
-    public string? Nationality { get; set; }
+    public string? Nationality { get; set; } 
+    public Guid? taxCategoryId { get; set; }
     public Dictionary<string, object> EmergencyContact { get; set; } = new();
 }
 

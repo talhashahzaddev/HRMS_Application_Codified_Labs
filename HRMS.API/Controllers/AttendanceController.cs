@@ -1183,6 +1183,48 @@ public class AttendanceController : ControllerBase
             });
         }
     }
+
+
+    //Getting employee overtime for today if present or approved by manager
+    [HttpGet("employee/today/overtime")]
+    public async Task<ActionResult<ServiceResponse<OvertimeRequestDto>>> GetEmployeeTodayOvertimeRequests()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetEmployeeTodayOvertimeRequestsAsync(
+                organizationId,
+                employeeId
+            );
+
+            return Ok(new ServiceResponse<OvertimeRequestDto>
+            {
+                Success = true,
+                Data = result,
+                Message = "Employee overtime requests fetched successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
+            return BadRequest(new ServiceResponse<OvertimeRequestDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employee overtime requests");
+            return StatusCode(500, new ServiceResponse<OvertimeRequestDto>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee overtime requests"
+            });
+        }
+    }
     //Getting all assigned overtime request that manager created for his employee
     [HttpGet("getAllemployee/overtime/assigned")]
     public async Task<ActionResult<ServiceResponse<List<OvertimeRequestDto>>>> GetAllEmployeeOvertimeAssignedRequests()
