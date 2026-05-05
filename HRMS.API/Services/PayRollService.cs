@@ -1495,6 +1495,489 @@ public class PayRollService : IPayRollService
         }
     }
 
+    // Tax Regimes
+    public async Task<ServiceResponse<IEnumerable<TaxRegimeDto>>> GetAllTaxRegimesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllTaxRegimesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all tax regimes");
+            return new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<TaxRegimeDto>>> GetActiveTaxRegimesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveTaxRegimesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active tax regimes");
+            return new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxRegimeDto>> GetTaxRegimeByIdAsync(Guid regimeId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetTaxRegimeByIdAsync(regimeId, organizationId);
+            if (result == null)
+                return new ServiceResponse<TaxRegimeDto> { Success = false, Message = "Tax regime not found." };
+            return new ServiceResponse<TaxRegimeDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tax regime by ID");
+            return new ServiceResponse<TaxRegimeDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxRegimeDto>> CreateTaxRegimeAsync(Guid organizationId, CreateTaxRegimeDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateTaxRegimeAsync(organizationId, dto);
+            return new ServiceResponse<TaxRegimeDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax regime");
+            return new ServiceResponse<TaxRegimeDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxRegimeDto>> UpdateTaxRegimeAsync(Guid regimeId, Guid organizationId, UpdateTaxRegimeDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateTaxRegimeAsync(regimeId, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<TaxRegimeDto> { Success = false, Message = "Tax regime not found." };
+            return new ServiceResponse<TaxRegimeDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax regime");
+            return new ServiceResponse<TaxRegimeDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteTaxRegimeAsync(Guid regimeId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteTaxRegimeAsync(regimeId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax regime");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Tax Categories
+    public async Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetAllTaxCategoriesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllTaxCategoriesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all tax categories");
+            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetActiveTaxCategoriesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveTaxCategoriesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active tax categories");
+            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetTaxCategoriesByRegimeIdAsync(regimeId, organizationId);
+            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tax categories by regime ID");
+            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxCategoryDto>> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetTaxCategoryByIdAsync(categoryId, organizationId);
+            if (result == null)
+                return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "Tax category not found." };
+            return new ServiceResponse<TaxCategoryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tax category by ID");
+            return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxCategoryDto>> CreateTaxCategoryAsync(Guid organizationId, CreateTaxCategoryDto dto)
+    {
+        try
+        {
+            var regime = await _payRollRepository.GetTaxRegimeByIdAsync(dto.RegimeId, organizationId);
+            if (regime == null)
+                return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "Tax regime not found." };
+
+            var result = await _payRollRepository.CreateTaxCategoryAsync(organizationId, dto);
+            return new ServiceResponse<TaxCategoryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax category");
+            return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxCategoryDto>> UpdateTaxCategoryAsync(Guid categoryId, Guid organizationId, UpdateTaxCategoryDto dto)
+    {
+        try
+        {
+            var regime = await _payRollRepository.GetTaxRegimeByIdAsync(dto.RegimeId, organizationId);
+            if (regime == null)
+                return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "Tax regime not found." };
+
+            var result = await _payRollRepository.UpdateTaxCategoryAsync(categoryId, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "Tax category not found." };
+            return new ServiceResponse<TaxCategoryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax category");
+            return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteTaxCategoryAsync(Guid categoryId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteTaxCategoryAsync(categoryId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax category");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Tax Slabs
+    public async Task<ServiceResponse<IEnumerable<TaxSlabDto>>> GetAllTaxSlabsAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllTaxSlabsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all tax slabs");
+            return new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<TaxSlabDto>>> GetActiveTaxSlabsAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveTaxSlabsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active tax slabs");
+            return new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxSlabDto>> GetTaxSlabByIdAsync(Guid slabId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetTaxSlabByIdAsync(slabId, organizationId);
+            if (result == null)
+                return new ServiceResponse<TaxSlabDto> { Success = false, Message = "Tax slab not found." };
+            return new ServiceResponse<TaxSlabDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tax slab by ID");
+            return new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxSlabDto>> CreateTaxSlabAsync(Guid organizationId, CreateTaxSlabDto dto)
+    {
+        try
+        {
+            var category = await _payRollRepository.GetTaxCategoryByIdAsync(dto.CategoryId, organizationId);
+            if (category == null)
+                return new ServiceResponse<TaxSlabDto> { Success = false, Message = "Tax category not found." };
+
+            var result = await _payRollRepository.CreateTaxSlabAsync(organizationId, dto);
+            return new ServiceResponse<TaxSlabDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax slab");
+            return new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxSlabDto>> UpdateTaxSlabAsync(Guid slabId, Guid organizationId, UpdateTaxSlabDto dto)
+    {
+        try
+        {
+            var category = await _payRollRepository.GetTaxCategoryByIdAsync(dto.CategoryId, organizationId);
+            if (category == null)
+                return new ServiceResponse<TaxSlabDto> { Success = false, Message = "Tax category not found." };
+
+            var result = await _payRollRepository.UpdateTaxSlabAsync(slabId, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<TaxSlabDto> { Success = false, Message = "Tax slab not found." };
+            return new ServiceResponse<TaxSlabDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax slab");
+            return new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteTaxSlabAsync(Guid slabId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteTaxSlabAsync(slabId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax slab");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Tax Component Rules
+    public async Task<ServiceResponse<IEnumerable<TaxComponentRuleDto>>> GetAllTaxComponentRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllTaxComponentRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all tax component rules");
+            return new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<TaxComponentRuleDto>>> GetActiveTaxComponentRulesAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveTaxComponentRulesAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active tax component rules");
+            return new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxComponentRuleDto>> GetTaxComponentRuleByIdAsync(Guid componentRuleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetTaxComponentRuleByIdAsync(componentRuleId, organizationId);
+            if (result == null)
+                return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "Tax component rule not found." };
+            return new ServiceResponse<TaxComponentRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tax component rule by ID");
+            return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxComponentRuleDto>> CreateTaxComponentRuleAsync(Guid organizationId, CreateTaxComponentRuleDto dto)
+    {
+        try
+        {
+            var regime = await _payRollRepository.GetTaxRegimeByIdAsync(dto.RegimeId, organizationId);
+            if (regime == null)
+                return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "Tax regime not found." };
+
+            var result = await _payRollRepository.CreateTaxComponentRuleAsync(organizationId, dto);
+            return new ServiceResponse<TaxComponentRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax component rule");
+            return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxComponentRuleDto>> UpdateTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId, UpdateTaxComponentRuleDto dto)
+    {
+        try
+        {
+            var regime = await _payRollRepository.GetTaxRegimeByIdAsync(dto.RegimeId, organizationId);
+            if (regime == null)
+                return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "Tax regime not found." };
+
+            var result = await _payRollRepository.UpdateTaxComponentRuleAsync(componentRuleId, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "Tax component rule not found." };
+            return new ServiceResponse<TaxComponentRuleDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax component rule");
+            return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteTaxComponentRuleAsync(componentRuleId, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax component rule");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // Tax Transactions
+    public async Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllTaxTransactionsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting all tax transactions");
+            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetActiveTaxTransactionsAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveTaxTransactionsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active tax transactions");
+            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxTransactionDto>> GetTaxTransactionByIdAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetTaxTransactionByIdAsync(id, organizationId);
+            if (result == null)
+                return new ServiceResponse<TaxTransactionDto> { Success = false, Message = "Tax transaction not found." };
+            return new ServiceResponse<TaxTransactionDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting tax transaction by ID");
+            return new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxTransactionDto>> CreateTaxTransactionAsync(Guid organizationId, CreateTaxTransactionDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CreateTaxTransactionAsync(organizationId, dto);
+            return new ServiceResponse<TaxTransactionDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax transaction");
+            return new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<TaxTransactionDto>> UpdateTaxTransactionAsync(Guid id, Guid organizationId, UpdateTaxTransactionDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.UpdateTaxTransactionAsync(id, organizationId, dto);
+            if (result == null)
+                return new ServiceResponse<TaxTransactionDto> { Success = false, Message = "Tax transaction not found." };
+            return new ServiceResponse<TaxTransactionDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax transaction");
+            return new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteTaxTransactionAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteTaxTransactionAsync(id, organizationId);
+            return new ServiceResponse<bool> { Success = result, Data = result, Message = result ? "Deleted successfully." : "Record not found." };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax transaction");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<ProvidentFundRequestDto>> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto)
     {
         try
@@ -2134,6 +2617,38 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error adding loan payment");
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollCalculationResultDto>> CalculatePayrollAsync(Guid organizationId, CalculatePayrollDto dto)
+    {
+        try
+        {
+            var result = await _payRollRepository.CalculatePayrollAsync(organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<PayrollCalculationResultDto>
+                {
+                    Success = false,
+                    Message = "Payroll period not found for this organization."
+                };
+            }
+
+            return new ServiceResponse<PayrollCalculationResultDto>
+            {
+                Success = true,
+                Message = "Payroll calculated successfully (loan + salary advance + provident fund modules).",
+                Data = result
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating payroll");
+            return new ServiceResponse<PayrollCalculationResultDto>
+            {
+                Success = false,
+                Message = "An error occurred."
+            };
         }
     }
 

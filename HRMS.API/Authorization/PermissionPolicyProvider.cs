@@ -39,9 +39,7 @@ namespace HRMS.API.Authorization
                 // Extract the permissions from the policy name
                 // Example: "Permissions:add_employee,edit_employees" 
                 // becomes ["add_employee", "edit_employees"]
-                var permissions = policyName
-                    .Substring(POLICY_PREFIX.Length)
-                    .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                var permissions = policyName.Substring(POLICY_PREFIX.Length).Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
                 // Create a new policy with our PermissionRequirement
                 var policy = new AuthorizationPolicyBuilder();

@@ -1,8 +1,10 @@
-namespace HRMS.API.Authorization;
-
-public static class CustomClaimTypes
+namespace HRMS.API.Authorization
 {
-    public const string OrganizationId = "organizationId";
-    public const string RoleId = "roleId";
-    public const string Permission = "permission";
+    public static class CustomClaimTypes
+    {
+        public const string OrganizationId = "organizationId";
+        public const string RoleId = "roleId";
+        public const string Permission = "permission";
+    }
+
 }

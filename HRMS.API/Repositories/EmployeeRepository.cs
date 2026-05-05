@@ -29,7 +29,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                 @"SELECT employee.fn_create_employee(
             @organizationId, @userId, @employeeCode, @firstName, @lastName, @email, @phone, 
             @dateOfBirth, @hireDate, @departmentId, @positionId, @basicSalary, @address::jsonb, 
-            @workLocation, @reportingManagerId,@employmentType, @nationality, @gender, @maritalStatus, @emergencyContact::jsonb)",
+            @workLocation,@taxCategoryid, @reportingManagerId,@employmentType, @nationality, @gender, @maritalStatus, @emergencyContact::jsonb)",
                 new
                 {
                     organizationId = employee.OrganizationId,
@@ -51,6 +51,7 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
                     nationality = employee.Nationality,
                     gender = employee.Gender,
                     maritalStatus = employee.MaritalStatus,
+                    taxCategoryid=employee.taxCategoryId,
                     emergencyContact = System.Text.Json.JsonSerializer.Serialize(employee.EmergencyContact)
                 },
                 transaction
@@ -110,6 +111,76 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
         return await QuerySingleOrDefaultAsync<EmployeeDto>(sql, new { employeeId });
     }
+    //Getting employees under reporting manager
+    //    public async Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId)
+    //    {
+    //        var sql = @"
+    //SELECT e.employeeid,
+    //       e.organizationid,
+    //       e.userid,
+    //       e.employeecode,
+    //       e.firstname,
+    //       e.lastname,
+    //       e.email,
+    //       e.phone,
+    //       e.address,
+    //       e.dateofbirth,
+    //       e.gender,
+    //       e.nationality,
+    //       e.maritalstatus,
+    //       e.hiredate,
+    //       e.status,
+    //       d.departmentname,
+    //       p.positiontitle,
+    //       ed.basicsalary
+    //FROM employee.employees e
+    //LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+    //LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
+    //LEFT JOIN employee.positions p ON ed.positionid = p.positionid
+    //WHERE e.managerid = @ManagerId
+    //ORDER BY e.firstname, e.lastname;
+    //";
+
+    //        return await QueryAsync<EmployeeDto>(sql, new { ManagerId = managerId });
+    //    }
+
+    public async Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId)
+    {
+        var sql = @"
+SELECT 
+    e.employeeid,
+    e.organizationid,
+    e.userid,
+    e.employeecode,
+    e.firstname,
+    e.lastname,
+    e.email,
+    e.phone,
+    e.address,
+    e.dateofbirth,
+    e.gender,
+    e.nationality,
+    e.maritalstatus,
+    e.hiredate,
+    e.status,
+    d.departmentname,
+    p.positiontitle,
+    ed.basicsalary
+FROM employee.employees e
+INNER JOIN employee.employmentdetails ed 
+    ON e.employeeid = ed.employeeid 
+    AND ed.iscurrent = true
+LEFT JOIN employee.departments d 
+    ON ed.departmentid = d.departmentid
+LEFT JOIN employee.positions p 
+    ON ed.positionid = p.positionid
+WHERE ed.reportingmanagerid = @ManagerId
+ORDER BY e.firstname, e.lastname;
+";
+
+        return await QueryAsync<EmployeeDto>(sql, new { ManagerId = managerId });
+    }
+
 
 
     //Get Empolyee ID
@@ -258,43 +329,75 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
         return affected > 0;
     }
-
-
-
-
     public async Task<Employee?> GetEmployeeByIdAsync(Guid? userId)
     {
-       try
+        try
         {
             var sql = @"
         SELECT 
-            e.employeeid, e.organizationid, e.userid, e.employeecode AS EmployeeNumber,
-            e.firstname, e.lastname, e.email, e.phone, e.address,e.profilepictureurl As ProfilePictureUrl,
-            e.dateofbirth, e.gender, e.nationality, e.maritalstatus,
-            e.emergencycontact as EmergencyContact, e.hiredate, e.terminationdate, e.status,
-            e.profilepictureurl, e.createdat, e.updatedat,
-            ed.worklocation, ed.basicsalary As BasicSalary, ed.departmentid, ed.positionid,
-  ed.reportingmanagerid AS reporting_manager_id,
+            e.employeeid, 
+            e.organizationid, 
+            e.userid, 
+            e.employeecode AS EmployeeNumber,
+            e.firstname, 
+            e.lastname, 
+            e.email, 
+            e.phone, 
+            e.address,
+            e.profilepictureurl AS ProfilePictureUrl,
+            e.dateofbirth, 
+            e.gender, 
+            e.nationality, 
+            e.maritalstatus,
+            e.emergencycontact AS EmergencyContact, 
+            e.hiredate, 
+            e.terminationdate, 
+            e.status,
+            e.createdat, 
+            e.updatedat,
+
+            e.categoryid AS TaxCategoryId,
+
+            ed.worklocation, 
+            ed.basicsalary AS BasicSalary, 
+            ed.departmentid, 
+            ed.positionid,
+            ed.reportingmanagerid AS reporting_manager_id,
+
             CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
-            p.positiontitle, d.departmentname
+            p.positiontitle, 
+            d.departmentname,
+
+            tc.categoryname AS TaxCategoryName
+
         FROM employee.employees AS e
-        LEFT JOIN employee.employmentdetails AS ed ON e.employeeid = ed.employeeid
-        LEFT JOIN employee.positions AS p ON ed.positionid = p.positionid
-        LEFT JOIN employee.departments AS d ON ed.departmentid = d.departmentid
-       LEFT JOIN employee.employees AS mgr ON ed.reportingmanagerid = mgr.employeeid
+
+        LEFT JOIN employee.employmentdetails AS ed 
+            ON e.employeeid = ed.employeeid
+
+        LEFT JOIN employee.positions AS p 
+            ON ed.positionid = p.positionid
+
+        LEFT JOIN employee.departments AS d 
+            ON ed.departmentid = d.departmentid
+
+        LEFT JOIN employee.employees AS mgr 
+            ON ed.reportingmanagerid = mgr.employeeid
+
+        LEFT JOIN payroll.taxcategories AS tc
+            ON e.categoryid = tc.categoryid
+
         WHERE e.employeeid = @userId;
-    ";
+        ";
 
             return await QuerySingleOrDefaultAsync<Employee>(
                 sql,
                 new { userId }
-            //new { empid = await getemployeeid(userId) }
             );
         }
-        catch(Exception ex)
+        catch (Exception)
         {
             return null;
-
         }
     }
     public async Task<string> GetUserRoleAsync(Guid userid)
@@ -472,6 +575,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
 
                 ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
                 PayType = r.paytype,
+                CategoryId = r.categoryid,
+                CategoryName = r.categoryname,
                 BasicSalary = r.basicsalary,
                 ReportingManagerId = r.reportingmanagerid,
                 ReportingManagerName = r.reportingmanagername,

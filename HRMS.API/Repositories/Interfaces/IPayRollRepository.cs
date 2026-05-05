@@ -128,6 +128,47 @@ public interface IPayRollRepository
     Task<ProvidentFundRuleDto?> UpdateProvidentFundRuleAsync(Guid ruleId, Guid organizationId, UpdateProvidentFundRuleDto dto);
     Task<bool> DeleteProvidentFundRuleAsync(Guid ruleId, Guid organizationId);
 
+    // Tax Regimes
+    Task<IEnumerable<TaxRegimeDto>> GetAllTaxRegimesAsync(Guid organizationId);
+    Task<IEnumerable<TaxRegimeDto>> GetActiveTaxRegimesAsync(Guid organizationId);
+    Task<TaxRegimeDto?> GetTaxRegimeByIdAsync(Guid regimeId, Guid organizationId);
+    Task<TaxRegimeDto> CreateTaxRegimeAsync(Guid organizationId, CreateTaxRegimeDto dto);
+    Task<TaxRegimeDto?> UpdateTaxRegimeAsync(Guid regimeId, Guid organizationId, UpdateTaxRegimeDto dto);
+    Task<bool> DeleteTaxRegimeAsync(Guid regimeId, Guid organizationId);
+
+    // Tax Categories
+    Task<IEnumerable<TaxCategoryDto>> GetAllTaxCategoriesAsync(Guid organizationId);
+    Task<IEnumerable<TaxCategoryDto>> GetActiveTaxCategoriesAsync(Guid organizationId);
+    Task<IEnumerable<TaxCategoryDto>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId);
+    Task<TaxCategoryDto?> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId);
+    Task<TaxCategoryDto> CreateTaxCategoryAsync(Guid organizationId, CreateTaxCategoryDto dto);
+    Task<TaxCategoryDto?> UpdateTaxCategoryAsync(Guid categoryId, Guid organizationId, UpdateTaxCategoryDto dto);
+    Task<bool> DeleteTaxCategoryAsync(Guid categoryId, Guid organizationId);
+
+    // Tax Slabs
+    Task<IEnumerable<TaxSlabDto>> GetAllTaxSlabsAsync(Guid organizationId);
+    Task<IEnumerable<TaxSlabDto>> GetActiveTaxSlabsAsync(Guid organizationId);
+    Task<TaxSlabDto?> GetTaxSlabByIdAsync(Guid slabId, Guid organizationId);
+    Task<TaxSlabDto> CreateTaxSlabAsync(Guid organizationId, CreateTaxSlabDto dto);
+    Task<TaxSlabDto?> UpdateTaxSlabAsync(Guid slabId, Guid organizationId, UpdateTaxSlabDto dto);
+    Task<bool> DeleteTaxSlabAsync(Guid slabId, Guid organizationId);
+
+    // Tax Component Rules
+    Task<IEnumerable<TaxComponentRuleDto>> GetAllTaxComponentRulesAsync(Guid organizationId);
+    Task<IEnumerable<TaxComponentRuleDto>> GetActiveTaxComponentRulesAsync(Guid organizationId);
+    Task<TaxComponentRuleDto?> GetTaxComponentRuleByIdAsync(Guid componentRuleId, Guid organizationId);
+    Task<TaxComponentRuleDto> CreateTaxComponentRuleAsync(Guid organizationId, CreateTaxComponentRuleDto dto);
+    Task<TaxComponentRuleDto?> UpdateTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId, UpdateTaxComponentRuleDto dto);
+    Task<bool> DeleteTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId);
+
+    // Tax Transactions
+    Task<IEnumerable<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId);
+    Task<IEnumerable<TaxTransactionDto>> GetActiveTaxTransactionsAsync(Guid organizationId);
+    Task<TaxTransactionDto?> GetTaxTransactionByIdAsync(Guid id, Guid organizationId);
+    Task<TaxTransactionDto> CreateTaxTransactionAsync(Guid organizationId, CreateTaxTransactionDto dto);
+    Task<TaxTransactionDto?> UpdateTaxTransactionAsync(Guid id, Guid organizationId, UpdateTaxTransactionDto dto);
+    Task<bool> DeleteTaxTransactionAsync(Guid id, Guid organizationId);
+
     // Provident Fund (Employee Side)
     Task<ProvidentFundRequestDto> CreateProvidentFundEnrollmentAsync(Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct);
     Task<ProvidentFundRequestDto> UpdateProvidentFundEnrollmentRequestAsync(Guid requestId, Guid organizationId, Guid employeeId, CreateProvidentFundEnrollmentDto dto, decimal employerPct);
@@ -218,6 +259,7 @@ public interface IPayRollRepository
     Task<PagedResult<MyActiveLoanDto>> GetDisbursedActiveLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter);
     Task<PagedResult<RepaymentHistoryDto>> GetAllRepaymentsAsync(Guid organizationId, RepaymentFilterDto filter);
     Task<bool> AddLoanPaymentAsync(Guid organizationId, AddLoanPaymentDto dto);
+    Task<PayrollCalculationResultDto?> CalculatePayrollAsync(Guid organizationId, CalculatePayrollDto dto);
     Task<bool> UpdateLoanPaymentAsync(Guid organizationId, UpdateLoanPaymentDto dto);
     Task<LoanPaymentDto?> GetLoanPaymentByIdAsync(Guid paymentId, Guid organizationId);
 

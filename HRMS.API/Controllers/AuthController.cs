@@ -41,9 +41,9 @@ public class AuthController : ControllerBase
                 });
             }
             var response = await _authService.AuthenticateAsync(request);
-            
+
             _logger.LogInformation("Generated JWT Token: {Token}", response.Token);
-            
+
             return Ok(new ServiceResponse<AuthResponse>
             {
                 Success = true,
@@ -174,7 +174,7 @@ public class AuthController : ControllerBase
         {
             var userId = GetCurrentUserId();
             var result = await _authService.LogoutAsync(userId);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -262,7 +262,7 @@ public class AuthController : ControllerBase
         {
             var userId = GetCurrentUserId();
             var user = await _authService.GetUserByIdAsync(userId);
-            
+
             return Ok(new ServiceResponse<UserDto>
             {
                 Success = true,
@@ -445,7 +445,7 @@ public class AuthController : ControllerBase
                 Message = "An error occurred while processing password reset request"
             });
         }
-    } 
+    }
 
     [HttpPut("profile")]
     [Authorize]
@@ -465,7 +465,7 @@ public class AuthController : ControllerBase
 
             var userId = GetCurrentUserId();
             var user = await _authService.UpdateProfileAsync(userId, request);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -528,7 +528,7 @@ public class AuthController : ControllerBase
             }
             var userId = GetCurrentUserId();
             var result = await _authService.ChangePasswordAsync(userId, request);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -614,38 +614,38 @@ public class AuthController : ControllerBase
     private Guid GetCurrentUserId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        
+
         if (string.IsNullOrEmpty(userIdClaim))
         {
             _logger.LogError("User ID claim not found in JWT token");
             throw new UnauthorizedAccessException("User ID not found in token");
         }
-        
+
         if (!Guid.TryParse(userIdClaim, out var userId))
         {
             _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
             throw new UnauthorizedAccessException("Invalid user ID format");
         }
-        
+
         return userId;
     }
 
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");
-        
+
         if (string.IsNullOrEmpty(orgIdClaim))
         {
             _logger.LogError("Organization ID claim not found in JWT token");
             throw new UnauthorizedAccessException("Organization ID not found in token");
         }
-        
+
         if (!Guid.TryParse(orgIdClaim, out var organizationId))
         {
             _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
             throw new UnauthorizedAccessException("Invalid organization ID format");
         }
-        
+
         return organizationId;
     }
 
@@ -654,12 +654,12 @@ public class AuthController : ControllerBase
     public IActionResult DebugClaims()
     {
         var claims = User.Claims.Select(c => new { Type = c.Type, Value = c.Value }).ToList();
-        
+
         // Debug specific claim lookups
         var orgIdDirect = User.FindFirstValue("organizationId");
         var orgIdHttp = User.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/organizationId");
         var orgIdCustom = User.FindFirstValue("http://schemas.microsoft.com/ws/2008/06/identity/claims/organizationId");
-        
+
         return Ok(new ServiceResponse<object>
         {
             Success = true,
@@ -680,15 +680,15 @@ public class AuthController : ControllerBase
         try
         {
             _logger.LogInformation("=== TESTING AUTHENTICATION FLOW ===");
-            
+
             // Step 1: Check if user exists
             var hashedPassword = await _authService.GetHashedPasswordAsync(request.Email);
             _logger.LogInformation("Step 1 - Found hashed password: {Found}", !string.IsNullOrEmpty(hashedPassword));
-            
+
             // Step 2: Test password verification
             var passwordValid = BCrypt.Net.BCrypt.Verify(request.Password, hashedPassword);
             _logger.LogInformation("Step 2 - Password valid: {Valid}", passwordValid);
-            
+
             if (!passwordValid)
             {
                 return BadRequest("Invalid password");
@@ -701,7 +701,7 @@ public class AuthController : ControllerBase
                 return BadRequest("User not found");
             }
 
-            _logger.LogInformation("Step 3 - User found: UserId={UserId}, OrganizationId={OrganizationId}, Email={Email}", 
+            _logger.LogInformation("Step 3 - User found: UserId={UserId}, OrganizationId={OrganizationId}, Email={Email}",
                 user.UserId, user.OrganizationId, user.Email);
 
             return Ok(new
@@ -745,12 +745,12 @@ public class AuthController : ControllerBase
             };
 
             _logger.LogInformation("=== TESTING HARDCODED TOKEN GENERATION ===");
-            _logger.LogInformation("Test User: UserId={UserId}, OrganizationId={OrganizationId}", 
+            _logger.LogInformation("Test User: UserId={UserId}, OrganizationId={OrganizationId}",
                 testUser.UserId, testUser.OrganizationId);
 
             // Generate token directly
             var response = await _authService.CreateTestTokenAsync(testUser);
-            
+
             return Ok(new
             {
                 Message = "Hardcoded token test completed",
@@ -1084,7 +1084,7 @@ public class AuthController : ControllerBase
                     Errors = new List<string> { "Organization ID is required" }
                 });
             }
-           
+
 
             var response = await _authService.GetRolesByOrganizationAsync(claimsOrganizationId);
 
@@ -1162,10 +1162,7 @@ public class AuthController : ControllerBase
 
     private Guid? GetOrganizationIdFromClaims()
     {
-        var organizationIdClaim =
-            User.FindFirst(CustomClaimTypes.OrganizationId)?.Value
-            ?? User.FindFirst("OrganizationId")?.Value;
-
+        var organizationIdClaim = User.FindFirst(CustomClaimTypes.OrganizationId)?.Value?? User.FindFirst("OrganizationId")?.Value;
         if (!string.IsNullOrWhiteSpace(organizationIdClaim) && Guid.TryParse(organizationIdClaim, out var organizationId))
         {
             return organizationId;

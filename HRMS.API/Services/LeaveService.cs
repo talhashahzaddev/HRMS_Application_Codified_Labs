@@ -500,6 +500,7 @@ public class LeaveService : ILeaveService
             Description = request.Description,
             MaxDaysPerYear = request.MaxDaysPerYear,
             IsPaid = request.IsPaid,
+            IsHalfPaid=request.IsHalfPaid,
             CarryForwardAllowed = request.CarryForwardAllowed,
             MaxCarryForwardDays = request.MaxCarryForwardDays,
             Color = request.Color,

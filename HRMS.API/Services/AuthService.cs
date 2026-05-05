@@ -274,7 +274,7 @@ public class AuthService : IAuthService
             ("Trainee", "Employee")
         }
     )};
-    foreach (var dept in departments)
+        foreach (var dept in departments)
         {
             // 1️⃣ Create Department
             var createdDepartment = await _employeeRepository.CreateDepartmentAsync(new Department
@@ -318,9 +318,9 @@ public class AuthService : IAuthService
         var createdUser = await _authRepository.CreateUserAsync(user);
 
         _logger.LogInformation("SuperAdmin user {UserId} created successfully for organization {OrganizationId}", createdUser.UserId, organizationId);
-        
+
         createdUser.employeecode = GenerateEmployeeCode();
-        
+
         await _authRepository.adminIntoEmployeeAsync(createdUser);
 
         var superadminEmployeeid = await _authRepository.GetEmployeeIdByEmailAsync(createdUser.Email);
@@ -330,7 +330,7 @@ public class AuthService : IAuthService
         await _authRepository.AdminIntoEmployeeDetailsAsync(superadminEmployeeid, position);
 
         await _emailService.SendVerificationEmailAsync(request.Email, request.FirstName, emailVerificationToken);
-        
+
         return new AuthResponse
         {
             Token = null,

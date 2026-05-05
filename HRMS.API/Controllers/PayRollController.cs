@@ -1716,6 +1716,569 @@ public class PayRollController : ControllerBase
         }
     }
 
+    // Tax Regimes
+    [HttpGet("tax-regimes")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxRegimeDto>>>> GetAllTaxRegimes()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllTaxRegimesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax regimes");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-regimes/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxRegimeDto>>>> GetActiveTaxRegimes()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveTaxRegimesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active tax regimes");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-regimes/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxRegimeDto>>> GetTaxRegimeById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxRegimeByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax regime by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxRegimeDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("tax-regimes")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxRegimeDto>>> CreateTaxRegime([FromBody] CreateTaxRegimeDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateTaxRegimeAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetTaxRegimeById), new { id = response.Data?.RegimeId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax regime");
+            return StatusCode(500, new ServiceResponse<TaxRegimeDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("tax-regimes/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxRegimeDto>>> UpdateTaxRegime(Guid id, [FromBody] UpdateTaxRegimeDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateTaxRegimeAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax regime: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxRegimeDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("tax-regimes/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxRegime(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteTaxRegimeAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax regime: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // Tax Categories
+    [HttpGet("tax-categories")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetAllTaxCategories()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllTaxCategoriesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax categories");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-categories/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetActiveTaxCategories()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveTaxCategoriesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active tax categories");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-categories/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxCategoryDto>>> GetTaxCategoryById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxCategoryByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax category by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxCategoryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-categories/regime/{regimeId}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetTaxCategoriesByRegimeId(Guid regimeId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxCategoriesByRegimeIdAsync(regimeId, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax categories by regime ID: {RegimeId}", regimeId);
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("tax-categories")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxCategoryDto>>> CreateTaxCategory([FromBody] CreateTaxCategoryDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateTaxCategoryAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetTaxCategoryById), new { id = response.Data?.CategoryId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax category");
+            return StatusCode(500, new ServiceResponse<TaxCategoryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("tax-categories/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxCategoryDto>>> UpdateTaxCategory(Guid id, [FromBody] UpdateTaxCategoryDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateTaxCategoryAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax category: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxCategoryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("tax-categories/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxCategory(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteTaxCategoryAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax category: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // Tax Slabs
+    [HttpGet("tax-slabs")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxSlabDto>>>> GetAllTaxSlabs()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllTaxSlabsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax slabs");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-slabs/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxSlabDto>>>> GetActiveTaxSlabs()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveTaxSlabsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active tax slabs");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-slabs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> GetTaxSlabById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxSlabByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax slab by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("tax-slabs")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> CreateTaxSlab([FromBody] CreateTaxSlabDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateTaxSlabAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetTaxSlabById), new { id = response.Data?.SlabId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax slab");
+            return StatusCode(500, new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("tax-slabs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> UpdateTaxSlab(Guid id, [FromBody] UpdateTaxSlabDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateTaxSlabAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax slab: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxSlabDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("tax-slabs/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxSlab(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteTaxSlabAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax slab: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // Tax Component Rules
+    [HttpGet("tax-component-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxComponentRuleDto>>>> GetAllTaxComponentRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllTaxComponentRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax component rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-component-rules/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxComponentRuleDto>>>> GetActiveTaxComponentRules()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveTaxComponentRulesAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active tax component rules");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-component-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxComponentRuleDto>>> GetTaxComponentRuleById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxComponentRuleByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax component rule by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("tax-component-rules")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxComponentRuleDto>>> CreateTaxComponentRule([FromBody] CreateTaxComponentRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateTaxComponentRuleAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetTaxComponentRuleById), new { id = response.Data?.ComponentRuleId }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax component rule");
+            return StatusCode(500, new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("tax-component-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxComponentRuleDto>>> UpdateTaxComponentRule(Guid id, [FromBody] UpdateTaxComponentRuleDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateTaxComponentRuleAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax component rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("tax-component-rules/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxComponentRule(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteTaxComponentRuleAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax component rule: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // Tax Transactions
+    [HttpGet("tax-transactions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxTransactionDto>>>> GetAllTaxTransactions()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetAllTaxTransactionsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax transactions");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-transactions/active")]
+    [Authorize(Roles = "Super Admin,HR Manager,Standard User")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxTransactionDto>>>> GetActiveTaxTransactions()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetActiveTaxTransactionsAsync(organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving active tax transactions");
+            return StatusCode(500, new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("tax-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> GetTaxTransactionById(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetTaxTransactionByIdAsync(id, organizationId);
+            if (!response.Success) return NotFound(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving tax transaction by ID: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPost("tax-transactions")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> CreateTaxTransaction([FromBody] CreateTaxTransactionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CreateTaxTransactionAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return CreatedAtAction(nameof(GetTaxTransactionById), new { id = response.Data?.Id }, response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating tax transaction");
+            return StatusCode(500, new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpPut("tax-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> UpdateTaxTransaction(Guid id, [FromBody] UpdateTaxTransactionDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.UpdateTaxTransactionAsync(id, organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating tax transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<TaxTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpDelete("tax-transactions/{id}")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxTransaction(Guid id)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.DeleteTaxTransactionAsync(id, organizationId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting tax transaction: {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpPost("provident-fund/enroll")]
     [Authorize]
     public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> EnrollProvidentFund([FromBody] CreateProvidentFundEnrollmentDto dto)
@@ -2453,6 +3016,25 @@ public class PayRollController : ControllerBase
             return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred" });
         }
     }
+
+    [HttpPost("calculate-payroll")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PayrollCalculationResultDto>>> CalculatePayroll([FromBody] CalculatePayrollDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.CalculatePayrollAsync(organizationId, dto);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating payroll");
+            return StatusCode(500, new ServiceResponse<PayrollCalculationResultDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpPut("loans/payment")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateLoanPayment([FromBody] UpdateLoanPaymentDto dto)

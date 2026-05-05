@@ -9,10 +9,10 @@ public interface IAttendanceRepository
     Task<List<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId, Guid currentEmp);
     Task<ShiftSwapRequestDto?> getshifrequestDetailsAsync(Guid requestId);
     Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId);
-    Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId,DateTime startDate,DateTime endDate,int pageNumber = 1,int pageSize = 10);
+    Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId, DateTime startDate, DateTime endDate, int pageNumber = 1, int pageSize = 10);
     Task<List<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId);
     Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(Guid organizationId, Guid? departmentId);
-    Task<List<EmployeeSimpleDto>> GetManagerEmployeeAsync(Guid managerId,Guid organizationId, Guid? departmentId);
+    Task<List<EmployeeSimpleDto>> GetManagerEmployeeAsync(Guid managerId, Guid organizationId, Guid? departmentId);
     Task<Attendance?> UpdateOvertimeHoursAsync(Guid employeeId);
     Task<Attendance?> UpdateTodayAttendanceLateStatusAsync(Guid employeeId);
     Task<Attendance?> UpdateTodayAttendanceFromSessionsAsync(Guid employeeId);
@@ -33,17 +33,17 @@ public interface IAttendanceRepository
 
     Task<bool> ClockInOutAsync(Guid employeeId, string action, DateTime timestamp, Dictionary<string, object>? location = null, string? notes = null);
     Task<Attendance?> GetTodayAttendanceAsync(Guid employeeId);
-    Task<PagedResult<AttendanceDto>> GetAttendanceAsync(string? searchTerm,Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 100, Guid? departmentId=null, string? Status=null);
+    Task<PagedResult<AttendanceDto>> GetAttendanceAsync(string? searchTerm, Guid? employeeId = null, Guid? organizationId = null, DateTime? startDate = null, DateTime? endDate = null, int page = 1, int pageSize = 100, Guid? departmentId = null, string? Status = null);
     Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<bool> UpdateAttendanceAsync(Guid attendanceId, Attendance attendance);
     Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date);
-    
+
     Task<Attendance?> GetAttendanceByIdAsync(Guid? attendanceId);
     Task<Attendance> CreateAttendanceAsync(Attendance attendance);
     Task<bool> DeleteAttendanceAsync(Guid attendanceId);
     Task<List<Attendance>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate);
-    Task<List<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate,Guid? departmentId);
+    Task<List<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId);
     Task<List<DailyAttendanceStatsDto>> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate);
     Task<PagedResult<AttendanceDto>> GetAttendanceRecordsAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10);
     Task<Guid> GetEmpId(Guid? employeeId);
@@ -76,5 +76,23 @@ public interface IAttendanceRepository
     Task<bool> AdminFinalizeRecordAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId);
     Task<int> FlipDraftsToPendingAsync(Guid employeeId, int month, int year, Guid timesheetId);
     Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId);
+    Task<bool> CreateEmployeeOvertimeRequestAsync(Guid organizationId, Guid employeeId, CreateEmployeeOvertimeDto request, Guid reportingManagerId, string status, decimal requestedHours, Guid? attendanceId);
+    Task<EmployeeOverTimeDto?> GetEmployeeOvertimeRequestByIdAsync(Guid requestId);
+    Task<bool> UpdateEmployeeOvertimeStatusAsync(Guid requestId, string status);
+    //Manaager
 
+    // Payroll bridge
+    Task<IEnumerable<TimesheetPeriodLinkDto>> GetFinalizedTimesheetLinksAsync(Guid organizationId);
+    Task<TimesheetPayrollSummaryDto?> GetTimesheetPayrollSummaryAsync(Guid timesheetId);
+    Task<bool> LockTimesheetAsync(Guid timesheetId, Guid lockedBy, Guid? payrollPeriodId);
+    Task<bool> CreateManagerOvertimeAsync(Guid organizationId, Guid managerId, ManagerOvertimeRequestDto request, string status, decimal requestedHours);
+    Task<OvertimeRequestDto?> GetEmployeeTodayOvertimeRequestAsync(Guid employeeId, DateTime today);
+    Task<bool> CreateOvertimeFromRequestAsync(OvertimeRequestDto request, decimal actualOvertimeHours, Guid? attendanceId);
+    Task<Attendance?> UpdateAttendanceOverTimeType(Guid employeeId, DateTime workDate, string? overtimeType);
+    Task<Attendance?> UpdateOverTimehourAttendanceAsync(Guid? attendanceId, decimal overtimeHours);
+    Task<List<OvertimeRequestDto>> GetEmployeeOvertimeRequestsAsync(Guid organizationId, Guid employeeId);
+    Task<List<EmployeeOverTimeDto>> EmplyeOverTimeRequesForManagerAsync(Guid organizationId, Guid managerId);
+    Task<bool> UpdateOvertimeAssignedStatusAsync(Guid requestId, string status);
+    Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequests(Guid organizationId, Guid employeeId);
+    Task<List<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId);
 }

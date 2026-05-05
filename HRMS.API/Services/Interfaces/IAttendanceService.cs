@@ -12,7 +12,7 @@ public interface IAttendanceService
     DateTime startDate,
     DateTime endDate,
     int pageNumber,
-    int pageSize);
+ int pageSize);
 
     Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId);
     Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request);
@@ -52,7 +52,7 @@ public interface IAttendanceService
     Task<ServiceResponse<List<EmployeeTimesheetDto>>> GetTimesheetDetailsByIdAsync(Guid timesheetId, Guid organizationId, Guid currentEmployeeId);
     Task<ServiceResponse<bool>> ProcessAttendanceUpdateRequestAsync(ProcessAttendanceRequestDto dto, Guid actionedBy, Guid organizationId);
     Task<ServiceResponse<int>> FinalizeTimesheetBatchAsync(Guid timesheetId, Guid organizationId, Guid managerEmployeeId, Guid? employeeId = null);
-        Task<ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>>> GetApprovedTimesheetAsync(Guid timesheetId, Guid currentUserEmployeeId, string role);
+    Task<ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>>> GetApprovedTimesheetAsync(Guid timesheetId, Guid currentUserEmployeeId, string role);
     Task<ServiceResponse<bool>> CreateTimesheetSnapshotAsync(Guid organizationId, Guid currentUserEmployeeId, MonthlyTimesheetCreateDto dto);
     Task<ServiceResponse<Guid>> RequestAttendanceUpdateAsync(Guid employeeId, Guid organizationId, AttendanceUpdateRequestDto dto);
     Task<ServiceResponse<IEnumerable<Attendance>>> GetManualAttendanceAsync(ManualAttendanceSearchDto searchDto, Guid currentUserEmployeeId, string currentUserRole, Guid organizationId);
@@ -62,9 +62,23 @@ public interface IAttendanceService
     Task<ServiceResponse<int>> SubmitTimesheetBatchAsync(Guid timesheetId, Guid employeeId, Guid organizationId);
     Task<ServiceResponse<int>> ApproveAllPendingAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid orgId);
     Task<ServiceResponse<List<EmployeeSubmissionPackage>>> GetGroupedPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId);
-    Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(Guid timesheetId,Guid organizationId,Guid currentUserId,Guid? targetEmployeeId = null);
+    Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(Guid timesheetId, Guid organizationId, Guid currentUserId, Guid? targetEmployeeId = null);
     Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(
        Guid organizationId, int month, int year);
     Task<bool> AdminOverrideAttendanceAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId);
     Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId);
+    Task<bool> CreateEmployeeOvertimeRequestAsync(Guid organizationId, Guid employeeId, CreateEmployeeOvertimeDto request);
+    Task<bool> UpdateEmployeeOvertimeStatusAsync(Guid organizationId, Guid requestId, Guid managerId, string status);
+    Task<bool> CreateManagerOvertimeAsync(Guid organizationId, Guid managerId, ManagerOvertimeRequestDto request);
+    Task<List<OvertimeRequestDto>> GetEmployeeOvertimeRequestsAsync(Guid organizationId, Guid employeeId);
+    Task<List<EmployeeOverTimeDto>> EmplyeOverTimeRequesForManagerAsync(Guid organizationId, Guid managerId);
+    Task<bool> RespondToAssignedOvertimeRequestAsync(Guid requestId, Guid employeeId, string response);
+    Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequest(Guid organizationId, Guid managerId);
+    Task<List<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId);
+
+    // Payroll bridge
+    Task<ServiceResponse<List<TimesheetPeriodLinkDto>>> GetFinalizedTimesheetLinksAsync(Guid organizationId);
+    Task<ServiceResponse<TimesheetPayrollSummaryDto?>> GetTimesheetPayrollSummaryAsync(Guid timesheetId);
+    Task<ServiceResponse<bool>> LockTimesheetAsync(Guid timesheetId, Guid lockedBy, Guid? payrollPeriodId);
+    Task<OvertimeRequestDto?> GetEmployeeTodayOvertimeRequestsAsync(Guid organizationId, Guid employeeId);
 }
