@@ -95,4 +95,6 @@ public interface IAttendanceRepository
     Task<bool> UpdateOvertimeAssignedStatusAsync(Guid requestId, string status);
     Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequests(Guid organizationId, Guid employeeId);
     Task<List<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId);
+    Task<EmployeeOverTimeDto?> GetEmployeeCreatedOvertimeRequestTodayAsync(Guid employeeId, DateTime overtimeDate);
+    Task<OvertimeRequestDto?> GettingEmployeeAssigendOverTimeRequestAsync(Guid employeeId, DateTime today);
 }

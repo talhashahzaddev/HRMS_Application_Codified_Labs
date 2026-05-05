@@ -1924,35 +1924,128 @@ ORDER BY ed.employeename, ed.workdate ASC";
         return result.ToList();
     }
 
+
+    //This function get already created request for overtime of current employee for today from employee_overtime request table 
+    public async Task<EmployeeOverTimeDto?> GetEmployeeCreatedOvertimeRequestTodayAsync(Guid employeeId, DateTime overtimeDate)
+    {
+        try
+        {
+
+            var sql = @"
+         SELECT
+             o.requestid        AS RequestId,
+             o.employeeid       AS EmployeeId,
+             o.attendanceid     AS AttendanceId,
+             o.requesttype      AS RequestType,
+             o.overtimetype     AS OvertimeType,
+             o.overtimedate     AS OvertimeDate,
+             o.overtimestart    AS OvertimeStart,
+             o.overtimeend      AS OvertimeEnd,
+             o.requestedhours   AS RequestedHours,
+             o.reason           AS Reason,
+             o.status           AS Status,
+             o.createdat        AS CreatedAt
+         FROM attendance.employee_overtime_requests o
+         WHERE o.employeeid = @EmployeeId
+           AND o.overtimedate = @Today
+         ORDER BY o.createdat DESC
+         LIMIT 1;
+     ";
+
+            var result = await QuerySingleOrDefaultAsync<EmployeeOverTimeDto>(
+                sql,
+                new { EmployeeId = employeeId, today = overtimeDate }
+            );
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error fetching today's overtime for EmployeeId {EmployeeId}",
+                employeeId);
+
+            throw;
+        }
+    }
+    //Getting employee assigned overtime request that assigned by manager and approved/uuuu
     public async Task<OvertimeRequestDto?> GetEmployeeTodayOvertimeRequestAsync(
-    Guid employeeId,
-    DateTime today)
+     Guid employeeId,
+     DateTime today)
     {
         try
         {
             var sql = @"
-        SELECT
-            o.requestid AS RequestId,
-            o.employeeid AS EmployeeId,
-            o.requestedby AS RequestedBy,
-            (e.firstname || ' ' || e.lastname) AS RequestedByName,
-            o.requesttype AS RequestType,
-            o.overtimetype AS OvertimeType,
-            o.overtimedate AS OvertimeDate,
-            o.overtimestart AS OvertimeStart,
-            o.overtimeend AS OvertimeEnd,
-            o.requestedhours AS RequestedHours,
-            o.reason AS Reason,
-            o.status AS Status,
-            o.createdat AS CreatedAt
-        FROM attendance.overtime_requests o
-        LEFT JOIN employee.employees e
-            ON o.requestedby = e.employeeid
-        WHERE o.employeeid = @EmployeeId
-          AND o.overtimedate::date = @Today::date
-          AND LOWER(o.status) = 'approved'
-        LIMIT 1;
-        ";
+     SELECT
+         o.requestid AS RequestId,
+         o.employeeid AS EmployeeId,
+         o.requestedby AS RequestedBy,
+         (e.firstname || ' ' || e.lastname) AS RequestedByName,
+         o.requesttype AS RequestType,
+         o.overtimetype AS OvertimeType,
+         o.overtimedate AS OvertimeDate,
+         o.overtimestart AS OvertimeStart,
+         o.overtimeend AS OvertimeEnd,
+         o.requestedhours AS RequestedHours,
+         o.reason AS Reason,
+         o.status AS Status,
+         o.createdat AS CreatedAt
+     FROM attendance.overtime_requests o
+     LEFT JOIN employee.employees e
+         ON o.requestedby = e.employeeid
+     WHERE o.employeeid = @EmployeeId
+       AND o.overtimedate::date = @Today::date
+       AND LOWER(o.status) = 'approved'
+     LIMIT 1;
+     ";
+
+            var result = await QuerySingleOrDefaultAsync<OvertimeRequestDto?>(sql, new
+            {
+                EmployeeId = employeeId,
+                Today = today
+            });
+
+            return result; // null if not found ✅
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error fetching today's overtime for EmployeeId {EmployeeId}",
+                employeeId);
+
+            throw;
+        }
+    }
+
+    //Getting today without pending or approved status overtime requests for employee by manager if present or not 
+    public async Task<OvertimeRequestDto?> GettingEmployeeAssigendOverTimeRequestAsync(
+   Guid employeeId,
+   DateTime today)
+    {
+        try
+        {
+            var sql = @"
+     SELECT
+         o.requestid AS RequestId,
+         o.employeeid AS EmployeeId,
+         o.requestedby AS RequestedBy,
+         (e.firstname || ' ' || e.lastname) AS RequestedByName,
+         o.requesttype AS RequestType,
+         o.overtimetype AS OvertimeType,
+         o.overtimedate AS OvertimeDate,
+         o.overtimestart AS OvertimeStart,
+         o.overtimeend AS OvertimeEnd,
+         o.requestedhours AS RequestedHours,
+         o.reason AS Reason,
+         o.status AS Status,
+         o.createdat AS CreatedAt
+     FROM attendance.overtime_requests o
+     LEFT JOIN employee.employees e
+         ON o.requestedby = e.employeeid
+     WHERE o.employeeid = @EmployeeId
+       AND o.overtimedate::date = @Today::date
+     LIMIT 1;
+     ";
 
             var result = await QuerySingleOrDefaultAsync<OvertimeRequestDto>(sql, new
             {
@@ -1971,6 +2064,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
             throw;
         }
     }
+
 
     public async Task<bool> UpdateOvertimeAssignedStatusAsync(Guid requestId, string status)
     {
