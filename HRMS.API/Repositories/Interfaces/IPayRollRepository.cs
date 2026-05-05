@@ -242,4 +242,5 @@ public interface IPayRollRepository
     Task<bool> ApproveGratuityTransactionAsync(Guid id, Guid organizationId, Guid approvedBy, ApproveGratuityDto dto);
     Task<bool> MarkGratuityPaidAsync(Guid id, Guid organizationId, Guid paidBy, MarkGratuityPaidDto dto);
     Task<GratuityTransactionDto?> GetMyGratuityStatusAsync(Guid employeeId, Guid organizationId);
+    Task<PagedResult<PayrollResultItemDto>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter);
 }

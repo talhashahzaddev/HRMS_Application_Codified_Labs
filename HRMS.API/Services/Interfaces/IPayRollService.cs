@@ -239,4 +239,5 @@ public interface IPayRollService
     Task<ServiceResponse<bool>> ApproveGratuityTransactionAsync(Guid id, Guid organizationId, Guid approvedBy, ApproveGratuityDto dto);
     Task<ServiceResponse<bool>> MarkGratuityPaidAsync(Guid id, Guid organizationId, Guid paidBy, MarkGratuityPaidDto dto);
     Task<ServiceResponse<GratuityTransactionDto>> GetMyGratuityStatusAsync(Guid employeeId, Guid organizationId);
+    Task<ServiceResponse<PagedResult<PayrollResultItemDto>>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter);
 }

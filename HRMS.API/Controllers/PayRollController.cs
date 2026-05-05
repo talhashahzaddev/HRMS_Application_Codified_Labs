@@ -3035,6 +3035,24 @@ public class PayRollController : ControllerBase
         }
     }
 
+    [HttpGet("payroll-results")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<PayrollResultItemDto>>>> GetPayrollResults([FromQuery] PayrollResultsFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetPayrollResultsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching payroll results");
+            return StatusCode(500, new ServiceResponse<PagedResult<PayrollResultItemDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpPut("loans/payment")]
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateLoanPayment([FromBody] UpdateLoanPaymentDto dto)

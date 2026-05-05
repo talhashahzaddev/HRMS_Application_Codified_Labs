@@ -1569,3 +1569,41 @@ public class MarkGratuityPaidDto
     public string? PaymentMethod { get; set; }
     public string? Notes { get; set; }
 }
+
+public class PayrollResultsFilterDto
+{
+    public Guid? PeriodId { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? SearchTerm { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class PayrollResultItemDto
+{
+    public Guid ResultId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+    public Guid? DepartmentId { get; set; }
+    public decimal BasicSalary { get; set; }
+    public decimal TotalDeductions { get; set; }
+    public decimal TotalBonuses { get; set; }
+    public decimal NetSalary { get; set; }
+    public string? LoanDeductions { get; set; }
+    public string? SalaryAdvanceDeductions { get; set; }
+    public string? PfDeductions { get; set; }
+    public string? TaxDeductions { get; set; }
+    public string? AttendanceDeductions { get; set; }
+    public string? LateAttendanceDeductions { get; set; }
+    public string? LeaveDeductions { get; set; }
+    public string? PerformanceBonuses { get; set; }
+    public string? GeneralBonuses { get; set; }
+    public string? Gratuity { get; set; }
+    public string? OvertimeDetails { get; set; }
+    public DateTime CalculatedAt { get; set; }
+    public int TotalCount { get; set; }
+}

@@ -6687,6 +6687,74 @@ ORDER BY l.createdat DESC;";
                         }
                     }
                 }
+
+                // --- INSERT OR UPDATE PAYROLL RESULTS ---
+                decimal empTotalDeductions = basicSalary + totalBonuses - remainingSalary;
+
+                var empLoanDeductions = JsonSerializer.Serialize(result.LoanDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empSalaryAdvances = JsonSerializer.Serialize(result.SalaryAdvanceDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empPfDeductions = JsonSerializer.Serialize(result.ProvidentFundDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empTaxDeductions = JsonSerializer.Serialize(result.TaxDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empAttendanceDeductions = JsonSerializer.Serialize(result.AttendanceDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empLateAttendanceDeductions = JsonSerializer.Serialize(result.LateAttendanceDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empLeaveDeductions = JsonSerializer.Serialize(result.LeaveDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empPerformanceBonuses = JsonSerializer.Serialize(result.PerformanceBonusDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empGeneralBonuses = JsonSerializer.Serialize(result.GeneralBonusDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empGratuity = JsonSerializer.Serialize(result.GratuityDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empOvertime = JsonSerializer.Serialize(result.OvertimeDetails.Where(x => x.EmployeeId == employeeId).ToList());
+
+                var upsertResultSql = @"
+                    INSERT INTO payroll.payrollresults (
+                        organizationid, employeeid, periodid, basicsalary, totaldeductions, totalbonuses, netsalary,
+                        loandeductions, salaryadvancedeductions, pfdeductions, taxdeductions,
+                        attendancedeductions, lateattendancedeductions, leavedeductions,
+                        performancebonuses, generalbonuses, gratuity, overtimedetails, calculatedat
+                    ) VALUES (
+                        @OrganizationId, @EmployeeId, @PeriodId, @BasicSalary, @TotalDeductions, @TotalBonuses, @NetSalary,
+                        @LoanDeductions::jsonb, @SalaryAdvanceDeductions::jsonb, @PfDeductions::jsonb, @TaxDeductions::jsonb,
+                        @AttendanceDeductions::jsonb, @LateAttendanceDeductions::jsonb, @LeaveDeductions::jsonb,
+                        @PerformanceBonuses::jsonb, @GeneralBonuses::jsonb, @Gratuity::jsonb, @OvertimeDetails::jsonb, CURRENT_TIMESTAMP
+                    )
+                    ON CONFLICT (organizationid, employeeid, periodid) 
+                    DO UPDATE SET 
+                        basicsalary = EXCLUDED.basicsalary,
+                        totaldeductions = EXCLUDED.totaldeductions,
+                        totalbonuses = EXCLUDED.totalbonuses,
+                        netsalary = EXCLUDED.netsalary,
+                        loandeductions = EXCLUDED.loandeductions,
+                        salaryadvancedeductions = EXCLUDED.salaryadvancedeductions,
+                        pfdeductions = EXCLUDED.pfdeductions,
+                        taxdeductions = EXCLUDED.taxdeductions,
+                        attendancedeductions = EXCLUDED.attendancedeductions,
+                        lateattendancedeductions = EXCLUDED.lateattendancedeductions,
+                        leavedeductions = EXCLUDED.leavedeductions,
+                        performancebonuses = EXCLUDED.performancebonuses,
+                        generalbonuses = EXCLUDED.generalbonuses,
+                        gratuity = EXCLUDED.gratuity,
+                        overtimedetails = EXCLUDED.overtimedetails,
+                        calculatedat = CURRENT_TIMESTAMP;";
+
+                await connection.ExecuteAsync(upsertResultSql, new
+                {
+                    OrganizationId = organizationId,
+                    EmployeeId = employeeId,
+                    PeriodId = dto.PeriodId,
+                    BasicSalary = basicSalary,
+                    TotalDeductions = empTotalDeductions,
+                    TotalBonuses = totalBonuses,
+                    NetSalary = remainingSalary,
+                    LoanDeductions = empLoanDeductions,
+                    SalaryAdvanceDeductions = empSalaryAdvances,
+                    PfDeductions = empPfDeductions,
+                    TaxDeductions = empTaxDeductions,
+                    AttendanceDeductions = empAttendanceDeductions,
+                    LateAttendanceDeductions = empLateAttendanceDeductions,
+                    LeaveDeductions = empLeaveDeductions,
+                    PerformanceBonuses = empPerformanceBonuses,
+                    GeneralBonuses = empGeneralBonuses,
+                    Gratuity = empGratuity,
+                    OvertimeDetails = empOvertime
+                }, transaction);
             }
 
             transaction.Commit();
@@ -7568,5 +7636,62 @@ ORDER BY l.createdat DESC;";
             LIMIT 1;";
 
         return await QuerySingleOrDefaultAsync<GratuityTransactionDto>(sql, new { employeeId, organizationId });
+    }
+    public async Task<PagedResult<PayrollResultItemDto>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter)
+    {
+        var sql = @"
+            SELECT 
+                pr.resultid, pr.organizationid, pr.employeeid, pr.periodid, pr.basicsalary, pr.totaldeductions, 
+                pr.totalbonuses, pr.netsalary, pr.loandeductions, pr.salaryadvancedeductions, pr.pfdeductions, 
+                pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
+                pr.performancebonuses, pr.generalbonuses, pr.gratuity, pr.overtimedetails, pr.calculatedat,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                d.departmentname AS DepartmentName,
+                d.departmentid AS DepartmentId,
+                COUNT(*) OVER() AS TotalCount
+            FROM payroll.payrollresults pr
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            WHERE pr.organizationid = @organizationId";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (filter.PeriodId.HasValue && filter.PeriodId != Guid.Empty)
+        {
+            sql += " AND pr.periodid = @PeriodId";
+            parameters.Add("PeriodId", filter.PeriodId.Value);
+        }
+
+        if (filter.DepartmentId.HasValue && filter.DepartmentId != Guid.Empty)
+        {
+            sql += " AND ed.departmentid = @DepartmentId";
+            parameters.Add("DepartmentId", filter.DepartmentId.Value);
+        }
+
+        if (!string.IsNullOrEmpty(filter.SearchTerm))
+        {
+            sql += " AND (e.firstname || ' ' || e.lastname ILIKE @Search OR e.employeecode ILIKE @Search)";
+            parameters.Add("Search", $"%{filter.SearchTerm}%");
+        }
+
+        sql += " ORDER BY pr.calculatedat DESC";
+        sql += " OFFSET @Offset LIMIT @Limit;";
+
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+        parameters.Add("Limit", filter.PageSize);
+
+        var items = (await QueryAsync<PayrollResultItemDto>(sql, parameters)).ToList();
+        var totalCount = items.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<PayrollResultItemDto>
+        {
+            Data = items,
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
     }
 }
