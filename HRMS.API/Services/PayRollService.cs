@@ -4047,4 +4047,18 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }
+
+    public async Task<ServiceResponse<PagedResult<PayrollResultItemDto>>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetPayrollResultsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<PayrollResultItemDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting payroll results");
+            return new ServiceResponse<PagedResult<PayrollResultItemDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
 }

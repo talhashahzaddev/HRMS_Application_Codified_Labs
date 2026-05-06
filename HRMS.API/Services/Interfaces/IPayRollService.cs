@@ -291,4 +291,5 @@ public interface IPayRollService
     Task<ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId);
     Task<ServiceResponse<bool>> VerifySocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid verifiedByUserId, VerifySocialSecurityRequestDocumentDto dto);
     Task<ServiceResponse<bool>> DeleteSocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid employeeId);
+    Task<ServiceResponse<PagedResult<PayrollResultItemDto>>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter);
 }
