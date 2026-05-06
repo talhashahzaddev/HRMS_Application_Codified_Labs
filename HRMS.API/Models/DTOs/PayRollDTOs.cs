@@ -601,101 +601,6 @@ public class UpdateSalaryAdvanceRuleDto : CreateSalaryAdvanceRuleDto
 {
 }
 
-public class TaxSlabDto
-{
-    public Guid SlabId { get; set; }
-    public Guid OrganizationId { get; set; }
-    public string SlabName { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string FiscalYear { get; set; } = string.Empty;
-    public decimal MinIncome { get; set; }
-    public decimal? MaxIncome { get; set; }
-    public decimal FixedAmount { get; set; }
-    public decimal Percentage { get; set; }
-    public bool IsActive { get; set; }
-    public bool IsDeleted { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-}
-
-public class CreateTaxSlabDto
-{
-    public string SlabName { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public string FiscalYear { get; set; } = string.Empty;
-    public decimal MinIncome { get; set; }
-    public decimal? MaxIncome { get; set; }
-    public decimal FixedAmount { get; set; }
-    public decimal Percentage { get; set; }
-    public bool IsActive { get; set; } = true;
-}
-
-public class UpdateTaxSlabDto : CreateTaxSlabDto
-{
-}
-
-public class TaxSlabFilterDto
-{
-    public string? FiscalYear { get; set; }
-    public bool? IsActive { get; set; }
-    public string? SearchTerm { get; set; }
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 10;
-}
-
-public class TaxTransactionDto
-{
-    public Guid Id { get; set; }
-    public Guid OrganizationId { get; set; }
-    public Guid EmployeeId { get; set; }
-    public string EmployeeName { get; set; } = string.Empty;
-    public Guid PeriodId { get; set; }
-    public string PeriodName { get; set; } = string.Empty;
-    public Guid? SlabId { get; set; }
-    public string? SlabName { get; set; }
-    public decimal AnnualSalary { get; set; }
-    public decimal TaxableIncome { get; set; }
-    public decimal FixedAmount { get; set; }
-    public decimal TaxPercentage { get; set; }
-    public decimal TaxAmount { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public int TotalCount { get; set; }
-}
-
-public class CreateTaxTransactionDto
-{
-    public Guid EmployeeId { get; set; }
-    public Guid PeriodId { get; set; }
-    public Guid SlabId { get; set; }
-    public decimal AnnualSalary { get; set; }
-    public decimal TaxableIncome { get; set; }
-}
-
-public class UpdateTaxTransactionDto
-{
-    public Guid? SlabId { get; set; }
-    public decimal AnnualSalary { get; set; }
-    public decimal TaxableIncome { get; set; }
-}
-
-public class TaxTransactionFilterDto
-{
-    public string? SearchTerm { get; set; }
-    public Guid? PeriodId { get; set; }
-    public Guid? SlabId { get; set; }
-    public string? FiscalYear { get; set; }
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 10;
-}
-
-public class MyTaxTransactionFilterDto
-{
-    public Guid? PeriodId { get; set; }
-    public int Page { get; set; } = 1;
-    public int PageSize { get; set; } = 10;
-}
-
 public class SocialSecurityJurisdictionDto
 {
     public Guid JurisdictionId { get; set; }
@@ -997,6 +902,267 @@ public class MySocialSecurityTransactionFilterDto
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
+
+public class SocialSecurityConfigCalculationDto
+{
+    public Guid Id { get; set; }
+    public Guid? RuleId { get; set; }
+    public Guid? SchemeId { get; set; }
+    public Guid? JurisdictionId { get; set; }
+    public Guid? AuthorityId { get; set; }
+    public decimal EmployeeContributionPct { get; set; }
+    public decimal EmployerContributionPct { get; set; }
+    public decimal? EmployeeFixedAmount { get; set; }
+    public decimal? EmployerFixedAmount { get; set; }
+    public decimal? MinSalaryLimit { get; set; }
+    public decimal? MaxSalaryCap { get; set; }
+    public string ContributionBasis { get; set; } = "gross";
+}
+
+public class SocialSecurityRuleCalculationDto
+{
+    public Guid RuleId { get; set; }
+    public Guid? SchemeId { get; set; }
+    public decimal EmployeeDefaultPct { get; set; }
+    public decimal EmployerDefaultPct { get; set; }
+    public decimal? EmployeeFixedAmount { get; set; }
+    public decimal? EmployerFixedAmount { get; set; }
+    public decimal? MinSalaryLimit { get; set; }
+    public decimal? MaxSalaryLimit { get; set; }
+    public string ContributionBasis { get; set; } = "gross";
+    public DateTime? EffectiveFrom { get; set; }
+}
+
+public class ExistingSocialSecurityTransactionDto
+{
+    public Guid Id { get; set; }
+    public Guid? ConfigId { get; set; }
+    public Guid? RuleId { get; set; }
+}
+
+// ───────────────────────────── Social Security: Enrollments ─────────────────────────────
+
+public class SocialSecurityEnrollmentDto
+{
+    public Guid EnrollmentId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public Guid? SchemeId { get; set; }
+    public string? SchemeName { get; set; }
+    public Guid? ConfigId { get; set; }
+    public string? ConfigName { get; set; }
+    public string? ExternalMemberId { get; set; }
+    public string EnrollmentType { get; set; } = "auto_enrolled";
+    public string EnrollmentStatus { get; set; } = "pending";
+    public DateTime EffectiveDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public decimal? EmployeeCustomPct { get; set; }
+    public decimal? EmployerCustomPct { get; set; }
+    public decimal? SalaryCapOverride { get; set; }
+    public decimal? RuleEmployeeDefaultPct { get; set; }
+    public decimal? RuleEmployerDefaultPct { get; set; }
+    public string? ContributionBasis { get; set; }
+    public bool IsCurrent { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+// ───────────────────────────── Social Security: Enrollment Requests ─────────────────────
+
+public class SocialSecurityEnrollmentRequestDto
+{
+    public Guid RequestId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid? EnrollmentId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public Guid? ConfigId { get; set; }
+    public string? ConfigName { get; set; }
+    public string RequestType { get; set; } = "enrollment";
+    public string RequestStatus { get; set; } = "pending";
+    public DateTime RequestedAt { get; set; }
+    public string? Reason { get; set; }
+    public string? Remarks { get; set; }
+    public string? RejectionReason { get; set; }
+    public decimal? RequestedEmployeePct { get; set; }
+    public decimal? RequestedEmployerPct { get; set; }
+    public decimal? RequestedSalaryCap { get; set; }
+    public DateTime? RequestedEffectiveDate { get; set; }
+    public Guid? ApprovedBy { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public DateTime? ProcessedAt { get; set; }
+    public int DocumentCount { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class CreateSocialSecurityEnrollmentRequestDto
+{
+    public Guid? RuleId { get; set; }
+    public Guid? ConfigId { get; set; }
+    public string RequestType { get; set; } = "enrollment";
+    public string? Reason { get; set; }
+    public decimal? RequestedEmployeePct { get; set; }
+    public decimal? RequestedEmployerPct { get; set; }
+    public decimal? RequestedSalaryCap { get; set; }
+    public DateTime? RequestedEffectiveDate { get; set; }
+    public List<SocialSecurityRequestDocumentInputDto> Documents { get; set; } = new();
+}
+
+public class ApproveSocialSecurityEnrollmentRequestDto
+{
+    public string? Remarks { get; set; }
+    public decimal? OverrideEmployeePct { get; set; }
+    public decimal? OverrideEmployerPct { get; set; }
+    public decimal? OverrideSalaryCap { get; set; }
+    public DateTime? EffectiveDate { get; set; }
+}
+
+public class RejectSocialSecurityEnrollmentRequestDto
+{
+    public string? RejectionReason { get; set; }
+}
+
+public class SocialSecurityEnrollmentRequestFilterDto
+{
+    public string? SearchTerm { get; set; }
+    public string? RequestType { get; set; }
+    public string? RequestStatus { get; set; }
+    public Guid? RuleId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class MySocialSecurityRequestFilterDto
+{
+    public string? RequestType { get; set; }
+    public string? RequestStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+// ───────────────────────────── Social Security: Claims ─────────────────────────────
+
+public class SocialSecurityClaimDto
+{
+    public Guid ClaimId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public Guid? EnrollmentId { get; set; }
+    public Guid? RequestId { get; set; }
+    public string ClaimType { get; set; } = string.Empty;
+    public string ClaimStatus { get; set; } = "draft";
+    public DateTime ClaimDate { get; set; }
+    public DateTime? IncidentDate { get; set; }
+    public DateTime? PeriodFrom { get; set; }
+    public DateTime? PeriodTo { get; set; }
+    public string? Currency { get; set; }
+    public decimal? ClaimedAmount { get; set; }
+    public decimal? ApprovedAmount { get; set; }
+    public decimal? PaidAmount { get; set; }
+    public string? PaymentReference { get; set; }
+    public DateTime? PaymentDate { get; set; }
+    public string? AuthorityReference { get; set; }
+    public string? DecisionNotes { get; set; }
+    public string? RejectionReason { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int DocumentCount { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class CreateSocialSecurityClaimDto
+{
+    public string ClaimType { get; set; } = string.Empty;
+    public DateTime? IncidentDate { get; set; }
+    public DateTime? PeriodFrom { get; set; }
+    public DateTime? PeriodTo { get; set; }
+    public string? Currency { get; set; }
+    public decimal? ClaimedAmount { get; set; }
+    public string? DecisionNotes { get; set; }
+    public List<SocialSecurityRequestDocumentInputDto> Documents { get; set; } = new();
+}
+
+public class ApproveSocialSecurityClaimDto
+{
+    public decimal ApprovedAmount { get; set; }
+    public string? DecisionNotes { get; set; }
+}
+
+public class RejectSocialSecurityClaimDto
+{
+    public string? RejectionReason { get; set; }
+}
+
+public class MarkSocialSecurityClaimPaidDto
+{
+    public decimal PaidAmount { get; set; }
+    public DateTime PaymentDate { get; set; }
+    public string? PaymentReference { get; set; }
+    public string? AuthorityReference { get; set; }
+}
+
+public class SocialSecurityClaimFilterDto
+{
+    public string? SearchTerm { get; set; }
+    public string? ClaimType { get; set; }
+    public string? ClaimStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class MySocialSecurityClaimFilterDto
+{
+    public string? ClaimType { get; set; }
+    public string? ClaimStatus { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+// ───────────────────────────── Social Security: Documents ─────────────────────────────
+
+public class SocialSecurityRequestDocumentDto
+{
+    public Guid DocumentId { get; set; }
+    public Guid? RequestId { get; set; }
+    public Guid? ClaimId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string DocumentType { get; set; } = string.Empty;
+    public string DocumentName { get; set; } = string.Empty;
+    public string FileUrl { get; set; } = string.Empty;
+    public string? MimeType { get; set; }
+    public long? FileSize { get; set; }
+    public string? Issuer { get; set; }
+    public DateTime? IssuedDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public string VerifiedStatus { get; set; } = "pending";
+    public Guid? VerifiedBy { get; set; }
+    public DateTime? VerifiedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class SocialSecurityRequestDocumentInputDto
+{
+    public string DocumentType { get; set; } = string.Empty;
+    public string DocumentName { get; set; } = string.Empty;
+    public string FileUrl { get; set; } = string.Empty;
+    public string? MimeType { get; set; }
+    public long? FileSize { get; set; }
+    public string? Issuer { get; set; }
+    public DateTime? IssuedDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+}
+
+public class VerifySocialSecurityRequestDocumentDto
+{
+    public string VerifiedStatus { get; set; } = "verified";
+}
+
 
 public class ProvidentFundRuleDto
 {
@@ -1600,7 +1766,7 @@ public class LoanPaymentDto
 public class DisbursedLoanFilterDto
 {
     public string? SearchTerm { get; set; } // Employee name
-    public string? LoanStatus { get; set; } 
+    public string? LoanStatus { get; set; }
     public decimal? MinTotalAmount { get; set; }
     public decimal? MaxTotalAmount { get; set; }
     public int Page { get; set; } = 1;
