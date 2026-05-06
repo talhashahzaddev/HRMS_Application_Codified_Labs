@@ -4,7 +4,6 @@ using HRMS.API.Repositories.Interfaces;
 using Dapper;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-
 namespace HRMS.API.Repositories;
 
 public class PayRollRepository : BaseRepository, IPayRollRepository
@@ -164,15 +163,15 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
                 UNION ALL
 
                 SELECT
-                    ss.id AS id,
+                    ss.ruleid AS id,
                     ss.organizationid,
-                    ss.configrulename AS rulename,
+                    ss.rulename,
                     ss.description,
                     ss.isactive,
                     ss.isdeleted,
                     ss.createdat,
                     'SocialSecurityPolicy' AS policyname
-                FROM payroll.socialsecurityconfig ss
+                FROM payroll.socialsecurityrules ss
                 WHERE ss.organizationid = @organizationId
 
                 UNION ALL
@@ -741,7 +740,8 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             return (await GetPayrollPeriodByIdAsync(periodId, organizationId))!;
 
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             throw new Exception(ex.Message);
         }
 
@@ -5862,7 +5862,7 @@ ORDER BY l.createdat DESC;";
             throw;
         }
     }
-    
+
     public async Task<PayrollCalculationResultDto?> CalculatePayrollAsync(Guid organizationId, CalculatePayrollDto dto)
     #region
     {
@@ -6056,7 +6056,7 @@ ORDER BY l.createdat DESC;";
                         decimal halfDayMultiplier = attendanceRule.halfdaymultiplier != null ? Convert.ToDecimal(attendanceRule.halfdaymultiplier) : 0.50m;
 
                         decimal effectiveAbsents = absentDays + (halfDays * halfDayMultiplier);
-                        
+
                         if (effectiveAbsents > 0)
                         {
                             decimal deductionPerAbsent = 0;
@@ -6078,7 +6078,7 @@ ORDER BY l.createdat DESC;";
                             {
                                 var existingAttSumSql = @"SELECT id FROM payroll.attendancesummary WHERE employeeid = @EmployeeId AND periodid = @PeriodId LIMIT 1;";
                                 var existingAttSum = await connection.QuerySingleOrDefaultAsync<Guid?>(existingAttSumSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
-                                
+
                                 if (existingAttSum == null)
                                 {
                                     var insertAttSumSql = @"
@@ -6087,7 +6087,7 @@ ORDER BY l.createdat DESC;";
                                         ) VALUES (
                                             @EmployeeId, @PeriodId, @RuleId, @ScheduledDays, @TotalDays, @PresentDays, @AbsentDays, @HalfDays, @EffectiveAbsents, @AbsentDeduction, @HalfDayDeduction, @TotalDeduction
                                         ) RETURNING id;";
-                                    await connection.QuerySingleOrDefaultAsync<Guid?>(insertAttSumSql, new 
+                                    await connection.QuerySingleOrDefaultAsync<Guid?>(insertAttSumSql, new
                                     {
                                         EmployeeId = employeeId,
                                         PeriodId = dto.PeriodId,
@@ -6110,7 +6110,7 @@ ORDER BY l.createdat DESC;";
                                     await connection.ExecuteAsync(updateTsSql, new { EmployeeId = employeeId, organizationId, PeriodEndDate = (DateTime)period.enddate, PeriodId = dto.PeriodId }, transaction);
 
                                     remainingSalary -= totalAttDeduction;
-                                    
+
                                     result.AttendanceDeductionsApplied += 1;
                                     result.TotalAttendanceDeductionAmount += totalAttDeduction;
                                     result.AttendanceDeductionDetails.Add(new PayrollAttendanceDeductionDetailDto
@@ -6246,17 +6246,17 @@ ORDER BY l.createdat DESC;";
                     var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
                     if (ts != null)
                     {
-                        decimal paidDays     = ts.paid_leave_days != null ? Convert.ToDecimal(ts.paid_leave_days) : 0m;
-                        decimal unpaidDays   = ts.unpaid_leave_days != null ? Convert.ToDecimal(ts.unpaid_leave_days) : 0m;
+                        decimal paidDays = ts.paid_leave_days != null ? Convert.ToDecimal(ts.paid_leave_days) : 0m;
+                        decimal unpaidDays = ts.unpaid_leave_days != null ? Convert.ToDecimal(ts.unpaid_leave_days) : 0m;
                         decimal halfPaidDays = ts.half_paid_leave_days != null ? Convert.ToDecimal(ts.half_paid_leave_days) : 0m;
 
-                        decimal unpaidMultiplier   = leaveRule!.unpaidmultiplier != null ? Convert.ToDecimal(leaveRule!.unpaidmultiplier) : 1.00m;
+                        decimal unpaidMultiplier = leaveRule!.unpaidmultiplier != null ? Convert.ToDecimal(leaveRule!.unpaidmultiplier) : 1.00m;
                         decimal halfPaidMultiplier = leaveRule!.halfpaidmultiplier != null ? Convert.ToDecimal(leaveRule!.halfpaidmultiplier) : 0.50m;
 
                         if (unpaidDays > 0 || halfPaidDays > 0)
                         {
-                            decimal perDaySalary      = basicSalary / 30m;
-                            decimal unpaidDeduction   = Math.Round(unpaidDays * unpaidMultiplier * perDaySalary, 2);
+                            decimal perDaySalary = basicSalary / 30m;
+                            decimal unpaidDeduction = Math.Round(unpaidDays * unpaidMultiplier * perDaySalary, 2);
                             decimal halfPaidDeduction = Math.Round(halfPaidDays * halfPaidMultiplier * perDaySalary, 2);
                             decimal totalLeaveDeduction = unpaidDeduction + halfPaidDeduction;
 
@@ -6293,16 +6293,16 @@ ORDER BY l.createdat DESC;";
                                     result.TotalLeaveDeductionAmount += totalLeaveDeduction;
                                     result.LeaveDeductionDetails.Add(new PayrollLeaveDeductionDetailDto
                                     {
-                                        EmployeeId      = employeeId,
-                                        PaidDays        = paidDays,
-                                        UnpaidDays      = unpaidDays,
-                                        HalfPaidDays    = halfPaidDays,
-                                        PerDaySalary    = Math.Round(perDaySalary, 2),
-                                        UnpaidMultiplier   = unpaidMultiplier,
+                                        EmployeeId = employeeId,
+                                        PaidDays = paidDays,
+                                        UnpaidDays = unpaidDays,
+                                        HalfPaidDays = halfPaidDays,
+                                        PerDaySalary = Math.Round(perDaySalary, 2),
+                                        UnpaidMultiplier = unpaidMultiplier,
                                         HalfPaidMultiplier = halfPaidMultiplier,
-                                        UnpaidDeduction    = unpaidDeduction,
-                                        HalfPaidDeduction  = halfPaidDeduction,
-                                        TotalDeduction     = totalLeaveDeduction,
+                                        UnpaidDeduction = unpaidDeduction,
+                                        HalfPaidDeduction = halfPaidDeduction,
+                                        TotalDeduction = totalLeaveDeduction,
                                         NetSalaryAfterLeaveDeduction = remainingSalary
                                     });
                                 }
@@ -6352,7 +6352,7 @@ ORDER BY l.createdat DESC;";
                         if (regularRule != null && regularOtHours > 0)
                         {
                             decimal fixedAmt = regularRule!.fixedamount != null ? Convert.ToDecimal(regularRule!.fixedamount) : 0m;
-                            decimal pct      = regularRule!.percentage != null  ? Convert.ToDecimal(regularRule!.percentage)  : 0m;
+                            decimal pct = regularRule!.percentage != null ? Convert.ToDecimal(regularRule!.percentage) : 0m;
                             if (fixedAmt > 0)
                                 regularOtAmount = Math.Round(fixedAmt * regularOtHours, 2);
                             else if (pct > 0)
@@ -6363,7 +6363,7 @@ ORDER BY l.createdat DESC;";
                         if (weekendRule != null && weekendOtHours > 0)
                         {
                             decimal fixedAmt = weekendRule!.fixedamount != null ? Convert.ToDecimal(weekendRule!.fixedamount) : 0m;
-                            decimal pct      = weekendRule!.percentage != null  ? Convert.ToDecimal(weekendRule!.percentage)  : 0m;
+                            decimal pct = weekendRule!.percentage != null ? Convert.ToDecimal(weekendRule!.percentage) : 0m;
                             if (fixedAmt > 0)
                                 weekendOtAmount = Math.Round(fixedAmt * weekendOtHours, 2);
                             else if (pct > 0)
@@ -6374,7 +6374,7 @@ ORDER BY l.createdat DESC;";
                         if (holidayRule != null && holidayOtHours > 0)
                         {
                             decimal fixedAmt = holidayRule!.fixedamount != null ? Convert.ToDecimal(holidayRule!.fixedamount) : 0m;
-                            decimal pct      = holidayRule!.percentage != null  ? Convert.ToDecimal(holidayRule!.percentage)  : 0m;
+                            decimal pct = holidayRule!.percentage != null ? Convert.ToDecimal(holidayRule!.percentage) : 0m;
                             if (fixedAmt > 0)
                                 holidayOtAmount = Math.Round(fixedAmt * holidayOtHours, 2);
                             else if (pct > 0)
@@ -6421,24 +6421,24 @@ ORDER BY l.createdat DESC;";
                             }
 
                             remainingSalary += totalOvertimeBonus;
-                            totalBonuses    += totalOvertimeBonus;
+                            totalBonuses += totalOvertimeBonus;
                             result.OvertimeBonusApplied += 1;
-                            result.TotalOvertimeBonusAmount  += totalOvertimeBonus;
+                            result.TotalOvertimeBonusAmount += totalOvertimeBonus;
                             result.TotalRegularOvertimeAmount += regularOtAmount;
                             result.TotalWeekendOvertimeAmount += weekendOtAmount;
                             result.TotalHolidayOvertimeAmount += holidayOtAmount;
                             result.OvertimeDetails.Add(new PayrollOvertimeDetailDto
                             {
-                                EmployeeId             = employeeId,
-                                RegularOvertimeHours   = regularOtHours,
-                                WeekendOvertimeHours   = weekendOtHours,
-                                HolidayOvertimeHours   = holidayOtHours,
-                                ShiftHours             = shiftHoursForOt,
-                                PerHourSalary          = Math.Round(perHourSalary, 2),
-                                RegularOvertimeAmount  = regularOtAmount,
-                                WeekendOvertimeAmount  = weekendOtAmount,
-                                HolidayOvertimeAmount  = holidayOtAmount,
-                                TotalOvertimeAmount    = totalOvertimeBonus,
+                                EmployeeId = employeeId,
+                                RegularOvertimeHours = regularOtHours,
+                                WeekendOvertimeHours = weekendOtHours,
+                                HolidayOvertimeHours = holidayOtHours,
+                                ShiftHours = shiftHoursForOt,
+                                PerHourSalary = Math.Round(perHourSalary, 2),
+                                RegularOvertimeAmount = regularOtAmount,
+                                WeekendOvertimeAmount = weekendOtAmount,
+                                HolidayOvertimeAmount = holidayOtAmount,
+                                TotalOvertimeAmount = totalOvertimeBonus,
                                 NetSalaryAfterOvertime = remainingSalary
                             });
                         }
@@ -6510,7 +6510,7 @@ ORDER BY l.createdat DESC;";
                         appliedGeneralBonusRule = entry.ruleid != null ? (Guid?)entry.ruleid : null;
                     }
                 }
-                
+
                 if (generalBonusAmount > 0)
                 {
                     remainingSalary += generalBonusAmount;
@@ -6627,7 +6627,7 @@ ORDER BY l.createdat DESC;";
                     {
                         var insertTaxSql = @"INSERT INTO payroll.taxtransactions (organizationid, employeeid, periodid, categoryid, grossincome, taxableincome, taxamount, monthlytax) VALUES (@organizationId, @EmployeeId, @PeriodId, @CategoryId, @GrossIncome, @TaxableIncome, @TaxAmount, @MonthlyTax) RETURNING id;";
                         await connection.QuerySingleOrDefaultAsync<Guid?>(insertTaxSql, new { organizationId, EmployeeId = employeeId, PeriodId = dto.PeriodId, CategoryId = categoryId, GrossIncome = monthlyGross, TaxableIncome = monthlyTaxableIncome, TaxAmount = Math.Round(taxAmountAnnual, 2), MonthlyTax = monthlyTax }, transaction);
-                        
+
                         remainingSalary -= monthlyTax;
                         result.TaxDeductionsApplied += 1;
                         result.TotalTaxDeductionAmount += monthlyTax;
@@ -7113,6 +7113,1812 @@ ORDER BY l.createdat DESC;";
         return await QueryAsync<LoanReferenceDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
     }
 
+    // ─── Social Security Config ──────────────────────────────────────────────
+
+    public async Task<IEnumerable<SocialSecurityJurisdictionDto>> GetSocialSecurityJurisdictionsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                jurisdictionid AS JurisdictionId,
+                organizationid AS OrganizationId,
+                jurisdictioncode AS JurisdictionCode,
+                jurisdictionname AS JurisdictionName,
+                countrycode AS CountryCode,
+                currency AS Currency,
+                timezone AS Timezone,
+                COALESCE(isdefault, false) AS IsDefault,
+                COALESCE(isactive, true) AS IsActive,
+                metadata::text AS Metadata
+            FROM payroll.socialsecurityjurisdictions
+            WHERE organizationid = @organizationId
+              AND isdeleted = false
+            ORDER BY isdefault DESC, jurisdictionname ASC;";
+
+        return await QueryAsync<SocialSecurityJurisdictionDto>(sql, new { organizationId });
+    }
+
+    public async Task<IEnumerable<SocialSecurityAuthorityDto>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId)
+    {
+        var sql = @"
+            SELECT
+                authorityid AS AuthorityId,
+                organizationid AS OrganizationId,
+                jurisdictionid AS JurisdictionId,
+                authoritycode AS AuthorityCode,
+                authorityname AS AuthorityName,
+                portalurl AS PortalUrl,
+                remittancefrequency AS RemittanceFrequency,
+                filingmode AS FilingMode,
+                paymentmode AS PaymentMode,
+                dueoffsetdays AS DueOffsetDays,
+                COALESCE(isactive, true) AS IsActive,
+                metadata::text AS Metadata
+            FROM payroll.socialsecurityauthorities
+            WHERE organizationid = @organizationId
+              AND isdeleted = false
+              AND (@jurisdictionId IS NULL OR jurisdictionid = @jurisdictionId)
+            ORDER BY authorityname ASC;";
+
+        return await QueryAsync<SocialSecurityAuthorityDto>(sql, new { organizationId, jurisdictionId });
+    }
+
+    public async Task<IEnumerable<SocialSecuritySchemeDto>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId)
+    {
+        var sql = @"
+            SELECT
+                schemeid AS SchemeId,
+                organizationid AS OrganizationId,
+                jurisdictionid AS JurisdictionId,
+                authorityid AS AuthorityId,
+                schemecode AS SchemeCode,
+                schemename AS SchemeName,
+                schemetype AS SchemeType,
+                mandatorymode AS MandatoryMode,
+                COALESCE(employeemandatory, true) AS EmployeeMandatory,
+                COALESCE(employermandatory, true) AS EmployerMandatory,
+                COALESCE(allowvoluntarytopup, false) AS AllowVoluntaryTopup,
+                COALESCE(allowcrossborder, false) AS AllowCrossBorder,
+                versionstartdate AS VersionStartDate,
+                versionenddate AS VersionEndDate,
+                COALESCE(isactive, true) AS IsActive,
+                metadata::text AS Metadata
+            FROM payroll.socialsecurityschemes
+            WHERE organizationid = @organizationId
+              AND isdeleted = false
+              AND (@jurisdictionId IS NULL OR jurisdictionid = @jurisdictionId)
+              AND (@authorityId IS NULL OR authorityid = @authorityId)
+            ORDER BY schemename ASC, versionstartdate DESC;";
+
+        return await QueryAsync<SocialSecuritySchemeDto>(sql, new { organizationId, jurisdictionId, authorityId });
+    }
+
+    public async Task<IEnumerable<SocialSecurityRuleDto>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId)
+    {
+        var sql = @"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                schemeid AS SchemeId,
+                rulename AS RuleName,
+                description AS Description,
+                COALESCE(contributionbasis, 'gross') AS ContributionBasis,
+                COALESCE(employeedefaultpct, 0) AS EmployeeDefaultPct,
+                COALESCE(employerdefaultpct, 0) AS EmployerDefaultPct,
+                employeefixedamount AS EmployeeFixedAmount,
+                employerfixedamount AS EmployerFixedAmount,
+                minsalarylimit AS MinSalaryLimit,
+                maxsalarylimit AS MaxSalaryLimit,
+                annualsalarycap AS AnnualSalaryCap,
+                effectivefrom AS EffectiveFrom,
+                effectiveto AS EffectiveTo,
+                COALESCE(isactive, true) AS IsActive
+            FROM payroll.socialsecurityrules
+            WHERE organizationid = @organizationId
+              AND isdeleted = false
+              AND (@schemeId IS NULL OR schemeid = @schemeId)
+            ORDER BY rulename ASC, effectivefrom DESC;";
+
+        return await QueryAsync<SocialSecurityRuleDto>(sql, new { organizationId, schemeId });
+    }
+
+    public async Task<SocialSecurityJurisdictionDto> CreateSocialSecurityJurisdictionAsync(Guid organizationId, CreateSocialSecurityJurisdictionDto dto)
+    {
+        var existing = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.socialsecurityjurisdictions
+                WHERE organizationid = @organizationId
+                  AND lower(jurisdictioncode) = lower(@JurisdictionCode)
+                  AND isdeleted = false
+            );", new { organizationId, dto.JurisdictionCode });
+
+        if (existing)
+        {
+            throw new InvalidOperationException("A jurisdiction with the same code already exists.");
+        }
+
+        var id = await QuerySingleAsync<Guid>(@"
+            INSERT INTO payroll.socialsecurityjurisdictions
+                (organizationid, jurisdictioncode, jurisdictionname, countrycode, currency, timezone, isdefault, isactive, metadata, isdeleted)
+            VALUES
+                (@organizationId, @JurisdictionCode, @JurisdictionName, @CountryCode, @Currency, @Timezone, @IsDefault, @IsActive,
+                 CASE WHEN @Metadata IS NULL OR btrim(@Metadata) = '' THEN NULL ELSE CAST(@Metadata AS jsonb) END,
+                 false)
+            RETURNING jurisdictionid;", new
+        {
+            organizationId,
+            JurisdictionCode = dto.JurisdictionCode.Trim(),
+            JurisdictionName = dto.JurisdictionName.Trim(),
+            CountryCode = string.IsNullOrWhiteSpace(dto.CountryCode) ? null : dto.CountryCode.Trim(),
+            Currency = string.IsNullOrWhiteSpace(dto.Currency) ? null : dto.Currency.Trim(),
+            Timezone = string.IsNullOrWhiteSpace(dto.Timezone) ? null : dto.Timezone.Trim(),
+            dto.IsDefault,
+            dto.IsActive,
+            dto.Metadata
+        });
+
+        return (await GetSocialSecurityJurisdictionByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<SocialSecurityJurisdictionDto?> UpdateSocialSecurityJurisdictionAsync(Guid id, Guid organizationId, UpdateSocialSecurityJurisdictionDto dto)
+    {
+        var duplicate = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.socialsecurityjurisdictions
+                WHERE organizationid = @organizationId
+                  AND lower(jurisdictioncode) = lower(@JurisdictionCode)
+                  AND jurisdictionid <> @id
+                  AND isdeleted = false
+            );", new { organizationId, id, dto.JurisdictionCode });
+
+        if (duplicate)
+        {
+            throw new InvalidOperationException("A jurisdiction with the same code already exists.");
+        }
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(@"
+            UPDATE payroll.socialsecurityjurisdictions
+            SET
+                jurisdictioncode = @JurisdictionCode,
+                jurisdictionname = @JurisdictionName,
+                countrycode = @CountryCode,
+                currency = @Currency,
+                timezone = @Timezone,
+                isdefault = @IsDefault,
+                isactive = @IsActive,
+                metadata = CASE WHEN @Metadata IS NULL OR btrim(@Metadata) = '' THEN NULL ELSE CAST(@Metadata AS jsonb) END,
+                updatedat = current_timestamp
+            WHERE jurisdictionid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING jurisdictionid;", new
+        {
+            id,
+            organizationId,
+            JurisdictionCode = dto.JurisdictionCode.Trim(),
+            JurisdictionName = dto.JurisdictionName.Trim(),
+            CountryCode = string.IsNullOrWhiteSpace(dto.CountryCode) ? null : dto.CountryCode.Trim(),
+            Currency = string.IsNullOrWhiteSpace(dto.Currency) ? null : dto.Currency.Trim(),
+            Timezone = string.IsNullOrWhiteSpace(dto.Timezone) ? null : dto.Timezone.Trim(),
+            dto.IsDefault,
+            dto.IsActive,
+            dto.Metadata
+        });
+
+        if (updatedId == null || updatedId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await GetSocialSecurityJurisdictionByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteSocialSecurityJurisdictionAsync(Guid id, Guid organizationId)
+    {
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(@"
+            UPDATE payroll.socialsecurityjurisdictions
+            SET isdeleted = true, isactive = false, updatedat = current_timestamp
+            WHERE jurisdictionid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING jurisdictionid;", new { id, organizationId });
+
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    public async Task<SocialSecurityAuthorityDto> CreateSocialSecurityAuthorityAsync(Guid organizationId, CreateSocialSecurityAuthorityDto dto)
+    {
+        var jurisdictionExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1 FROM payroll.socialsecurityjurisdictions
+                WHERE jurisdictionid = @JurisdictionId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false
+            );", new { organizationId, dto.JurisdictionId });
+
+        if (!jurisdictionExists)
+        {
+            throw new InvalidOperationException("Selected jurisdiction is not available for this organization.");
+        }
+
+        var existing = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.socialsecurityauthorities
+                WHERE organizationid = @organizationId
+                  AND lower(authoritycode) = lower(@AuthorityCode)
+                  AND isdeleted = false
+            );", new { organizationId, dto.AuthorityCode });
+
+        if (existing)
+        {
+            throw new InvalidOperationException("An authority with the same code already exists.");
+        }
+
+        var id = await QuerySingleAsync<Guid>(@"
+            INSERT INTO payroll.socialsecurityauthorities
+                (organizationid, jurisdictionid, authoritycode, authorityname, portalurl, remittancefrequency, filingmode, paymentmode, dueoffsetdays, isactive, metadata, isdeleted)
+            VALUES
+                (@organizationId, @JurisdictionId, @AuthorityCode, @AuthorityName, @PortalUrl, @RemittanceFrequency, @FilingMode, @PaymentMode, @DueOffsetDays, @IsActive,
+                 CASE WHEN @Metadata IS NULL OR btrim(@Metadata) = '' THEN NULL ELSE CAST(@Metadata AS jsonb) END,
+                 false)
+            RETURNING authorityid;", new
+        {
+            organizationId,
+            dto.JurisdictionId,
+            AuthorityCode = dto.AuthorityCode.Trim(),
+            AuthorityName = dto.AuthorityName.Trim(),
+            PortalUrl = string.IsNullOrWhiteSpace(dto.PortalUrl) ? null : dto.PortalUrl.Trim(),
+            RemittanceFrequency = string.IsNullOrWhiteSpace(dto.RemittanceFrequency) ? null : dto.RemittanceFrequency.Trim(),
+            FilingMode = string.IsNullOrWhiteSpace(dto.FilingMode) ? null : dto.FilingMode.Trim(),
+            PaymentMode = string.IsNullOrWhiteSpace(dto.PaymentMode) ? null : dto.PaymentMode.Trim(),
+            dto.DueOffsetDays,
+            dto.IsActive,
+            dto.Metadata
+        });
+
+        return (await GetSocialSecurityAuthorityByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<SocialSecurityAuthorityDto?> UpdateSocialSecurityAuthorityAsync(Guid id, Guid organizationId, UpdateSocialSecurityAuthorityDto dto)
+    {
+        var jurisdictionExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1 FROM payroll.socialsecurityjurisdictions
+                WHERE jurisdictionid = @JurisdictionId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false
+            );", new { organizationId, dto.JurisdictionId });
+
+        if (!jurisdictionExists)
+        {
+            throw new InvalidOperationException("Selected jurisdiction is not available for this organization.");
+        }
+
+        var duplicate = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.socialsecurityauthorities
+                WHERE organizationid = @organizationId
+                  AND lower(authoritycode) = lower(@AuthorityCode)
+                  AND authorityid <> @id
+                  AND isdeleted = false
+            );", new { organizationId, id, dto.AuthorityCode });
+
+        if (duplicate)
+        {
+            throw new InvalidOperationException("An authority with the same code already exists.");
+        }
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(@"
+            UPDATE payroll.socialsecurityauthorities
+            SET
+                jurisdictionid = @JurisdictionId,
+                authoritycode = @AuthorityCode,
+                authorityname = @AuthorityName,
+                portalurl = @PortalUrl,
+                remittancefrequency = @RemittanceFrequency,
+                filingmode = @FilingMode,
+                paymentmode = @PaymentMode,
+                dueoffsetdays = @DueOffsetDays,
+                isactive = @IsActive,
+                metadata = CASE WHEN @Metadata IS NULL OR btrim(@Metadata) = '' THEN NULL ELSE CAST(@Metadata AS jsonb) END,
+                updatedat = current_timestamp
+            WHERE authorityid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING authorityid;", new
+        {
+            id,
+            organizationId,
+            dto.JurisdictionId,
+            AuthorityCode = dto.AuthorityCode.Trim(),
+            AuthorityName = dto.AuthorityName.Trim(),
+            PortalUrl = string.IsNullOrWhiteSpace(dto.PortalUrl) ? null : dto.PortalUrl.Trim(),
+            RemittanceFrequency = string.IsNullOrWhiteSpace(dto.RemittanceFrequency) ? null : dto.RemittanceFrequency.Trim(),
+            FilingMode = string.IsNullOrWhiteSpace(dto.FilingMode) ? null : dto.FilingMode.Trim(),
+            PaymentMode = string.IsNullOrWhiteSpace(dto.PaymentMode) ? null : dto.PaymentMode.Trim(),
+            dto.DueOffsetDays,
+            dto.IsActive,
+            dto.Metadata
+        });
+
+        if (updatedId == null || updatedId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await GetSocialSecurityAuthorityByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteSocialSecurityAuthorityAsync(Guid id, Guid organizationId)
+    {
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(@"
+            UPDATE payroll.socialsecurityauthorities
+            SET isdeleted = true, isactive = false, updatedat = current_timestamp
+            WHERE authorityid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING authorityid;", new { id, organizationId });
+
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    public async Task<SocialSecuritySchemeDto> CreateSocialSecuritySchemeAsync(Guid organizationId, CreateSocialSecuritySchemeDto dto)
+    {
+        var jurisdictionExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1 FROM payroll.socialsecurityjurisdictions
+                WHERE jurisdictionid = @JurisdictionId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false
+            );", new { organizationId, dto.JurisdictionId });
+
+        if (!jurisdictionExists)
+        {
+            throw new InvalidOperationException("Selected jurisdiction is not available for this organization.");
+        }
+
+        if (dto.AuthorityId.HasValue)
+        {
+            var authorityExists = await ExecuteScalarAsync<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM payroll.socialsecurityauthorities
+                    WHERE authorityid = @AuthorityId
+                      AND organizationid = @organizationId
+                      AND isdeleted = false
+                );", new { organizationId, dto.AuthorityId });
+
+            if (!authorityExists)
+            {
+                throw new InvalidOperationException("Selected authority is not available for this organization.");
+            }
+        }
+
+        var existing = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.socialsecurityschemes
+                WHERE organizationid = @organizationId
+                  AND lower(schemecode) = lower(@SchemeCode)
+                  AND isdeleted = false
+            );", new { organizationId, dto.SchemeCode });
+
+        if (existing)
+        {
+            throw new InvalidOperationException("A scheme with the same code already exists.");
+        }
+
+        var id = await QuerySingleAsync<Guid>(@"
+            INSERT INTO payroll.socialsecurityschemes
+                (organizationid, jurisdictionid, authorityid, schemecode, schemename, schemetype, mandatorymode,
+                 employeemandatory, employermandatory, allowvoluntarytopup, allowcrossborder, versionstartdate, versionenddate,
+                 isactive, metadata, isdeleted)
+            VALUES
+                (@organizationId, @JurisdictionId, @AuthorityId, @SchemeCode, @SchemeName, @SchemeType, @MandatoryMode,
+                 @EmployeeMandatory, @EmployerMandatory, @AllowVoluntaryTopup, @AllowCrossBorder, @VersionStartDate, @VersionEndDate,
+                 @IsActive,
+                 CASE WHEN @Metadata IS NULL OR btrim(@Metadata) = '' THEN NULL ELSE CAST(@Metadata AS jsonb) END,
+                 false)
+            RETURNING schemeid;", new
+        {
+            organizationId,
+            dto.JurisdictionId,
+            dto.AuthorityId,
+            SchemeCode = dto.SchemeCode.Trim(),
+            SchemeName = dto.SchemeName.Trim(),
+            SchemeType = string.IsNullOrWhiteSpace(dto.SchemeType) ? null : dto.SchemeType.Trim(),
+            MandatoryMode = string.IsNullOrWhiteSpace(dto.MandatoryMode) ? null : dto.MandatoryMode.Trim(),
+            dto.EmployeeMandatory,
+            dto.EmployerMandatory,
+            dto.AllowVoluntaryTopup,
+            dto.AllowCrossBorder,
+            VersionStartDate = dto.VersionStartDate ?? DateTime.UtcNow.Date,
+            dto.VersionEndDate,
+            dto.IsActive,
+            dto.Metadata
+        });
+
+        return (await GetSocialSecuritySchemeByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<SocialSecuritySchemeDto?> UpdateSocialSecuritySchemeAsync(Guid id, Guid organizationId, UpdateSocialSecuritySchemeDto dto)
+    {
+        var jurisdictionExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1 FROM payroll.socialsecurityjurisdictions
+                WHERE jurisdictionid = @JurisdictionId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false
+            );", new { organizationId, dto.JurisdictionId });
+
+        if (!jurisdictionExists)
+        {
+            throw new InvalidOperationException("Selected jurisdiction is not available for this organization.");
+        }
+
+        if (dto.AuthorityId.HasValue)
+        {
+            var authorityExists = await ExecuteScalarAsync<bool>(@"
+                SELECT EXISTS (
+                    SELECT 1 FROM payroll.socialsecurityauthorities
+                    WHERE authorityid = @AuthorityId
+                      AND organizationid = @organizationId
+                      AND isdeleted = false
+                );", new { organizationId, dto.AuthorityId });
+
+            if (!authorityExists)
+            {
+                throw new InvalidOperationException("Selected authority is not available for this organization.");
+            }
+        }
+
+        var duplicate = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.socialsecurityschemes
+                WHERE organizationid = @organizationId
+                  AND lower(schemecode) = lower(@SchemeCode)
+                  AND schemeid <> @id
+                  AND isdeleted = false
+            );", new { organizationId, id, dto.SchemeCode });
+
+        if (duplicate)
+        {
+            throw new InvalidOperationException("A scheme with the same code already exists.");
+        }
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(@"
+            UPDATE payroll.socialsecurityschemes
+            SET
+                jurisdictionid = @JurisdictionId,
+                authorityid = @AuthorityId,
+                schemecode = @SchemeCode,
+                schemename = @SchemeName,
+                schemetype = @SchemeType,
+                mandatorymode = @MandatoryMode,
+                employeemandatory = @EmployeeMandatory,
+                employermandatory = @EmployerMandatory,
+                allowvoluntarytopup = @AllowVoluntaryTopup,
+                allowcrossborder = @AllowCrossBorder,
+                versionstartdate = @VersionStartDate,
+                versionenddate = @VersionEndDate,
+                isactive = @IsActive,
+                metadata = CASE WHEN @Metadata IS NULL OR btrim(@Metadata) = '' THEN NULL ELSE CAST(@Metadata AS jsonb) END,
+                updatedat = current_timestamp
+            WHERE schemeid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING schemeid;", new
+        {
+            id,
+            organizationId,
+            dto.JurisdictionId,
+            dto.AuthorityId,
+            SchemeCode = dto.SchemeCode.Trim(),
+            SchemeName = dto.SchemeName.Trim(),
+            SchemeType = string.IsNullOrWhiteSpace(dto.SchemeType) ? null : dto.SchemeType.Trim(),
+            MandatoryMode = string.IsNullOrWhiteSpace(dto.MandatoryMode) ? null : dto.MandatoryMode.Trim(),
+            dto.EmployeeMandatory,
+            dto.EmployerMandatory,
+            dto.AllowVoluntaryTopup,
+            dto.AllowCrossBorder,
+            VersionStartDate = dto.VersionStartDate ?? DateTime.UtcNow.Date,
+            dto.VersionEndDate,
+            dto.IsActive,
+            dto.Metadata
+        });
+
+        if (updatedId == null || updatedId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await GetSocialSecuritySchemeByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteSocialSecuritySchemeAsync(Guid id, Guid organizationId)
+    {
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(@"
+            UPDATE payroll.socialsecurityschemes
+            SET isdeleted = true, isactive = false, updatedat = current_timestamp
+            WHERE schemeid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING schemeid;", new { id, organizationId });
+
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    public async Task<SocialSecurityRuleDto> CreateSocialSecurityRuleAsync(Guid organizationId, CreateSocialSecurityRuleDto dto)
+    {
+        var schemeExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1 FROM payroll.socialsecurityschemes
+                WHERE schemeid = @SchemeId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false
+            );", new { organizationId, dto.SchemeId });
+
+        if (!schemeExists)
+        {
+            throw new InvalidOperationException("Selected scheme is not available for this organization.");
+        }
+
+        var id = await QuerySingleAsync<Guid>(@"
+            INSERT INTO payroll.socialsecurityrules
+                (organizationid, schemeid, rulename, description, contributionbasis, employeedefaultpct, employerdefaultpct,
+                 employeefixedamount, employerfixedamount, minsalarylimit, maxsalarylimit, annualsalarycap,
+                 effectivefrom, effectiveto, isactive, isdeleted)
+            VALUES
+                (@organizationId, @SchemeId, @RuleName, @Description, @ContributionBasis, @EmployeeDefaultPct, @EmployerDefaultPct,
+                 @EmployeeFixedAmount, @EmployerFixedAmount, @MinSalaryLimit, @MaxSalaryLimit, @AnnualSalaryCap,
+                 @EffectiveFrom, @EffectiveTo, @IsActive, false)
+            RETURNING ruleid;", new
+        {
+            organizationId,
+            dto.SchemeId,
+            RuleName = dto.RuleName.Trim(),
+            Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+            ContributionBasis = string.IsNullOrWhiteSpace(dto.ContributionBasis) ? "gross" : dto.ContributionBasis.Trim().ToLowerInvariant(),
+            dto.EmployeeDefaultPct,
+            dto.EmployerDefaultPct,
+            dto.EmployeeFixedAmount,
+            dto.EmployerFixedAmount,
+            dto.MinSalaryLimit,
+            dto.MaxSalaryLimit,
+            dto.AnnualSalaryCap,
+            EffectiveFrom = dto.EffectiveFrom ?? DateTime.UtcNow.Date,
+            dto.EffectiveTo,
+            dto.IsActive
+        });
+
+        return (await GetSocialSecurityRuleByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<SocialSecurityRuleDto?> UpdateSocialSecurityRuleAsync(Guid id, Guid organizationId, UpdateSocialSecurityRuleDto dto)
+    {
+        var schemeExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1 FROM payroll.socialsecurityschemes
+                WHERE schemeid = @SchemeId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false
+            );", new { organizationId, dto.SchemeId });
+
+        if (!schemeExists)
+        {
+            throw new InvalidOperationException("Selected scheme is not available for this organization.");
+        }
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(@"
+            UPDATE payroll.socialsecurityrules
+            SET
+                schemeid = @SchemeId,
+                rulename = @RuleName,
+                description = @Description,
+                contributionbasis = @ContributionBasis,
+                employeedefaultpct = @EmployeeDefaultPct,
+                employerdefaultpct = @EmployerDefaultPct,
+                employeefixedamount = @EmployeeFixedAmount,
+                employerfixedamount = @EmployerFixedAmount,
+                minsalarylimit = @MinSalaryLimit,
+                maxsalarylimit = @MaxSalaryLimit,
+                annualsalarycap = @AnnualSalaryCap,
+                effectivefrom = @EffectiveFrom,
+                effectiveto = @EffectiveTo,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE ruleid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING ruleid;", new
+        {
+            id,
+            organizationId,
+            dto.SchemeId,
+            RuleName = dto.RuleName.Trim(),
+            Description = string.IsNullOrWhiteSpace(dto.Description) ? null : dto.Description.Trim(),
+            ContributionBasis = string.IsNullOrWhiteSpace(dto.ContributionBasis) ? "gross" : dto.ContributionBasis.Trim().ToLowerInvariant(),
+            dto.EmployeeDefaultPct,
+            dto.EmployerDefaultPct,
+            dto.EmployeeFixedAmount,
+            dto.EmployerFixedAmount,
+            dto.MinSalaryLimit,
+            dto.MaxSalaryLimit,
+            dto.AnnualSalaryCap,
+            EffectiveFrom = dto.EffectiveFrom ?? DateTime.UtcNow.Date,
+            dto.EffectiveTo,
+            dto.IsActive
+        });
+
+        if (updatedId == null || updatedId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await GetSocialSecurityRuleByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteSocialSecurityRuleAsync(Guid id, Guid organizationId)
+    {
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(@"
+            UPDATE payroll.socialsecurityrules
+            SET isdeleted = true, isactive = false, updatedat = current_timestamp
+            WHERE ruleid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING ruleid;", new { id, organizationId });
+
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    private async Task<SocialSecurityJurisdictionDto?> GetSocialSecurityJurisdictionByIdAsync(Guid id, Guid organizationId)
+    {
+        return await QuerySingleOrDefaultAsync<SocialSecurityJurisdictionDto>(@"
+            SELECT
+                jurisdictionid AS JurisdictionId,
+                organizationid AS OrganizationId,
+                jurisdictioncode AS JurisdictionCode,
+                jurisdictionname AS JurisdictionName,
+                countrycode AS CountryCode,
+                currency AS Currency,
+                timezone AS Timezone,
+                COALESCE(isdefault, false) AS IsDefault,
+                COALESCE(isactive, true) AS IsActive,
+                metadata::text AS Metadata
+            FROM payroll.socialsecurityjurisdictions
+            WHERE jurisdictionid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false;", new { id, organizationId });
+    }
+
+    private async Task<SocialSecurityAuthorityDto?> GetSocialSecurityAuthorityByIdAsync(Guid id, Guid organizationId)
+    {
+        return await QuerySingleOrDefaultAsync<SocialSecurityAuthorityDto>(@"
+            SELECT
+                authorityid AS AuthorityId,
+                organizationid AS OrganizationId,
+                jurisdictionid AS JurisdictionId,
+                authoritycode AS AuthorityCode,
+                authorityname AS AuthorityName,
+                portalurl AS PortalUrl,
+                remittancefrequency AS RemittanceFrequency,
+                filingmode AS FilingMode,
+                paymentmode AS PaymentMode,
+                dueoffsetdays AS DueOffsetDays,
+                COALESCE(isactive, true) AS IsActive,
+                metadata::text AS Metadata
+            FROM payroll.socialsecurityauthorities
+            WHERE authorityid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false;", new { id, organizationId });
+    }
+
+    private async Task<SocialSecuritySchemeDto?> GetSocialSecuritySchemeByIdAsync(Guid id, Guid organizationId)
+    {
+        return await QuerySingleOrDefaultAsync<SocialSecuritySchemeDto>(@"
+            SELECT
+                schemeid AS SchemeId,
+                organizationid AS OrganizationId,
+                jurisdictionid AS JurisdictionId,
+                authorityid AS AuthorityId,
+                schemecode AS SchemeCode,
+                schemename AS SchemeName,
+                schemetype AS SchemeType,
+                mandatorymode AS MandatoryMode,
+                COALESCE(employeemandatory, true) AS EmployeeMandatory,
+                COALESCE(employermandatory, true) AS EmployerMandatory,
+                COALESCE(allowvoluntarytopup, false) AS AllowVoluntaryTopup,
+                COALESCE(allowcrossborder, false) AS AllowCrossBorder,
+                versionstartdate AS VersionStartDate,
+                versionenddate AS VersionEndDate,
+                COALESCE(isactive, true) AS IsActive,
+                metadata::text AS Metadata
+            FROM payroll.socialsecurityschemes
+            WHERE schemeid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false;", new { id, organizationId });
+    }
+
+    private async Task<SocialSecurityRuleDto?> GetSocialSecurityRuleByIdAsync(Guid id, Guid organizationId)
+    {
+        return await QuerySingleOrDefaultAsync<SocialSecurityRuleDto>(@"
+            SELECT
+                ruleid AS RuleId,
+                organizationid AS OrganizationId,
+                schemeid AS SchemeId,
+                rulename AS RuleName,
+                description AS Description,
+                COALESCE(contributionbasis, 'gross') AS ContributionBasis,
+                COALESCE(employeedefaultpct, 0) AS EmployeeDefaultPct,
+                COALESCE(employerdefaultpct, 0) AS EmployerDefaultPct,
+                employeefixedamount AS EmployeeFixedAmount,
+                employerfixedamount AS EmployerFixedAmount,
+                minsalarylimit AS MinSalaryLimit,
+                maxsalarylimit AS MaxSalaryLimit,
+                annualsalarycap AS AnnualSalaryCap,
+                effectivefrom AS EffectiveFrom,
+                effectiveto AS EffectiveTo,
+                COALESCE(isactive, true) AS IsActive
+            FROM payroll.socialsecurityrules
+            WHERE ruleid = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false;", new { id, organizationId });
+    }
+
+    public async Task<PagedResult<SocialSecurityConfigDto>> GetAllSocialSecurityConfigsAsync(Guid organizationId, SocialSecurityConfigFilterDto filter)
+    {
+        filter ??= new SocialSecurityConfigFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var conditions = new List<string>
+        {
+            "sc.organizationid = @organizationId",
+            "sc.isdeleted = false"
+        };
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (filter.IsActive.HasValue)
+        {
+            conditions.Add("sc.isactive = @IsActive");
+            parameters.Add("IsActive", filter.IsActive.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            conditions.Add("(sc.configrulename ILIKE @SearchTerm OR COALESCE(sc.description, '') ILIKE @SearchTerm OR COALESCE(sr.rulename, '') ILIKE @SearchTerm OR COALESCE(ss.schemename, '') ILIKE @SearchTerm)");
+            parameters.Add("SearchTerm", $"%{filter.SearchTerm.Trim()}%");
+        }
+
+        if (filter.JurisdictionId.HasValue)
+        {
+            conditions.Add("sc.jurisdictionid = @JurisdictionId");
+            parameters.Add("JurisdictionId", filter.JurisdictionId.Value);
+        }
+
+        if (filter.SchemeId.HasValue)
+        {
+            conditions.Add("sc.schemeid = @SchemeId");
+            parameters.Add("SchemeId", filter.SchemeId.Value);
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.socialsecurityconfig sc
+            LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = sc.ruleid
+            LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = sc.schemeid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                sc.id AS Id,
+                sc.organizationid AS OrganizationId,
+                sc.configrulename AS ConfigName,
+                sc.description AS Description,
+                sc.jurisdictionid AS JurisdictionId,
+                j.jurisdictioncode AS JurisdictionCode,
+                j.jurisdictionname AS JurisdictionName,
+                sc.authorityid AS AuthorityId,
+                a.authoritycode AS AuthorityCode,
+                a.authorityname AS AuthorityName,
+                a.portalurl AS PortalUrl,
+                sc.schemeid AS SchemeId,
+                ss.schemecode AS SchemeCode,
+                ss.schemename AS SchemeName,
+                sc.ruleid AS RuleId,
+                sr.rulename AS RuleName,
+                COALESCE(sc.contributionbasis, 'gross') AS ContributionBasis,
+                COALESCE(sc.employeepercentage, 0) AS EmployeeContributionPct,
+                COALESCE(sc.employerpercentage, 0) AS EmployerContributionPct,
+                sc.employeefixedamount AS EmployeeFixedAmount,
+                sc.employerfixedamount AS EmployerFixedAmount,
+                sc.minsalarylimit AS MinSalaryLimit,
+                sc.maxsalarylimit AS MaxSalaryCap,
+                sc.currency AS Currency,
+                COALESCE(sc.isstatutory, true) AS IsStatutory,
+                COALESCE(sc.allowvoluntary, false) AS AllowVoluntary,
+                COALESCE(sc.allowwithdrawal, true) AS AllowWithdrawal,
+                sc.metadata::text AS Metadata,
+                sc.effectivefrom AS EffectiveFrom,
+                sc.effectiveto AS EffectiveTo,
+                sc.isactive AS IsActive,
+                sc.isdeleted AS IsDeleted,
+                sc.createdat AS CreatedAt,
+                COALESCE(sc.updatedat, sc.createdat) AS UpdatedAt
+            FROM payroll.socialsecurityconfig sc
+            LEFT JOIN payroll.socialsecurityjurisdictions j ON j.jurisdictionid = sc.jurisdictionid
+            LEFT JOIN payroll.socialsecurityauthorities a ON a.authorityid = sc.authorityid
+            LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = sc.schemeid
+            LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = sc.ruleid
+            WHERE {whereClause}
+            ORDER BY sc.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<SocialSecurityConfigDto>(sql, parameters);
+
+        return new PagedResult<SocialSecurityConfigDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<IEnumerable<SocialSecurityConfigDto>> GetActiveSocialSecurityConfigsAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                                sc.id AS Id,
+                                sc.organizationid AS OrganizationId,
+                                sc.configrulename AS ConfigName,
+                                sc.description AS Description,
+                                sc.jurisdictionid AS JurisdictionId,
+                                j.jurisdictioncode AS JurisdictionCode,
+                                j.jurisdictionname AS JurisdictionName,
+                                sc.authorityid AS AuthorityId,
+                                a.authoritycode AS AuthorityCode,
+                                a.authorityname AS AuthorityName,
+                                a.portalurl AS PortalUrl,
+                                sc.schemeid AS SchemeId,
+                                ss.schemecode AS SchemeCode,
+                                ss.schemename AS SchemeName,
+                                sc.ruleid AS RuleId,
+                                sr.rulename AS RuleName,
+                                COALESCE(sc.contributionbasis, 'gross') AS ContributionBasis,
+                                COALESCE(sc.employeepercentage, 0) AS EmployeeContributionPct,
+                                COALESCE(sc.employerpercentage, 0) AS EmployerContributionPct,
+                                sc.employeefixedamount AS EmployeeFixedAmount,
+                                sc.employerfixedamount AS EmployerFixedAmount,
+                                sc.minsalarylimit AS MinSalaryLimit,
+                                sc.maxsalarylimit AS MaxSalaryCap,
+                                sc.currency AS Currency,
+                                COALESCE(sc.isstatutory, true) AS IsStatutory,
+                                COALESCE(sc.allowvoluntary, false) AS AllowVoluntary,
+                                COALESCE(sc.allowwithdrawal, true) AS AllowWithdrawal,
+                                sc.metadata::text AS Metadata,
+                                sc.effectivefrom AS EffectiveFrom,
+                                sc.effectiveto AS EffectiveTo,
+                                sc.isactive AS IsActive,
+                                sc.isdeleted AS IsDeleted,
+                                sc.createdat AS CreatedAt,
+                                COALESCE(sc.updatedat, sc.createdat) AS UpdatedAt
+                        FROM payroll.socialsecurityconfig sc
+                        LEFT JOIN payroll.socialsecurityjurisdictions j ON j.jurisdictionid = sc.jurisdictionid
+                        LEFT JOIN payroll.socialsecurityauthorities a ON a.authorityid = sc.authorityid
+                        LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = sc.schemeid
+                        LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = sc.ruleid
+                        WHERE sc.organizationid = @organizationId
+                            AND sc.isactive = true
+                            AND sc.isdeleted = false
+                        ORDER BY sc.createdat DESC;";
+
+        return await QueryAsync<SocialSecurityConfigDto>(sql, new { organizationId });
+    }
+
+    public async Task<SocialSecurityConfigDto?> GetSocialSecurityConfigByIdAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                sc.id AS Id,
+                sc.organizationid AS OrganizationId,
+                sc.configrulename AS ConfigName,
+                sc.description AS Description,
+                sc.jurisdictionid AS JurisdictionId,
+                j.jurisdictioncode AS JurisdictionCode,
+                j.jurisdictionname AS JurisdictionName,
+                sc.authorityid AS AuthorityId,
+                a.authoritycode AS AuthorityCode,
+                a.authorityname AS AuthorityName,
+                a.portalurl AS PortalUrl,
+                sc.schemeid AS SchemeId,
+                ss.schemecode AS SchemeCode,
+                ss.schemename AS SchemeName,
+                sc.ruleid AS RuleId,
+                sr.rulename AS RuleName,
+                COALESCE(sc.contributionbasis, 'gross') AS ContributionBasis,
+                COALESCE(sc.employeepercentage, 0) AS EmployeeContributionPct,
+                COALESCE(sc.employerpercentage, 0) AS EmployerContributionPct,
+                sc.employeefixedamount AS EmployeeFixedAmount,
+                sc.employerfixedamount AS EmployerFixedAmount,
+                sc.minsalarylimit AS MinSalaryLimit,
+                sc.maxsalarylimit AS MaxSalaryCap,
+                sc.currency AS Currency,
+                COALESCE(sc.isstatutory, true) AS IsStatutory,
+                COALESCE(sc.allowvoluntary, false) AS AllowVoluntary,
+                COALESCE(sc.allowwithdrawal, true) AS AllowWithdrawal,
+                sc.metadata::text AS Metadata,
+                sc.effectivefrom AS EffectiveFrom,
+                sc.effectiveto AS EffectiveTo,
+                sc.isactive AS IsActive,
+                sc.isdeleted AS IsDeleted,
+                sc.createdat AS CreatedAt,
+                COALESCE(sc.updatedat, sc.createdat) AS UpdatedAt
+            FROM payroll.socialsecurityconfig sc
+            LEFT JOIN payroll.socialsecurityjurisdictions j ON j.jurisdictionid = sc.jurisdictionid
+            LEFT JOIN payroll.socialsecurityauthorities a ON a.authorityid = sc.authorityid
+            LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = sc.schemeid
+            LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = sc.ruleid
+            WHERE sc.id = @id
+              AND sc.organizationid = @organizationId
+              AND sc.isdeleted = false;";
+
+        return await QuerySingleOrDefaultAsync<SocialSecurityConfigDto>(sql, new { id, organizationId });
+    }
+
+    public async Task<SocialSecurityConfigDto> CreateSocialSecurityConfigAsync(Guid organizationId, CreateSocialSecurityConfigDto dto)
+    {
+        var sql = @"
+            INSERT INTO payroll.socialsecurityconfig
+                (
+                    organizationid,
+                    configrulename,
+                    description,
+                    jurisdictionid,
+                    authorityid,
+                    schemeid,
+                    ruleid,
+                    contributionbasis,
+                    employeepercentage,
+                    employerpercentage,
+                    employeefixedamount,
+                    employerfixedamount,
+                    minsalarylimit,
+                    maxsalarylimit,
+                    currency,
+                    isstatutory,
+                    allowvoluntary,
+                    allowwithdrawal,
+                    metadata,
+                    effectivefrom,
+                    effectiveto,
+                    isactive,
+                    isdeleted
+                )
+            VALUES
+                (
+                    @organizationId,
+                    @ConfigName,
+                    @Description,
+                    @JurisdictionId,
+                    @AuthorityId,
+                    @SchemeId,
+                    @RuleId,
+                    COALESCE(NULLIF(@ContributionBasis, ''), 'gross'),
+                    @EmployeeContributionPct,
+                    @EmployerContributionPct,
+                    @EmployeeFixedAmount,
+                    @EmployerFixedAmount,
+                    @MinSalaryLimit,
+                    @MaxSalaryCap,
+                    @Currency,
+                    @IsStatutory,
+                    @AllowVoluntary,
+                    @AllowWithdrawal,
+                    CASE WHEN @Metadata IS NULL OR btrim(@Metadata) = '' THEN '{}'::jsonb ELSE @Metadata::jsonb END,
+                    @EffectiveFrom,
+                    @EffectiveTo,
+                    @IsActive,
+                    false
+                )
+            RETURNING id;";
+
+        var id = await QuerySingleAsync<Guid>(sql, new
+        {
+            organizationId,
+            dto.ConfigName,
+            dto.Description,
+            dto.JurisdictionId,
+            dto.AuthorityId,
+            dto.SchemeId,
+            dto.RuleId,
+            dto.ContributionBasis,
+            dto.EmployeeContributionPct,
+            dto.EmployerContributionPct,
+            dto.EmployeeFixedAmount,
+            dto.EmployerFixedAmount,
+            dto.MinSalaryLimit,
+            dto.MaxSalaryCap,
+            dto.Currency,
+            dto.IsStatutory,
+            dto.AllowVoluntary,
+            dto.AllowWithdrawal,
+            dto.Metadata,
+            dto.EffectiveFrom,
+            dto.EffectiveTo,
+            dto.IsActive
+        });
+
+        return (await GetSocialSecurityConfigByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<SocialSecurityConfigDto?> UpdateSocialSecurityConfigAsync(Guid id, Guid organizationId, UpdateSocialSecurityConfigDto dto)
+    {
+        var sql = @"
+            UPDATE payroll.socialsecurityconfig
+            SET
+                configrulename = @ConfigName,
+                description = @Description,
+                jurisdictionid = @JurisdictionId,
+                authorityid = @AuthorityId,
+                schemeid = @SchemeId,
+                ruleid = @RuleId,
+                contributionbasis = COALESCE(NULLIF(@ContributionBasis, ''), contributionbasis, 'gross'),
+                employeepercentage = @EmployeeContributionPct,
+                employerpercentage = @EmployerContributionPct,
+                employeefixedamount = @EmployeeFixedAmount,
+                employerfixedamount = @EmployerFixedAmount,
+                minsalarylimit = @MinSalaryLimit,
+                maxsalarylimit = @MaxSalaryCap,
+                currency = @Currency,
+                isstatutory = @IsStatutory,
+                allowvoluntary = @AllowVoluntary,
+                allowwithdrawal = @AllowWithdrawal,
+                metadata = CASE WHEN @Metadata IS NULL OR btrim(@Metadata) = '' THEN '{}'::jsonb ELSE @Metadata::jsonb END,
+                effectivefrom = @EffectiveFrom,
+                effectiveto = @EffectiveTo,
+                isactive = @IsActive,
+                updatedat = current_timestamp
+            WHERE id = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING id;";
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new
+        {
+            id,
+            organizationId,
+            dto.ConfigName,
+            dto.Description,
+            dto.JurisdictionId,
+            dto.AuthorityId,
+            dto.SchemeId,
+            dto.RuleId,
+            dto.ContributionBasis,
+            dto.EmployeeContributionPct,
+            dto.EmployerContributionPct,
+            dto.EmployeeFixedAmount,
+            dto.EmployerFixedAmount,
+            dto.MinSalaryLimit,
+            dto.MaxSalaryCap,
+            dto.Currency,
+            dto.IsStatutory,
+            dto.AllowVoluntary,
+            dto.AllowWithdrawal,
+            dto.Metadata,
+            dto.EffectiveFrom,
+            dto.EffectiveTo,
+            dto.IsActive
+        });
+
+        if (updatedId == null || updatedId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await GetSocialSecurityConfigByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteSocialSecurityConfigAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE payroll.socialsecurityconfig
+            SET isdeleted = true, updatedat = current_timestamp
+            WHERE id = @id
+              AND organizationid = @organizationId
+              AND isdeleted = false
+            RETURNING id;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    // ─── Social Security Transactions ────────────────────────────────────────
+
+    public async Task<PagedResult<SocialSecurityTransactionDto>> GetAllSocialSecurityTransactionsAsync(Guid organizationId, SocialSecurityTransactionFilterDto filter)
+    {
+        filter ??= new SocialSecurityTransactionFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var conditions = new List<string>
+        {
+            "st.organizationid = @organizationId",
+            "e.organizationid = @organizationId",
+            "per.organizationid = @organizationId"
+        };
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            conditions.Add("(e.firstname || ' ' || e.lastname) ILIKE @SearchTerm");
+            parameters.Add("SearchTerm", $"%{filter.SearchTerm.Trim()}%");
+        }
+
+        if (filter.PeriodId.HasValue)
+        {
+            conditions.Add("st.periodid = @PeriodId");
+            parameters.Add("PeriodId", filter.PeriodId.Value);
+        }
+
+        if (filter.ConfigId.HasValue)
+        {
+            conditions.Add("st.configid = @ConfigId");
+            parameters.Add("ConfigId", filter.ConfigId.Value);
+        }
+
+        if (filter.SchemeId.HasValue)
+        {
+            conditions.Add("st.schemeid = @SchemeId");
+            parameters.Add("SchemeId", filter.SchemeId.Value);
+        }
+
+        if (filter.RuleId.HasValue)
+        {
+            conditions.Add("st.ruleid = @RuleId");
+            parameters.Add("RuleId", filter.RuleId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.RequestStatus))
+        {
+            conditions.Add("LOWER(COALESCE(st.requeststatus, 'pending')) = LOWER(@RequestStatus)");
+            parameters.Add("RequestStatus", filter.RequestStatus.Trim());
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.socialsecuritytransactions st
+            JOIN employee.employees e ON e.employeeid = st.employeeid
+            JOIN payroll.payrollperiods per ON per.periodid = st.periodid
+            LEFT JOIN payroll.socialsecurityconfig sc ON sc.id = st.configid
+            LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = st.ruleid
+            LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = st.schemeid
+            LEFT JOIN payroll.socialsecurityjurisdictions sj ON sj.jurisdictionid = st.jurisdictionid
+            LEFT JOIN payroll.socialsecurityauthorities sa ON sa.authorityid = st.authorityid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                st.id AS Id,
+                st.organizationid AS OrganizationId,
+                st.employeeid AS EmployeeId,
+                COALESCE(e.firstname || ' ' || e.lastname, '') AS EmployeeName,
+                st.periodid AS PeriodId,
+                COALESCE(per.periodname, '') AS PeriodName,
+                st.configid AS ConfigId,
+                sc.configrulename AS ConfigName,
+                st.ruleid AS RuleId,
+                sr.rulename AS RuleName,
+                st.schemeid AS SchemeId,
+                ss.schemename AS SchemeName,
+                st.jurisdictionid AS JurisdictionId,
+                sj.jurisdictionname AS JurisdictionName,
+                st.authorityid AS AuthorityId,
+                sa.authorityname AS AuthorityName,
+                st.actualsalary AS ActualSalary,
+                st.salarycapped AS SalaryCapped,
+                COALESCE(st.contributionbase, st.salarycapped, st.actualsalary, 0) AS ContributionBase,
+                COALESCE(st.contributionbasis, 'gross') AS ContributionBasis,
+                COALESCE(st.employeerate, 0) AS EmployeeRate,
+                COALESCE(st.employerrate, 0) AS EmployerRate,
+                COALESCE(st.employeeamount, 0) AS EmployeeAmount,
+                COALESCE(st.employeramount, 0) AS EmployerAmount,
+                COALESCE(st.totalamount, 0) AS TotalAmount,
+                st.referencecode AS ReferenceCode,
+                COALESCE(st.transactiontype, 'monthly') AS TransactionType,
+                COALESCE(st.requeststatus, 'pending') AS RequestStatus,
+                COALESCE(st.isenrolled, false) AS IsEnrolled,
+                COALESCE(st.withdrawalrequest, false) AS WithdrawalRequest,
+                st.withdrawalstatus AS WithdrawalStatus,
+                st.createdat AS CreatedAt,
+                COALESCE(st.updatedat, st.createdat) AS UpdatedAt,
+                0 AS TotalCount
+            FROM payroll.socialsecuritytransactions st
+            JOIN employee.employees e ON e.employeeid = st.employeeid
+            JOIN payroll.payrollperiods per ON per.periodid = st.periodid
+            LEFT JOIN payroll.socialsecurityconfig sc ON sc.id = st.configid
+            LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = st.ruleid
+            LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = st.schemeid
+            LEFT JOIN payroll.socialsecurityjurisdictions sj ON sj.jurisdictionid = st.jurisdictionid
+            LEFT JOIN payroll.socialsecurityauthorities sa ON sa.authorityid = st.authorityid
+            WHERE {whereClause}
+            ORDER BY st.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<SocialSecurityTransactionDto>(sql, parameters);
+
+        return new PagedResult<SocialSecurityTransactionDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<SocialSecurityTransactionDto?> GetSocialSecurityTransactionByIdAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            SELECT
+                st.id AS Id,
+                st.organizationid AS OrganizationId,
+                st.employeeid AS EmployeeId,
+                COALESCE(e.firstname || ' ' || e.lastname, '') AS EmployeeName,
+                st.periodid AS PeriodId,
+                COALESCE(per.periodname, '') AS PeriodName,
+                st.configid AS ConfigId,
+                sc.configrulename AS ConfigName,
+                st.ruleid AS RuleId,
+                sr.rulename AS RuleName,
+                st.schemeid AS SchemeId,
+                ss.schemename AS SchemeName,
+                st.jurisdictionid AS JurisdictionId,
+                sj.jurisdictionname AS JurisdictionName,
+                st.authorityid AS AuthorityId,
+                sa.authorityname AS AuthorityName,
+                st.actualsalary AS ActualSalary,
+                st.salarycapped AS SalaryCapped,
+                COALESCE(st.contributionbase, st.salarycapped, st.actualsalary, 0) AS ContributionBase,
+                COALESCE(st.contributionbasis, 'gross') AS ContributionBasis,
+                COALESCE(st.employeerate, 0) AS EmployeeRate,
+                COALESCE(st.employerrate, 0) AS EmployerRate,
+                COALESCE(st.employeeamount, 0) AS EmployeeAmount,
+                COALESCE(st.employeramount, 0) AS EmployerAmount,
+                COALESCE(st.totalamount, 0) AS TotalAmount,
+                st.referencecode AS ReferenceCode,
+                COALESCE(st.transactiontype, 'monthly') AS TransactionType,
+                COALESCE(st.requeststatus, 'pending') AS RequestStatus,
+                COALESCE(st.isenrolled, false) AS IsEnrolled,
+                COALESCE(st.withdrawalrequest, false) AS WithdrawalRequest,
+                st.withdrawalstatus AS WithdrawalStatus,
+                st.createdat AS CreatedAt,
+                COALESCE(st.updatedat, st.createdat) AS UpdatedAt,
+                0 AS TotalCount
+            FROM payroll.socialsecuritytransactions st
+            JOIN employee.employees e ON e.employeeid = st.employeeid
+            JOIN payroll.payrollperiods per ON per.periodid = st.periodid
+            LEFT JOIN payroll.socialsecurityconfig sc ON sc.id = st.configid
+            LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = st.ruleid
+            LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = st.schemeid
+            LEFT JOIN payroll.socialsecurityjurisdictions sj ON sj.jurisdictionid = st.jurisdictionid
+            LEFT JOIN payroll.socialsecurityauthorities sa ON sa.authorityid = st.authorityid
+            WHERE st.id = @id
+              AND st.organizationid = @organizationId
+              AND e.organizationid = @organizationId
+              AND per.organizationid = @organizationId;";
+
+        return await QuerySingleOrDefaultAsync<SocialSecurityTransactionDto>(sql, new { id, organizationId });
+    }
+
+    public async Task<SocialSecurityTransactionDto> CreateSocialSecurityTransactionAsync(Guid organizationId, CreateSocialSecurityTransactionDto dto)
+    {
+        var employeeExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM employee.employees
+                WHERE employeeid = @EmployeeId AND organizationid = @organizationId
+            );", new { organizationId, dto.EmployeeId });
+
+        if (!employeeExists)
+        {
+            throw new InvalidOperationException("Selected employee does not belong to this organization.");
+        }
+
+        var periodExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.payrollperiods
+                WHERE periodid = @PeriodId AND organizationid = @organizationId
+            );", new { organizationId, dto.PeriodId });
+
+        if (!periodExists)
+        {
+            throw new InvalidOperationException("Selected payroll period is not available for this organization.");
+        }
+
+        var alreadyExists = await ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1
+                FROM payroll.socialsecuritytransactions
+                WHERE organizationid = @organizationId
+                  AND employeeid = @EmployeeId
+                  AND periodid = @PeriodId
+            );", new { organizationId, dto.EmployeeId, dto.PeriodId });
+
+        if (alreadyExists)
+        {
+            throw new InvalidOperationException("A social security transaction already exists for this employee and payroll period.");
+        }
+
+        SocialSecurityConfigCalculationDto? config = null;
+        if (dto.ConfigId.HasValue && dto.ConfigId.Value != Guid.Empty)
+        {
+            config = await QuerySingleOrDefaultAsync<SocialSecurityConfigCalculationDto>(@"
+                SELECT
+                    id AS Id,
+                    ruleid AS RuleId,
+                    schemeid AS SchemeId,
+                    jurisdictionid AS JurisdictionId,
+                    authorityid AS AuthorityId,
+                    COALESCE(employeepercentage, 0) AS EmployeeContributionPct,
+                    COALESCE(employerpercentage, 0) AS EmployerContributionPct,
+                    employeefixedamount AS EmployeeFixedAmount,
+                    employerfixedamount AS EmployerFixedAmount,
+                    minsalarylimit AS MinSalaryLimit,
+                    maxsalarylimit AS MaxSalaryCap,
+                    COALESCE(contributionbasis, 'gross') AS ContributionBasis
+                FROM payroll.socialsecurityconfig
+                WHERE id = @ConfigId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false;", new { organizationId, ConfigId = dto.ConfigId.Value });
+
+            if (config == null)
+            {
+                throw new InvalidOperationException("Selected social security config is not available for this organization.");
+            }
+        }
+
+        var resolvedRuleId = dto.RuleId ?? config?.RuleId;
+        SocialSecurityRuleCalculationDto? rule = null;
+        if (resolvedRuleId.HasValue && resolvedRuleId.Value != Guid.Empty)
+        {
+            rule = await QuerySingleOrDefaultAsync<SocialSecurityRuleCalculationDto>(@"
+                SELECT
+                    ruleid AS RuleId,
+                    schemeid AS SchemeId,
+                    COALESCE(employeedefaultpct, 0) AS EmployeeDefaultPct,
+                    COALESCE(employerdefaultpct, 0) AS EmployerDefaultPct,
+                    employeefixedamount AS EmployeeFixedAmount,
+                    employerfixedamount AS EmployerFixedAmount,
+                    minsalarylimit AS MinSalaryLimit,
+                    maxsalarylimit AS MaxSalaryLimit,
+                    COALESCE(contributionbasis, 'gross') AS ContributionBasis,
+                    effectivefrom AS EffectiveFrom
+                FROM payroll.socialsecurityrules
+                WHERE organizationid = @organizationId
+                  AND ruleid = @RuleId
+                  AND isdeleted = false;", new { organizationId, RuleId = resolvedRuleId.Value });
+
+            if (rule == null)
+            {
+                throw new InvalidOperationException("Selected social security rule is not available for this organization.");
+            }
+        }
+
+        if (config == null && rule == null)
+        {
+            throw new InvalidOperationException("Either a social security config or rule is required.");
+        }
+
+        var contributionBasis = (config?.ContributionBasis ?? rule?.ContributionBasis ?? "gross").Trim().ToLowerInvariant();
+        var minSalary = config?.MinSalaryLimit ?? rule?.MinSalaryLimit;
+        var maxSalary = config?.MaxSalaryCap ?? rule?.MaxSalaryLimit;
+        var contributionBase = dto.ActualSalary;
+
+        if (minSalary.HasValue && contributionBase < minSalary.Value)
+        {
+            contributionBase = 0;
+        }
+
+        if (maxSalary.HasValue && maxSalary.Value > 0)
+        {
+            contributionBase = Math.Min(contributionBase, maxSalary.Value);
+        }
+
+        var salaryCapped = contributionBase;
+        var employeeRate = config != null ? config.EmployeeContributionPct : (rule?.EmployeeDefaultPct ?? 0);
+        var employerRate = config != null ? config.EmployerContributionPct : (rule?.EmployerDefaultPct ?? 0);
+        var employeeFixedAmount = config?.EmployeeFixedAmount ?? rule?.EmployeeFixedAmount;
+        var employerFixedAmount = config?.EmployerFixedAmount ?? rule?.EmployerFixedAmount;
+
+        var employeeAmount = contributionBasis == "fixed" && employeeFixedAmount.HasValue
+            ? Math.Round(employeeFixedAmount.Value, 2, MidpointRounding.AwayFromZero)
+            : Math.Round((contributionBase * employeeRate) / 100m, 2, MidpointRounding.AwayFromZero);
+
+        var employerAmount = contributionBasis == "fixed" && employerFixedAmount.HasValue
+            ? Math.Round(employerFixedAmount.Value, 2, MidpointRounding.AwayFromZero)
+            : Math.Round((contributionBase * employerRate) / 100m, 2, MidpointRounding.AwayFromZero);
+
+        var requestStatus = string.IsNullOrWhiteSpace(dto.RequestStatus)
+            ? "pending"
+            : dto.RequestStatus.Trim().ToLowerInvariant();
+
+        var sql = @"
+            INSERT INTO payroll.socialsecuritytransactions
+                (
+                    organizationid,
+                    employeeid,
+                    periodid,
+                    configid,
+                    ruleid,
+                    schemeid,
+                    jurisdictionid,
+                    authorityid,
+                    actualsalary,
+                    salarycapped,
+                    contributionbase,
+                    contributionbasis,
+                    employeerate,
+                    employerrate,
+                    employeefixedamount,
+                    employerfixedamount,
+                    employeeamount,
+                    employeramount,
+                    requeststatus,
+                    isenrolled,
+                    withdrawalrequest,
+                    withdrawalstatus,
+                    transactiontype,
+                    sourcetype,
+                    referencecode
+                )
+            VALUES
+                (
+                    @organizationId,
+                    @EmployeeId,
+                    @PeriodId,
+                    @ConfigId,
+                    @RuleId,
+                    @SchemeId,
+                    @JurisdictionId,
+                    @AuthorityId,
+                    @ActualSalary,
+                    @SalaryCapped,
+                    @ContributionBase,
+                    @ContributionBasis,
+                    @EmployeeRate,
+                    @EmployerRate,
+                    @EmployeeFixedAmount,
+                    @EmployerFixedAmount,
+                    @EmployeeAmount,
+                    @EmployerAmount,
+                    @RequestStatus,
+                    @IsEnrolled,
+                    false,
+                    NULL,
+                    'monthly',
+                    'system',
+                    ('SS-' || upper(substring(replace(uuid_generate_v4()::text, '-', ''), 1, 10)))
+                )
+            RETURNING id;";
+
+        var id = await QuerySingleAsync<Guid>(sql, new
+        {
+            organizationId,
+            dto.EmployeeId,
+            dto.PeriodId,
+            ConfigId = config?.Id,
+            RuleId = resolvedRuleId,
+            SchemeId = config?.SchemeId ?? rule?.SchemeId,
+            JurisdictionId = config?.JurisdictionId,
+            AuthorityId = config?.AuthorityId,
+            dto.ActualSalary,
+            SalaryCapped = salaryCapped,
+            ContributionBase = contributionBase,
+            ContributionBasis = contributionBasis,
+            EmployeeRate = employeeRate,
+            EmployerRate = employerRate,
+            EmployeeFixedAmount = employeeFixedAmount,
+            EmployerFixedAmount = employerFixedAmount,
+            EmployeeAmount = employeeAmount,
+            EmployerAmount = employerAmount,
+            RequestStatus = requestStatus,
+            dto.IsEnrolled
+        });
+
+        return (await GetSocialSecurityTransactionByIdAsync(id, organizationId))!;
+    }
+
+    public async Task<SocialSecurityTransactionDto?> UpdateSocialSecurityTransactionAsync(Guid id, Guid organizationId, UpdateSocialSecurityTransactionDto dto)
+    {
+        var existing = await QuerySingleOrDefaultAsync<ExistingSocialSecurityTransactionDto>(@"
+            SELECT id AS Id, configid AS ConfigId, ruleid AS RuleId
+            FROM payroll.socialsecuritytransactions
+            WHERE id = @id AND organizationid = @organizationId;", new { id, organizationId });
+
+        if (existing == null)
+        {
+            return null;
+        }
+
+        var configId = dto.ConfigId ?? existing.ConfigId;
+        SocialSecurityConfigCalculationDto? config = null;
+        if (configId.HasValue && configId.Value != Guid.Empty)
+        {
+            config = await QuerySingleOrDefaultAsync<SocialSecurityConfigCalculationDto>(@"
+                SELECT
+                    id AS Id,
+                    ruleid AS RuleId,
+                    schemeid AS SchemeId,
+                    jurisdictionid AS JurisdictionId,
+                    authorityid AS AuthorityId,
+                    COALESCE(employeepercentage, 0) AS EmployeeContributionPct,
+                    COALESCE(employerpercentage, 0) AS EmployerContributionPct,
+                    employeefixedamount AS EmployeeFixedAmount,
+                    employerfixedamount AS EmployerFixedAmount,
+                    minsalarylimit AS MinSalaryLimit,
+                    maxsalarylimit AS MaxSalaryCap,
+                    COALESCE(contributionbasis, 'gross') AS ContributionBasis
+                FROM payroll.socialsecurityconfig
+                WHERE id = @ConfigId
+                  AND organizationid = @organizationId
+                  AND isdeleted = false;", new { organizationId, ConfigId = configId.Value });
+
+            if (config == null)
+            {
+                throw new InvalidOperationException("Selected social security config is not available for this organization.");
+            }
+        }
+
+        var resolvedRuleId = dto.RuleId ?? config?.RuleId ?? existing.RuleId;
+        SocialSecurityRuleCalculationDto? rule = null;
+        if (resolvedRuleId.HasValue && resolvedRuleId.Value != Guid.Empty)
+        {
+            rule = await QuerySingleOrDefaultAsync<SocialSecurityRuleCalculationDto>(@"
+                SELECT
+                    ruleid AS RuleId,
+                    schemeid AS SchemeId,
+                    COALESCE(employeedefaultpct, 0) AS EmployeeDefaultPct,
+                    COALESCE(employerdefaultpct, 0) AS EmployerDefaultPct,
+                    employeefixedamount AS EmployeeFixedAmount,
+                    employerfixedamount AS EmployerFixedAmount,
+                    minsalarylimit AS MinSalaryLimit,
+                    maxsalarylimit AS MaxSalaryLimit,
+                    COALESCE(contributionbasis, 'gross') AS ContributionBasis,
+                    effectivefrom AS EffectiveFrom
+                FROM payroll.socialsecurityrules
+                WHERE organizationid = @organizationId
+                  AND ruleid = @RuleId
+                  AND isdeleted = false;", new { organizationId, RuleId = resolvedRuleId.Value });
+
+            if (rule == null)
+            {
+                throw new InvalidOperationException("Selected social security rule is not available for this organization.");
+            }
+        }
+
+        if (config == null && rule == null)
+        {
+            throw new InvalidOperationException("A social security config or rule is required to update this transaction.");
+        }
+
+        var contributionBasis = (config?.ContributionBasis ?? rule?.ContributionBasis ?? "gross").Trim().ToLowerInvariant();
+        var minSalary = config?.MinSalaryLimit ?? rule?.MinSalaryLimit;
+        var maxSalary = config?.MaxSalaryCap ?? rule?.MaxSalaryLimit;
+        var contributionBase = dto.ActualSalary;
+
+        if (minSalary.HasValue && contributionBase < minSalary.Value)
+        {
+            contributionBase = 0;
+        }
+
+        if (maxSalary.HasValue && maxSalary.Value > 0)
+        {
+            contributionBase = Math.Min(contributionBase, maxSalary.Value);
+        }
+
+        var salaryCapped = contributionBase;
+        var employeeRate = config != null ? config.EmployeeContributionPct : (rule?.EmployeeDefaultPct ?? 0);
+        var employerRate = config != null ? config.EmployerContributionPct : (rule?.EmployerDefaultPct ?? 0);
+        var employeeFixedAmount = config?.EmployeeFixedAmount ?? rule?.EmployeeFixedAmount;
+        var employerFixedAmount = config?.EmployerFixedAmount ?? rule?.EmployerFixedAmount;
+
+        var employeeAmount = contributionBasis == "fixed" && employeeFixedAmount.HasValue
+            ? Math.Round(employeeFixedAmount.Value, 2, MidpointRounding.AwayFromZero)
+            : Math.Round((contributionBase * employeeRate) / 100m, 2, MidpointRounding.AwayFromZero);
+
+        var employerAmount = contributionBasis == "fixed" && employerFixedAmount.HasValue
+            ? Math.Round(employerFixedAmount.Value, 2, MidpointRounding.AwayFromZero)
+            : Math.Round((contributionBase * employerRate) / 100m, 2, MidpointRounding.AwayFromZero);
+
+        var requestStatus = string.IsNullOrWhiteSpace(dto.RequestStatus)
+            ? "pending"
+            : dto.RequestStatus.Trim().ToLowerInvariant();
+
+        var sql = @"
+            UPDATE payroll.socialsecuritytransactions
+            SET
+                configid = @ConfigId,
+                ruleid = @RuleId,
+                schemeid = @SchemeId,
+                jurisdictionid = @JurisdictionId,
+                authorityid = @AuthorityId,
+                actualsalary = @ActualSalary,
+                salarycapped = @SalaryCapped,
+                contributionbase = @ContributionBase,
+                contributionbasis = @ContributionBasis,
+                employeerate = @EmployeeRate,
+                employerrate = @EmployerRate,
+                employeefixedamount = @EmployeeFixedAmount,
+                employerfixedamount = @EmployerFixedAmount,
+                employeeamount = @EmployeeAmount,
+                employeramount = @EmployerAmount,
+                requeststatus = @RequestStatus,
+                isenrolled = @IsEnrolled,
+                updatedat = current_timestamp
+            WHERE id = @id
+              AND organizationid = @organizationId
+            RETURNING id;";
+
+        var updatedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new
+        {
+            id,
+            organizationId,
+            ConfigId = config?.Id,
+            RuleId = resolvedRuleId,
+            SchemeId = config?.SchemeId ?? rule?.SchemeId,
+            JurisdictionId = config?.JurisdictionId,
+            AuthorityId = config?.AuthorityId,
+            dto.ActualSalary,
+            SalaryCapped = salaryCapped,
+            ContributionBase = contributionBase,
+            ContributionBasis = contributionBasis,
+            EmployeeRate = employeeRate,
+            EmployerRate = employerRate,
+            EmployeeFixedAmount = employeeFixedAmount,
+            EmployerFixedAmount = employerFixedAmount,
+            EmployeeAmount = employeeAmount,
+            EmployerAmount = employerAmount,
+            RequestStatus = requestStatus,
+            dto.IsEnrolled
+        });
+
+        if (updatedId == null || updatedId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await GetSocialSecurityTransactionByIdAsync(updatedId.Value, organizationId);
+    }
+
+    public async Task<bool> DeleteSocialSecurityTransactionAsync(Guid id, Guid organizationId)
+    {
+        var sql = @"
+            DELETE FROM payroll.socialsecuritytransactions
+            WHERE id = @id AND organizationid = @organizationId
+            RETURNING id;";
+
+        var deletedId = await QuerySingleOrDefaultAsync<Guid?>(sql, new { id, organizationId });
+        return deletedId != null && deletedId != Guid.Empty;
+    }
+
+    public async Task<PagedResult<SocialSecurityTransactionDto>> GetMySocialSecurityTransactionsAsync(Guid organizationId, Guid employeeId, MySocialSecurityTransactionFilterDto filter)
+    {
+        filter ??= new MySocialSecurityTransactionFilterDto();
+        if (filter.Page <= 0) filter.Page = 1;
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+
+        var conditions = new List<string>
+        {
+            "st.organizationid = @organizationId",
+            "st.employeeid = @employeeId",
+            "e.organizationid = @organizationId",
+            "per.organizationid = @organizationId"
+        };
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("employeeId", employeeId);
+
+        if (filter.PeriodId.HasValue)
+        {
+            conditions.Add("st.periodid = @PeriodId");
+            parameters.Add("PeriodId", filter.PeriodId.Value);
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.socialsecuritytransactions st
+            JOIN employee.employees e ON e.employeeid = st.employeeid
+            JOIN payroll.payrollperiods per ON per.periodid = st.periodid
+            LEFT JOIN payroll.socialsecurityconfig sc ON sc.id = st.configid
+            LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = st.ruleid
+            LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = st.schemeid
+            LEFT JOIN payroll.socialsecurityjurisdictions sj ON sj.jurisdictionid = st.jurisdictionid
+            LEFT JOIN payroll.socialsecurityauthorities sa ON sa.authorityid = st.authorityid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                st.id AS Id,
+                st.organizationid AS OrganizationId,
+                st.employeeid AS EmployeeId,
+                COALESCE(e.firstname || ' ' || e.lastname, '') AS EmployeeName,
+                st.periodid AS PeriodId,
+                COALESCE(per.periodname, '') AS PeriodName,
+                st.configid AS ConfigId,
+                sc.configrulename AS ConfigName,
+                st.ruleid AS RuleId,
+                sr.rulename AS RuleName,
+                st.schemeid AS SchemeId,
+                ss.schemename AS SchemeName,
+                st.jurisdictionid AS JurisdictionId,
+                sj.jurisdictionname AS JurisdictionName,
+                st.authorityid AS AuthorityId,
+                sa.authorityname AS AuthorityName,
+                st.actualsalary AS ActualSalary,
+                st.salarycapped AS SalaryCapped,
+                COALESCE(st.contributionbase, st.salarycapped, st.actualsalary, 0) AS ContributionBase,
+                COALESCE(st.contributionbasis, 'gross') AS ContributionBasis,
+                COALESCE(st.employeerate, 0) AS EmployeeRate,
+                COALESCE(st.employerrate, 0) AS EmployerRate,
+                COALESCE(st.employeeamount, 0) AS EmployeeAmount,
+                COALESCE(st.employeramount, 0) AS EmployerAmount,
+                COALESCE(st.totalamount, 0) AS TotalAmount,
+                st.referencecode AS ReferenceCode,
+                COALESCE(st.transactiontype, 'monthly') AS TransactionType,
+                COALESCE(st.requeststatus, 'pending') AS RequestStatus,
+                COALESCE(st.isenrolled, false) AS IsEnrolled,
+                COALESCE(st.withdrawalrequest, false) AS WithdrawalRequest,
+                st.withdrawalstatus AS WithdrawalStatus,
+                st.createdat AS CreatedAt,
+                COALESCE(st.updatedat, st.createdat) AS UpdatedAt,
+                0 AS TotalCount
+            FROM payroll.socialsecuritytransactions st
+            JOIN employee.employees e ON e.employeeid = st.employeeid
+            JOIN payroll.payrollperiods per ON per.periodid = st.periodid
+            LEFT JOIN payroll.socialsecurityconfig sc ON sc.id = st.configid
+            LEFT JOIN payroll.socialsecurityrules sr ON sr.ruleid = st.ruleid
+            LEFT JOIN payroll.socialsecurityschemes ss ON ss.schemeid = st.schemeid
+            LEFT JOIN payroll.socialsecurityjurisdictions sj ON sj.jurisdictionid = st.jurisdictionid
+            LEFT JOIN payroll.socialsecurityauthorities sa ON sa.authorityid = st.authorityid
+            WHERE {whereClause}
+            ORDER BY st.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<SocialSecurityTransactionDto>(sql, parameters);
+
+        return new PagedResult<SocialSecurityTransactionDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
     public async Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId)
     {
         var sql = @"
@@ -7131,8 +8937,9 @@ ORDER BY l.createdat DESC;";
             
             UNION ALL
             
-            SELECT 'Social Security' as ModuleName 
-            WHERE EXISTS (SELECT 1 FROM payroll.socialsecurityconfig WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false)
+            SELECT 'Social Security' as ModuleName
+            WHERE EXISTS (SELECT 1 FROM payroll.socialsecurityrules WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false)
+               OR EXISTS (SELECT 1 FROM payroll.socialsecurityconfig WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false)
             
             UNION ALL
             
@@ -7636,6 +9443,845 @@ ORDER BY l.createdat DESC;";
             LIMIT 1;";
 
         return await QuerySingleOrDefaultAsync<GratuityTransactionDto>(sql, new { employeeId, organizationId });
+    }
+
+    // ============================================================================
+    //  SOCIAL SECURITY — Enrollments & Requests (employee + admin lifecycle)
+    // ============================================================================
+
+    public async Task<SocialSecurityEnrollmentDto?> GetMySocialSecurityEnrollmentAsync(Guid organizationId, Guid employeeId)
+    {
+        var sql = @"
+            SELECT
+                e.enrollmentid          AS EnrollmentId,
+                e.organizationid        AS OrganizationId,
+                e.employeeid            AS EmployeeId,
+                e.ruleid                AS RuleId,
+                r.rulename              AS RuleName,
+                r.schemeid              AS SchemeId,
+                s.schemename            AS SchemeName,
+                e.configid              AS ConfigId,
+                c.configrulename        AS ConfigName,
+                e.externalmemberid      AS ExternalMemberId,
+                e.enrollmenttype        AS EnrollmentType,
+                e.enrollmentstatus      AS EnrollmentStatus,
+                e.effectivedate         AS EffectiveDate,
+                e.enddate               AS EndDate,
+                e.employeecustompct     AS EmployeeCustomPct,
+                e.employercustompct     AS EmployerCustomPct,
+                e.salarycapoverride     AS SalaryCapOverride,
+                r.employeedefaultpct    AS RuleEmployeeDefaultPct,
+                r.employerdefaultpct    AS RuleEmployerDefaultPct,
+                r.contributionbasis     AS ContributionBasis,
+                e.iscurrent             AS IsCurrent,
+                e.createdat             AS CreatedAt,
+                e.updatedat             AS UpdatedAt
+            FROM payroll.socialsecurityemployeeenrollments e
+            LEFT JOIN payroll.socialsecurityrules r   ON r.ruleid   = e.ruleid
+            LEFT JOIN payroll.socialsecurityschemes s ON s.schemeid = r.schemeid
+            LEFT JOIN payroll.socialsecurityconfig c  ON c.id       = e.configid
+            WHERE e.organizationid = @organizationId
+              AND e.employeeid     = @employeeId
+              AND e.iscurrent      = TRUE
+              AND e.isdeleted      = FALSE
+            LIMIT 1;";
+
+        return await QuerySingleOrDefaultAsync<SocialSecurityEnrollmentDto>(sql, new { organizationId, employeeId });
+    }
+
+    public async Task<PagedResult<SocialSecurityEnrollmentRequestDto>> GetMySocialSecurityRequestsAsync(Guid organizationId, Guid employeeId, MySocialSecurityRequestFilterDto filter)
+    {
+        var conditions = new List<string>
+        {
+            "r.organizationid = @organizationId",
+            "r.employeeid     = @employeeId"
+        };
+
+        if (!string.IsNullOrWhiteSpace(filter.RequestType))
+            conditions.Add("LOWER(r.requesttype) = LOWER(@RequestType)");
+
+        if (!string.IsNullOrWhiteSpace(filter.RequestStatus))
+            conditions.Add("LOWER(r.requeststatus) = LOWER(@RequestStatus)");
+
+        var where = string.Join(" AND ", conditions);
+
+        var sql = $@"
+            SELECT
+                r.requestid               AS RequestId,
+                r.organizationid          AS OrganizationId,
+                r.employeeid              AS EmployeeId,
+                COALESCE(NULLIF(TRIM(emp.firstname || ' ' || emp.lastname), ''), 'Employee') AS EmployeeName,
+                r.enrollmentid            AS EnrollmentId,
+                r.ruleid                  AS RuleId,
+                rl.rulename               AS RuleName,
+                r.configid                AS ConfigId,
+                cf.configrulename         AS ConfigName,
+                r.requesttype             AS RequestType,
+                r.requeststatus           AS RequestStatus,
+                r.requestedat             AS RequestedAt,
+                r.reason                  AS Reason,
+                r.remarks                 AS Remarks,
+                r.rejectionreason         AS RejectionReason,
+                NULLIF((r.requestedvalues->>'employeePct')::text,'')::numeric  AS RequestedEmployeePct,
+                NULLIF((r.requestedvalues->>'employerPct')::text,'')::numeric  AS RequestedEmployerPct,
+                NULLIF((r.requestedvalues->>'salaryCap')::text,'')::numeric    AS RequestedSalaryCap,
+                NULLIF(r.requestedvalues->>'effectiveDate','')::date           AS RequestedEffectiveDate,
+                r.approvedby              AS ApprovedBy,
+                r.approvedat              AS ApprovedAt,
+                r.processedat             AS ProcessedAt,
+                COALESCE((SELECT COUNT(1) FROM payroll.socialsecurityrequestdocuments d WHERE d.requestid = r.requestid), 0) AS DocumentCount,
+                COUNT(*) OVER ()          AS TotalCount
+            FROM payroll.socialsecurityrequests r
+            LEFT JOIN employee.employees       emp ON emp.employeeid = r.employeeid
+            LEFT JOIN payroll.socialsecurityrules rl ON rl.ruleid    = r.ruleid
+            LEFT JOIN payroll.socialsecurityconfig cf ON cf.id       = r.configid
+            WHERE {where}
+            ORDER BY r.requestedat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var pageSize = filter.PageSize <= 0 ? 10 : filter.PageSize;
+        var page = filter.Page <= 0 ? 1 : filter.Page;
+        var rows = (await QueryAsync<SocialSecurityEnrollmentRequestDto>(sql, new
+        {
+            organizationId,
+            employeeId,
+            filter.RequestType,
+            filter.RequestStatus,
+            PageSize = pageSize,
+            Offset = (page - 1) * pageSize
+        })).ToList();
+
+        return new PagedResult<SocialSecurityEnrollmentRequestDto>
+        {
+            Data = rows,
+            TotalCount = rows.Count > 0 ? rows[0].TotalCount : 0,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<PagedResult<SocialSecurityEnrollmentRequestDto>> GetSocialSecurityEnrollmentRequestsAsync(Guid organizationId, SocialSecurityEnrollmentRequestFilterDto filter)
+    {
+        var conditions = new List<string> { "r.organizationid = @organizationId" };
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+            conditions.Add("(emp.firstname || ' ' || emp.lastname) ILIKE '%' || @SearchTerm || '%'");
+
+        if (!string.IsNullOrWhiteSpace(filter.RequestType))
+            conditions.Add("LOWER(r.requesttype) = LOWER(@RequestType)");
+
+        if (!string.IsNullOrWhiteSpace(filter.RequestStatus))
+            conditions.Add("LOWER(r.requeststatus) = LOWER(@RequestStatus)");
+
+        if (filter.RuleId.HasValue)
+            conditions.Add("r.ruleid = @RuleId");
+
+        var where = string.Join(" AND ", conditions);
+
+        var sql = $@"
+            SELECT
+                r.requestid               AS RequestId,
+                r.organizationid          AS OrganizationId,
+                r.employeeid              AS EmployeeId,
+                COALESCE(NULLIF(TRIM(emp.firstname || ' ' || emp.lastname), ''), 'Employee') AS EmployeeName,
+                r.enrollmentid            AS EnrollmentId,
+                r.ruleid                  AS RuleId,
+                rl.rulename               AS RuleName,
+                r.configid                AS ConfigId,
+                cf.configrulename         AS ConfigName,
+                r.requesttype             AS RequestType,
+                r.requeststatus           AS RequestStatus,
+                r.requestedat             AS RequestedAt,
+                r.reason                  AS Reason,
+                r.remarks                 AS Remarks,
+                r.rejectionreason         AS RejectionReason,
+                NULLIF((r.requestedvalues->>'employeePct')::text,'')::numeric  AS RequestedEmployeePct,
+                NULLIF((r.requestedvalues->>'employerPct')::text,'')::numeric  AS RequestedEmployerPct,
+                NULLIF((r.requestedvalues->>'salaryCap')::text,'')::numeric    AS RequestedSalaryCap,
+                NULLIF(r.requestedvalues->>'effectiveDate','')::date           AS RequestedEffectiveDate,
+                r.approvedby              AS ApprovedBy,
+                r.approvedat              AS ApprovedAt,
+                r.processedat             AS ProcessedAt,
+                COALESCE((SELECT COUNT(1) FROM payroll.socialsecurityrequestdocuments d WHERE d.requestid = r.requestid), 0) AS DocumentCount,
+                COUNT(*) OVER ()          AS TotalCount
+            FROM payroll.socialsecurityrequests r
+            LEFT JOIN employee.employees       emp ON emp.employeeid = r.employeeid
+            LEFT JOIN payroll.socialsecurityrules rl ON rl.ruleid    = r.ruleid
+            LEFT JOIN payroll.socialsecurityconfig cf ON cf.id       = r.configid
+            WHERE {where}
+            ORDER BY r.requestedat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var pageSize = filter.PageSize <= 0 ? 10 : filter.PageSize;
+        var page = filter.Page <= 0 ? 1 : filter.Page;
+        var rows = (await QueryAsync<SocialSecurityEnrollmentRequestDto>(sql, new
+        {
+            organizationId,
+            filter.SearchTerm,
+            filter.RequestType,
+            filter.RequestStatus,
+            filter.RuleId,
+            PageSize = pageSize,
+            Offset = (page - 1) * pageSize
+        })).ToList();
+
+        return new PagedResult<SocialSecurityEnrollmentRequestDto>
+        {
+            Data = rows,
+            TotalCount = rows.Count > 0 ? rows[0].TotalCount : 0,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<Guid?> CreateSocialSecurityEnrollmentRequestAsync(Guid organizationId, Guid employeeId, Guid requestedByUserId, CreateSocialSecurityEnrollmentRequestDto dto)
+    {
+        var requestType = string.IsNullOrWhiteSpace(dto.RequestType)
+            ? "enrollment"
+            : dto.RequestType.Trim().ToLowerInvariant();
+
+        var allowedTypes = new[] { "enrollment", "update", "withdrawal", "suspension", "reactivation", "exemption", "correction" };
+        if (!allowedTypes.Contains(requestType))
+            throw new InvalidOperationException("Invalid request type.");
+
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            // Block duplicate pending request of same type
+            var dupSql = @"
+                SELECT EXISTS (
+                    SELECT 1 FROM payroll.socialsecurityrequests
+                    WHERE organizationid = @organizationId
+                      AND employeeid     = @employeeId
+                      AND LOWER(requesttype) = @requestType
+                      AND LOWER(requeststatus) = 'pending'
+                );";
+            var alreadyPending = await connection.ExecuteScalarAsync<bool>(dupSql, new { organizationId, employeeId, requestType }, transaction);
+            if (alreadyPending)
+            {
+                transaction.Rollback();
+                throw new InvalidOperationException("A pending request of this type already exists.");
+            }
+
+            // Find current enrollment (for non-enrollment request types)
+            var currentEnrollmentSql = @"
+                SELECT enrollmentid, ruleid
+                FROM payroll.socialsecurityemployeeenrollments
+                WHERE organizationid = @organizationId
+                  AND employeeid     = @employeeId
+                  AND iscurrent      = TRUE
+                  AND isdeleted      = FALSE
+                LIMIT 1;";
+            var currentEnrollment = await connection.QuerySingleOrDefaultAsync<dynamic>(currentEnrollmentSql, new { organizationId, employeeId }, transaction);
+
+            Guid? enrollmentId = currentEnrollment != null ? (Guid?)currentEnrollment.enrollmentid : null;
+            Guid? resolvedRuleId = dto.RuleId ?? (currentEnrollment != null ? (Guid?)currentEnrollment.ruleid : null);
+
+            // For enrollment requests, ruleId is required (or pick the org's first active rule)
+            if (requestType == "enrollment" && !resolvedRuleId.HasValue)
+            {
+                var fallbackRule = await connection.ExecuteScalarAsync<Guid?>(@"
+                    SELECT ruleid FROM payroll.socialsecurityrules
+                    WHERE organizationid = @organizationId
+                      AND isactive = TRUE AND isdeleted = FALSE
+                    ORDER BY createdat DESC
+                    LIMIT 1;", new { organizationId }, transaction);
+                resolvedRuleId = fallbackRule;
+            }
+
+            var requestedValues = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                employeePct = dto.RequestedEmployeePct,
+                employerPct = dto.RequestedEmployerPct,
+                salaryCap = dto.RequestedSalaryCap,
+                effectiveDate = dto.RequestedEffectiveDate?.ToString("yyyy-MM-dd")
+            });
+
+            var insertSql = @"
+                INSERT INTO payroll.socialsecurityrequests
+                    (organizationid, employeeid, enrollmentid, ruleid, configid,
+                     requesttype, requeststatus, requestedat, requestedby,
+                     requestedvalues, reason, createdat, updatedat)
+                VALUES
+                    (@organizationId, @employeeId, @enrollmentId, @ruleId, @configId,
+                     @requestType, 'pending', current_timestamp, @requestedBy,
+                     @requestedValues::jsonb, @reason, current_timestamp, current_timestamp)
+                RETURNING requestid;";
+
+            var requestId = await connection.QuerySingleAsync<Guid>(insertSql, new
+            {
+                organizationId,
+                employeeId,
+                enrollmentId,
+                ruleId = resolvedRuleId,
+                configId = dto.ConfigId,
+                requestType,
+                requestedBy = requestedByUserId,
+                requestedValues,
+                reason = dto.Reason
+            }, transaction);
+
+            // Insert documents (if any) tied to the request
+            if (dto.Documents != null && dto.Documents.Count > 0)
+            {
+                var docSql = @"
+                    INSERT INTO payroll.socialsecurityrequestdocuments
+                        (requestid, organizationid, employeeid,
+                         documenttype, documentname, fileurl, mimetype, filesize,
+                         issuer, issueddate, expirydate, verifiedstatus, createdat)
+                    VALUES
+                        (@requestId, @organizationId, @employeeId,
+                         @documentType, @documentName, @fileUrl, @mimeType, @fileSize,
+                         @issuer, @issuedDate, @expiryDate, 'pending', current_timestamp);";
+
+                foreach (var doc in dto.Documents.Where(d => !string.IsNullOrWhiteSpace(d.FileUrl)))
+                {
+                    await connection.ExecuteAsync(docSql, new
+                    {
+                        requestId,
+                        organizationId,
+                        employeeId,
+                        documentType = string.IsNullOrWhiteSpace(doc.DocumentType) ? "supporting" : doc.DocumentType.Trim(),
+                        documentName = string.IsNullOrWhiteSpace(doc.DocumentName) ? "Attachment" : doc.DocumentName.Trim(),
+                        fileUrl = doc.FileUrl.Trim(),
+                        mimeType = doc.MimeType,
+                        fileSize = doc.FileSize,
+                        issuer = doc.Issuer,
+                        issuedDate = doc.IssuedDate,
+                        expiryDate = doc.ExpiryDate
+                    }, transaction);
+                }
+            }
+
+            transaction.Commit();
+            return requestId;
+        }
+        catch
+        {
+            try { transaction.Rollback(); } catch { /* ignore */ }
+            throw;
+        }
+    }
+
+    public async Task<bool> ApproveSocialSecurityEnrollmentRequestAsync(Guid organizationId, Guid requestId, Guid approvedByUserId, ApproveSocialSecurityEnrollmentRequestDto dto)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var reqRow = await connection.QuerySingleOrDefaultAsync<dynamic>(@"
+                SELECT requestid, employeeid, enrollmentid, ruleid, configid,
+                       requesttype, requeststatus, requestedvalues
+                FROM payroll.socialsecurityrequests
+                WHERE requestid = @requestId AND organizationid = @organizationId
+                FOR UPDATE;", new { requestId, organizationId }, transaction);
+
+            if (reqRow == null)
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            var status = ((string?)reqRow.requeststatus)?.Trim().ToLowerInvariant();
+            if (status != "pending")
+            {
+                transaction.Rollback();
+                return false;
+            }
+
+            var requestType = ((string?)reqRow.requesttype)?.Trim().ToLowerInvariant() ?? "enrollment";
+            var employeeId = (Guid)reqRow.employeeid;
+            Guid? ruleId = reqRow.ruleid != null ? (Guid?)reqRow.ruleid : null;
+            Guid? configId = reqRow.configid != null ? (Guid?)reqRow.configid : null;
+            Guid? existingEnrollmentId = reqRow.enrollmentid != null ? (Guid?)reqRow.enrollmentid : null;
+
+            // Pull requested values from JSON, then apply admin overrides where supplied
+            decimal? employeePct = dto.OverrideEmployeePct;
+            decimal? employerPct = dto.OverrideEmployerPct;
+            decimal? salaryCap = dto.OverrideSalaryCap;
+            DateTime? effectiveDate = dto.EffectiveDate;
+
+            if (employeePct == null || employerPct == null || salaryCap == null || effectiveDate == null)
+            {
+                var requested = await connection.QuerySingleOrDefaultAsync<dynamic>(@"
+                    SELECT
+                        NULLIF((requestedvalues->>'employeePct')::text,'')::numeric AS employeepct,
+                        NULLIF((requestedvalues->>'employerPct')::text,'')::numeric AS employerpct,
+                        NULLIF((requestedvalues->>'salaryCap')::text,'')::numeric AS salarycap,
+                        NULLIF(requestedvalues->>'effectiveDate','')::date AS effdate
+                    FROM payroll.socialsecurityrequests WHERE requestid = @requestId;",
+                    new { requestId }, transaction);
+
+                if (requested != null)
+                {
+                    employeePct ??= (decimal?)requested.employeepct;
+                    employerPct ??= (decimal?)requested.employerpct;
+                    salaryCap ??= (decimal?)requested.salarycap;
+                    effectiveDate ??= (DateTime?)requested.effdate;
+                }
+            }
+
+            effectiveDate ??= DateTime.UtcNow.Date;
+
+            if (requestType == "enrollment" || requestType == "update" || requestType == "reactivation")
+            {
+                if (!ruleId.HasValue)
+                {
+                    transaction.Rollback();
+                    throw new InvalidOperationException("Rule is required to approve this request.");
+                }
+
+                // Close current enrollment(s) for this rule
+                await connection.ExecuteAsync(@"
+                    UPDATE payroll.socialsecurityemployeeenrollments
+                    SET iscurrent = FALSE,
+                        enddate = CASE WHEN enddate IS NULL THEN @effectiveDate - INTERVAL '1 day' ELSE enddate END,
+                        updatedat = current_timestamp
+                    WHERE organizationid = @organizationId
+                      AND employeeid     = @employeeId
+                      AND ruleid         = @ruleId
+                      AND iscurrent      = TRUE
+                      AND isdeleted      = FALSE;",
+                    new { organizationId, employeeId, ruleId, effectiveDate }, transaction);
+
+                // Insert new current enrollment
+                var newEnrollmentId = await connection.QuerySingleAsync<Guid>(@"
+                    INSERT INTO payroll.socialsecurityemployeeenrollments
+                        (organizationid, employeeid, ruleid, configid,
+                         enrollmenttype, enrollmentstatus, effectivedate,
+                         employeecustompct, employercustompct, salarycapoverride,
+                         iscurrent, approvedby, approvedat, createdby, createdat, updatedat)
+                    VALUES
+                        (@organizationId, @employeeId, @ruleId, @configId,
+                         CASE WHEN @requestType = 'enrollment' THEN 'voluntary' ELSE 'opt_in' END,
+                         'active', @effectiveDate,
+                         @employeePct, @employerPct, @salaryCap,
+                         TRUE, @approvedBy, current_timestamp, @approvedBy, current_timestamp, current_timestamp)
+                    RETURNING enrollmentid;",
+                    new { organizationId, employeeId, ruleId, configId, requestType, effectiveDate, employeePct, employerPct, salaryCap, approvedBy = approvedByUserId },
+                    transaction);
+
+                existingEnrollmentId = newEnrollmentId;
+            }
+            else if (requestType == "withdrawal" || requestType == "suspension" || requestType == "exemption")
+            {
+                var newStatus = requestType == "withdrawal" ? "withdrawn"
+                              : requestType == "suspension" ? "suspended"
+                              : "closed";
+
+                await connection.ExecuteAsync(@"
+                    UPDATE payroll.socialsecurityemployeeenrollments
+                    SET enrollmentstatus = @newStatus,
+                        enddate = COALESCE(enddate, @effectiveDate),
+                        iscurrent = CASE WHEN @newStatus = 'suspended' THEN iscurrent ELSE FALSE END,
+                        updatedat = current_timestamp
+                    WHERE organizationid = @organizationId
+                      AND employeeid     = @employeeId
+                      AND iscurrent      = TRUE
+                      AND isdeleted      = FALSE;",
+                    new { organizationId, employeeId, newStatus, effectiveDate }, transaction);
+            }
+
+            // Mark request approved + processed
+            await connection.ExecuteAsync(@"
+                UPDATE payroll.socialsecurityrequests
+                SET requeststatus = 'approved',
+                    enrollmentid  = COALESCE(enrollmentid, @enrollmentId),
+                    approvedby    = @approvedBy,
+                    approvedat    = current_timestamp,
+                    processedat   = current_timestamp,
+                    processedby   = @approvedBy,
+                    remarks       = COALESCE(@remarks, remarks),
+                    updatedat     = current_timestamp
+                WHERE requestid = @requestId;",
+                new { requestId, enrollmentId = existingEnrollmentId, approvedBy = approvedByUserId, remarks = dto.Remarks },
+                transaction);
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            try { transaction.Rollback(); } catch { /* ignore */ }
+            throw;
+        }
+    }
+
+    public async Task<bool> RejectSocialSecurityEnrollmentRequestAsync(Guid organizationId, Guid requestId, Guid rejectedByUserId, RejectSocialSecurityEnrollmentRequestDto dto)
+    {
+        var rows = await ExecuteAsync(@"
+            UPDATE payroll.socialsecurityrequests
+            SET requeststatus   = 'rejected',
+                rejectionreason = @rejectionReason,
+                approvedby      = @rejectedBy,
+                approvedat      = current_timestamp,
+                processedat     = current_timestamp,
+                processedby     = @rejectedBy,
+                updatedat       = current_timestamp
+            WHERE requestid       = @requestId
+              AND organizationid  = @organizationId
+              AND LOWER(requeststatus) = 'pending';",
+            new { requestId, organizationId, rejectedBy = rejectedByUserId, rejectionReason = dto.RejectionReason });
+
+        return rows > 0;
+    }
+
+    // ============================================================================
+    //  SOCIAL SECURITY — Benefit Claims
+    // ============================================================================
+
+    public async Task<PagedResult<SocialSecurityClaimDto>> GetMySocialSecurityClaimsAsync(Guid organizationId, Guid employeeId, MySocialSecurityClaimFilterDto filter)
+    {
+        var conditions = new List<string>
+        {
+            "c.organizationid = @organizationId",
+            "c.employeeid     = @employeeId"
+        };
+
+        if (!string.IsNullOrWhiteSpace(filter.ClaimType))
+            conditions.Add("LOWER(c.claimtype) = LOWER(@ClaimType)");
+        if (!string.IsNullOrWhiteSpace(filter.ClaimStatus))
+            conditions.Add("LOWER(c.claimstatus) = LOWER(@ClaimStatus)");
+
+        var where = string.Join(" AND ", conditions);
+
+        var sql = $@"
+            SELECT
+                c.claimid           AS ClaimId,
+                c.organizationid    AS OrganizationId,
+                c.employeeid        AS EmployeeId,
+                COALESCE(NULLIF(TRIM(emp.firstname || ' ' || emp.lastname), ''), 'Employee') AS EmployeeName,
+                c.enrollmentid      AS EnrollmentId,
+                c.requestid         AS RequestId,
+                c.claimtype         AS ClaimType,
+                c.claimstatus       AS ClaimStatus,
+                c.claimdate         AS ClaimDate,
+                c.incidentdate      AS IncidentDate,
+                c.periodfrom        AS PeriodFrom,
+                c.periodto          AS PeriodTo,
+                c.currency          AS Currency,
+                c.claimedamount     AS ClaimedAmount,
+                c.approvedamount    AS ApprovedAmount,
+                c.paidamount        AS PaidAmount,
+                c.paymentreference  AS PaymentReference,
+                c.paymentdate       AS PaymentDate,
+                c.authorityreference AS AuthorityReference,
+                c.decisionnotes     AS DecisionNotes,
+                c.rejectionreason   AS RejectionReason,
+                c.createdat         AS CreatedAt,
+                c.updatedat         AS UpdatedAt,
+                COALESCE((SELECT COUNT(1) FROM payroll.socialsecurityrequestdocuments d WHERE d.requestid = c.requestid), 0) AS DocumentCount,
+                COUNT(*) OVER ()    AS TotalCount
+            FROM payroll.socialsecurityclaims c
+            LEFT JOIN employee.employees emp ON emp.employeeid = c.employeeid
+            WHERE {where}
+            ORDER BY c.claimdate DESC, c.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var pageSize = filter.PageSize <= 0 ? 10 : filter.PageSize;
+        var page = filter.Page <= 0 ? 1 : filter.Page;
+        var rows = (await QueryAsync<SocialSecurityClaimDto>(sql, new
+        {
+            organizationId, employeeId,
+            filter.ClaimType, filter.ClaimStatus,
+            PageSize = pageSize,
+            Offset = (page - 1) * pageSize
+        })).ToList();
+
+        return new PagedResult<SocialSecurityClaimDto>
+        {
+            Data = rows,
+            TotalCount = rows.Count > 0 ? rows[0].TotalCount : 0,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<PagedResult<SocialSecurityClaimDto>> GetSocialSecurityClaimsAsync(Guid organizationId, SocialSecurityClaimFilterDto filter)
+    {
+        var conditions = new List<string> { "c.organizationid = @organizationId" };
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+            conditions.Add("(emp.firstname || ' ' || emp.lastname) ILIKE '%' || @SearchTerm || '%'");
+        if (!string.IsNullOrWhiteSpace(filter.ClaimType))
+            conditions.Add("LOWER(c.claimtype) = LOWER(@ClaimType)");
+        if (!string.IsNullOrWhiteSpace(filter.ClaimStatus))
+            conditions.Add("LOWER(c.claimstatus) = LOWER(@ClaimStatus)");
+
+        var where = string.Join(" AND ", conditions);
+
+        var sql = $@"
+            SELECT
+                c.claimid           AS ClaimId,
+                c.organizationid    AS OrganizationId,
+                c.employeeid        AS EmployeeId,
+                COALESCE(NULLIF(TRIM(emp.firstname || ' ' || emp.lastname), ''), 'Employee') AS EmployeeName,
+                c.enrollmentid      AS EnrollmentId,
+                c.requestid         AS RequestId,
+                c.claimtype         AS ClaimType,
+                c.claimstatus       AS ClaimStatus,
+                c.claimdate         AS ClaimDate,
+                c.incidentdate      AS IncidentDate,
+                c.periodfrom        AS PeriodFrom,
+                c.periodto          AS PeriodTo,
+                c.currency          AS Currency,
+                c.claimedamount     AS ClaimedAmount,
+                c.approvedamount    AS ApprovedAmount,
+                c.paidamount        AS PaidAmount,
+                c.paymentreference  AS PaymentReference,
+                c.paymentdate       AS PaymentDate,
+                c.authorityreference AS AuthorityReference,
+                c.decisionnotes     AS DecisionNotes,
+                c.rejectionreason   AS RejectionReason,
+                c.createdat         AS CreatedAt,
+                c.updatedat         AS UpdatedAt,
+                COALESCE((SELECT COUNT(1) FROM payroll.socialsecurityrequestdocuments d WHERE d.requestid = c.requestid), 0) AS DocumentCount,
+                COUNT(*) OVER ()    AS TotalCount
+            FROM payroll.socialsecurityclaims c
+            LEFT JOIN employee.employees emp ON emp.employeeid = c.employeeid
+            WHERE {where}
+            ORDER BY c.claimdate DESC, c.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var pageSize = filter.PageSize <= 0 ? 10 : filter.PageSize;
+        var page = filter.Page <= 0 ? 1 : filter.Page;
+        var rows = (await QueryAsync<SocialSecurityClaimDto>(sql, new
+        {
+            organizationId,
+            filter.SearchTerm, filter.ClaimType, filter.ClaimStatus,
+            PageSize = pageSize,
+            Offset = (page - 1) * pageSize
+        })).ToList();
+
+        return new PagedResult<SocialSecurityClaimDto>
+        {
+            Data = rows,
+            TotalCount = rows.Count > 0 ? rows[0].TotalCount : 0,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<Guid?> CreateMySocialSecurityClaimAsync(Guid organizationId, Guid employeeId, Guid createdByUserId, CreateSocialSecurityClaimDto dto)
+    {
+        var allowed = new[] { "retirement", "disability", "survivor", "medical", "unemployment", "maternity", "injury", "other" };
+        var claimType = string.IsNullOrWhiteSpace(dto.ClaimType) ? "" : dto.ClaimType.Trim().ToLowerInvariant();
+        if (!allowed.Contains(claimType))
+            throw new InvalidOperationException("Invalid claim type.");
+
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var enrollmentId = await connection.ExecuteScalarAsync<Guid?>(@"
+                SELECT enrollmentid FROM payroll.socialsecurityemployeeenrollments
+                WHERE organizationid = @organizationId AND employeeid = @employeeId
+                  AND iscurrent = TRUE AND isdeleted = FALSE
+                LIMIT 1;",
+                new { organizationId, employeeId }, transaction);
+
+            // Backing request row to anchor documents (per schema design)
+            var backingRequestId = await connection.QuerySingleAsync<Guid>(@"
+                INSERT INTO payroll.socialsecurityrequests
+                    (organizationid, employeeid, enrollmentid,
+                     requesttype, requeststatus, requestedat, requestedby,
+                     reason, createdat, updatedat)
+                VALUES
+                    (@organizationId, @employeeId, @enrollmentId,
+                     'benefit_claim', 'submitted', current_timestamp, @createdBy,
+                     @reason, current_timestamp, current_timestamp)
+                RETURNING requestid;",
+                new
+                {
+                    organizationId, employeeId, enrollmentId,
+                    createdBy = createdByUserId,
+                    reason = $"Benefit claim ({claimType})"
+                }, transaction);
+
+            var claimId = await connection.QuerySingleAsync<Guid>(@"
+                INSERT INTO payroll.socialsecurityclaims
+                    (organizationid, employeeid, enrollmentid, requestid,
+                     claimtype, claimstatus, claimdate, incidentdate,
+                     periodfrom, periodto, currency, claimedamount,
+                     decisionnotes, createdby, createdat, updatedat)
+                VALUES
+                    (@organizationId, @employeeId, @enrollmentId, @requestId,
+                     @claimType, 'submitted', current_date, @incidentDate,
+                     @periodFrom, @periodTo, COALESCE(@currency, 'USD'), @claimedAmount,
+                     @decisionNotes, @createdBy, current_timestamp, current_timestamp)
+                RETURNING claimid;",
+                new
+                {
+                    organizationId, employeeId, enrollmentId, requestId = backingRequestId,
+                    claimType,
+                    incidentDate = dto.IncidentDate,
+                    periodFrom = dto.PeriodFrom,
+                    periodTo = dto.PeriodTo,
+                    currency = dto.Currency,
+                    claimedAmount = dto.ClaimedAmount,
+                    decisionNotes = dto.DecisionNotes,
+                    createdBy = createdByUserId
+                }, transaction);
+
+            if (dto.Documents != null && dto.Documents.Count > 0)
+            {
+                var docSql = @"
+                    INSERT INTO payroll.socialsecurityrequestdocuments
+                        (requestid, organizationid, employeeid,
+                         documenttype, documentname, fileurl, mimetype, filesize,
+                         issuer, issueddate, expirydate, verifiedstatus, createdat)
+                    VALUES
+                        (@requestId, @organizationId, @employeeId,
+                         @documentType, @documentName, @fileUrl, @mimeType, @fileSize,
+                         @issuer, @issuedDate, @expiryDate, 'pending', current_timestamp);";
+
+                foreach (var doc in dto.Documents.Where(d => !string.IsNullOrWhiteSpace(d.FileUrl)))
+                {
+                    await connection.ExecuteAsync(docSql, new
+                    {
+                        requestId = backingRequestId,
+                        organizationId,
+                        employeeId,
+                        documentType = string.IsNullOrWhiteSpace(doc.DocumentType) ? "supporting" : doc.DocumentType.Trim(),
+                        documentName = string.IsNullOrWhiteSpace(doc.DocumentName) ? "Attachment" : doc.DocumentName.Trim(),
+                        fileUrl = doc.FileUrl.Trim(),
+                        mimeType = doc.MimeType,
+                        fileSize = doc.FileSize,
+                        issuer = doc.Issuer,
+                        issuedDate = doc.IssuedDate,
+                        expiryDate = doc.ExpiryDate
+                    }, transaction);
+                }
+            }
+
+            transaction.Commit();
+            return claimId;
+        }
+        catch
+        {
+            try { transaction.Rollback(); } catch { /* ignore */ }
+            throw;
+        }
+    }
+
+    public async Task<bool> ApproveSocialSecurityClaimAsync(Guid organizationId, Guid claimId, Guid approvedByUserId, ApproveSocialSecurityClaimDto dto)
+    {
+        var rows = await ExecuteAsync(@"
+            UPDATE payroll.socialsecurityclaims
+            SET claimstatus    = 'approved',
+                approvedamount = @approvedAmount,
+                decisionnotes  = COALESCE(@decisionNotes, decisionnotes),
+                updatedat      = current_timestamp
+            WHERE claimid       = @claimId
+              AND organizationid = @organizationId
+              AND LOWER(claimstatus) IN ('submitted','under_review','draft');",
+            new { claimId, organizationId, approvedAmount = dto.ApprovedAmount, decisionNotes = dto.DecisionNotes });
+
+        return rows > 0;
+    }
+
+    public async Task<bool> RejectSocialSecurityClaimAsync(Guid organizationId, Guid claimId, Guid rejectedByUserId, RejectSocialSecurityClaimDto dto)
+    {
+        var rows = await ExecuteAsync(@"
+            UPDATE payroll.socialsecurityclaims
+            SET claimstatus     = 'rejected',
+                rejectionreason = @rejectionReason,
+                updatedat       = current_timestamp
+            WHERE claimid        = @claimId
+              AND organizationid = @organizationId
+              AND LOWER(claimstatus) IN ('submitted','under_review','approved');",
+            new { claimId, organizationId, rejectionReason = dto.RejectionReason });
+
+        return rows > 0;
+    }
+
+    public async Task<bool> MarkSocialSecurityClaimPaidAsync(Guid organizationId, Guid claimId, MarkSocialSecurityClaimPaidDto dto)
+    {
+        var rows = await ExecuteAsync(@"
+            UPDATE payroll.socialsecurityclaims
+            SET claimstatus        = 'paid',
+                paidamount         = @paidAmount,
+                paymentdate        = @paymentDate,
+                paymentreference   = COALESCE(@paymentReference, paymentreference),
+                authorityreference = COALESCE(@authorityReference, authorityreference),
+                updatedat          = current_timestamp
+            WHERE claimid        = @claimId
+              AND organizationid = @organizationId
+              AND LOWER(claimstatus) = 'approved';",
+            new { claimId, organizationId, paidAmount = dto.PaidAmount, paymentDate = dto.PaymentDate, paymentReference = dto.PaymentReference, authorityReference = dto.AuthorityReference });
+
+        return rows > 0;
+    }
+
+    // ============================================================================
+    //  SOCIAL SECURITY — Documents
+    // ============================================================================
+
+    public async Task<IEnumerable<SocialSecurityRequestDocumentDto>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId)
+    {
+        var sql = @"
+            SELECT
+                d.documentid       AS DocumentId,
+                d.requestid        AS RequestId,
+                NULL::uuid         AS ClaimId,
+                d.organizationid   AS OrganizationId,
+                d.employeeid       AS EmployeeId,
+                d.documenttype     AS DocumentType,
+                d.documentname     AS DocumentName,
+                d.fileurl          AS FileUrl,
+                d.mimetype         AS MimeType,
+                d.filesize         AS FileSize,
+                d.issuer           AS Issuer,
+                d.issueddate       AS IssuedDate,
+                d.expirydate       AS ExpiryDate,
+                d.verifiedstatus   AS VerifiedStatus,
+                d.verifiedby       AS VerifiedBy,
+                d.verifiedat       AS VerifiedAt,
+                d.createdat        AS CreatedAt
+            FROM payroll.socialsecurityrequestdocuments d
+            WHERE d.requestid       = @requestId
+              AND d.organizationid  = @organizationId
+            ORDER BY d.createdat DESC;";
+
+        return await QueryAsync<SocialSecurityRequestDocumentDto>(sql, new { requestId, organizationId });
+    }
+
+    public async Task<bool> VerifySocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid verifiedByUserId, VerifySocialSecurityRequestDocumentDto dto)
+    {
+        var status = string.IsNullOrWhiteSpace(dto.VerifiedStatus) ? "verified" : dto.VerifiedStatus.Trim().ToLowerInvariant();
+        var allowed = new[] { "verified", "rejected", "expired" };
+        if (!allowed.Contains(status))
+            throw new InvalidOperationException("Invalid verification status.");
+
+        var rows = await ExecuteAsync(@"
+            UPDATE payroll.socialsecurityrequestdocuments
+            SET verifiedstatus = @status,
+                verifiedby     = @verifiedBy,
+                verifiedat     = current_timestamp
+            WHERE documentid     = @documentId
+              AND organizationid = @organizationId;",
+            new { documentId, organizationId, status, verifiedBy = verifiedByUserId });
+
+        return rows > 0;
+    }
+
+    public async Task<bool> DeleteSocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid employeeId)
+    {
+        var rows = await ExecuteAsync(@"
+            DELETE FROM payroll.socialsecurityrequestdocuments
+            WHERE documentid     = @documentId
+              AND organizationid = @organizationId
+              AND employeeid     = @employeeId;",
+            new { documentId, organizationId, employeeId });
+
+        return rows > 0;
     }
     public async Task<PagedResult<PayrollResultItemDto>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter)
     {

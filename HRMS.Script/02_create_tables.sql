@@ -2238,31 +2238,397 @@ CREATE TABLE payroll.salaryadvancerules (
 ALTER TABLE ONLY payroll.salaryadvancerules
     ADD CONSTRAINT salaryadvancerules_pkey PRIMARY KEY (ruleid);
 
--- Table: payroll.socialsecurityconfig
-CREATE TABLE payroll.socialsecurityconfig (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    configrulename character varying(100) NOT NULL,
-    description text,
-    employeepercentage numeric(5,2) DEFAULT 0 NOT NULL,
-    employerpercentage numeric(5,2) DEFAULT 0 NOT NULL,
-    maxsalarylimit numeric(15,2),
-    isactive boolean DEFAULT true,
-    isdeleted boolean DEFAULT false,
-    effectivefrom date,
-    effectiveto date,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    // Social security
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityjurisdictions
+(
+    jurisdictionid      uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid      uuid NOT NULL,
+    jurisdictioncode    varchar(30) NOT NULL,
+    jurisdictionname    varchar(150) NOT NULL,
+    countrycode         char(2) NOT NULL DEFAULT 'ZZ',
+    currency            varchar(3) DEFAULT 'USD',
+    timezone            varchar(60) DEFAULT 'UTC',
+    isdefault           boolean DEFAULT false,
+    isactive            boolean DEFAULT true,
+    isdeleted           boolean DEFAULT false,
+    metadata            jsonb DEFAULT '{}'::jsonb,
+    createdat           timestamptz DEFAULT current_timestamp,
+    updatedat           timestamptz DEFAULT current_timestamp,
+    CONSTRAINT uq_ss_jurisdiction UNIQUE (organizationid, jurisdictioncode)
 );
 
-ALTER TABLE ONLY payroll.socialsecurityconfig
-    ADD CONSTRAINT socialsecurityconfig_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.socialsecurityconfig
-    ADD CONSTRAINT uqssconfig UNIQUE (organizationid, configrulename);
+CREATE INDEX IF NOT EXISTS idx_ss_jurisdictions_org
+    ON payroll.socialsecurityjurisdictions (organizationid, isactive, isdeleted);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityauthorities
+(
+    authorityid         uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid      uuid NOT NULL,
+    jurisdictionid      uuid NOT NULL REFERENCES payroll.socialsecurityjurisdictions(jurisdictionid),
+    authoritycode       varchar(50) NOT NULL,
+    authorityname       varchar(150) NOT NULL,
+    portalurl           varchar(500),
+    contactemail        varchar(255),
+    remittancefrequency varchar(20) DEFAULT 'monthly'
+                        CHECK (remittancefrequency IN ('weekly', 'biweekly', 'monthly', 'quarterly', 'yearly', 'on_payday')),
+    filingmode          varchar(20) DEFAULT 'online'
+                        CHECK (filingmode IN ('online', 'file_upload', 'api', 'manual')),
+    paymentmode         varchar(30) DEFAULT 'bank_transfer'
+                        CHECK (paymentmode IN ('bank_transfer', 'direct_debit', 'wallet', 'manual')),
+    dueoffsetdays       integer DEFAULT 14,
+    isactive            boolean DEFAULT true,
+    isdeleted           boolean DEFAULT false,
+    metadata            jsonb DEFAULT '{}'::jsonb,
+    createdat           timestamptz DEFAULT current_timestamp,
+    updatedat           timestamptz DEFAULT current_timestamp,
+    CONSTRAINT uq_ss_authority UNIQUE (organizationid, jurisdictionid, authoritycode)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_authorities_org
+    ON payroll.socialsecurityauthorities (organizationid, jurisdictionid, isactive, isdeleted);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityschemes
+(
+    schemeid                uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid          uuid NOT NULL,
+    jurisdictionid          uuid NOT NULL REFERENCES payroll.socialsecurityjurisdictions(jurisdictionid),
+    authorityid             uuid REFERENCES payroll.socialsecurityauthorities(authorityid),
+    schemecode              varchar(50) NOT NULL,
+    schemename              varchar(150) NOT NULL,
+    schemetype              varchar(30) DEFAULT 'social_insurance'
+                            CHECK (schemetype IN ('social_insurance', 'retirement_fund', 'health_insurance', 'unemployment_insurance', 'mixed')),
+    mandatorymode           varchar(20) DEFAULT 'mandatory'
+                            CHECK (mandatorymode IN ('mandatory', 'optional', 'mixed')),
+    employeemandatory       boolean DEFAULT true,
+    employermandatory       boolean DEFAULT true,
+    allowvoluntarytopup     boolean DEFAULT false,
+    allowcrossborder        boolean DEFAULT false,
+    legalreference          varchar(255),
+    versionstartdate        date NOT NULL DEFAULT current_date,
+    versionenddate          date,
+    metadata                jsonb DEFAULT '{}'::jsonb,
+    isactive                boolean DEFAULT true,
+    isdeleted               boolean DEFAULT false,
+    createdat               timestamptz DEFAULT current_timestamp,
+    updatedat               timestamptz DEFAULT current_timestamp,
+    CONSTRAINT uq_ss_scheme UNIQUE (organizationid, schemecode, versionstartdate),
+    CONSTRAINT chk_ss_scheme_dates CHECK (versionenddate IS NULL OR versionenddate >= versionstartdate)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_schemes_org
+    ON payroll.socialsecurityschemes (organizationid, jurisdictionid, authorityid, isactive, isdeleted);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityrules
+(
+    ruleid                  uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid          uuid NOT NULL,
+    schemeid                uuid NOT NULL REFERENCES payroll.socialsecurityschemes(schemeid),
+    rulename                varchar(100) NOT NULL,
+    description             text,
+    contributionbasis       varchar(20) DEFAULT 'gross'
+                            CHECK (contributionbasis IN ('basic', 'gross', 'fixed', 'component')),
+    employeedefaultpct      numeric(5,2) NOT NULL DEFAULT 0,
+    employerdefaultpct      numeric(5,2) NOT NULL DEFAULT 0,
+    employeefixedamount     numeric(15,2),
+    employerfixedamount     numeric(15,2),
+    minsalarylimit          numeric(15,2),
+    maxsalarylimit          numeric(15,2),
+    annualsalarycap         numeric(15,2),
+    roundingmode            varchar(20) DEFAULT 'half_up'
+                            CHECK (roundingmode IN ('half_up', 'half_even', 'floor', 'ceiling')),
+    eligibilityconfig       jsonb DEFAULT '{}'::jsonb,
+    withdrawalconfig        jsonb DEFAULT '{}'::jsonb,
+    claimconfig             jsonb DEFAULT '{}'::jsonb,
+    complianceconfig        jsonb DEFAULT '{}'::jsonb,
+    isactive                boolean DEFAULT true,
+    isdeleted               boolean DEFAULT false,
+    effectivefrom           date NOT NULL DEFAULT current_date,
+    effectiveto             date,
+    createdat               timestamptz DEFAULT current_timestamp,
+    updatedat               timestamptz DEFAULT current_timestamp,
+    CONSTRAINT uq_ss_rule UNIQUE (organizationid, schemeid, rulename, effectivefrom),
+    CONSTRAINT chk_ss_rule_dates CHECK (effectiveto IS NULL OR effectiveto >= effectivefrom),
+    CONSTRAINT chk_ss_rule_pcts CHECK (employeedefaultpct BETWEEN 0 AND 100 AND employerdefaultpct BETWEEN 0 AND 100),
+    CONSTRAINT chk_ss_rule_salary_range CHECK (
+        (minsalarylimit IS NULL OR minsalarylimit >= 0)
+        AND (maxsalarylimit IS NULL OR maxsalarylimit >= 0)
+        AND (annualsalarycap IS NULL OR annualsalarycap >= 0)
+        AND (maxsalarylimit IS NULL OR minsalarylimit IS NULL OR maxsalarylimit >= minsalarylimit)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_rules_org
+    ON payroll.socialsecurityrules (organizationid, schemeid, isactive, isdeleted, effectivefrom, effectiveto);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityrulecomponents
+(
+    id                  uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid      uuid NOT NULL,
+    ruleid              uuid NOT NULL REFERENCES payroll.socialsecurityrules(ruleid) ON DELETE CASCADE,
+    componentid         uuid NOT NULL,
+    treatment           varchar(20) DEFAULT 'include'
+                        CHECK (treatment IN ('include', 'exclude', 'cap_only', 'informational')),
+    contributionweight  numeric(8,4) DEFAULT 1,
+    capapplies          boolean DEFAULT false,
+    isactive            boolean DEFAULT true,
+    createdat           timestamptz DEFAULT current_timestamp,
+    updatedat           timestamptz DEFAULT current_timestamp,
+    CONSTRAINT uq_ss_rule_component UNIQUE (ruleid, componentid)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_rule_components_org
+    ON payroll.socialsecurityrulecomponents (organizationid, ruleid, componentid, isactive);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityemployeeenrollments
+(
+    enrollmentid         uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid       uuid NOT NULL,
+    employeeid           uuid NOT NULL REFERENCES employee.employees(employeeid),
+    ruleid               uuid NOT NULL REFERENCES payroll.socialsecurityrules(ruleid),
+    configid             uuid REFERENCES payroll.socialsecurityconfig(id),
+    externalmemberid     varchar(100),
+    enrollmenttype       varchar(20) DEFAULT 'auto_enrolled'
+                         CHECK (enrollmenttype IN ('mandatory', 'voluntary', 'auto_enrolled', 'opt_in', 'opt_out', 'exempt')),
+    enrollmentstatus     varchar(20) DEFAULT 'pending'
+                         CHECK (enrollmentstatus IN ('pending', 'active', 'suspended', 'withdrawn', 'closed', 'rejected')),
+    effectivedate        date NOT NULL DEFAULT current_date,
+    enddate              date,
+    payrollstartperiodid uuid REFERENCES payroll.payrollperiods(periodid),
+    payrollendperiodid   uuid REFERENCES payroll.payrollperiods(periodid),
+    employeecustompct    numeric(5,2),
+    employercustompct    numeric(5,2),
+    salarycapoverride    numeric(15,2),
+    iscurrent            boolean DEFAULT true,
+    metadata             jsonb DEFAULT '{}'::jsonb,
+    approvedby           uuid,
+    approvedat           timestamptz,
+    createdby            uuid,
+    isdeleted            boolean DEFAULT false,
+    createdat            timestamptz DEFAULT current_timestamp,
+    updatedat            timestamptz DEFAULT current_timestamp,
+    CONSTRAINT chk_ss_enrollment_dates CHECK (enddate IS NULL OR enddate >= effectivedate),
+    CONSTRAINT chk_ss_enrollment_pct CHECK (
+        (employeecustompct IS NULL OR employeecustompct BETWEEN 0 AND 100)
+        AND (employercustompct IS NULL OR employercustompct BETWEEN 0 AND 100)
+    )
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ss_enrollment_current
+    ON payroll.socialsecurityemployeeenrollments (organizationid, employeeid, ruleid)
+    WHERE iscurrent = true AND isdeleted = false;
+
+CREATE INDEX IF NOT EXISTS idx_ss_enrollments_org_emp
+    ON payroll.socialsecurityemployeeenrollments (organizationid, employeeid, enrollmentstatus, isdeleted);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityrequests
+(
+    requestid            uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid       uuid NOT NULL,
+    employeeid           uuid NOT NULL REFERENCES employee.employees(employeeid),
+    enrollmentid         uuid REFERENCES payroll.socialsecurityemployeeenrollments(enrollmentid) ON DELETE SET NULL,
+    ruleid               uuid REFERENCES payroll.socialsecurityrules(ruleid),
+    configid             uuid REFERENCES payroll.socialsecurityconfig(id),
+    requesttype          varchar(30) NOT NULL
+                         CHECK (requesttype IN ('enrollment', 'update', 'withdrawal', 'suspension', 'reactivation', 'exemption', 'benefit_claim', 'correction')),
+    requeststatus        varchar(20) DEFAULT 'pending'
+                         CHECK (requeststatus IN ('pending', 'approved', 'rejected', 'cancelled', 'processing', 'completed')),
+    requestedat          timestamptz DEFAULT current_timestamp,
+    requestedby          uuid,
+    requestedvalues      jsonb DEFAULT '{}'::jsonb,
+    reason               text,
+    remarks              text,
+    approvedby           uuid,
+    approvedat           timestamptz,
+    rejectionreason      text,
+    processedat          timestamptz,
+    processedby          uuid,
+    metadata             jsonb DEFAULT '{}'::jsonb,
+    createdat            timestamptz DEFAULT current_timestamp,
+    updatedat            timestamptz DEFAULT current_timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_requests_org_emp
+    ON payroll.socialsecurityrequests (organizationid, employeeid, requesttype, requeststatus, requestedat);
+
+CREATE INDEX IF NOT EXISTS idx_ss_requests_enrollment
+    ON payroll.socialsecurityrequests (enrollmentid);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityrequestdocuments
+(
+    documentid           uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    requestid            uuid NOT NULL REFERENCES payroll.socialsecurityrequests(requestid) ON DELETE CASCADE,
+    organizationid       uuid NOT NULL,
+    employeeid           uuid NOT NULL REFERENCES employee.employees(employeeid),
+    documenttype         varchar(100) NOT NULL,
+    documentname         varchar(255) NOT NULL,
+    fileurl              varchar(500) NOT NULL,
+    mimetype             varchar(100),
+    filesize             bigint,
+    issuer               varchar(150),
+    issueddate           date,
+    expirydate           date,
+    verifiedstatus       varchar(20) DEFAULT 'pending'
+                         CHECK (verifiedstatus IN ('pending', 'verified', 'rejected', 'expired')),
+    verifiedby           uuid,
+    verifiedat           timestamptz,
+    createdat            timestamptz DEFAULT current_timestamp,
+    CONSTRAINT chk_ss_requestdoc_dates CHECK (expirydate IS NULL OR issueddate IS NULL OR expirydate >= issueddate)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_request_docs_request
+    ON payroll.socialsecurityrequestdocuments (requestid, verifiedstatus);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityclaims
+(
+    claimid              uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid       uuid NOT NULL,
+    employeeid           uuid NOT NULL REFERENCES employee.employees(employeeid),
+    enrollmentid         uuid REFERENCES payroll.socialsecurityemployeeenrollments(enrollmentid),
+    requestid            uuid REFERENCES payroll.socialsecurityrequests(requestid),
+    claimtype            varchar(30) NOT NULL
+                         CHECK (claimtype IN ('retirement', 'disability', 'survivor', 'medical', 'unemployment', 'maternity', 'injury', 'other')),
+    claimstatus          varchar(20) DEFAULT 'draft'
+                         CHECK (claimstatus IN ('draft', 'submitted', 'under_review', 'approved', 'rejected', 'paid', 'closed')),
+    claimdate            date NOT NULL DEFAULT current_date,
+    incidentdate         date,
+    periodfrom           date,
+    periodto             date,
+    currency             varchar(3) DEFAULT 'USD',
+    claimedamount        numeric(15,2),
+    approvedamount       numeric(15,2),
+    paidamount           numeric(15,2),
+    paymentreference     varchar(120),
+    paymentdate          date,
+    authorityreference   varchar(120),
+    decisionnotes        text,
+    rejectionreason      text,
+    metadata             jsonb DEFAULT '{}'::jsonb,
+    createdby            uuid,
+    createdat            timestamptz DEFAULT current_timestamp,
+    updatedat            timestamptz DEFAULT current_timestamp,
+    CONSTRAINT chk_ss_claim_period CHECK (periodto IS NULL OR periodfrom IS NULL OR periodto >= periodfrom)
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_claims_org_emp
+    ON payroll.socialsecurityclaims (organizationid, employeeid, claimstatus, claimdate);
+
+-- E) MULTI-LINE CONTRIBUTIONS + REMITTANCE TRACKING
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecuritytransactionlines
+(
+    lineid               uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    transactionid        uuid NOT NULL REFERENCES payroll.socialsecuritytransactions(id) ON DELETE CASCADE,
+    organizationid       uuid NOT NULL,
+    employeeid           uuid NOT NULL REFERENCES employee.employees(employeeid),
+    periodid             uuid NOT NULL REFERENCES payroll.payrollperiods(periodid),
+    ruleid               uuid REFERENCES payroll.socialsecurityrules(ruleid),
+    schemeid             uuid REFERENCES payroll.socialsecurityschemes(schemeid),
+    componentid          uuid,
+    basisamount          numeric(15,2) NOT NULL DEFAULT 0,
+    employeerate         numeric(5,2) DEFAULT 0,
+    employerrate         numeric(5,2) DEFAULT 0,
+    employeeamount       numeric(15,2) NOT NULL DEFAULT 0,
+    employeramount       numeric(15,2) NOT NULL DEFAULT 0,
+    totalamount          numeric(15,2) GENERATED ALWAYS AS (employeeamount + employeramount) STORED,
+    linekind             varchar(20) DEFAULT 'regular'
+                         CHECK (linekind IN ('regular', 'adjustment', 'arrears', 'refund')),
+    sourcetype           varchar(20) DEFAULT 'system'
+                         CHECK (sourcetype IN ('system', 'manual', 'import')),
+    isretro              boolean DEFAULT false,
+    notes                text,
+    createdat            timestamptz DEFAULT current_timestamp,
+    updatedat            timestamptz DEFAULT current_timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_lines_txn
+    ON payroll.socialsecuritytransactionlines (transactionid);
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_lines_org_emp_period
+    ON payroll.socialsecuritytransactionlines (organizationid, employeeid, periodid);
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_lines_rule_scheme
+    ON payroll.socialsecuritytransactionlines (ruleid, schemeid);
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityremittances
+(
+    remittanceid         uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid       uuid NOT NULL,
+    periodid             uuid NOT NULL REFERENCES payroll.payrollperiods(periodid),
+    jurisdictionid       uuid REFERENCES payroll.socialsecurityjurisdictions(jurisdictionid),
+    authorityid          uuid REFERENCES payroll.socialsecurityauthorities(authorityid),
+    schemeid             uuid REFERENCES payroll.socialsecurityschemes(schemeid),
+    duedate              date,
+    remittancedate       date,
+    filingreference      varchar(100),
+    paymentreference     varchar(100),
+    employeetotal        numeric(15,2) NOT NULL DEFAULT 0,
+    employertotal        numeric(15,2) NOT NULL DEFAULT 0,
+    totalamount          numeric(15,2) GENERATED ALWAYS AS (employeetotal + employertotal) STORED,
+    penaltyamount        numeric(15,2) DEFAULT 0,
+    interestamount       numeric(15,2) DEFAULT 0,
+    remittancestatus     varchar(20) DEFAULT 'draft'
+                         CHECK (remittancestatus IN ('draft', 'prepared', 'filed', 'paid', 'partially_paid', 'failed', 'cancelled')),
+    filingpayload        jsonb DEFAULT '{}'::jsonb,
+    filingresponse       jsonb DEFAULT '{}'::jsonb,
+    createdby            uuid,
+    createdat            timestamptz DEFAULT current_timestamp,
+    updatedat            timestamptz DEFAULT current_timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_remit_org_period
+    ON payroll.socialsecurityremittances (organizationid, periodid, remittancestatus);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_ss_remit_period_scheme
+    ON payroll.socialsecurityremittances
+    (
+        organizationid,
+        periodid,
+        COALESCE(schemeid, '00000000-0000-0000-0000-000000000000'::uuid)
+    );
+
+
+CREATE TABLE IF NOT EXISTS payroll.socialsecurityremittanceitems
+(
+    itemid               uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    remittanceid         uuid NOT NULL REFERENCES payroll.socialsecurityremittances(remittanceid) ON DELETE CASCADE,
+    transactionid        uuid REFERENCES payroll.socialsecuritytransactions(id),
+    transactionlineid    uuid REFERENCES payroll.socialsecuritytransactionlines(lineid),
+    organizationid       uuid NOT NULL,
+    employeeid           uuid NOT NULL REFERENCES employee.employees(employeeid),
+    periodid             uuid NOT NULL REFERENCES payroll.payrollperiods(periodid),
+    employeeamount       numeric(15,2) NOT NULL DEFAULT 0,
+    employeramount       numeric(15,2) NOT NULL DEFAULT 0,
+    totalamount          numeric(15,2) GENERATED ALWAYS AS (employeeamount + employeramount) STORED,
+    itemstatus           varchar(20) DEFAULT 'included'
+                         CHECK (itemstatus IN ('included', 'excluded', 'adjusted', 'paid', 'reversed')),
+    notes                text,
+    createdat            timestamptz DEFAULT current_timestamp,
+    updatedat            timestamptz DEFAULT current_timestamp
+);
+
+CREATE INDEX IF NOT EXISTS idx_ss_remit_items_remittance
+    ON payroll.socialsecurityremittanceitems (remittanceid, itemstatus);
+
+CREATE INDEX IF NOT EXISTS idx_ss_remit_items_txn
+    ON payroll.socialsecurityremittanceitems (transactionid, transactionlineid);
+
 
 -- Table: payroll.socialsecuritytransactions
-CREATE TABLE payroll.socialsecuritytransactions (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+CREATE TABLE IF NOT EXISTS payroll.socialsecuritytransactions
+(
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
     employeeid uuid NOT NULL,
     periodid uuid NOT NULL,
@@ -2271,20 +2637,160 @@ CREATE TABLE payroll.socialsecuritytransactions (
     employeeamount numeric(15,2) DEFAULT 0,
     employeramount numeric(15,2) DEFAULT 0,
     totalamount numeric(15,2) GENERATED ALWAYS AS ((employeeamount + employeramount)) STORED,
-    requeststatus character varying(20) DEFAULT 'pending'::character varying,
+    requeststatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
     isenrolled boolean DEFAULT false,
     withdrawalrequest boolean DEFAULT false,
-    withdrawalstatus character varying(20),
+    withdrawalstatus character varying(20) COLLATE pg_catalog."default",
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    ruleid uuid,
+    schemeid uuid,
+    jurisdictionid uuid,
+    authorityid uuid,
+    enrollmentid uuid,
+    requestid uuid,
+    payrolldataid uuid,
+    remittanceitemid uuid,
+    contributionbasis character varying(20) COLLATE pg_catalog."default" DEFAULT 'gross'::character varying,
+    contributionbase numeric(15,2),
+    employeerate numeric(5,2),
+    employerrate numeric(5,2),
+    employeefixedamount numeric(15,2),
+    employerfixedamount numeric(15,2),
+    transactiontype character varying(20) COLLATE pg_catalog."default" DEFAULT 'monthly'::character varying,
+    sourcetype character varying(20) COLLATE pg_catalog."default" DEFAULT 'system'::character varying,
+    ismanualoverride boolean DEFAULT false,
+    overridereason text COLLATE pg_catalog."default",
+    overriddenby uuid,
+    overriddenat timestamp with time zone,
+    legalperiodstart date,
+    legalperiodend date,
+    referencecode character varying(100) COLLATE pg_catalog."default",
+    transactionpayload jsonb DEFAULT '{}'::jsonb,
+    actualsalary numeric(15,2) NOT NULL DEFAULT 0,
+    CONSTRAINT socialsecuritytransactions_pkey PRIMARY KEY (id),
+    CONSTRAINT uqsstransaction UNIQUE (employeeid, periodid),
+    CONSTRAINT fk_sstrx_authority FOREIGN KEY (authorityid)
+        REFERENCES payroll.socialsecurityauthorities (authorityid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+        NOT VALID,
+    CONSTRAINT fk_sstrx_employee FOREIGN KEY (employeeid)
+        REFERENCES employee.employees (employeeid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+        NOT VALID,
+    CONSTRAINT fk_sstrx_enrollment FOREIGN KEY (enrollmentid)
+        REFERENCES payroll.socialsecurityemployeeenrollments (enrollmentid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+        NOT VALID,
+    CONSTRAINT fk_sstrx_jurisdiction FOREIGN KEY (jurisdictionid)
+        REFERENCES payroll.socialsecurityjurisdictions (jurisdictionid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+        NOT VALID,
+    CONSTRAINT fk_sstrx_payrolldata FOREIGN KEY (payrolldataid)
+        REFERENCES payroll.payrolldata (dataid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+        NOT VALID,
+    CONSTRAINT fk_sstrx_period FOREIGN KEY (periodid)
+        REFERENCES payroll.payrollperiods (periodid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+        NOT VALID,
+    CONSTRAINT fk_sstrx_remittanceitem FOREIGN KEY (remittanceitemid)
+        REFERENCES payroll.socialsecurityremittanceitems (itemid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+        NOT VALID,
+    CONSTRAINT fk_sstrx_request FOREIGN KEY (requestid)
+        REFERENCES payroll.socialsecurityrequests (requestid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+        NOT VALID,
+    CONSTRAINT fk_sstrx_rule FOREIGN KEY (ruleid)
+        REFERENCES payroll.socialsecurityrules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+        NOT VALID,
+    CONSTRAINT fk_sstrx_scheme FOREIGN KEY (schemeid)
+        REFERENCES payroll.socialsecurityschemes (schemeid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE SET NULL
+        NOT VALID,
+    CONSTRAINT socialsecuritytransactions_configid_fkey FOREIGN KEY (configid)
+        REFERENCES payroll.socialsecurityconfig (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT chk_sstrx_contributionbasis CHECK (contributionbasis::text = ANY (ARRAY['basic'::character varying, 'gross'::character varying, 'fixed'::character varying, 'component'::character varying]::text[])) NOT VALID,
+    CONSTRAINT chk_sstrx_transactiontype CHECK (transactiontype::text = ANY (ARRAY['monthly'::character varying, 'adjustment'::character varying, 'arrears'::character varying, 'refund'::character varying, 'settlement'::character varying, 'manual'::character varying]::text[])) NOT VALID,
+    CONSTRAINT chk_sstrx_sourcetype CHECK (sourcetype::text = ANY (ARRAY['system'::character varying, 'manual'::character varying, 'import'::character varying]::text[])) NOT VALID
+)
 
-ALTER TABLE ONLY payroll.socialsecuritytransactions
-    ADD CONSTRAINT socialsecuritytransactions_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.socialsecuritytransactions
-    ADD CONSTRAINT uqsstransaction UNIQUE (employeeid, periodid);
-ALTER TABLE ONLY payroll.socialsecuritytransactions
-    ADD CONSTRAINT socialsecuritytransactions_configid_fkey FOREIGN KEY (configid) REFERENCES payroll.socialsecurityconfig(id);
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS payroll.socialsecuritytransactions
+    OWNER to postgres;
+-- Index: idx_sstrx_enrollment
+
+-- DROP INDEX IF EXISTS payroll.idx_sstrx_enrollment;
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_enrollment
+    ON payroll.socialsecuritytransactions USING btree
+    (enrollmentid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_sstrx_org_emp_period
+
+-- DROP INDEX IF EXISTS payroll.idx_sstrx_org_emp_period;
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_org_emp_period
+    ON payroll.socialsecuritytransactions USING btree
+    (organizationid ASC NULLS LAST, employeeid ASC NULLS LAST, periodid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_sstrx_org_rule_period
+
+-- DROP INDEX IF EXISTS payroll.idx_sstrx_org_rule_period;
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_org_rule_period
+    ON payroll.socialsecuritytransactions USING btree
+    (organizationid ASC NULLS LAST, ruleid ASC NULLS LAST, periodid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_sstrx_org_scheme_period
+
+-- DROP INDEX IF EXISTS payroll.idx_sstrx_org_scheme_period;
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_org_scheme_period
+    ON payroll.socialsecuritytransactions USING btree
+    (organizationid ASC NULLS LAST, schemeid ASC NULLS LAST, periodid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_sstrx_remittanceitem
+
+-- DROP INDEX IF EXISTS payroll.idx_sstrx_remittanceitem;
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_remittanceitem
+    ON payroll.socialsecuritytransactions USING btree
+    (remittanceitemid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_sstrx_request
+
+-- DROP INDEX IF EXISTS payroll.idx_sstrx_request;
+
+CREATE INDEX IF NOT EXISTS idx_sstrx_request
+    ON payroll.socialsecuritytransactions USING btree
+    (requestid ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+-- Trigger: trg_sync_payrolldata_socialsecurity
+
+-- DROP TRIGGER IF EXISTS trg_sync_payrolldata_socialsecurity ON payroll.socialsecuritytransactions;
+
+CREATE OR REPLACE TRIGGER trg_sync_payrolldata_socialsecurity
+    AFTER INSERT OR DELETE OR UPDATE 
+    ON payroll.socialsecuritytransactions
+    FOR EACH ROW
+    EXECUTE FUNCTION payroll.fn_sync_payrolldata_socialsecurity();
 
 -- Table: payroll.taxcategories
 CREATE TABLE payroll.taxcategories (
@@ -2456,12 +2962,51 @@ CREATE TABLE performance.goals (
     assignedto uuid,
     assignedby uuid,
     CONSTRAINT chk_goal_dates CHECK (((enddate IS NULL) OR (startdate IS NULL) OR (enddate >= startdate)))
+// social security
+create table if not exists payroll.socialsecurityconfig
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    configrulename          varchar(100) not null,
+    description         text,
+    employeepercentage  numeric(5,2) not null default 0,
+    employerpercentage  numeric(5,2) not null default 0,
+    maxsalarylimit      numeric(15,2),
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    effectivefrom       date,
+    effectiveto         date,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqssconfig unique (organizationid, configrulename)
 );
 
 ALTER TABLE ONLY performance.goals
     ADD CONSTRAINT goals_pkey PRIMARY KEY (goalid);
 ALTER TABLE ONLY performance.goals
     ADD CONSTRAINT fk_goals_kra FOREIGN KEY (kraid) REFERENCES performance.kra(kraid) ON DELETE CASCADE;
+create table if not exists payroll.socialsecuritytransactions
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    configid            uuid references payroll.socialsecurityconfig(id),
+    actualsalary        numeric(15,2),
+    salarycapped        numeric(15,2),
+    employeeamount      numeric(15,2) default 0,
+    employeramount      numeric(15,2) default 0,
+    totalamount         numeric(15,2) generated always as (
+                            employeeamount + employeramount
+                        ) stored,
+    requeststatus       varchar(20) default 'pending', 
+    isenrolled          boolean default false,         
+    withdrawalrequest   boolean default false,         
+    withdrawalstatus    varchar(20),                   
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqsstransaction unique (employeeid, periodid)
+); // social security
 
 -- Table: performance.hrappraisals
 CREATE TABLE performance.hrappraisals (

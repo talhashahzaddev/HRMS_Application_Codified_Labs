@@ -1,4 +1,4 @@
-﻿namespace HRMS.API.Authorization
+namespace HRMS.API.Authorization
 {
     public static class CustomClaimTypes
     {

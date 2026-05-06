@@ -661,7 +661,7 @@ public class PayRollService : IPayRollService
 
             // 4. Count total calendar days and scheduled working days in the period
             var startDate = period.StartDate.Date;
-            var endDate   = period.EndDate.Date;
+            var endDate = period.EndDate.Date;
             int totalDays = (endDate - startDate).Days + 1;
             int scheduledDays = 0;
 
@@ -677,16 +677,16 @@ public class PayRollService : IPayRollService
             // 5. Build an enriched DTO that includes the auto-computed fields
             var enrichedDto = new CreatePayrollAttendanceSummaryDto
             {
-                EmployeeId        = dto.EmployeeId,
-                PeriodId          = dto.PeriodId,
-                RuleId            = dto.RuleId,
-                PresentDays       = dto.PresentDays,
-                AbsentDays        = dto.AbsentDays,
-                HalfDays          = dto.HalfDays,
-                EffectiveAbsents  = dto.EffectiveAbsents,
-                AbsentDeduction   = dto.AbsentDeduction,
-                HalfDayDeduction  = dto.HalfDayDeduction,
-                TotalDeduction    = dto.TotalDeduction
+                EmployeeId = dto.EmployeeId,
+                PeriodId = dto.PeriodId,
+                RuleId = dto.RuleId,
+                PresentDays = dto.PresentDays,
+                AbsentDays = dto.AbsentDays,
+                HalfDays = dto.HalfDays,
+                EffectiveAbsents = dto.EffectiveAbsents,
+                AbsentDeduction = dto.AbsentDeduction,
+                HalfDayDeduction = dto.HalfDayDeduction,
+                TotalDeduction = dto.TotalDeduction
             };
 
             var result = await _payRollRepository.CreateAttendanceSummaryAsync(
@@ -2573,7 +2573,7 @@ public class PayRollService : IPayRollService
             var result = await _payRollRepository.UpdateLoanPaymentAsync(organizationId, dto);
             if (!result)
             {
-                 return new ServiceResponse<bool> { Success = false, Message = "Loan payment record not found." };
+                return new ServiceResponse<bool> { Success = false, Message = "Loan payment record not found." };
             }
             return new ServiceResponse<bool> { Success = true, Message = "Loan payment record updated and sync successfully.", Data = true };
         }
@@ -2588,12 +2588,12 @@ public class PayRollService : IPayRollService
     {
         try
         {
-             var result = await _payRollRepository.GetLoanPaymentByIdAsync(paymentId, organizationId);
-             if (result == null)
-             {
-                  return new ServiceResponse<LoanPaymentDto> { Success = false, Message = "Loan payment record not found." };
-             }
-             return new ServiceResponse<LoanPaymentDto> { Success = true, Data = result };
+            var result = await _payRollRepository.GetLoanPaymentByIdAsync(paymentId, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<LoanPaymentDto> { Success = false, Message = "Loan payment record not found." };
+            }
+            return new ServiceResponse<LoanPaymentDto> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
@@ -2761,6 +2761,771 @@ public class PayRollService : IPayRollService
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }
+
+    // ─── Social Security Config ──────────────────────────────────────────────
+
+    public async Task<ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>>> GetSocialSecurityJurisdictionsAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetSocialSecurityJurisdictionsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting social security jurisdictions");
+            return new ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetSocialSecurityAuthoritiesAsync(organizationId, jurisdictionId);
+            return new ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting social security authorities");
+            return new ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<SocialSecuritySchemeDto>>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetSocialSecuritySchemesAsync(organizationId, jurisdictionId, authorityId);
+            return new ServiceResponse<IEnumerable<SocialSecuritySchemeDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting social security schemes");
+            return new ServiceResponse<IEnumerable<SocialSecuritySchemeDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<SocialSecurityRuleDto>>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetSocialSecurityRulesAsync(organizationId, schemeId);
+            return new ServiceResponse<IEnumerable<SocialSecurityRuleDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting social security rules");
+            return new ServiceResponse<IEnumerable<SocialSecurityRuleDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityJurisdictionDto>> CreateSocialSecurityJurisdictionAsync(Guid organizationId, CreateSocialSecurityJurisdictionDto dto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dto.JurisdictionCode) || string.IsNullOrWhiteSpace(dto.JurisdictionName))
+            {
+                return new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = "Jurisdiction code and name are required." };
+            }
+
+            var result = await _payRollRepository.CreateSocialSecurityJurisdictionAsync(organizationId, dto);
+            return new ServiceResponse<SocialSecurityJurisdictionDto>
+            {
+                Success = true,
+                Message = "Social security jurisdiction created successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while creating social security jurisdiction");
+            return new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security jurisdiction");
+            return new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityJurisdictionDto>> UpdateSocialSecurityJurisdictionAsync(Guid id, Guid organizationId, UpdateSocialSecurityJurisdictionDto dto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dto.JurisdictionCode) || string.IsNullOrWhiteSpace(dto.JurisdictionName))
+            {
+                return new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = "Jurisdiction code and name are required." };
+            }
+
+            var result = await _payRollRepository.UpdateSocialSecurityJurisdictionAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = "Social security jurisdiction not found." };
+            }
+
+            return new ServiceResponse<SocialSecurityJurisdictionDto>
+            {
+                Success = true,
+                Message = "Social security jurisdiction updated successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while updating social security jurisdiction: {Id}", id);
+            return new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security jurisdiction: {Id}", id);
+            return new ServiceResponse<SocialSecurityJurisdictionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteSocialSecurityJurisdictionAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteSocialSecurityJurisdictionAsync(id, organizationId);
+            if (!result)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Social security jurisdiction not found." };
+            }
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Social security jurisdiction deleted successfully.",
+                Data = true
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security jurisdiction: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityAuthorityDto>> CreateSocialSecurityAuthorityAsync(Guid organizationId, CreateSocialSecurityAuthorityDto dto)
+    {
+        try
+        {
+            if (dto.JurisdictionId == Guid.Empty || string.IsNullOrWhiteSpace(dto.AuthorityCode) || string.IsNullOrWhiteSpace(dto.AuthorityName))
+            {
+                return new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = "Jurisdiction, authority code, and authority name are required." };
+            }
+
+            var result = await _payRollRepository.CreateSocialSecurityAuthorityAsync(organizationId, dto);
+            return new ServiceResponse<SocialSecurityAuthorityDto>
+            {
+                Success = true,
+                Message = "Social security authority created successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while creating social security authority");
+            return new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security authority");
+            return new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityAuthorityDto>> UpdateSocialSecurityAuthorityAsync(Guid id, Guid organizationId, UpdateSocialSecurityAuthorityDto dto)
+    {
+        try
+        {
+            if (dto.JurisdictionId == Guid.Empty || string.IsNullOrWhiteSpace(dto.AuthorityCode) || string.IsNullOrWhiteSpace(dto.AuthorityName))
+            {
+                return new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = "Jurisdiction, authority code, and authority name are required." };
+            }
+
+            var result = await _payRollRepository.UpdateSocialSecurityAuthorityAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = "Social security authority not found." };
+            }
+
+            return new ServiceResponse<SocialSecurityAuthorityDto>
+            {
+                Success = true,
+                Message = "Social security authority updated successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while updating social security authority: {Id}", id);
+            return new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security authority: {Id}", id);
+            return new ServiceResponse<SocialSecurityAuthorityDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteSocialSecurityAuthorityAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteSocialSecurityAuthorityAsync(id, organizationId);
+            if (!result)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Social security authority not found." };
+            }
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Social security authority deleted successfully.",
+                Data = true
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security authority: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecuritySchemeDto>> CreateSocialSecuritySchemeAsync(Guid organizationId, CreateSocialSecuritySchemeDto dto)
+    {
+        try
+        {
+            if (dto.JurisdictionId == Guid.Empty || string.IsNullOrWhiteSpace(dto.SchemeCode) || string.IsNullOrWhiteSpace(dto.SchemeName))
+            {
+                return new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = "Jurisdiction, scheme code, and scheme name are required." };
+            }
+
+            var result = await _payRollRepository.CreateSocialSecuritySchemeAsync(organizationId, dto);
+            return new ServiceResponse<SocialSecuritySchemeDto>
+            {
+                Success = true,
+                Message = "Social security scheme created successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while creating social security scheme");
+            return new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security scheme");
+            return new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecuritySchemeDto>> UpdateSocialSecuritySchemeAsync(Guid id, Guid organizationId, UpdateSocialSecuritySchemeDto dto)
+    {
+        try
+        {
+            if (dto.JurisdictionId == Guid.Empty || string.IsNullOrWhiteSpace(dto.SchemeCode) || string.IsNullOrWhiteSpace(dto.SchemeName))
+            {
+                return new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = "Jurisdiction, scheme code, and scheme name are required." };
+            }
+
+            var result = await _payRollRepository.UpdateSocialSecuritySchemeAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = "Social security scheme not found." };
+            }
+
+            return new ServiceResponse<SocialSecuritySchemeDto>
+            {
+                Success = true,
+                Message = "Social security scheme updated successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while updating social security scheme: {Id}", id);
+            return new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security scheme: {Id}", id);
+            return new ServiceResponse<SocialSecuritySchemeDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteSocialSecuritySchemeAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteSocialSecuritySchemeAsync(id, organizationId);
+            if (!result)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Social security scheme not found." };
+            }
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Social security scheme deleted successfully.",
+                Data = true
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security scheme: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityRuleDto>> CreateSocialSecurityRuleAsync(Guid organizationId, CreateSocialSecurityRuleDto dto)
+    {
+        try
+        {
+            if (dto.SchemeId == Guid.Empty || string.IsNullOrWhiteSpace(dto.RuleName))
+            {
+                return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "Scheme and rule name are required." };
+            }
+
+            var result = await _payRollRepository.CreateSocialSecurityRuleAsync(organizationId, dto);
+            return new ServiceResponse<SocialSecurityRuleDto>
+            {
+                Success = true,
+                Message = "Social security rule created successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while creating social security rule");
+            return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security rule");
+            return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityRuleDto>> UpdateSocialSecurityRuleAsync(Guid id, Guid organizationId, UpdateSocialSecurityRuleDto dto)
+    {
+        try
+        {
+            if (dto.SchemeId == Guid.Empty || string.IsNullOrWhiteSpace(dto.RuleName))
+            {
+                return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "Scheme and rule name are required." };
+            }
+
+            var result = await _payRollRepository.UpdateSocialSecurityRuleAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "Social security rule not found." };
+            }
+
+            return new ServiceResponse<SocialSecurityRuleDto>
+            {
+                Success = true,
+                Message = "Social security rule updated successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while updating social security rule: {Id}", id);
+            return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security rule: {Id}", id);
+            return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteSocialSecurityRuleAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteSocialSecurityRuleAsync(id, organizationId);
+            if (!result)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Social security rule not found." };
+            }
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Social security rule deleted successfully.",
+                Data = true
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security rule: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<SocialSecurityConfigDto>>> GetAllSocialSecurityConfigsAsync(Guid organizationId, SocialSecurityConfigFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllSocialSecurityConfigsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityConfigDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting social security configs");
+            return new ServiceResponse<PagedResult<SocialSecurityConfigDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<SocialSecurityConfigDto>>> GetActiveSocialSecurityConfigsAsync(Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetActiveSocialSecurityConfigsAsync(organizationId);
+            return new ServiceResponse<IEnumerable<SocialSecurityConfigDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting active social security configs");
+            return new ServiceResponse<IEnumerable<SocialSecurityConfigDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityConfigDto>> GetSocialSecurityConfigByIdAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetSocialSecurityConfigByIdAsync(id, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Social security config not found." };
+            }
+
+            return new ServiceResponse<SocialSecurityConfigDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting social security config by ID: {Id}", id);
+            return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityConfigDto>> CreateSocialSecurityConfigAsync(Guid organizationId, CreateSocialSecurityConfigDto dto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dto.ConfigName))
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Config name is required." };
+            }
+
+            if (!dto.RuleId.HasValue && !dto.SchemeId.HasValue)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Scheme or rule selection is required." };
+            }
+
+            if (dto.EmployeeContributionPct < 0 || dto.EmployeeContributionPct > 100 || dto.EmployerContributionPct < 0 || dto.EmployerContributionPct > 100)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Contribution percentages must be between 0 and 100." };
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.ContributionBasis))
+            {
+                var basis = dto.ContributionBasis.Trim().ToLowerInvariant();
+                if (basis != "basic" && basis != "gross" && basis != "fixed" && basis != "component")
+                {
+                    return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Contribution basis must be one of: basic, gross, fixed, component." };
+                }
+            }
+
+            if (dto.MinSalaryLimit.HasValue && dto.MinSalaryLimit.Value < 0)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Minimum salary limit cannot be negative." };
+            }
+
+            if (dto.MaxSalaryCap.HasValue && dto.MaxSalaryCap.Value <= 0)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Max salary cap must be greater than zero." };
+            }
+
+            if (dto.MinSalaryLimit.HasValue && dto.MaxSalaryCap.HasValue && dto.MaxSalaryCap.Value < dto.MinSalaryLimit.Value)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Max salary cap cannot be less than minimum salary limit." };
+            }
+
+            if (dto.EffectiveFrom.HasValue && dto.EffectiveTo.HasValue && dto.EffectiveTo.Value < dto.EffectiveFrom.Value)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Effective to date cannot be earlier than effective from date." };
+            }
+
+            var result = await _payRollRepository.CreateSocialSecurityConfigAsync(organizationId, dto);
+            return new ServiceResponse<SocialSecurityConfigDto>
+            {
+                Success = true,
+                Message = "Social security config created successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while creating social security config");
+            return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security config");
+            return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityConfigDto>> UpdateSocialSecurityConfigAsync(Guid id, Guid organizationId, UpdateSocialSecurityConfigDto dto)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(dto.ConfigName))
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Config name is required." };
+            }
+
+            if (!dto.RuleId.HasValue && !dto.SchemeId.HasValue)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Scheme or rule selection is required." };
+            }
+
+            if (dto.EmployeeContributionPct < 0 || dto.EmployeeContributionPct > 100 || dto.EmployerContributionPct < 0 || dto.EmployerContributionPct > 100)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Contribution percentages must be between 0 and 100." };
+            }
+
+            if (!string.IsNullOrWhiteSpace(dto.ContributionBasis))
+            {
+                var basis = dto.ContributionBasis.Trim().ToLowerInvariant();
+                if (basis != "basic" && basis != "gross" && basis != "fixed" && basis != "component")
+                {
+                    return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Contribution basis must be one of: basic, gross, fixed, component." };
+                }
+            }
+
+            if (dto.MinSalaryLimit.HasValue && dto.MinSalaryLimit.Value < 0)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Minimum salary limit cannot be negative." };
+            }
+
+            if (dto.MaxSalaryCap.HasValue && dto.MaxSalaryCap.Value <= 0)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Max salary cap must be greater than zero." };
+            }
+
+            if (dto.MinSalaryLimit.HasValue && dto.MaxSalaryCap.HasValue && dto.MaxSalaryCap.Value < dto.MinSalaryLimit.Value)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Max salary cap cannot be less than minimum salary limit." };
+            }
+
+            if (dto.EffectiveFrom.HasValue && dto.EffectiveTo.HasValue && dto.EffectiveTo.Value < dto.EffectiveFrom.Value)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Effective to date cannot be earlier than effective from date." };
+            }
+
+            var result = await _payRollRepository.UpdateSocialSecurityConfigAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "Social security config not found." };
+            }
+
+            return new ServiceResponse<SocialSecurityConfigDto>
+            {
+                Success = true,
+                Message = "Social security config updated successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while updating social security config: {Id}", id);
+            return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security config: {Id}", id);
+            return new ServiceResponse<SocialSecurityConfigDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteSocialSecurityConfigAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteSocialSecurityConfigAsync(id, organizationId);
+            if (!result)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Social security config not found." };
+            }
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Social security config deleted successfully.",
+                Data = true
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security config: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // ─── Social Security Transactions ────────────────────────────────────────
+
+    public async Task<ServiceResponse<PagedResult<SocialSecurityTransactionDto>>> GetAllSocialSecurityTransactionsAsync(Guid organizationId, SocialSecurityTransactionFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetAllSocialSecurityTransactionsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityTransactionDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting social security transactions");
+            return new ServiceResponse<PagedResult<SocialSecurityTransactionDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityTransactionDto>> GetSocialSecurityTransactionByIdAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetSocialSecurityTransactionByIdAsync(id, organizationId);
+            if (result == null)
+            {
+                return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "Social security transaction not found." };
+            }
+
+            return new ServiceResponse<SocialSecurityTransactionDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting social security transaction by ID: {Id}", id);
+            return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityTransactionDto>> CreateSocialSecurityTransactionAsync(Guid organizationId, CreateSocialSecurityTransactionDto dto)
+    {
+        try
+        {
+            if (!dto.ConfigId.HasValue && !dto.RuleId.HasValue)
+            {
+                return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "Config or rule is required for transaction creation." };
+            }
+
+            if (dto.ActualSalary < 0)
+            {
+                return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "Actual salary cannot be negative." };
+            }
+
+            var result = await _payRollRepository.CreateSocialSecurityTransactionAsync(organizationId, dto);
+            return new ServiceResponse<SocialSecurityTransactionDto>
+            {
+                Success = true,
+                Message = "Social security transaction created successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while creating social security transaction");
+            return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security transaction");
+            return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SocialSecurityTransactionDto>> UpdateSocialSecurityTransactionAsync(Guid id, Guid organizationId, UpdateSocialSecurityTransactionDto dto)
+    {
+        try
+        {
+            if (!dto.ConfigId.HasValue && !dto.RuleId.HasValue)
+            {
+                return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "Config or rule is required for transaction update." };
+            }
+
+            if (dto.ActualSalary < 0)
+            {
+                return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "Actual salary cannot be negative." };
+            }
+
+            var result = await _payRollRepository.UpdateSocialSecurityTransactionAsync(id, organizationId, dto);
+            if (result == null)
+            {
+                return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "Social security transaction not found." };
+            }
+
+            return new ServiceResponse<SocialSecurityTransactionDto>
+            {
+                Success = true,
+                Message = "Social security transaction updated successfully.",
+                Data = result
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business validation failed while updating social security transaction: {Id}", id);
+            return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating social security transaction: {Id}", id);
+            return new ServiceResponse<SocialSecurityTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteSocialSecurityTransactionAsync(Guid id, Guid organizationId)
+    {
+        try
+        {
+            var result = await _payRollRepository.DeleteSocialSecurityTransactionAsync(id, organizationId);
+            if (!result)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Social security transaction not found." };
+            }
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Social security transaction deleted successfully.",
+                Data = true
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security transaction: {Id}", id);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<SocialSecurityTransactionDto>>> GetMySocialSecurityTransactionsAsync(Guid organizationId, Guid employeeId, MySocialSecurityTransactionFilterDto filter)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMySocialSecurityTransactionsAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityTransactionDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my social security transactions for employee: {EmployeeId}", employeeId);
+            return new ServiceResponse<PagedResult<SocialSecurityTransactionDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
 
     public async Task<ServiceResponse<PayrollOverviewDto>> GetPayrollOverviewAsync(Guid organizationId)
     {
@@ -3014,6 +3779,272 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error fetching gratuity status for employee: {EmployeeId}", employeeId);
             return new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    // ============================================================================
+    //  SOCIAL SECURITY — Employee lifecycle services
+    // ============================================================================
+
+    public async Task<ServiceResponse<SocialSecurityEnrollmentDto>> GetMySocialSecurityEnrollmentAsync(Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetMySocialSecurityEnrollmentAsync(organizationId, employeeId);
+            return new ServiceResponse<SocialSecurityEnrollmentDto> { Success = true, Data = data! };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security enrollment for employee {EmployeeId}", employeeId);
+            return new ServiceResponse<SocialSecurityEnrollmentDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>>> GetMySocialSecurityRequestsAsync(Guid organizationId, Guid employeeId, MySocialSecurityRequestFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetMySocialSecurityRequestsAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security requests for employee {EmployeeId}", employeeId);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>>> GetSocialSecurityEnrollmentRequestsAsync(Guid organizationId, SocialSecurityEnrollmentRequestFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetSocialSecurityEnrollmentRequestsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security enrollment requests for organization {OrganizationId}", organizationId);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<Guid>> CreateSocialSecurityEnrollmentRequestAsync(Guid organizationId, Guid employeeId, Guid requestedByUserId, CreateSocialSecurityEnrollmentRequestDto dto)
+    {
+        try
+        {
+            var id = await _payRollRepository.CreateSocialSecurityEnrollmentRequestAsync(organizationId, employeeId, requestedByUserId, dto);
+            if (id == null || id == Guid.Empty)
+            {
+                return new ServiceResponse<Guid> { Success = false, Message = "Could not create the request." };
+            }
+            return new ServiceResponse<Guid> { Success = true, Data = id.Value, Message = "Request submitted successfully." };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<Guid> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security enrollment request for employee {EmployeeId}", employeeId);
+            return new ServiceResponse<Guid> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> ApproveSocialSecurityEnrollmentRequestAsync(Guid organizationId, Guid requestId, Guid approvedByUserId, ApproveSocialSecurityEnrollmentRequestDto dto)
+    {
+        try
+        {
+            var ok = await _payRollRepository.ApproveSocialSecurityEnrollmentRequestAsync(organizationId, requestId, approvedByUserId, dto);
+            return new ServiceResponse<bool>
+            {
+                Success = ok, Data = ok,
+                Message = ok ? "Request approved successfully." : "Pending request not found."
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving social security enrollment request {RequestId}", requestId);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> RejectSocialSecurityEnrollmentRequestAsync(Guid organizationId, Guid requestId, Guid rejectedByUserId, RejectSocialSecurityEnrollmentRequestDto dto)
+    {
+        try
+        {
+            var ok = await _payRollRepository.RejectSocialSecurityEnrollmentRequestAsync(organizationId, requestId, rejectedByUserId, dto);
+            return new ServiceResponse<bool>
+            {
+                Success = ok, Data = ok,
+                Message = ok ? "Request rejected." : "Pending request not found."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error rejecting social security enrollment request {RequestId}", requestId);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<SocialSecurityClaimDto>>> GetMySocialSecurityClaimsAsync(Guid organizationId, Guid employeeId, MySocialSecurityClaimFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetMySocialSecurityClaimsAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityClaimDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security claims for employee {EmployeeId}", employeeId);
+            return new ServiceResponse<PagedResult<SocialSecurityClaimDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<SocialSecurityClaimDto>>> GetSocialSecurityClaimsAsync(Guid organizationId, SocialSecurityClaimFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetSocialSecurityClaimsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityClaimDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security claims for organization {OrganizationId}", organizationId);
+            return new ServiceResponse<PagedResult<SocialSecurityClaimDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<Guid>> CreateMySocialSecurityClaimAsync(Guid organizationId, Guid employeeId, Guid createdByUserId, CreateSocialSecurityClaimDto dto)
+    {
+        try
+        {
+            var id = await _payRollRepository.CreateMySocialSecurityClaimAsync(organizationId, employeeId, createdByUserId, dto);
+            if (id == null || id == Guid.Empty)
+            {
+                return new ServiceResponse<Guid> { Success = false, Message = "Could not create the claim." };
+            }
+            return new ServiceResponse<Guid> { Success = true, Data = id.Value, Message = "Claim submitted successfully." };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<Guid> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating social security claim for employee {EmployeeId}", employeeId);
+            return new ServiceResponse<Guid> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> ApproveSocialSecurityClaimAsync(Guid organizationId, Guid claimId, Guid approvedByUserId, ApproveSocialSecurityClaimDto dto)
+    {
+        try
+        {
+            var ok = await _payRollRepository.ApproveSocialSecurityClaimAsync(organizationId, claimId, approvedByUserId, dto);
+            return new ServiceResponse<bool>
+            {
+                Success = ok, Data = ok,
+                Message = ok ? "Claim approved successfully." : "Claim not in an approvable state."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error approving social security claim {ClaimId}", claimId);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> RejectSocialSecurityClaimAsync(Guid organizationId, Guid claimId, Guid rejectedByUserId, RejectSocialSecurityClaimDto dto)
+    {
+        try
+        {
+            var ok = await _payRollRepository.RejectSocialSecurityClaimAsync(organizationId, claimId, rejectedByUserId, dto);
+            return new ServiceResponse<bool>
+            {
+                Success = ok, Data = ok,
+                Message = ok ? "Claim rejected." : "Claim not in a rejectable state."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error rejecting social security claim {ClaimId}", claimId);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> MarkSocialSecurityClaimPaidAsync(Guid organizationId, Guid claimId, MarkSocialSecurityClaimPaidDto dto)
+    {
+        try
+        {
+            var ok = await _payRollRepository.MarkSocialSecurityClaimPaidAsync(organizationId, claimId, dto);
+            return new ServiceResponse<bool>
+            {
+                Success = ok, Data = ok,
+                Message = ok ? "Claim marked as paid." : "Claim must be approved before payment."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error marking social security claim paid {ClaimId}", claimId);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetSocialSecurityRequestDocumentsAsync(organizationId, requestId);
+            return new ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security request documents for request {RequestId}", requestId);
+            return new ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> VerifySocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid verifiedByUserId, VerifySocialSecurityRequestDocumentDto dto)
+    {
+        try
+        {
+            var ok = await _payRollRepository.VerifySocialSecurityRequestDocumentAsync(organizationId, documentId, verifiedByUserId, dto);
+            return new ServiceResponse<bool>
+            {
+                Success = ok, Data = ok,
+                Message = ok ? "Document verification updated." : "Document not found."
+            };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error verifying social security request document {DocumentId}", documentId);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteSocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid employeeId)
+    {
+        try
+        {
+            var ok = await _payRollRepository.DeleteSocialSecurityRequestDocumentAsync(organizationId, documentId, employeeId);
+            return new ServiceResponse<bool>
+            {
+                Success = ok, Data = ok,
+                Message = ok ? "Document deleted." : "Document not found or not yours."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting social security request document {DocumentId}", documentId);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
     }
 
