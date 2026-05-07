@@ -477,23 +477,10 @@ public class AuthService : IAuthService
         // Phone number validation
         if (!string.IsNullOrWhiteSpace(request.Phone))
         {
-            // Must start with + and contain only digits after that
-            if (!request.Phone.StartsWith("+"))
-            {
-                throw new InvalidOperationException(
-                    "Phone number must include country code, e.g. +923001234567"
-                );
-            }
-
+           
             // Remove '+' and check digits only
             var digits = request.Phone.Substring(1);
 
-            if (!digits.All(char.IsDigit))
-            {
-                throw new InvalidOperationException(
-                    "Phone number must contain digits only after country code"
-                );
-            }
 
             // E.164 max length = 15 digits
             if (digits.Length > 15)
