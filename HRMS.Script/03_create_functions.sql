@@ -159,14 +159,31 @@ BEGIN
         CURRENT_TIMESTAMP
     FROM auth.actions a
 	WHERE a.actionname != 'Employee Dashboard';
-    
+	
     -- Get count of inserted permissions for logging
     GET DIAGNOSTICS permissionsCount = ROW_COUNT;
     
     -- Log the creation
     RAISE NOTICE 'Organization created with ID: %, Super Admin role created with % permissions', 
         newOrgId, permissionsCount;
-    
+
+	INSERT INTO payment.companysubscriptions (
+		companyid,
+		planid,
+		status,
+		billingcycle,
+		startdate, --timestamp without time zone
+		enddate --timestamp without time zone
+	)
+	VALUES (
+		newOrgId,
+		'620212ec-cf42-4365-a4c1-f9c92c4250b9',
+		'active',
+		'monthly',
+		now(),
+		now() + interval '1 month'
+	);
+	
     RETURN newOrgId;
 END;
 $$;

@@ -153,14 +153,18 @@
 ('bb90c292-22c0-4d21-ab6f-d2bb021f9a81', 'Invoices', 'billing_invoices', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Expense Category
+('6f4de72f-10e0-496c-b18c-a2a34071a82b', 'View Expense Categories', 'expense_category_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('6f4de72f-10e0-496c-b18c-a2a34071a82b', 'View Expense Category Details', 'expense_category_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('6f4de72f-10e0-496c-b18c-a2a34071a82b', 'Add Expense Category', 'expense_category_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('6f4de72f-10e0-496c-b18c-a2a34071a82b', 'Edit Expense Category', 'expense_category_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('6f4de72f-10e0-496c-b18c-a2a34071a82b', 'Delete Expense Category', 'expense_category_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Claims
 ('55632bd8-839d-4613-9829-58ca9c2c74de', 'Add Claim', 'claims_add_claims', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('55632bd8-839d-4613-9829-58ca9c2c74de', 'Upload Claim Receipt', 'claims_upload_receipt', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('55632bd8-839d-4613-9829-58ca9c2c74de', 'My Claims', 'my_claims', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('55632bd8-839d-4613-9829-58ca9c2c74de', 'All Claims', 'all_claims', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('55632bd8-839d-4613-9829-58ca9c2c74de', 'Claim Request Action', 'claims_request_action', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('55632bd8-839d-4613-9829-58ca9c2c74de', 'View Claim Details', 'claims_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('55632bd8-839d-4613-9829-58ca9c2c74de', 'Edit Claim', 'claims_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('55632bd8-839d-4613-9829-58ca9c2c74de', 'Delete Claim', 'claims_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -169,6 +173,7 @@
 ('27e569e1-ebe2-456c-87df-b50c608a9be6', 'Add Recurring Expenses', 'add_recurring', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('27e569e1-ebe2-456c-87df-b50c608a9be6', 'My Recurring Expenses', 'my_rescurring_expenses', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('27e569e1-ebe2-456c-87df-b50c608a9be6', 'All Recurring Expenses', 'all_recurring', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('27e569e1-ebe2-456c-87df-b50c608a9be6', 'Recurring Request Action', 'recurring_request_action', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('27e569e1-ebe2-456c-87df-b50c608a9be6', 'View Recurring Expense Details', 'recurring_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('27e569e1-ebe2-456c-87df-b50c608a9be6', 'Edit Recurring Expense', 'recurring_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('27e569e1-ebe2-456c-87df-b50c608a9be6', 'Delete Recurring Expense', 'recurring_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
