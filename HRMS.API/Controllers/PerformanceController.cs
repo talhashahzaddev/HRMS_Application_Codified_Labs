@@ -1,3 +1,4 @@
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -70,7 +71,8 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("create-cycles")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("APPRAISAL_CYCLE_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> CreateAppraisalCycle([FromBody] CreateAppraisalCycleRequest request)
     {
         try
@@ -127,7 +129,7 @@ public class PerformanceController : ControllerBase
 
 
     [HttpDelete("delete-cycle/{cycleId}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("APPRAISAL_CYCLE_DELETE_BUTTON")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAppraisalCycle(Guid cycleId)
     {
         try
@@ -272,7 +274,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/my-team-employees")]
-    [Authorize(Roles = "Manager")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeListItemDto>>>> GetMyTeamEmployees()
     {
         try
@@ -319,7 +320,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/my-created-appraisals")]
-    [Authorize(Roles = "Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeAppraisalDto>>>> GetMyCreatedAppraisals(
         [FromQuery] Guid? appraisalCycleId = null,
         [FromQuery] string? status = null,
@@ -439,6 +439,9 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("skills")]
+    [PermissionAuthorize("CREATE_SKILLS_BUTTON")]
+
+
     public async Task<ActionResult<ServiceResponse<SkillSetDto>>> CreateSkillSet([FromBody] CreateSkillSetRequest request)
     {
         try
@@ -527,6 +530,8 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("my-skills")]
+    [PermissionAuthorize("ADD_SKILLS_BUTTON")]
+
     public async Task<IActionResult> AddMySkill([FromBody] CreateEmployeeSkillRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -758,7 +763,6 @@ public class PerformanceController : ControllerBase
         }
     }
     [HttpGet("Otheremployees/{employeeId}/skills")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeSkillDto>>>> GetOtherEmployeeSkills(Guid employeeId)
     {
         try
@@ -784,7 +788,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employee-skills/my-team")]
-    [Authorize(Roles = "Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetMyTeamEmployeeSkills(
         [FromQuery] Guid? employeeId = null,
         [FromQuery] Guid? skillSetId = null,
@@ -859,7 +862,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employee-skills")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetAllEmployeeSkills(
         [FromQuery] Guid? employeeId = null,
         [FromQuery] Guid? skillSetId = null,
@@ -980,7 +982,6 @@ public class PerformanceController : ControllerBase
 
 
     [HttpGet("team-performance-overview")]
-    [Authorize(Roles = "Super Admin,Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<TeamPerformanceOverviewDto>>> GetTeamPerformanceOverview()
     {
         try
@@ -1029,6 +1030,8 @@ public class PerformanceController : ControllerBase
 
 
     [HttpPost("create-Kra")]
+   [PermissionAuthorize("CREATE_KRA_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<KRADto>>> CreateKra([FromQuery] CreateKRARequest request)
     {
         try
@@ -1135,6 +1138,8 @@ public class PerformanceController : ControllerBase
 
 
     [HttpPut("KraUpdate")]
+    [PermissionAuthorize("KRA_EDIT_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<KRADto>>> UpdateKra([FromQuery] UpdateKRARequest request, Guid kraId)
     {
         try
@@ -1216,7 +1221,7 @@ public class PerformanceController : ControllerBase
 
 
     [HttpPost("create-goal")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    [PermissionAuthorize("CREATE_GOAL_BUTTON")]
     public async Task<ActionResult<ServiceResponse<GoalDto>>> CreateGoal([FromBody] CreateGoalRequest request)
     {
         try
@@ -1297,7 +1302,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("goals/{goalId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<GoalDto>>> GetGoalById(Guid goalId)
     {
         try
@@ -1321,7 +1325,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPut("update-goal")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<GoalDto>>> UpdateGoal([FromBody] UpdateGoalRequest request)
     {
         try
@@ -1401,7 +1404,8 @@ public class PerformanceController : ControllerBase
 
 
     [HttpDelete("delete-goal/{goalId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    [PermissionAuthorize("Delete Goal Button")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteGoal(Guid goalId)
     {
         try
@@ -1422,7 +1426,8 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("goals/assign-employee")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    [PermissionAuthorize("ASSIGN_GOAL_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> AssignGoalToEmployee(
      [FromQuery] Guid goalId,
      [FromQuery] Guid assignedTo)
@@ -1462,7 +1467,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("top-performers")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<List<TopPerformerDto>>>> GetTopPerformers([FromQuery] int count = 10)
     {
         try
@@ -1592,7 +1596,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/{employeeId}/{cycleId}")]
-    [Authorize(Roles = "Employee,Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetSelfAssessment(Guid employeeId, Guid cycleId)
     {
         try
@@ -1616,7 +1619,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/my-assessments")]
-    [Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMySelfAssessments(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? kraId = null,
@@ -1644,7 +1646,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/my-appraisals")]
-    [Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>>> GetMyAppraisals(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? kraId = null,
@@ -1721,7 +1722,6 @@ public class PerformanceController : ControllerBase
     //}
 
     [HttpGet("Manager/Self-Assessments/{managerId}/{cycleId}")]
-    [Authorize(Roles = "Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetTeamSelfAssessments(Guid managerId, Guid cycleId)
     {
         try
@@ -1745,7 +1745,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("Manager/Self-Assessment/{employeeId}/{cycleId}")]
-    [Authorize(Roles = "Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetEmployeeSelfAssessment(Guid employeeId, Guid cycleId)
     {
         try
@@ -1769,7 +1768,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/all-employee-assessments")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetAllEmployeeSelfAssessments(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? employeeId = null,
@@ -1798,7 +1796,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/my-team-assessments")]
-    [Authorize(Roles = "Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMyTeamSelfAssessments(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? employeeId = null,
@@ -1957,7 +1954,7 @@ public class PerformanceController : ControllerBase
 
     // KRA Management - Enhanced
     [HttpDelete("Kra/{kraId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("KRA_DELETE_BUTTON")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteKRA(Guid kraId)
     {
         try
@@ -2038,7 +2035,6 @@ public class PerformanceController : ControllerBase
 
     // Reports and Analytics
     [HttpGet("employee/{employeeId}/history")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<EmployeePerformanceHistoryDto>>> GetEmployeePerformanceHistory(Guid employeeId)
     {
         try
@@ -2080,7 +2076,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/{appraisalId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> GetEmployeeAppraisalById(Guid appraisalId)
     {
         try
@@ -2404,7 +2399,6 @@ public class PerformanceController : ControllerBase
 
 
     [HttpDelete("appraisals/{appraisalId}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployeeAppraisal(Guid appraisalId)
     {
         try
