@@ -26,14 +26,14 @@ namespace HRMS.AI.Services
             _logger = logger;
         }
 
-        public async Task<ChatResponseDto> HandleChatAsync(ChatRequestDto request, string? roleName)
+        public async Task<ChatResponseDto> HandleChatAsync(ChatRequestDto request, string? roleName, string domain)
         {
             var intentResult = await _intentService.DetectIntentAsync(request.Message);
 
              if (intentResult.Intent == ChatIntent.Guidance || intentResult.Intent == ChatIntent.Greeting)
              {
-                var guidance = await _guidance_service.GenerateGuidanceAsync(request.Message, intentResult.Module,roleName);
-                return new ChatResponseDto { Intent = ChatIntent.Guidance, ResponseText = guidance, Module = intentResult.Module };
+                var guidance = await _guidance_service.GenerateGuidanceAsync(request.Message, intentResult.Module,roleName,domain);
+                     return new ChatResponseDto { Intent = intentResult.Intent, ResponseText = guidance, Module = intentResult.Module };
              }
 
             // For all non-Guidance intents, return the detected intent name (and module if any) to the controller.

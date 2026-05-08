@@ -255,68 +255,6 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
         }
     }
 
-    public async Task<PayrollStatsDto> GetPayrollStatsAsync(Guid organizationId, string period = "month")
-    {
-        try
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var monthsInPeriod = period.ToLower() switch
-            {
-                "month" => 1,
-                "quarter" => 3,
-                "year" => 12,
-                _ => 12
-            };
-
-            var payrollData = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    DATE_TRUNC('month', pp.payDate) as Month,
-                    SUM(pe.netSalary) as TotalAmount,
-                    AVG(pe.netSalary) as AverageSalary,
-                    COUNT(DISTINCT pe.employeeId) as EmployeeCount
-                FROM payroll.payrollPeriods pp
-                INNER JOIN payroll.payrollEntries pe ON pp.periodId = pe.periodId
-                INNER JOIN employee.employees e ON pe.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId
-                    AND pp.payDate >= CURRENT_DATE - (@months * INTERVAL '1 month')
-                GROUP BY DATE_TRUNC('month', pp.payDate)
-                ORDER BY Month",
-                new { organizationId, months = monthsInPeriod });
-
-            var payrollCosts = new List<PayrollCostDto>();
-            decimal totalPayroll = 0;
-
-            foreach (var item in payrollData)
-            {
-                var month = ((DateTime)item.month).ToString("yyyy-MM");
-                var amount = (decimal)item.totalamount;
-                payrollCosts.Add(new PayrollCostDto
-                {
-                    Month = month,
-                    Amount = amount
-                });
-                totalPayroll += amount;
-            }
-
-            var averageSalary = payrollData.Any()
-    ? payrollData.Average(x => (decimal)x.averagesalary)
-    : 0m;
-
-            return new PayrollStatsDto
-            {
-                TotalPayroll = totalPayroll,
-                AverageSalary = averageSalary,
-                PayrollCosts = payrollCosts
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting payroll stats for organization {OrganizationId}", organizationId);
-            throw;
-        }
-    }
-
     public async Task<PerformanceStatsDto> GetPerformanceStatsAsync(Guid organizationId)
     {
         try
@@ -472,44 +410,47 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
         }
     }
 
+  
+
     public async Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(Guid organizationId, int count = 5)
     {
         try
         {
             using var connection = _connectionFactory.CreateConnection();
-            
-            // Get upcoming birthdays and work anniversaries
+
             var events = await connection.QueryAsync<UpcomingEventDto>(
                 @"SELECT 
-                    'birthday' as Type,
-                    CONCAT(e.firstName, ' ', e.lastName, '''s Birthday') as Title,
-                    CONCAT('Birthday celebration for ', e.firstName, ' ', e.lastName) as Description,
-                    TO_CHAR(e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)), 'YYYY-MM-DD') as Date,
-                    '09:00' as Time
-                FROM employee.employees e
-                WHERE e.organizationId = @organizationId
-                    AND e.status = 'active'
-                    AND e.dateOfBirth IS NOT NULL
-                    AND e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) >= CURRENT_DATE
-                    AND e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) <= CURRENT_DATE + INTERVAL '30 days'
-                
-                UNION ALL
-                
-                SELECT 
-                    'anniversary' as Type,
-                    CONCAT(e.firstName, ' ', e.lastName, '''s Work Anniversary') as Title,
-                    CONCAT('Work anniversary celebration for ', e.firstName, ' ', e.lastName) as Description,
-                    TO_CHAR(e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)), 'YYYY-MM-DD') as Date,
-                    '15:00' as Time
-                FROM employee.employees e
-                WHERE e.organizationId = @organizationId
-                    AND e.status = 'active'
-                    AND e.hireDate IS NOT NULL
-                    AND e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) >= CURRENT_DATE
-                    AND e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) <= CURRENT_DATE + INTERVAL '30 days'
-                
-                ORDER BY Date ASC
-                LIMIT @count",
+                'birthday' as Type,
+                CONCAT(e.firstName, ' ', e.lastName, '''s Birthday') as Title,
+                CONCAT('Birthday celebration for ', e.firstName, ' ', e.lastName) as Description,
+                TO_CHAR(e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)), 'YYYY-MM-DD') as Date,
+                '09:00' as Time
+            FROM employee.employees e
+            WHERE e.organizationId = @organizationId
+                AND e.status = 'active'
+                AND e.dateOfBirth IS NOT NULL
+                AND (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) >= 1
+                AND e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) >= CURRENT_DATE
+                AND e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) <= CURRENT_DATE + INTERVAL '30 days'
+
+            UNION ALL
+
+            SELECT 
+                'anniversary' as Type,
+                CONCAT(e.firstName, ' ', e.lastName, '''s Work Anniversary') as Title,
+                CONCAT('Work anniversary celebration for ', e.firstName, ' ', e.lastName) as Description,
+                TO_CHAR(e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)), 'YYYY-MM-DD') as Date,
+                '15:00' as Time
+            FROM employee.employees e
+            WHERE e.organizationId = @organizationId
+                AND e.status = 'active'
+                AND e.hireDate IS NOT NULL
+                AND (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) >= 1
+                AND e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) >= CURRENT_DATE
+                AND e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) <= CURRENT_DATE + INTERVAL '30 days'
+
+            ORDER BY Date ASC
+            LIMIT @count",
                 new { organizationId, count });
 
             return events.ToList();
@@ -520,6 +461,9 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
             return new List<UpcomingEventDto>();
         }
     }
+
+
+
 
     public async Task<object> GetAttendanceTrendsAsync(Guid organizationId, string period = "30d")
     {
@@ -617,55 +561,6 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
         }
     }
 
-    public async Task<object> GetPayrollTrendsAsync(Guid organizationId, string period = "12m")
-    {
-        try
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var monthsInPeriod = period.ToLower() switch
-            {
-                "6m" => 6,
-                "12m" => 12,
-                "24m" => 24,
-                _ => 12
-            };
-
-            var trends = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    DATE_TRUNC('month', pp.payDate) as Month,
-                    SUM(pe.netSalary) as TotalCost,
-                    COUNT(DISTINCT pe.employeeId) as EmployeeCount,
-                    AVG(pe.netSalary) as AverageSalary
-                FROM payroll.payrollPeriods pp
-                INNER JOIN payroll.payrollEntries pe ON pp.periodId = pe.periodId
-                INNER JOIN employee.employees e ON pe.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId
-                    AND pp.payDate >= CURRENT_DATE - INTERVAL '@months months'
-                GROUP BY DATE_TRUNC('month', pp.payDate)
-                ORDER BY Month",
-                new { organizationId, months = monthsInPeriod });
-
-            var months = trends.Select(t => ((DateTime)t.month).ToString("MMM yyyy")).ToList();
-            var payrollCosts = trends.Select(t => (decimal)t.totalcost).ToList();
-            var employeeCounts = trends.Select(t => (int)t.employeecount).ToList();
-            var averageSalaries = trends.Select(t => (decimal)t.averagesalary).ToList();
-
-            return new
-            {
-                Months = months,
-                PayrollCosts = payrollCosts,
-                EmployeeCounts = employeeCounts,
-                AverageSalaries = averageSalaries
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting payroll trends for organization {OrganizationId}", organizationId);
-            throw;
-        }
-    }
-
     public async Task<List<object>> GetTopPerformersAsync(Guid organizationId, int limit = 5)
     {
         try
@@ -756,17 +651,6 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
             using var connection = _connectionFactory.CreateConnection();
             
             var stats = await GetDashboardStatsAsync(organizationId);
-            
-            var lastPayroll = await connection.QuerySingleOrDefaultAsync<dynamic>(
-                @"SELECT 
-                    pp.totalNetAmount as LastPayrollAmount,
-                    pp.periodName as LastPeriodName
-                FROM payroll.payrollPeriods pp
-                INNER JOIN employee.employees e ON 1=1
-                WHERE e.organizationId = @organizationId
-                ORDER BY pp.endDate DESC
-                LIMIT 1",
-                new { organizationId });
 
             var thisMonthAttendance = await connection.QuerySingleOrDefaultAsync<dynamic>(
                 @"SELECT 
@@ -785,8 +669,6 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 ActiveEmployees = stats.ActiveEmployees,
                 PresentToday = stats.PresentToday,
                 PendingApprovals = stats.PendingLeaveRequests,
-                LastPayrollAmount = lastPayroll?.lastpayrollamount ?? 0m,
-                LastPeriodName = lastPayroll?.lastperiodname ?? "N/A",
                 ThisMonthAttendance = thisMonthAttendance?.presentcount ?? 0,
                 ThisMonthTotalDays = thisMonthAttendance?.totaldays ?? 0
             };
@@ -860,23 +742,12 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 )",
                 new { organizationId });
 
-            // Step 5: Process Payroll - Check if PayrollPeriods exist, then check if PayrollEntries exist for those periods
-            var processPayroll = await connection.ExecuteScalarAsync<bool>(
-                @"SELECT EXISTS(
-                    SELECT 1 FROM payroll.payrollentries pe
-                    INNER JOIN payroll.payrollperiods pp ON pe.periodid = pp.periodid
-                    WHERE pp.organizationid = @organizationId
-                    LIMIT 1
-                )",
-                new { organizationId });
-
             return new OnboardingStatusDto
             {
                 SignUp = true, // Always true if user is on dashboard
                 CreateTeam = createTeam,
                 DefineLeaveTypes = defineLeaveTypes,
-                MarkAttendance = markAttendance,
-                ProcessPayroll = processPayroll
+                MarkAttendance = markAttendance
             };
         }
         catch (Exception ex)

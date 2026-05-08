@@ -17,6 +17,25 @@ namespace HRMS.API.Repositories
                 new { name = organization.Name, domain = organization.Domain, subscriptionType = organization.SubscriptionType, currency=organization.Currency});
 
             organization.OrganizationId = organizationId;
+
+            // Update additional fields not handled by fn_create_organization
+            if (!string.IsNullOrEmpty(organization.AdminEmail) || !string.IsNullOrEmpty(organization.CompanySize) ||
+                !string.IsNullOrEmpty(organization.Industry) || !string.IsNullOrEmpty(organization.Country))
+            {
+                var updateSql = @"UPDATE auth.organizations 
+                    SET admin_email = @AdminEmail, company_size = @CompanySize, 
+                        industry = @Industry, country = @Country
+                    WHERE organizationid = @OrganizationId";
+                await ExecuteAsync(updateSql, new 
+                { 
+                    AdminEmail = organization.AdminEmail, 
+                    CompanySize = organization.CompanySize, 
+                    Industry = organization.Industry, 
+                    Country = organization.Country, 
+                    OrganizationId = organizationId 
+                });
+            }
+
             return organization;
         }
 
@@ -46,6 +65,12 @@ namespace HRMS.API.Repositories
             var sql = "DELETE FROM auth.organizations WHERE organizationid = @organizationId";
             var affectedRows = await ExecuteAsync(sql, new { organizationId });
             return affectedRows > 0;
+        }
+
+        public async Task<Organization?> GetOrganizationByDomainAsync(string domain)
+        {
+            var sql = "SELECT * FROM auth.organizations WHERE domain = @domain";
+            return await QuerySingleOrDefaultAsync<Organization>(sql, new { domain });
         }
 
         public async Task<IEnumerable<Organization>> GetAllOrganizationsAsync()

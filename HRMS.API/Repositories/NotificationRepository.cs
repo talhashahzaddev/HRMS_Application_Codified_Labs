@@ -38,21 +38,79 @@ namespace HRMS.API.Repositories
             try
             {
                 var sql = @"
-            SELECT ed.reportingmanagerid
+            SELECT ed.reportingmanagerid , e.email
             FROM employee.employmentdetails ed
+            JOIN employee.employees e on e.employeeid = ed.reportingmanagerid
             WHERE ed.employeeid = @EmployeeId
               AND ed.iscurrent = true
+              AND e.status = 'active'
             LIMIT 1";
 
                 var results = await QueryAsync<Guid>(sql, new { EmployeeId = employeeId });
 
-                return results.FirstOrDefault(); // returns Guid.Empty if no manager found
+                return results.FirstOrDefault(); 
             }
             catch (Exception ex)
             {
-                // Log the exception if needed
                 Console.WriteLine($"Error fetching reporting manager: {ex.Message}");
                 return Guid.Empty;
+            }
+        }
+        public async Task<leaveNotification> GetReciveridANdEmailAsync(Guid employeeId)
+        {
+            try
+            {
+                var sql = @"
+            SELECT ed.reportingmanagerid , e.email , CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) AS receivername
+            FROM employee.employmentdetails ed
+            JOIN employee.employees e on e.employeeid = ed.reportingmanagerid
+            WHERE ed.employeeid = @EmployeeId
+              AND ed.iscurrent = true
+              AND e.status = 'active'
+            LIMIT 1";
+
+                var results = await QuerySingleOrDefaultAsync<leaveNotification>(sql, new { EmployeeId = employeeId });
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching reporting manager: {ex.Message}");
+                return null;
+            }
+        }
+
+        public async Task<leaveNotification> GetNoManagerReciveridAsync(Guid employeeId)
+        {
+            try
+            {
+                var sql = @"
+            SELECT e.employeeid AS reportingmanagerid, e.email, CONCAT(COALESCE(e.firstname, ''), ' ', COALESCE(e.lastname, '')) AS receivername
+            FROM employee.employees e
+            JOIN auth.users u ON u.userid = e.userid
+            WHERE e.organizationid = (
+                    SELECT organizationid
+                    FROM employee.employees
+                    WHERE employeeid = @EmployeeId
+                    LIMIT 1
+                )
+            AND u.roleid = (
+                    SELECT roleid
+                    FROM auth.roles
+                    WHERE rolename = 'Super Admin'
+                    AND organizationid = e.organizationid
+                    LIMIT 1
+                )
+            LIMIT 1";
+
+                var results = await QuerySingleOrDefaultAsync<leaveNotification>(sql, new { EmployeeId = employeeId });
+
+                return results;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error fetching reporting manager: {ex.Message}");
+                return null;
             }
         }
 
@@ -115,37 +173,59 @@ namespace HRMS.API.Repositories
         {
             var userid = await GetEmpId(userId);
             var sql = @"
-            SELECT *
-            FROM notification.notifications
-            WHERE receiveruserid = @UserId
-            AND organizationid = @OrganizationId
-            ORDER BY createdat DESC
-        ";
+        SELECT *
+        FROM notification.notifications
+        WHERE @UserId = ANY(receiveruserid)
+        AND organizationid = @OrganizationId
+        ORDER BY createdat DESC
+    ";
 
             // Execute query and map results to Notification objects
             var notifications = await QueryAsync<Notification>(sql, new { UserId = userid, OrganizationId = organizationId });
             return notifications.ToList();
         }
 
-        //Get notifcation details From request id 
+
 
         public async Task<Notification> getnotificationdetailAsync(Guid requestId)
         {
-
             var sql = @"
-            SELECT *
-            FROM notification.notifications
-            WHERE requestid = @requestId
-            ORDER BY createdat DESC
-            LIMIT 1
-        ";
+      SELECT notificationid,
+             receiveruserid AS ""ReceiverUserIds"",
+             senderuserid AS ""SenderUserId"",
+             organizationid AS ""organizationId"",
+             title,
+             notificationtype AS ""NotificationType"",
+             requestid,
+             message AS ""Message"",
+             redirecturl AS ""RedirectUrl"",
+             moduletype AS ""moduletype"",
+             isread AS ""IsRead"",
+             createdat AS ""CreatedAt""
+      FROM notification.notifications
+      WHERE requestid = @requestId
+      ORDER BY createdat DESC
+      LIMIT 1
+  ";
 
-            // Execute query and map results to Notification objects
-           var notifications = await QueryAsync<Notification>(sql, new { requestId=requestId});
-
+            var notifications = await QueryAsync<Notification>(sql, new { requestId });
             return notifications.FirstOrDefault();
+        }
+
+
+        //Delete Noitfication
+
+        public async Task<bool> DeleteNotificationAsync(Guid id)
+        {
+            
+                var sql = @"delete from notification.notifications where requestid=@id ";
+
+                var results = await ExecuteAsync(sql, new{id});
+                return results>0;
 
         }
+
+
 
         // Get userId and organizationId from employeeId
         public async Task<(Guid userId, Guid organizationId)?> GetEmployeeUserInfoAsync(Guid employeeId)
@@ -167,7 +247,14 @@ namespace HRMS.API.Repositories
             }
         }
 
+        public async Task<bool> UpdateNotificationRequestStatusAsync(Guid requestid,string status)
+        {
+            var sql = @"update notification.notifications set requeststatus=@status
+                    where requestid=@requestid";
+            var result = await ExecuteAsync(sql, new { requestid, status });
+            return result>0;
 
+        }
 
         public async Task<bool> MarkNotificationAsReadAsync(Guid notificationId)
         {

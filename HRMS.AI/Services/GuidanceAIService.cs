@@ -20,28 +20,34 @@ namespace HRMS.AI.Services
         private const string Content = "content";
         private readonly IConfiguration _configuration;
         private readonly HttpClient _httpClient;
+        private readonly IApiKeyProvider _apiKeyProvider;
         private readonly ILogger<GuidanceAIService> _logger;
-        private readonly string _ApiKey;
         private readonly string _Url;
         private readonly string _model;
+        private readonly List<string> _ApiKeys;
+        private int _currentKeyIndex = 0;
 
-        public GuidanceAIService(IConfiguration configuration, ILogger<GuidanceAIService> logger, HttpClient httpClient)
+        public GuidanceAIService(IConfiguration configuration,IApiKeyProvider apiKeyProvider, ILogger<GuidanceAIService> logger, HttpClient httpClient)
         {
             _configuration = configuration;
+            _apiKeyProvider = apiKeyProvider;
             _logger = logger;
             _httpClient = httpClient;
-            _ApiKey = _configuration["GroqAI:ApiKey"] ?? string.Empty;
             _Url = _configuration["GroqAI:Url"] ?? string.Empty;
             _model = _configuration["GroqAI:Model"] ?? string.Empty;
 
-            if (string.IsNullOrEmpty(_ApiKey))
-                _logger.LogWarning("OpenAI API key is not configured. Guidance AI will not work in production.");
         }
+        private string CurrentKey => _apiKeyProvider.GetCurrentKey();
 
-        public async Task<string> GenerateGuidanceAsync(string message, string module,string? roleName)
+        public async Task<string> GenerateGuidanceAsync(string message, string module,string? roleName, string domain)
         {
             // get module-specific HRMS context
             var context = HrmsContext.GetContext(module);
+            var originalDomain = !string.IsNullOrEmpty(domain) ? domain.Trim().Split('.')[0] : "defaultdomain";
+
+            var baseurl = $"\nBaseUrl: https://{originalDomain}.briskpeople.com";
+
+            context = context + baseurl;
 
             var prompt =
                         $@"HRMS CONTEXT:
@@ -100,7 +106,7 @@ namespace HRMS.AI.Services
 
                 var requestJson = JsonSerializer.Serialize(requestBody);
                 var req = new HttpRequestMessage(HttpMethod.Post, _Url);
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _ApiKey);
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", CurrentKey);
                 req.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
                 var resp = await _httpClient.SendAsync(req);
@@ -176,7 +182,7 @@ namespace HRMS.AI.Services
 
                 var requestJson = JsonSerializer.Serialize(requestBody);
                 var req = new HttpRequestMessage(HttpMethod.Post, _Url);
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _ApiKey);
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", CurrentKey);
                 req.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
                 var resp = await _httpClient.SendAsync(req);
@@ -269,7 +275,7 @@ namespace HRMS.AI.Services
 
                 var requestJson = JsonSerializer.Serialize(requestBody);
                 var req = new HttpRequestMessage(HttpMethod.Post, _Url);
-                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _ApiKey);
+                req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", CurrentKey);
                 req.Content = new StringContent(requestJson, Encoding.UTF8, "application/json");
 
                 var resp = await _httpClient.SendAsync(req);

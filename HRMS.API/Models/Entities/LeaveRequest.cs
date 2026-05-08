@@ -5,6 +5,7 @@ public class LeaveRequest : BaseEntity
     public Guid RequestId { get; set; }
     public Guid EmployeeId { get; set; }
     public Guid LeaveTypeId { get; set; }
+    public string typename { get; set; }
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public decimal DaysRequested { get; set; }

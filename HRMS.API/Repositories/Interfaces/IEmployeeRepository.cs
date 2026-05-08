@@ -6,6 +6,7 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IEmployeeRepository
 {
+    Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId);
     Task<List<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId);
     //adding this now
     Task<Guid?> getemployeeid(Guid userId);
@@ -19,7 +20,10 @@ public interface IEmployeeRepository
 
     Task<Employee> CreateEmployeeAsync(Employee employee);
     Task<Employee?> GetEmployeeByIdAsync(Guid? employeeId);
+    Task<string> GetUserRoleAsync(Guid userid);
+    Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid);
     Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode);
+    Task<List<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds);
     Task<Employee?> GetEmployeeByEmailAsync(Guid organizationId, string email);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
     Guid? organizationId = null, string? searchTerm = null, Guid? departmentId = null,Guid? positionId=null,string? employmentType=null,

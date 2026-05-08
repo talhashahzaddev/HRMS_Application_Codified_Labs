@@ -8,7 +8,7 @@ public class Attendance : BaseEntity
 {
     [Key]
     [Column("attendance_id")]
-    public Guid AttendanceId { get; set; }
+    public Guid? AttendanceId { get; set; }
     
     [Column("employee_id")]
     public Guid EmployeeId { get; set; }
@@ -70,4 +70,18 @@ public class Attendance : BaseEntity
     
     [NotMapped]
     public Employee? Approver { get; set; }
+
+    [NotMapped]
+    public string ipAddress
+    {
+        get
+        {
+            if (Location != null && Location.TryGetValue("ip", out var ipObj))
+            {
+                return ipObj?.ToString() ?? "N/A";
+            }
+            return "N/A";
+        }
+    }
+
 }

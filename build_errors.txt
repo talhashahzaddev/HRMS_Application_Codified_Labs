@@ -1,0 +1,10 @@
+E:\Projects\HRMS\HRMS_Application_Codified_Labs\HRMS.API\Repositories\PayRollRepository.cs(221,22): error CS0103: The name 'QueryFirstOrDefaultAsync' does not exist in the current context [E:\Projects\HRMS\HRMS_Application_Codified_Labs\HRMS.API\HRMS.API.csproj]
+E:\Projects\HRMS\HRMS_Application_Codified_Labs\HRMS.API\Repositories\PayRollRepository.cs(297,22): error CS0103: The name 'QueryFirstOrDefaultAsync' does not exist in the current context [E:\Projects\HRMS\HRMS_Application_Codified_Labs\HRMS.API\HRMS.API.csproj]
+E:\Projects\HRMS\HRMS_Application_Codified_Labs\HRMS.API\Repositories\PayRollRepository.cs(308,28): error CS0103: The name 'QueryFirstOrDefaultAsync' does not exist in the current context [E:\Projects\HRMS\HRMS_Application_Codified_Labs\HRMS.API\HRMS.API.csproj]
+E:\Projects\HRMS\HRMS_Application_Codified_Labs\HRMS.API\Repositories\PayRollRepository.cs(319,28): error CS0103: The name 'QueryFirstOrDefaultAsync' does not exist in the current context [E:\Projects\HRMS\HRMS_Application_Codified_Labs\HRMS.API\HRMS.API.csproj]
+
+Build FAILED.
+    340 Warning(s)
+    4 Error(s)
+
+Time Elapsed 00:00:05.27

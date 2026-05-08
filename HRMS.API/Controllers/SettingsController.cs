@@ -21,7 +21,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("organization")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    //[Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<OrganizationSettingsDto>>> GetOrganizationSettings()
     {
         try
@@ -55,7 +55,7 @@ public class SettingsController : ControllerBase
         {
             var organizationId = GetCurrentOrganizationId();
             var result = await _settingsService.UpdateCurrencyAsync(organizationId, request.Currency);
-            
+
             if (!result.Success)
             {
                 return BadRequest(result);
@@ -70,6 +70,96 @@ public class SettingsController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred while updating currency"
+            });
+        }
+    }
+
+
+    [HttpPut("localization")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateLocalization(
+    [FromBody] UpdateLocalizationSettingsRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var result = await _settingsService.UpdateLocalizationAsync(
+                organizationId,
+                request.Currency,
+                request.TimeZone,
+                request.Culture
+            );
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating localization settings");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating localization settings"
+            });
+        }
+    }
+
+    [HttpPut("career-page")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateCareerPage([FromBody] UpdateCareerPageRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.UpdateCareerPageAsync(organizationId, request);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating career page settings");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating career page settings"
+            });
+        }
+    }
+
+    [HttpGet("career-page")]
+    [Authorize(Roles = "Super Admin")]
+    public async Task<ActionResult<ServiceResponse<CareerPageDto>>> GetCareerPage()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.GetCareerPageAsync(organizationId);
+
+            if (!result.Success)
+            {
+                return NotFound(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving career page details for organization");
+            return StatusCode(500, new ServiceResponse<CareerPageDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving career page details"
             });
         }
     }
@@ -93,13 +183,3 @@ public class SettingsController : ControllerBase
         return organizationId;
     }
 }
-
-
-
-
-
-
-
-
-
-

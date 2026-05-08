@@ -1,5 +1,6 @@
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
+using HRMS.API.Authorization;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -40,9 +41,9 @@ public class AuthController : ControllerBase
                 });
             }
             var response = await _authService.AuthenticateAsync(request);
-            
+
             _logger.LogInformation("Generated JWT Token: {Token}", response.Token);
-            
+
             return Ok(new ServiceResponse<AuthResponse>
             {
                 Success = true,
@@ -173,7 +174,7 @@ public class AuthController : ControllerBase
         {
             var userId = GetCurrentUserId();
             var result = await _authService.LogoutAsync(userId);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -261,7 +262,7 @@ public class AuthController : ControllerBase
         {
             var userId = GetCurrentUserId();
             var user = await _authService.GetUserByIdAsync(userId);
-            
+
             return Ok(new ServiceResponse<UserDto>
             {
                 Success = true,
@@ -444,11 +445,11 @@ public class AuthController : ControllerBase
                 Message = "An error occurred while processing password reset request"
             });
         }
-    } 
+    }
 
     [HttpPut("profile")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<bool>>> UpdateProfile([FromForm] UpdateProfileRequest request,IFormFile? profileurl)
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateProfile([FromForm] UpdateProfileRequest request)
     {
         try
         {
@@ -463,8 +464,8 @@ public class AuthController : ControllerBase
 
 
             var userId = GetCurrentUserId();
-            var user = await _authService.UpdateProfileAsync(userId, request,profileurl);
-            
+            var user = await _authService.UpdateProfileAsync(userId, request);
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -527,7 +528,7 @@ public class AuthController : ControllerBase
             }
             var userId = GetCurrentUserId();
             var result = await _authService.ChangePasswordAsync(userId, request);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -613,38 +614,38 @@ public class AuthController : ControllerBase
     private Guid GetCurrentUserId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        
+
         if (string.IsNullOrEmpty(userIdClaim))
         {
             _logger.LogError("User ID claim not found in JWT token");
             throw new UnauthorizedAccessException("User ID not found in token");
         }
-        
+
         if (!Guid.TryParse(userIdClaim, out var userId))
         {
             _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
             throw new UnauthorizedAccessException("Invalid user ID format");
         }
-        
+
         return userId;
     }
 
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");
-        
+
         if (string.IsNullOrEmpty(orgIdClaim))
         {
             _logger.LogError("Organization ID claim not found in JWT token");
             throw new UnauthorizedAccessException("Organization ID not found in token");
         }
-        
+
         if (!Guid.TryParse(orgIdClaim, out var organizationId))
         {
             _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
             throw new UnauthorizedAccessException("Invalid organization ID format");
         }
-        
+
         return organizationId;
     }
 
@@ -653,12 +654,12 @@ public class AuthController : ControllerBase
     public IActionResult DebugClaims()
     {
         var claims = User.Claims.Select(c => new { Type = c.Type, Value = c.Value }).ToList();
-        
+
         // Debug specific claim lookups
         var orgIdDirect = User.FindFirstValue("organizationId");
         var orgIdHttp = User.FindFirstValue("http://schemas.xmlsoap.org/ws/2005/05/identity/claims/organizationId");
         var orgIdCustom = User.FindFirstValue("http://schemas.microsoft.com/ws/2008/06/identity/claims/organizationId");
-        
+
         return Ok(new ServiceResponse<object>
         {
             Success = true,
@@ -679,15 +680,15 @@ public class AuthController : ControllerBase
         try
         {
             _logger.LogInformation("=== TESTING AUTHENTICATION FLOW ===");
-            
+
             // Step 1: Check if user exists
             var hashedPassword = await _authService.GetHashedPasswordAsync(request.Email);
             _logger.LogInformation("Step 1 - Found hashed password: {Found}", !string.IsNullOrEmpty(hashedPassword));
-            
+
             // Step 2: Test password verification
             var passwordValid = BCrypt.Net.BCrypt.Verify(request.Password, hashedPassword);
             _logger.LogInformation("Step 2 - Password valid: {Valid}", passwordValid);
-            
+
             if (!passwordValid)
             {
                 return BadRequest("Invalid password");
@@ -700,7 +701,7 @@ public class AuthController : ControllerBase
                 return BadRequest("User not found");
             }
 
-            _logger.LogInformation("Step 3 - User found: UserId={UserId}, OrganizationId={OrganizationId}, Email={Email}", 
+            _logger.LogInformation("Step 3 - User found: UserId={UserId}, OrganizationId={OrganizationId}, Email={Email}",
                 user.UserId, user.OrganizationId, user.Email);
 
             return Ok(new
@@ -744,12 +745,12 @@ public class AuthController : ControllerBase
             };
 
             _logger.LogInformation("=== TESTING HARDCODED TOKEN GENERATION ===");
-            _logger.LogInformation("Test User: UserId={UserId}, OrganizationId={OrganizationId}", 
+            _logger.LogInformation("Test User: UserId={UserId}, OrganizationId={OrganizationId}",
                 testUser.UserId, testUser.OrganizationId);
 
             // Generate token directly
             var response = await _authService.CreateTestTokenAsync(testUser);
-            
+
             return Ok(new
             {
                 Message = "Hardcoded token test completed",
@@ -852,11 +853,317 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [HttpGet("menus")]
+    [Authorize]
+    public async Task<ActionResult<ServiceResponse<List<MenuDto>>>> GetMenus()
+    {
+        try
+        {
+            var menus = await _authService.GetMenusAsync();
+
+            return Ok(new ServiceResponse<List<MenuDto>>
+            {
+                Success = true,
+                Data = menus,
+                Message = "Menus retrieved successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while retrieving menus");
+
+            return BadRequest(new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business logic error while retrieving menus");
+
+            return BadRequest(new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving menus");
+
+            return StatusCode(500, new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving menus"
+            });
+        }
+    }
+    [HttpPost("create-role")]
+    public async Task<ActionResult<ServiceResponse<CreateRoleResponse>>> CreateRoleAsync([FromBody] Create_RoleRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<CreateRoleResponse>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+            var organizationid = GetOrganizationIdFromClaims();
+
+            var result = await _authService.Create_RoleAsync(request, organizationid);
+
+            return Ok(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = true,
+                Message = "Role created successfully",
+                Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for role creation");
+            return BadRequest(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Role already exists");
+            return Conflict(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Role creation failed for role: {RoleName}", request.RoleName);
+            return StatusCode(500, new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = "An error occurred while creating the role"
+            });
+        }
+    }
+    [HttpPut("update-role")]
+    public async Task<ActionResult<ServiceResponse<UpdateRoleResponse>>> UpdateRoleAsync([FromBody] UpdateRoleRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<UpdateRoleResponse>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+
+            var organizationid = GetOrganizationIdFromClaims();
+
+            var result = await _authService.UpdateRoleAsync(request, organizationid);
+
+            return Ok(new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = true,
+                Message = "Role updated successfully",
+                Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for role update");
+            return BadRequest(new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Role not found for update");
+            return NotFound(new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Role name conflict during update");
+            return Conflict(new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Role update failed for role: {RoleId}", request.RoleId);
+            return StatusCode(500, new ServiceResponse<UpdateRoleResponse>
+            {
+                Success = false,
+                Message = "An error occurred while updating the role"
+            });
+        }
+    }
+    [HttpDelete("delete-role/{roleId}")]
+    public async Task<ActionResult<ServiceResponse<DeleteRoleResponse>>> DeleteRoleAsync(Guid roleId)
+    {
+        try
+        {
+            if (roleId == Guid.Empty)
+            {
+                return BadRequest(new ServiceResponse<DeleteRoleResponse>
+                {
+                    Success = false,
+                    Message = "Role ID is required"
+                });
+            }
+
+            var organizationid = GetOrganizationIdFromClaims();
+
+            var result = await _authService.DeleteRoleAsync(roleId, organizationid);
+
+            return Ok(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = true,
+                Message = "Role deleted successfully",
+                Data = result
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning(ex, "Role not found for deletion: {RoleId}", roleId);
+            return NotFound(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Role cannot be deleted as it is assigned to users: {RoleId}", roleId);
+            return Conflict(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Role deletion failed for role: {RoleId}", roleId);
+            return StatusCode(500, new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = "An error occurred while deleting the role"
+            });
+        }
+    }
+    [HttpGet("get-roles-by-organization")]
+    public async Task<ActionResult<ServiceResponse<List<RoleDetailResponse>>>> GetRolesByOrganization()
+    {
+        try
+        {
+            var claimsOrganizationId = GetOrganizationIdFromClaims();
+            if (claimsOrganizationId == Guid.Empty)
+            {
+                return BadRequest(new ServiceResponse<List<RoleDetailResponse>>
+                {
+                    Success = false,
+                    Message = "Invalid organization ID",
+                    Data = null,
+                    Errors = new List<string> { "Organization ID is required" }
+                });
+            }
+
+
+            var response = await _authService.GetRolesByOrganizationAsync(claimsOrganizationId);
+
+            return Ok(new ServiceResponse<List<RoleDetailResponse>>
+            {
+                Success = true,
+                Message = "Roles retrieved successfully",
+                Data = response,
+                Errors = null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving roles for organization");
+            return StatusCode(500, new ServiceResponse<List<RoleDetailResponse>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving roles",
+                Data = null,
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
+    [HttpGet("get-user-permissions/{UserId}")]
+    public async Task<ActionResult<ServiceResponse<UserPermissionResponse>>> GetUserPermissions(Guid UserId)
+    {
+        try
+        {
+            //var userid = GetCurrentUserId();
+            var requestingUserOrganizationId = GetOrganizationIdFromClaims();
+            if (requestingUserOrganizationId == Guid.Empty)
+            {
+                return BadRequest(new ServiceResponse<UserPermissionResponse>
+                {
+                    Success = false,
+                    Message = "Invalid organization ID",
+                    Data = null,
+                    Errors = new List<string> { "Organization ID is required" }
+                });
+            }
+
+            var response = await _authService.GetUserPermissionsAsync(UserId);
+
+            if (response == null)
+            {
+                return NotFound(new ServiceResponse<UserPermissionResponse>
+                {
+                    Success = false,
+                    Message = "User not found",
+                    Data = null,
+                    Errors = new List<string> { $"User with ID {UserId} not found" }
+                });
+            }
+
+            return Ok(new ServiceResponse<UserPermissionResponse>
+            {
+                Success = true,
+                Message = "User permissions retrieved successfully",
+                Data = response,
+                Errors = null
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving permissions for user");
+            return StatusCode(500, new ServiceResponse<UserPermissionResponse>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving user permissions",
+                Data = null,
+                Errors = new List<string> { ex.Message }
+            });
+        }
+    }
 
     private Guid? GetOrganizationIdFromClaims()
     {
-        var organizationIdClaim = User.FindFirst("OrganizationId");
-        if (organizationIdClaim != null && Guid.TryParse(organizationIdClaim.Value, out var organizationId))
+        var organizationIdClaim = User.FindFirst(CustomClaimTypes.OrganizationId)?.Value?? User.FindFirst("OrganizationId")?.Value;
+        if (!string.IsNullOrWhiteSpace(organizationIdClaim) && Guid.TryParse(organizationIdClaim, out var organizationId))
         {
             return organizationId;
         }

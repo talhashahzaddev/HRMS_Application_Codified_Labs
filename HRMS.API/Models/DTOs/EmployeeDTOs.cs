@@ -28,11 +28,18 @@ public class EmployeeDto
     public Guid ReportingManagerId { get; set; }
     public string? ReportingManagerName { get; set; }
     public DateTime CreatedAt { get; set; }
-
+    public Guid? TaxCategoryId { get; set; }
+    public string? TaxCategoryName { get; set; }
     public Guid? DepartmentId { get; set; }       // ? Added
     public Guid? PositionId { get; set; }
 }
 
+public class EmployeeNameList
+{
+    public string EmployeeName { get; set; }
+    public string EmployeeCode { get; set; }
+    public string Email { get; set; }
+}
 public class EmployeeSimpleDto
 {
     public Guid EmployeeId { get; set; }
@@ -77,12 +84,15 @@ public class EmployeeListItemDto
     public decimal? BasicSalary { get; set; }
     public Guid? ReportingManagerId { get; set; }
     public string? ReportingManagerName { get; set; } = string.Empty;
+    public Guid? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
 
     public string? Gender { get; set; }
     public string? Nationality { get; set; }
     public string? MaritalStatus { get; set; }
+    public Guid? RoleId { get; set; }
+    public string? RoleName { get; set; }
     public DateTime? DateOfBirth { get; set; }
-
     // JSON fields
     public Dictionary<string, string>? Address { get; set; }
     public Dictionary<string, string>? EmergencyContact { get; set; }
@@ -110,7 +120,8 @@ public class CreateEmployeeRequest
     public string employmentType { get; set; }
     public string? Gender { get; set; }
     public string? MaritalStatus { get; set; }
-    public string? Nationality { get; set; }
+    public string? Nationality { get; set; } 
+    public Guid? taxCategoryId { get; set; }
     public Dictionary<string, object> EmergencyContact { get; set; } = new();
 }
 
@@ -253,4 +264,15 @@ public class EmploymentTypeStatsDto
 public class BulkEmployeeRequest
 {
     public List<Guid> EmployeeIds { get; set; } = new();
+}
+
+public class PushEmailLeaveRequest
+{
+    public string email { get; set; }
+    public string firstname { get; set; }
+    public string lastname { get; set; }
+    public string EmployeeName { get; set; }
+    public string typename { get; set; }
+    public DateTime startdate { get; set; }
+    public DateTime enddate { get; set; }
 }

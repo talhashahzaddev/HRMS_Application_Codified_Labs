@@ -21,7 +21,7 @@ public abstract class BaseRepository
     protected async Task<T?> QuerySingleOrDefaultAsync<T>(string sql, object? parameters = null)
     {
         using var connection = CreateConnection();
-        return await connection.QuerySingleOrDefaultAsync<T>(sql, parameters);
+        return await connection.QueryFirstOrDefaultAsync<T>(sql, parameters);
     }
 
     protected async Task<T> QuerySingleAsync<T>(string sql, object? parameters = null)

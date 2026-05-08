@@ -52,6 +52,12 @@ public class AuthRepository : BaseRepository, IAuthRepository
             return null;
         }
     }
+    public async Task<string> GetOrganizationDomainAsync(Guid? organizationId)
+    {
+        var sql = "SELECT domain FROM auth.organizations WHERE organizationid = @organizationId";
+        var result = await QuerySingleOrDefaultAsync<string>(sql, new { organizationId });
+        return result ?? string.Empty;
+    }   
 
 
     public async Task<User?> GetUserByIdAsync(Guid? userId)
@@ -104,9 +110,15 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
     FROM auth.users u
     INNER JOIN auth.roles r ON u.roleid = r.roleid
     INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
-    INNER JOIN employee.employees e ON u.userid = e.userid
     WHERE u.email = @email
-    AND e.status = 'active'";
+      AND EXISTS (
+          SELECT 1
+          FROM employee.employees e
+          WHERE e.userid = u.userid
+            AND e.status = 'active'
+      )
+    ORDER BY u.createdat DESC
+    LIMIT 1";
 
         try
         {
@@ -246,7 +258,7 @@ WHERE token = @token;
 
 
     //Adding update method for Updating Employee all information
-    public async Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request,string? profileUrl)
+    public async Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request)
     {
 
         var sql = @"UPDATE employee.employees SET 
@@ -272,7 +284,7 @@ WHERE token = @token;
             EmergencyContact = System.Text.Json.JsonSerializer.Serialize(request.EmergencyContact),
             HireDate = request.HireDate,
             EmployeeId = employeeId,
-            profileUrl=profileUrl
+            profileUrl=request.profileurl
         });
 
         return affected > 0;
@@ -455,8 +467,7 @@ WHERE token = @token;
             throw new Exception("An error occured", ex.InnerException);
         }
     }
-
-    public async Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId, string title = "Super Admin")
+    public async Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId, Guid? departmentId, string title)
     {
         // Note: We include PositionTitle because it is defined as NOT NULL in your schema.
         // We include OrganizationId so the position is linked to the correct tenant.
@@ -465,12 +476,14 @@ WHERE token = @token;
             organizationid, 
             positiontitle, 
             roleid,
+            departmentid,
             isactive
         )
         VALUES (
             @organizationId, 
             @positionTitle, 
             @roleId,
+            @departmentId,
             true
         )
         RETURNING positionid;";
@@ -479,11 +492,13 @@ WHERE token = @token;
         {
             organizationId = organizationId,
             positionTitle = title,
-            roleId = roleId
+            roleId = roleId,
+            departmentId=departmentId
         });
 
         return positionId;
     }
+
 
     public async Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt)
     {
@@ -497,13 +512,32 @@ WHERE token = @token;
         var affected = await ExecuteAsync(sql, new { userId, refreshToken, expiresAt });
         return affected > 0;
     }
+    //Get Domain
+    public async Task<string?> GetDomainByOrganizationIdAsync(Guid organizationId)
+    {
+        
+            var sql = @"select  
+                        domain
+                    from auth.organizations
+                    where organizationid = @organizationId";
+
+            var result = await QuerySingleOrDefaultAsync<string>(sql, new { organizationId });
+        return result;
+    }
+
     public async Task<string> GetHashedPassword(string email)
     {
-        var sql = "SELECT passwordhash FROM auth.users WHERE email = @Email";
+        var sql = @"
+            SELECT passwordhash
+            FROM auth.users
+            WHERE email = @Email
+            ORDER BY isactive DESC, createdat DESC
+            LIMIT 1";
+
         try
         {
-        var result = await QuerySingleOrDefaultAsync<string>(sql, new { Email = email });
-        return result ?? string.Empty;
+            var result = await QuerySingleOrDefaultAsync<string>(sql, new { Email = email });
+            return result ?? string.Empty;
         }
         catch (Exception ex)
         {
@@ -526,24 +560,31 @@ WHERE token = @token;
 
     public async Task<Role?> GetRoleByNameAsync(Guid? organizationId, string roleName)
     {
-        var sql = @"
+        try
+        {
+            var sql = @"
             SELECT roleid, organizationid, rolename, description, permissions, issystemrole, createdat
             FROM auth.roles 
             WHERE organizationid = @organizationId AND rolename = @roleName";
 
-        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { organizationId, roleName });
-        if (result == null) return null;
+            var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { organizationId, roleName });
+            if (result == null) return null;
 
-        return new Role
+            return new Role
+            {
+                RoleId = result.roleid,
+                OrganizationId = result.organizationid,
+                RoleName = result.rolename,
+                Description = result.description,
+                Permissions = result.permissions,
+                IsSystemRole = result.issystemrole,
+                CreatedAt = result.createdat
+            };
+        }
+        catch(Exception ex)
         {
-            RoleId = result.roleid,
-            OrganizationId = result.organizationid,
-            RoleName = result.rolename,
-            Description = result.description,
-            Permissions = result.permissions,
-            IsSystemRole = result.issystemrole,
-            CreatedAt = result.createdat
-        };
+            return null;
+        }
     }
 
     public async Task<List<Role>> GetOrganizationRolesAsync(Guid? organizationId)
@@ -576,6 +617,249 @@ WHERE token = @token;
             throw new Exception("An error occured", ex.InnerException);
         }
 
+    }
+    public async Task<IEnumerable<dynamic>> GetMenusAsync()
+    {
+        var sql = @"
+        SELECT 
+            m.menuid,
+            m.menuname,
+            m.icon AS menuicon,
+            s.submenuid,
+            s.submenuname,
+            s.icon AS submenuicon,
+            a.actionid,         
+            a.actionname,         
+            a.actionkey          
+        FROM auth.menus m
+        LEFT JOIN auth.submenus s ON s.menuid = m.menuid
+        LEFT JOIN auth.actions a ON a.submenuid = s.submenuid";
+        //ORDER BY m.menuname, s.submenuname";
+
+        try
+        {
+            var result = await QueryAsync<dynamic>(sql);
+            return result;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Database error while retrieving menus", ex);
+        }
+    }
+
+    public async Task<Guid> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId)
+    {
+        const string sql = "SELECT * FROM auth.fn_create_role(@p_organizationid, @p_rolename, @p_description, @p_issystemrole, @p_menus::jsonb)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organizationid", organizationId, DbType.Guid);
+        parameters.Add("p_rolename", request.RoleName, DbType.String);
+        parameters.Add("p_description", request.Description, DbType.String);
+        parameters.Add("p_issystemrole", request.IsSystemRole, DbType.Boolean);
+
+        string jsonMenus = JsonConvert.SerializeObject(request.Menus);
+        parameters.Add("p_menus", jsonMenus, DbType.String);
+
+        try
+        {
+            var result = await ExecuteScalarAsync<Guid?>(sql, parameters);
+
+            if (result == null || result == Guid.Empty)
+            {
+                throw new InvalidOperationException("Failed to create role");
+            }
+
+            return result.Value;
+        }
+        catch (Exception ex)
+        {
+            //_logger.LogError(ex, "Database error while creating role: {RoleName}", request.RoleName);
+            throw;
+        }
+    }
+    public async Task<bool> UpdateRoleAsync(UpdateRoleRequest request, Guid? organizationId)
+    {
+        const string sql = "SELECT * FROM auth.fn_update_role(@p_organizationid, @p_roleid, @p_rolename, @p_description, @p_issystemrole, @p_menus::jsonb)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organizationid", organizationId, DbType.Guid);
+        parameters.Add("p_roleid", request.RoleId, DbType.Guid);
+        parameters.Add("p_rolename", request.RoleName, DbType.String);
+        parameters.Add("p_description", request.Description, DbType.String);
+        parameters.Add("p_issystemrole", request.IsSystemRole, DbType.Boolean);
+
+        string jsonMenus = JsonConvert.SerializeObject(request.Menus);
+        parameters.Add("p_menus", jsonMenus, DbType.String);
+
+        try
+        {
+            var result = await ExecuteScalarAsync<bool?>(sql, parameters);
+
+            if (result == null || !result.Value)
+            {
+                throw new InvalidOperationException("Failed to update role");
+            }
+
+            return result.Value;
+        }
+        catch (Exception ex)
+        {
+            //_logger.LogError(ex, "Database error while updating role: {RoleId}", request.RoleId);
+            throw;
+        }
+    }
+    // Get user count by role ID
+    public async Task<int> GetUserCountByRoleIdAsync(Guid roleId, Guid? organizationId)
+    {
+        const string sql = @"
+        SELECT COUNT(*) 
+        FROM auth.users 
+        WHERE roleid = @RoleId 
+          AND (organizationid = @OrganizationId OR @OrganizationId IS NULL)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("RoleId", roleId, DbType.Guid);
+        parameters.Add("OrganizationId", organizationId, DbType.Guid);
+
+        return await ExecuteScalarAsync<int>(sql, parameters);
+    }
+
+    // Delete role
+    public async Task<bool> DeleteRoleAsync(Guid roleId, Guid? organizationId)
+    {
+        const string sql = "SELECT * FROM auth.fn_delete_role(@p_organizationid, @p_roleid)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("p_organizationid", organizationId, DbType.Guid);
+        parameters.Add("p_roleid", roleId, DbType.Guid);
+
+        try
+        {
+            var result = await ExecuteScalarAsync<bool?>(sql, parameters);
+
+            if (result == null || !result.Value)
+            {
+                return false;
+            }
+
+            return result.Value;
+        }
+        catch (Exception ex)
+        {
+            //_logger.LogError(ex, "Database error while deleting role: {RoleId}", roleId);
+            throw;
+        }
+    }
+
+    public async Task<Role> GetRoleByNameforTokenAsync(string roleName, Guid? organizationId)
+    {
+        try
+        {
+            const string sql = @"
+        SELECT roleid, rolename, description, organizationid, issystemrole, createdat
+        FROM auth.roles 
+        WHERE rolename = @rolename AND organizationid = @organizationid";
+
+            return await QuerySingleOrDefaultAsync<Role>(sql, new { rolename = roleName, organizationid = organizationId });
+        }
+        catch (Exception ex)
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> MenuExistsAsync(Guid menuId)
+    {
+        const string sql = "SELECT COUNT(1) FROM auth.menus WHERE menuid = @menuid";
+        var count = await ExecuteScalarAsync<int>(sql, new { menuid = menuId });
+        return count > 0;
+    }
+
+    public async Task<bool> SubMenuExistsAsync(Guid subMenuId, Guid menuId)
+    {
+        const string sql = "SELECT COUNT(1) FROM auth.submenus WHERE submenuid = @submenuid AND menuid = @menuid";
+        var count = await ExecuteScalarAsync<int>(sql, new { submenuid = subMenuId, menuid = menuId });
+        return count > 0;
+    }
+    public async Task<bool> ActionExistsAsync(Guid actionId, Guid subMenuId)
+    {
+        const string sql = "SELECT COUNT(1) FROM auth.actions WHERE actionid = @actionid AND submenuid = @submenuid";
+        var count = await ExecuteScalarAsync<int>(sql, new { actionid = actionId, submenuid = subMenuId });
+        return count > 0;
+    }
+
+    public async Task<List<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId)
+    {
+        const string sql = @"
+        SELECT roleid, rolename, description, organizationid, issystemrole, createdat
+        FROM auth.roles 
+        WHERE organizationid = @organizationid
+        ORDER BY createdat DESC";
+
+        return (await QueryAsync<Role>(sql, new { organizationid = organizationId })).ToList();
+    }
+
+    public async Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId)
+    {
+        const string sql = @"
+    SELECT 
+        m.menuid,
+        m.menuname as MenuName,
+        sm.submenuid,
+        sm.submenuname as SubMenuName,
+        a.actionid,
+        a.actionname as ActionName,
+        a.actionkey as ActionKey,
+        COALESCE(p.has_permission, false) as HasPermission
+    FROM auth.menus m
+    INNER JOIN auth.submenus sm ON sm.menuid = m.menuid
+    INNER JOIN auth.actions a ON a.submenuid = sm.submenuid
+    LEFT JOIN auth.permissions p ON p.actionid = a.actionid AND p.roleid = @roleid
+    ORDER BY m.menuname, sm.submenuname, a.actionname";
+
+        return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
+    }
+    public async Task<Role> GetRoleByIdAsync(Guid roleId)
+    {
+        const string sql = @"
+    SELECT roleid, rolename, description, organizationid, issystemrole, createdat
+    FROM auth.roles 
+    WHERE roleid = @roleid";
+
+        return await QuerySingleOrDefaultAsync<Role>(sql, new { roleid = roleId });
+    }
+    // Add to your AuthRepository
+    public async Task<(User user, Guid? roleId)> GetUserWithRoleAsync(Guid userId)
+    {
+        try
+        {
+            const string sql = @"
+    SELECT 
+        u.userid, u.email, u.roleid,
+        r.rolename, r.description, r.issystemrole
+    FROM auth.users u
+    LEFT JOIN auth.roles r ON r.roleid = u.roleid
+    WHERE u.userid = @userid";
+
+            var result = await QuerySingleOrDefaultAsync<UserWithRoleDto>(sql, new { userid = userId });
+
+            if (result == null)
+                return (null, null);
+
+            var user = new User
+            {
+                UserId = result.userid,
+                //UserName = result.username,
+                Email = result.email,
+                RoleId = result.roleid
+            };
+
+            return (user, result.roleid);
+        }
+        catch(Exception ex)
+        {
+            return (null,null);
+        }
     }
     private Dictionary<string, object> NormalizePermissions(Dictionary<string, object>? permissions)
     {

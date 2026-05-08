@@ -9,7 +9,7 @@ namespace HRMS.AI.Services.Interface
 {
     public interface IGuidanceAIService
     {
-        Task<string> GenerateGuidanceAsync(string message, string module,string? roleName);
+        Task<string> GenerateGuidanceAsync(string message, string module,string? roleName, string domain);
         Task<ChatResponseDto> GenrateEmployeeInfoGuidance(string message, string employeeinfo);
         Task<LeaveApplicationDetails> GenrateLeaveApplicationDetails(string message, string leaveTypeNames);
     }

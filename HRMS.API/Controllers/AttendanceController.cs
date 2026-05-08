@@ -1,4 +1,5 @@
-using DocumentFormat.OpenXml.Bibliography;
+﻿using DocumentFormat.OpenXml.Bibliography;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -25,10 +26,13 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-in")]
-    public async Task<ActionResult<ServiceResponse<bool>>> ClockIn([FromBody] ClockInOutRequest request)
+    [PermissionAuthorize("time_tracket_clock_in")]
+    public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockIn([FromBody] ClockInOutRequest request)
     {
         try
         {
+            _logger.LogInformation("ClockIn request received: ShiftId={ShiftId}, Action={Action}", request.ShiftId, request.Action);
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(new ServiceResponse<bool>
@@ -39,12 +43,14 @@ public class AttendanceController : ControllerBase
                 });
             }
             var employeeId = await GetCurrentEmployeeId(); // This would need to be implemented
-            var result = await _attendanceService.ClockInAsync(employeeId, request);
-            
-            return Ok(new ServiceResponse<bool>
+            var ipAddress = GetClientIp();
+
+            var result = await _attendanceService.ClockInAsync(employeeId, request,ipAddress);
+
+            return Ok(new ServiceResponse<ClockInOutResponse>
             {
-                Success = true,
-                Message = "Clocked in successfully",
+                Success = result.Success,
+                Message = result.Message,
                 Data = result
             });
         }
@@ -87,7 +93,8 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-out")]
-    public async Task<ActionResult<ServiceResponse<bool>>> ClockOut([FromBody] ClockInOutRequest request)
+    [PermissionAuthorize("time_tracket_clock_out")]
+    public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockOut([FromBody] ClockInOutRequest request)
     {
         try
         {
@@ -101,12 +108,14 @@ public class AttendanceController : ControllerBase
                 });
             }
             var employeeId = await GetCurrentEmployeeId();
-            var result = await _attendanceService.ClockOutAsync(employeeId, request);
-            
-            return Ok(new ServiceResponse<bool>
+            var ipAddress = GetClientIp();
+
+            var result = await _attendanceService.ClockOutAsync(employeeId, request, ipAddress);
+
+            return Ok(new ServiceResponse<ClockInOutResponse>
             {
-                Success = true,
-                Message = "Clocked out successfully",
+                Success = result.Success,
+                Message = result.Message,
                 Data = result
             });
         }
@@ -252,7 +261,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("department/{departmentId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("team_attendance_view_details")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceDto>>>> GetDepartmentAttendance(Guid departmentId, [FromQuery] DateTime? date = null)
     {
         try
@@ -359,11 +368,47 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("employeeSession/{id}")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByid(Guid id, [FromQuery] DateTime? date = null)
-    {
+     {
         try
         {
             //var employeeId = await GetCurrentEmployeeId();
             var sessions = await _attendanceService.EmployeeTodaySessions(id,date);
+
+            return Ok(new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = true,
+                Data = sessions
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving sessions by id");
+            return BadRequest(new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving current sessions");
+            return StatusCode(500, new ServiceResponse<List<AttendanceSessionDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving current sessions"
+            });
+        }
+    }
+
+
+    [HttpGet("employeeSessionforcalendar/{id}")]
+    public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByidforcalendar(Guid id, [FromQuery] DateTime? date = null)
+    {
+        try
+        {
+
+            var employeeId = await GetCurrentEmployeeId();
+            var sessions = await _attendanceService.EmployeeTodaySessions(employeeId, date);
 
             return Ok(new ServiceResponse<List<AttendanceSessionDto>>
             {
@@ -636,6 +681,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("my-summary")]
+    [PermissionAuthorize("my_attendance_summary")]
     public async Task<ActionResult<ServiceResponse<AttendanceSummaryDto>>> GetMyAttendanceSummary([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
         try
@@ -792,6 +838,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPost("shift")]
+    [PermissionAuthorize("shifts_create_shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> CreateShift([FromBody] CreateShiftDto request)
     {
         try
@@ -806,6 +853,7 @@ public class AttendanceController : ControllerBase
                 });
             }
             var organizationId = GetCurrentOrganizationId();
+            var CurrentEmpId = GetCurrentEmployeeId();
 
             var createdShift = await _attendanceService.CreateShiftAsync(organizationId, request);
 
@@ -853,8 +901,455 @@ public class AttendanceController : ControllerBase
         }
     }
 
+    ////Overtime changes
+    [HttpPost("create/employee/overtime")]
+    public async Task<ActionResult<ServiceResponse<bool>>> CreateEmployeeOvertime([FromBody] CreateEmployeeOvertimeDto request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList()
+                });
+            }
+
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmpId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.CreateEmployeeOvertimeRequestAsync(
+                organizationId,
+                currentEmpId,
+                request
+            );
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Overtime request created successfully"
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for creating overtime");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for creating overtime");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error creating overtime");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating overtime");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while creating the overtime request"
+            });
+        }
+    }
+    [HttpPost("employee/overtime/{requestId}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateEmployeeOvertimeStatus(
+        Guid requestId,
+        [FromQuery] string status)
+    {
+        try
+        {
+            
+            var organizationId = GetCurrentOrganizationId();
+            var managerId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.UpdateEmployeeOvertimeStatusAsync(
+                organizationId,
+                requestId,
+                managerId,
+                status
+            );
+
+            if (!result)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Failed to update overtime request"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = $"Overtime request {status.ToLower()} successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating overtime status");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while updating overtime request"
+            });
+        }
+    }
+
+    //Manager Overtime request
+    [HttpPost("create/manager/overtime")]
+    public async Task<ActionResult<ServiceResponse<bool>>> CreateManagerOvertime(
+    [FromBody] ManagerOvertimeRequestDto request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values
+                        .SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList()
+                });
+            }
+
+            var organizationId = GetCurrentOrganizationId();
+            var managerId = await GetCurrentEmployeeId(); // current logged-in manager
+
+            var result = await _attendanceService.CreateManagerOvertimeAsync(
+                organizationId,
+                managerId,
+                request
+            );
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Manager overtime request assigned successfully"
+            });
+        }
+        catch (ArgumentNullException ex)
+        {
+            _logger.LogWarning(ex, "Null request provided for manager overtime");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for manager overtime");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error in manager overtime");
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating manager overtime request");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while creating manager overtime request"
+            });
+        }
+    }
+    //approving the status of overtime assigned by manager 
+    [HttpPost("employee/overtime/respond/{requestId}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> RespondToAssignedOvertimeRequest(
+    Guid requestId,
+    [FromQuery] string response) // accept / reject
+    {
+        try
+        {
+            var employeeId = await GetCurrentEmployeeId();
+
+            // Validate input
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Response is required (accept/reject)"
+                });
+            }
+
+         
+            var result = await _attendanceService.RespondToAssignedOvertimeRequestAsync(
+                requestId,
+                employeeId,
+                response
+            );
+
+            if (!result)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Failed to respond to overtime request"
+                });
+            }
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = $"Overtime request {response}ed successfully"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error responding to overtime request");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while processing request"
+            });
+        }
+    }
+
+    //Employee overtime request get that are requested by manager
+    [HttpGet("employee/overtime/assigned")]
+    public async Task<ActionResult<ServiceResponse<List<OvertimeRequestDto>>>> GetEmployeeOvertimeRequests()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetEmployeeOvertimeRequestsAsync(
+                organizationId,
+                employeeId
+            );
+
+            return Ok(new ServiceResponse<List<OvertimeRequestDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Employee overtime requests fetched successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
+            return BadRequest(new ServiceResponse<List<OvertimeRequestDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employee overtime requests");
+            return StatusCode(500, new ServiceResponse<List<OvertimeRequestDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee overtime requests"
+            });
+        }
+    }
+
+
+    //Getting employee overtime for today if present or approved by manager
+    [HttpGet("employee/today/overtime")]
+    public async Task<ActionResult<ServiceResponse<OvertimeRequestDto>>> GetEmployeeTodayOvertimeRequests()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetEmployeeTodayOvertimeRequestsAsync(
+                organizationId,
+                employeeId
+            );
+
+            return Ok(new ServiceResponse<OvertimeRequestDto>
+            {
+                Success = true,
+                Data = result,
+                Message = "Employee overtime requests fetched successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
+            return BadRequest(new ServiceResponse<OvertimeRequestDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employee overtime requests");
+            return StatusCode(500, new ServiceResponse<OvertimeRequestDto>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee overtime requests"
+            });
+        }
+    }
+    //Getting all assigned overtime request that manager created for his employee
+    [HttpGet("getAllemployee/overtime/assigned")]
+    public async Task<ActionResult<ServiceResponse<List<OvertimeRequestDto>>>> GetAllEmployeeOvertimeAssignedRequests()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetEmployeeOvertimeRequestsAsync(
+                organizationId,
+                employeeId
+            );
+
+            return Ok(new ServiceResponse<List<OvertimeRequestDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Employee overtime requests fetched successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
+            return BadRequest(new ServiceResponse<List<OvertimeRequestDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employee overtime requests");
+            return StatusCode(500, new ServiceResponse<List<OvertimeRequestDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee overtime requests"
+            });
+        }
+    }
+
+    //Get employee overtime request for manager so he accept accept and reject
+    [HttpGet("manager/overtime/pending")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeOverTimeDto>>>> EmplyeOverTimeRequestForManager()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.EmplyeOverTimeRequesForManagerAsync(
+                organizationId,
+                employeeId
+            );
+
+            return Ok(new ServiceResponse<List<EmployeeOverTimeDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Employee overtime requests fetched successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
+            return BadRequest(new ServiceResponse<List<EmployeeOverTimeDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employee overtime requests");
+            return StatusCode(500, new ServiceResponse<List<EmployeeOverTimeDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee overtime requests"
+            });
+        }
+    }
+
+    //Getting all overtime request that employee created so manager accept it that he has overtime that day
+    [HttpGet("getall/EmployeeCreated/overtime")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeOverTimeDto>>>> GetAllEmployeeCreatedOverTimeRequest()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetAllEmployeeCreatedOverTimeRequest(
+                organizationId,
+                employeeId
+            );
+            return Ok(new ServiceResponse<List<EmployeeOverTimeDto>>
+            {
+                Success = true,
+                Data = result,
+                Message = "Employee overtime requests fetched successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
+            return BadRequest(new ServiceResponse<List<EmployeeOverTimeDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employee overtime requests");
+            return StatusCode(500, new ServiceResponse<List<EmployeeOverTimeDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching employee overtime requests"
+            });
+        }
+    }
+
 
     [HttpPost("assign-shift")]
+    [PermissionAuthorize("shifts_assign_shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> AssignShift([FromBody] AssignShiftDto request)
     {
         try
@@ -959,6 +1454,7 @@ public class AttendanceController : ControllerBase
     //Shift swap Create
 
     [HttpPost("shiftswap")]
+    [PermissionAuthorize("shifts_swap_shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> CreateShiftSwapRequest([FromBody] CreateShiftSwapRequestDto requestDto)
     {
         try
@@ -1028,7 +1524,7 @@ public class AttendanceController : ControllerBase
 
     [HttpPost("shiftswap/approve")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveShiftSwapRequest([FromBody] ApproveShiftSwapRequestDto dto)
-    {
+    {  
         try
         {
             if (!ModelState.IsValid)
@@ -1183,16 +1679,6 @@ public class AttendanceController : ControllerBase
         {
             var shift = await _attendanceService.GetShiftByEmployeeIdAsync(employeeId);
 
-            //if (shift == null)
-            //{
-            //    return NotFound(new ServiceResponse<ShiftDto>
-            //    {
-            //        Success = true,
-            //        Message = "Shift not found for the given employee.",
-            //        Data = null
-            //    });
-            //}
-
             return Ok(new ServiceResponse<ShiftDto>
             {
                 Success = true,
@@ -1224,6 +1710,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("shifts")]
+    [PermissionAuthorize("all_shifts")]
     public async Task<ActionResult<ServiceResponse<List<ShiftDto>>>> GetAllShifts()
     {
         try
@@ -1259,7 +1746,10 @@ public class AttendanceController : ControllerBase
         }
     }
 
+
+
     [HttpPut("shift/{shiftId}")]
+    [PermissionAuthorize("shifts_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateShift(Guid shiftId, [FromBody] UpdateShiftDto request)
     {
         try
@@ -1325,6 +1815,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpDelete("shift/{shiftId}")]
+    [PermissionAuthorize("shifts_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteShift(Guid shiftId)
     {
         try
@@ -1362,6 +1853,53 @@ public class AttendanceController : ControllerBase
         }
     }
 
+    [HttpGet("shift-summary")]
+    public async Task<ActionResult<ServiceResponse<ShiftSummary>>> GetShiftSummary()
+    {
+        try
+        {
+            _logger.LogInformation("Shift summary request received");
+
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetShiftSummaryAsync(organizationId,currentEmployeeId);
+
+            return Ok(new ServiceResponse<ShiftSummary>
+            {
+                Success = true,
+                Message = "Shift summary retrieved successfully.",
+                Data = result
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while retrieving shift summary");
+            return BadRequest(new ServiceResponse<ShiftSummary>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogError(ex, "Business logic error while retrieving shift summary");
+            return BadRequest(new ServiceResponse<ShiftSummary>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving shift summary");
+            return StatusCode(500, new ServiceResponse<ShiftSummary>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving shift summary."
+            });
+        }
+    }
 
 
     [HttpGet("my-calendar")]
@@ -1399,7 +1937,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("daily-stats")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<DailyAttendanceStatsDto>>> GetDailyAttendanceStats([FromQuery] DateTime? date)
     {
         try
@@ -1435,7 +1973,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("reports")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("reports_genrate_report")]
     public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
         try
@@ -1500,7 +2038,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("export")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("reports_export")]
     public async Task<IActionResult> ExportAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] string format = "xlsx")
     {
         try
@@ -1648,6 +2186,292 @@ public class AttendanceController : ControllerBase
         }
     }
 
+    [HttpPost("timesheet/finalize-batch")]
+    [PermissionAuthorize("finalize_timesheet")]
+    public async Task<IActionResult> FinalizeBatch([FromBody] FinalizeBatchRequestDto request)
+    {
+        var orgId = GetCurrentOrganizationId();
+        var managerId = await GetCurrentEmployeeId();
+        return Ok(await _attendanceService.FinalizeTimesheetBatchAsync(
+            request.TimesheetId, orgId, managerId, request.EmployeeId));
+    }
+
+    [HttpGet("timesheet/finalized/{timesheetId}")]
+    [PermissionAuthorize("timesheet_dashboard_view_details")]
+    public async Task<IActionResult> GetFinalizedTimesheet(Guid timesheetId)
+    {
+        var empId = await GetCurrentEmployeeId();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+        return Ok(await _attendanceService.GetApprovedTimesheetAsync(timesheetId, empId, role));
+    }
+
+    [HttpPost("timesheet/snapshot")]
+    [PermissionAuthorize("timesheet_create_new_snapshot")]
+    public async Task<IActionResult> CreateSnapshot([FromBody] MonthlyTimesheetCreateDto dto)
+    {
+        var orgId = GetCurrentOrganizationId();
+        var empId = await GetCurrentEmployeeId();
+        return Ok(await _attendanceService.CreateTimesheetSnapshotAsync(orgId, empId, dto));
+    }
+
+    [HttpGet("timesheet/details")]
+    [PermissionAuthorize("timesheet_view_details")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeTimesheetDto>>>> GetTimesheetDetails([FromQuery] Guid timesheetId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetTimesheetDetailsByIdAsync(timesheetId, organizationId, currentEmployeeId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching timesheet details for ID: {Id}", timesheetId);
+            return StatusCode(500, new ServiceResponse<List<EmployeeTimesheetDto>> { Success = false, Message = "Internal server error" });
+        }
+    }
+
+    [HttpPost("request-update")]
+    public async Task<IActionResult> RequestUpdate([FromBody] AttendanceUpdateRequestDto dto)
+    {
+        var empId = await GetCurrentEmployeeId();
+        var orgId = GetCurrentOrganizationId();
+        return Ok(await _attendanceService.RequestAttendanceUpdateAsync(empId, orgId, dto));
+    }
+
+    [HttpPost("process-request")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> ProcessUpdate([FromBody] ProcessAttendanceRequestDto dto)
+    {
+        var actionedBy = await GetCurrentEmployeeId();
+        var orgId = GetCurrentOrganizationId();
+
+        var response = await _attendanceService.ProcessAttendanceUpdateRequestAsync(dto, actionedBy, orgId);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("timesheet")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<List<MonthlyTimesheetSummary>>>> GetCreatedTimesheets(
+    [FromQuery] DateTime? startDate = null,
+    [FromQuery] DateTime? endDate = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+
+            var result = await _attendanceService.GetMonthlyTimesheetSnapshotsAsync(
+                organizationId,
+                startDate,
+                endDate,
+                currentEmployeeId);
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving timesheet dashboard data");
+            return StatusCode(500, new ServiceResponse<List<MonthlyTimesheetSummary>>
+            {
+                Success = false,
+                Message = "Internal server error while fetching timesheets"
+            });
+        }
+    }
+
+    [HttpGet("manual")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<Attendance>>>> GetManualAttendance([FromQuery] ManualAttendanceSearchDto searchDto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
+
+            var result = await _attendanceService.GetManualAttendanceAsync(searchDto, currentEmployeeId, currentUserRole, organizationId);
+            
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving manual attendance");
+            return StatusCode(500, new ServiceResponse<IEnumerable<Attendance>> { Success = false, Message = "Internal Server Error" });
+        }
+    }
+
+    [HttpPut("manual")]
+    [PermissionAuthorize("team_attendance_edit_record")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateManualAttendance([FromBody] ManualAttendanceUpdateDto updateDto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
+            var ipAddress = HttpContext.Connection.RemoteIpAddress?.ToString();
+
+            var result = await _attendanceService.UpdateManualAttendanceAsync(updateDto, currentEmployeeId, currentUserRole, organizationId, ipAddress);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating manual attendance");
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Internal Server Error" });
+        }
+    }
+
+    [HttpPost("timesheet/submit-approvals")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    public async Task<IActionResult> SubmitApprovals([FromBody] FinalizeBatchRequestDto request) 
+    {
+        var orgId = GetCurrentOrganizationId();
+        var empId = request.EmployeeId != Guid.Empty
+            ? request.EmployeeId
+            : await GetCurrentEmployeeId();
+        var response = await _attendanceService.SubmitTimesheetBatchAsync(request.TimesheetId, empId, orgId);
+        return Ok(response);
+    }
+    [HttpPost("timesheet/approve-all")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> ApproveAllRequests([FromBody] ApproveAllRequestDto dto)
+    {
+        var managerId = await GetCurrentEmployeeId();
+        var orgId = GetCurrentOrganizationId();
+
+        var result = await _attendanceService.ApproveAllPendingAsync(dto.TimesheetId, dto.EmployeeId, managerId, orgId);
+        return Ok(result);
+    }
+    [HttpGet("pending-requests")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeSubmissionPackage>>>> GetPendingRequests()
+    {
+        var orgId = GetCurrentOrganizationId();
+        var empId = await GetCurrentEmployeeId();
+        var result = await _attendanceService.GetGroupedPendingRequestsAsync(orgId, empId);
+        return Ok(result);
+    }
+    [HttpGet("timesheet/review-dashboard")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard(
+    [FromQuery] Guid timesheetId,
+    [FromQuery] Guid? employeeId = null) 
+     {
+        if (timesheetId == Guid.Empty)
+            return BadRequest(new { Message = "A valid Timesheet ID is required." });
+
+        var organizationId = GetCurrentOrganizationId();
+        var managerId = await GetCurrentEmployeeId();
+
+        var result = await _attendanceService.GetManagerReviewDashboardAsync(timesheetId, organizationId, managerId, employeeId);
+        return Ok(result);
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // PAYROLL BRIDGE — endpoints the payroll module consumes.
+    // ────────────────────────────────────────────────────────────────────────────
+
+    /// <summary>List finalized timesheets the payroll module can attach to a payroll run.</summary>
+    [HttpGet("timesheet/finalized-links")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> GetFinalizedTimesheetLinks()
+    {
+        var orgId = GetCurrentOrganizationId();
+        var result = await _attendanceService.GetFinalizedTimesheetLinksAsync(orgId);
+        return Ok(result);
+    }
+
+    /// <summary>Returns the per-employee payroll summary derived from a finalized timesheet.</summary>
+    [HttpGet("timesheet/payroll-summary")]
+    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> GetTimesheetPayrollSummary([FromQuery] Guid timesheetId)
+    {
+        if (timesheetId == Guid.Empty)
+            return BadRequest(new ServiceResponse<object> { Success = false, Message = "timesheetId is required." });
+
+        var result = await _attendanceService.GetTimesheetPayrollSummaryAsync(timesheetId);
+        return Ok(result);
+    }
+
+    /// <summary>Locks a finalized timesheet — called by payroll when it consumes the period.</summary>
+    [HttpPost("timesheet/lock")]
+    [Authorize(Roles = "Super Admin,HR Manager")]
+    public async Task<IActionResult> LockTimesheet([FromBody] LockTimesheetRequestDto dto)
+    {
+        if (dto?.TimesheetId == Guid.Empty)
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = "TimesheetId is required." });
+
+        var lockedBy = await GetCurrentEmployeeId();
+        var result = await _attendanceService.LockTimesheetAsync(dto.TimesheetId, lockedBy, dto.PayrollPeriodId);
+        return Ok(result);
+    }
+
+    [HttpPost("admin-override")]
+    [PermissionAuthorize("edit_or_override_attendace_recored")]
+    public async Task<IActionResult> AdminOverride([FromBody] ManualAttendanceUpdateDto dto)
+    {
+        try
+        {
+            var managerId = await GetCurrentEmployeeId();
+            var orgId = GetCurrentOrganizationId();
+            var result = await _attendanceService.AdminOverrideAttendanceAsync(dto, managerId, orgId);
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = result,
+                Message = result ? "Attendance record overridden successfully." : "Failed to override record.",
+                Data = result
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during admin override for employee {EmployeeId}", dto.EmployeeId);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Internal server error" });
+        }
+    }
+
+    [HttpGet("timesheet/org-progress")]
+    //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    public async Task<IActionResult> GetOrgSubmissionProgress(
+    [FromQuery] int month,
+    [FromQuery] int year)
+    {
+        if (month < 1 || month > 12)
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Month must be between 1 and 12." });
+        if (year < 2000 || year > 2100)
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Year is out of a valid range." });
+
+        var organizationId = GetCurrentOrganizationId(); // your existing helper to pull org from JWT
+
+        var progress = await _attendanceService.GetOrgSubmissionProgressAsync(
+            organizationId, month, year);
+
+        return Ok(new ServiceResponse<OrgSubmissionProgressDto>
+        {
+            Success = true,
+            Data = progress
+        });
+    }
     private async Task<Guid> GetCurrentEmployeeId()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -1665,6 +2489,46 @@ public class AttendanceController : ControllerBase
         }
         var employeeId = await _attendanceService.GetEmployeeFromTable(userId);
         return employeeId;
+    }
+
+    //Get all timezone
+    [HttpGet("timezones")]
+    public async Task<ActionResult<ServiceResponse<List<TimeZoneDto>>>> GetAllTimeZones()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployee = await GetCurrentEmployeeId();
+
+            // Optional: you can use these if you want permission validation
+
+            var timeZones = TimeZoneInfo.GetSystemTimeZones()
+                .Select(tz => new TimeZoneDto
+                {
+                    Id = tz.Id,
+                    DisplayName = tz.DisplayName,
+                    UtcOffset = tz.BaseUtcOffset.ToString(@"hh\:mm")
+                })
+                .OrderBy(t => t.DisplayName)
+                .ToList();
+
+            return Ok(new ServiceResponse<List<TimeZoneDto>>
+            {
+                Success = true,
+                Message = "Time zones retrieved successfully.",
+                Data = timeZones
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving time zones");
+
+            return StatusCode(500, new ServiceResponse<List<TimeZoneDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving time zones"
+            });
+        }
     }
 
     private Guid GetCurrentOrganizationId()
@@ -1685,4 +2549,24 @@ public class AttendanceController : ControllerBase
         
         return organizationId;
     }
+
+    private string GetClientIp()
+    {
+        var deviceIp = HttpContext.Request.Headers["X-Device-IP"].FirstOrDefault();
+        if (!string.IsNullOrEmpty(deviceIp))
+            return deviceIp;
+        var forwardedFor = HttpContext.Request.Headers["X-Forwarded-For"].FirstOrDefault();
+        string ip = !string.IsNullOrEmpty(forwardedFor)
+            ? forwardedFor.Split(',')[0].Trim()
+            : HttpContext.Connection.RemoteIpAddress?.ToString() ?? "UNKNOWN";
+        if (ip == "::1")
+            ip = "127.0.0.1";
+        if (ip.StartsWith("::ffff:"))
+            ip = ip.Substring("::ffff:".Length);
+
+        return ip;
+    }
+
+
+
 }

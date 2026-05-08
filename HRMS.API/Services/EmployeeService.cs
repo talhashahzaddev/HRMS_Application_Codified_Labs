@@ -73,9 +73,6 @@ public class EmployeeService : IEmployeeService
         if (request.HireDate == default)
             throw new ArgumentException("Hire date is required");
 
-        if (request.HireDate.Date > DateTime.UtcNow.Date)
-            throw new ArgumentException("Hire date cannot be in the future");
-
         //var isWithinLimit = await _employeeRepository.CheckEmployeeLimitAsync(organizationId);
         //if (!isWithinLimit)
         //    throw new InvalidOperationException("You have reached the limit to add max number of employee.");
@@ -172,12 +169,38 @@ public class EmployeeService : IEmployeeService
     public async Task<EmployeeDto?> GetEmployeeByIdAsync(Guid userId)
     {
         if (userId == Guid.Empty)
-            throw new ArgumentException("Employee ID cannot be empty", nameof(userId));
+            throw new ArgumentException("User ID cannot be empty", nameof(userId));
 
         var empid = await _employeeRepository.getemployeeid(userId);
 
         var employee = await _employeeRepository.GetEmployeeByIdAsync(empid);
 
+        return _mapper.Map<EmployeeDto>(employee);
+
+    }
+    public async Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid userId,Guid organizationid)
+    {
+        if (userId == Guid.Empty)
+            throw new ArgumentException("User ID cannot be empty", nameof(userId));
+
+        var reportingmanagerid = await _employeeRepository.getemployeeid(userId);
+        var getuserrole = await _employeeRepository.GetUserRoleAsync(userId);
+        if (getuserrole == "Super Admin")
+        {
+            reportingmanagerid = null;
+        }
+
+        var employee = await _employeeRepository.GetEmployeeByOrganizationAsync(organizationid, reportingmanagerid);
+
+        return employee;
+    }
+
+    public async Task<EmployeeDto?> GetEmployeeByEmployeeIdAsync(Guid employeeId)
+    {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
         return employee != null ? _mapper.Map<EmployeeDto>(employee) : null;
     }
 
@@ -376,6 +399,13 @@ public class EmployeeService : IEmployeeService
 
         var createdDepartment = await _employeeRepository.CreateDepartmentAsync(department);
         return _mapper.Map<DepartmentDto>(createdDepartment);
+    }
+
+    public async Task<List<Employee>> GetSelectedEmployeesByIdsAsync(List<Guid> employeeIds)
+    {
+       
+        var employee = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(employeeIds);
+        return employee;
     }
 
     public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,

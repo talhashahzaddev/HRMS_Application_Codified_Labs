@@ -1,6 +1,8 @@
 using AutoMapper;
 using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Drawing.Charts;
 using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
+using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
@@ -9,6 +11,7 @@ using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using iTextSharp.text;
+using Mailjet.Client.Resources;
 using NPOI.SS.Formula.Functions;
 using OfficeOpenXml;
 using OfficeOpenXml.Style;
@@ -25,8 +28,12 @@ public class AttendanceService : IAttendanceService
     private readonly INotificationRepository _notificationRepository;
     private readonly IEmployeeRepository _employeeRepository;
     private readonly ILeaveRepository _leaveRepository;
+    private readonly IHolidayRepository _holidayRepository;
     private readonly IMapper _mapper;
     private readonly ILogger<AttendanceService> _logger;
+    private readonly IIpAddressRepository _ipAddressRepository;
+    private readonly ISettingsRepository _settingsRepository;
+    private readonly IEmailService _emailService;
 
     public AttendanceService(
         IAttendanceRepository attendanceRepository,
@@ -34,100 +41,325 @@ public class AttendanceService : IAttendanceService
         INotificationRepository notificationRepository,
         IEmployeeRepository employeeRepository,
         ILeaveRepository leaveRepository,
+        IHolidayRepository holidayRepository,
+        IIpAddressRepository ipAddressRepository,
+        IEmailService emailService,
+        ISettingsRepository settingsRepository,
         ILogger<AttendanceService> logger)
     {
         _attendanceRepository = attendanceRepository;
         _notificationRepository = notificationRepository;
         _employeeRepository = employeeRepository;
         _leaveRepository = leaveRepository;
+        _holidayRepository = holidayRepository;
+        _ipAddressRepository = ipAddressRepository;
+        _settingsRepository = settingsRepository;
+        _emailService = emailService;
         _mapper = mapper;
         _logger = logger;
     }
 
-    public async Task<bool> ClockInAsync(Guid employeeId, ClockInOutRequest request)
+    private async Task<HashSet<DateTime>> GetEmployeeHolidayDateSetAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
-        
-        _logger.LogInformation("Clocking in employee: {EmployeeId}", employeeId);
-        if (employeeId == Guid.Empty)
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        if (employee == null)
         {
-            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
+            return new HashSet<DateTime>();
         }
-        if (request == null)
-        {
-            throw new ArgumentNullException(nameof(request), "Request cannot be null");
-        }
-        try
-        {
-            var alreadyClockedIn = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
-            if (alreadyClockedIn)
-            {
-                throw new InvalidOperationException("Already clocked in");
-            }
-            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "in", DateTime.UtcNow, request.Location);
-            await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
-            await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
-            return result;
-        }
-        catch (ArgumentNullException)
-        {
-            throw;
-        }
-        catch (ArgumentException)
-        {
-            throw;
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during clock in for employee: {EmployeeId}", employeeId);
-            throw new InvalidOperationException("An error occurred while clocking in", ex);
-        }
+
+        var holidays = await _holidayRepository.GetHolidaysInRangeForEmployeeAsync(
+            employee.OrganizationId,
+            employee.EmployeeId,
+            employee.DepartmentId,
+            employee.WorkLocation,
+            startDate.Date,
+            endDate.Date);
+
+        return holidays.Select(h => h.HolidayDate.Date).ToHashSet();
     }
 
-    public async Task<bool> ClockOutAsync(Guid employeeId, ClockInOutRequest request)
+    private async Task<bool> IsEmployeeHolidayAsync(Guid employeeId, DateTime date)
+    {
+        var holidaySet = await GetEmployeeHolidayDateSetAsync(employeeId, date.Date, date.Date);
+        return holidaySet.Contains(date.Date);
+    }
+ 
+    public async Task<ClockInOutResponse> ClockInAsync(
+    Guid employeeId,
+    ClockInOutRequest request,
+    string ipAddress)
+    {
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("Employee ID cannot be empty");
+
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+        var overtimeRequest = await _attendanceRepository.GetEmployeeTodayOvertimeRequestAsync(employeeId,nowInPk);
+
+        //if (await IsEmployeeHolidayAsync(employeeId, nowInPk.Date))
+        //    throw new InvalidOperationException("You cannot clock in on a holiday.");
+        if (await IsEmployeeHolidayAsync(employeeId, nowInPk.Date))
+        {
+            if (overtimeRequest == null ||
+                (!overtimeRequest.OvertimeType.Equals("Holiday", StringComparison.OrdinalIgnoreCase) &&
+                 !overtimeRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase)))
+            {
+                throw new InvalidOperationException(
+                    "You cannot clock in on a holiday without a valid overtime request (Holiday/Weekend).");
+            }
+        }
+
+        var allowedIp = await _ipAddressRepository.GetByIpAsync(ipAddress);
+        string locationType = allowedIp != null ? "Office" : "Outside";
+
+        var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+        if (shift == null)
+            throw new InvalidOperationException("No shift assigned");
+
+        var now = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+        var shiftStartDateTime = now.Date + shift.StartTime;
+        var shiftStart = shiftStartDateTime.AddHours(+shift.marginHours);
+        var allowedFrom = shiftStartDateTime.AddHours(-shift.marginHours);
+        var today = (int)now.DayOfWeek;
+        //    // Check if today is included in shift days
+        //    bool isWeekendOvertime =
+        //overtimeRequest != null &&
+        //overtimeRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase);
+        bool isWeekendOrHolidayOvertime =
+        overtimeRequest != null &&
+        (overtimeRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase) ||
+         overtimeRequest.OvertimeType.Equals("Holiday", StringComparison.OrdinalIgnoreCase));
+        bool isShiftDay = shift.DaysOfWeek != null && shift.DaysOfWeek.Contains(today);
+        if (!isShiftDay && !isWeekendOrHolidayOvertime)
+        {
+            throw new InvalidOperationException("You have no shift assigned for today, so you cannot clock in.");
+        }
+
+        if (shift.ApplyMarginhours)
+        {
+            if (now < allowedFrom)
+                throw new InvalidOperationException("Clock-in outside allowed margin hours");
+        }
+        if (await _attendanceRepository.CheckAlreadyClockInAsync(employeeId))
+            throw new InvalidOperationException("Already clocked in");
+        var todayAttendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
+       
+
+        string message = "Clocked in successfully";
+
+        if (todayAttendance == null && now > shiftStart)
+        {
+            var lateBy = now - shiftStartDateTime;
+            message =
+                $"Clocked in successfully, but you are late by {lateBy.Hours}h {lateBy.Minutes}m";
+        }
+        var location = new Dictionary<string, object?>
+    {
+        { "ip", ipAddress },
+        { "locationType", locationType }
+    };
+
+        await _attendanceRepository.ClockInOutAsync(
+            employeeId,
+            "in",
+            DateTime.UtcNow,
+            location,
+            request.Notes);
+
+        await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+        await _attendanceRepository.UpdateTodayAttendanceLateStatusAsync(employeeId);
+        if (overtimeRequest != null)
+        {
+
+            await _attendanceRepository.UpdateAttendanceOverTimeType(employeeId, nowInPk.Date,overtimeRequest.OvertimeType);
+        }
+
+        _logger.LogInformation(
+            "Employee {EmployeeId} clocked in from {IP} as {LocationType}",
+            employeeId,
+            ipAddress,
+            locationType);
+
+        return new ClockInOutResponse
+        {
+            Success = true,
+            Message = message
+        };
+    }
+
+    public async Task<ClockInOutResponse> ClockOutAsync(
+    Guid employeeId,
+    ClockInOutRequest request,
+    string ipAddress)
     {
         _logger.LogInformation("Clocking out employee: {EmployeeId}", employeeId);
         if (employeeId == Guid.Empty)
-        {
-            throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
-        }
+            throw new ArgumentException("Employee ID cannot be empty");
+
         if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+        if (await IsEmployeeHolidayAsync(employeeId, nowInPk.Date))
+            throw new InvalidOperationException("You cannot clock out on a holiday.");
+
+        // ✅ 1️⃣ Check allowed IP
+        var allowedIp = await _ipAddressRepository.GetByIpAsync(ipAddress);
+        string locationType = allowedIp != null ? "Office" : "Outside";
+
+        // ✅ 2️⃣ Get shift
+        var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+        if (shift == null)
+            throw new InvalidOperationException("No shift assigned");
+
+        var isClockedIn =
+            await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
+
+        if (!isClockedIn)
+            throw new InvalidOperationException("Not clocked in");
+
+        var margin = TimeSpan.FromHours(shift.marginHours);
+
+        var nowDateTime = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+        var now = nowDateTime.TimeOfDay;
+
+        var allowedFrom = shift.EndTime - margin;
+        var allowedTo = shift.EndTime + margin;
+        string message;
+        if (now < allowedFrom)
         {
-            throw new ArgumentNullException(nameof(request), "Request cannot be null");
+            var earlyBy = shift.EndTime - now;
+            message =
+                $"Clocked out successfully, but you left early by {earlyBy.Hours}h {earlyBy.Minutes}m";
         }
-        try
+        else if (now > allowedTo)
         {
-            var isClockedIn = await _attendanceRepository.CheckAlreadyClockInAsync(employeeId);
-            if (!isClockedIn)
-            {
-                throw new InvalidOperationException("Not clocked in");
-            }
-            var result = await _attendanceRepository.ClockInOutAsync(employeeId, "out", DateTime.UtcNow, request.Location);
-            await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
-            await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
-            return result;
+            var lateBy = now - shift.EndTime;
+            message =
+                $"Clocked out successfully, but you left late by {lateBy.Hours}h {lateBy.Minutes}m";
         }
-        catch (ArgumentNullException)
+        else
         {
-            throw;
+            message = "Clocked out successfully";
         }
-        catch (ArgumentException)
+        // ✅ Store IP + LocationType
+        var location = new Dictionary<string, object?>
+    {
+        { "ip", ipAddress },
+        { "locationType", locationType }
+    };
+
+
+        await _attendanceRepository.ClockInOutAsync(
+            employeeId,
+            "out",
+            DateTime.UtcNow,
+            location,
+            request.Notes);
+        await _attendanceRepository.UpdateTodayAttendanceFromSessionsAsync(employeeId);
+        await _attendanceRepository.UpdateOvertimeHoursAsync(employeeId);
+        var result = await OverTimeHandlingAsync(employeeId);
+
+        _logger.LogInformation(
+            "Employee {EmployeeId} clocked out from {IP} as {LocationType}",
+            employeeId,
+            ipAddress,
+            locationType);
+
+        return new ClockInOutResponse
         {
-            throw;
-        }
-        catch (InvalidOperationException)
-        {
-            throw;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error during clock out for employee: {EmployeeId}", employeeId);
-            throw new InvalidOperationException("An error occurred while clocking out", ex);
-        }
+            Success = true,
+            Message = message
+        };
     }
+
+
+    public async Task<bool> OverTimeHandlingAsync(Guid employeeId)
+    {
+        var pakistanZone = TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time");
+        var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, pakistanZone);
+
+        var attendance = await _attendanceRepository.GetTodayAttendanceAsync(employeeId);
+        if (attendance == null || attendance.TotalHours <= 0)
+            return false;
+
+        var overtimeRequest = await _attendanceRepository
+            .GetEmployeeTodayOvertimeRequestAsync(employeeId, nowInPk.Date);
+
+        if (overtimeRequest == null || overtimeRequest.RequestedHours <= 0)
+            return false;
+
+        var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+        if (shift == null)
+            return false;
+
+        decimal shiftHours = (decimal)(shift.EndTime - shift.StartTime).TotalHours;
+        if (shiftHours < 0)
+            shiftHours += 24;
+
+        decimal totalWorked = attendance.TotalHours;
+        if (totalWorked < 0)
+            totalWorked += 24;
+
+        // ✅ Convert to minutes
+        int workedMinutes = (int)Math.Round(totalWorked * 60);
+        int shiftMinutes = (int)Math.Round(shiftHours * 60);
+        int requestedMinutes = (int)Math.Round(overtimeRequest.RequestedHours * 60);
+
+        int finalMinutes = 0;
+
+        // ✅ Holiday / Weekend
+        if (overtimeRequest.OvertimeType.Equals("Holiday", StringComparison.OrdinalIgnoreCase) ||
+            overtimeRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase))
+        {
+            int actualOt = workedMinutes;
+            finalMinutes = Math.Min(actualOt, requestedMinutes);
+        }
+
+        // ✅ Regular
+        else if (overtimeRequest.OvertimeType.Equals("Regular", StringComparison.OrdinalIgnoreCase)
+                 && workedMinutes > shiftMinutes)
+        {
+            int actualOt = workedMinutes - shiftMinutes;
+            finalMinutes = Math.Min(actualOt, requestedMinutes);
+        }
+        else
+        {
+            return false;
+        }
+
+        // ✅ Convert back to decimal (this is what you store)
+        decimal overtimeHours = finalMinutes / 60m;
+
+        await _attendanceRepository.CreateOvertimeFromRequestAsync(
+            overtimeRequest,
+            overtimeHours,
+            attendance.AttendanceId
+        );
+
+        await _attendanceRepository.UpdateOverTimehourAttendanceAsync(
+            attendance.AttendanceId,
+            overtimeHours
+        );
+
+        return true;
+    }
+
+
+
+
 
     public async Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId)
     {
@@ -140,14 +372,7 @@ public class AttendanceService : IAttendanceService
     }
 
 
-    //public async Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId)
-    //{
-    //    //get attendce id of curernt date using employee id 
-    //    var attendaceid = await _attendanceRepository.GetAttendanceIdAsync(employeeId);
-    //    //passing attendace id to get today sessions 
-    //    return await _attendanceRepository.GetTodaySessionAsync(attendaceid);
-    //}
-
+ 
     public async Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId, DateTime? date = null)
     {
         if (employeeId == Guid.Empty)
@@ -159,81 +384,51 @@ public class AttendanceService : IAttendanceService
     }
 
 
-
-    public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(AttendanceSearchViewModel searchModel, Guid organizationId, Guid currentEmployeeId)
+    public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(
+        AttendanceSearchViewModel searchModel,
+        Guid organizationId,
+        Guid currentEmployeeId)
     {
         if (searchModel == null)
-        {
-            throw new ArgumentNullException(nameof(searchModel), "Search model cannot be null");
-        }
+            throw new ArgumentNullException(nameof(searchModel));
+
         if (searchModel.Page <= 0)
-        {
-            throw new ArgumentException("Page must be greater than zero", nameof(searchModel.Page));
-        }
+            throw new ArgumentException("Page must be greater than zero");
+
         if (searchModel.PageSize <= 0)
-        {
-            throw new ArgumentException("Page size must be greater than zero", nameof(searchModel.PageSize));
-        }
+            throw new ArgumentException("Page size must be greater than zero");
+
         if (searchModel.EndDate < searchModel.StartDate)
-        {
-            throw new ArgumentException("End date cannot be earlier than start date", nameof(searchModel.EndDate));
-        }
-        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
-        
+            throw new ArgumentException("End date cannot be earlier than start date");
+
+        var isAdminOrHR =
+            await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+
+        PagedResult<AttendanceDto> result;
+
         if (isAdminOrHR)
         {
-            // Super Admin or HR Manager: Get all employees' attendance
-            _logger.LogInformation("User is Super Admin or HR Manager - returning all employees attendance");
-            return await _attendanceRepository.GetAttendanceAsync(
-                searchModel.EmployeeId, // Allow filtering by specific employee if provided
+            // ✅ Admin / HR
+            result = await _attendanceRepository.GetAttendanceAsync(
+                searchModel.SearchTerm,
+                searchModel.EmployeeId,
                 organizationId,
                 searchModel.StartDate,
                 searchModel.EndDate,
                 searchModel.Page,
-                searchModel.PageSize, searchModel?.departmentid, searchModel?.Status);
-
+                searchModel.PageSize,
+                searchModel?.departmentid,
+                searchModel?.Status);
         }
         else
         {
-            // Manager: Get only their team's attendance (employees whose reporting manager is this manager)
-            _logger.LogInformation("User is Manager - returning team employees attendance for manager: {EmployeeId}", currentEmployeeId);
-            
-            // Get team employee IDs
-            var teamEmployeeIds = await _attendanceRepository.GetTeamEmployeeIdsAsync(currentEmployeeId, organizationId);
-            
-            // If user specified a specific employee ID, check if it's in their team
-            if (searchModel.EmployeeId.HasValue)
+            // ✅ Manager
+            var teamEmployeeIds =
+                await _attendanceRepository.GetTeamEmployeeIdsAsync(currentEmployeeId, organizationId);
+
+            if (searchModel.EmployeeId.HasValue &&
+                !teamEmployeeIds.Contains(searchModel.EmployeeId.Value))
             {
-                if (!teamEmployeeIds.Contains(searchModel.EmployeeId.Value))
-                {
-                    // Employee not in manager's team, return empty result
-                    return new PagedResult<AttendanceDto>
-                    {
-                        Data = new List<AttendanceDto>(),
-                        TotalCount = 0,
-                        Page = searchModel.Page,
-                        PageSize = searchModel.PageSize
-                    };
-                }
-                // Employee is in team, proceed with the specific employee filter
-                return await _attendanceRepository.GetAttendanceAsync(
-                    searchModel.EmployeeId,
-                    organizationId,
-                    searchModel.StartDate,
-                    searchModel.EndDate,
-                    searchModel.Page,
-                    searchModel.PageSize);
-            }
-            
-            // No specific employee filter, get attendance for all team members
-            // Since the repository uses a database function that doesn't support filtering by multiple employee IDs,
-            // we need to get all attendance and filter by team IDs in memory
-            // Note: For better performance with large datasets, consider creating a repository method
-            // that accepts a list of employee IDs or modifies the database function
-            
-            if (teamEmployeeIds.Count == 0)
-            {
-                // Manager has no team members, return empty result
                 return new PagedResult<AttendanceDto>
                 {
                     Data = new List<AttendanceDto>(),
@@ -242,40 +437,84 @@ public class AttendanceService : IAttendanceService
                     PageSize = searchModel.PageSize
                 };
             }
-            
-            // Get all attendance for the organization (with a large page size to get all records)
-            // Then filter by team IDs and apply pagination
-            var allAttendance = await _attendanceRepository.GetAttendanceAsync(
-                null, // Get all
-                organizationId,
-                searchModel.StartDate,
-                searchModel.EndDate,
-                1, // Start from page 1
-                100000,searchModel?.departmentid, searchModel?.Status); // Large page size to get all records (adjust based on expected data size)
-            
-            // Filter by team employee IDs
-            var filteredAttendance = allAttendance.Data
-                .Where(a => teamEmployeeIds.Contains(a.EmployeeId))
-                .ToList();
-            
-            // Apply pagination to filtered results
-            var totalCount = filteredAttendance.Count;
-            var page = searchModel.Page;
-            var pageSize = searchModel.PageSize;
-            var skip = (page - 1) * pageSize;
-            var pagedData = filteredAttendance
-                .Skip(skip)
-                .Take(pageSize)
-                .ToList();
-            
-            return new PagedResult<AttendanceDto>
+            if (searchModel.EmployeeId.HasValue)
             {
-                Data = pagedData,
-                TotalCount = totalCount,
-                Page = page,
-                PageSize = pageSize
-            };
+                result = await _attendanceRepository.GetAttendanceAsync(
+                    searchModel.SearchTerm,
+                    searchModel.EmployeeId,
+                    organizationId,
+                    searchModel.StartDate,
+                    searchModel.EndDate,
+                    searchModel.Page,
+                    searchModel.PageSize);
+            }
+            else
+            {
+                if (teamEmployeeIds.Count == 0)
+                {
+                    return new PagedResult<AttendanceDto>
+                    {
+                        Data = new List<AttendanceDto>(),
+                        TotalCount = 0,
+                        Page = searchModel.Page,
+                        PageSize = searchModel.PageSize
+                    };
+                }
+
+                var allAttendance =
+                    await _attendanceRepository.GetAttendanceAsync(
+                        searchModel.SearchTerm,
+                        null,
+                        organizationId,
+                        searchModel.StartDate,
+                        searchModel.EndDate,
+                        1,
+                        100000,
+                        searchModel?.departmentid,
+                        searchModel?.Status);
+
+                var filteredAttendance = allAttendance.Data
+                    .Where(a => teamEmployeeIds.Contains(a.EmployeeId))
+                    .ToList();
+
+                var totalCount = filteredAttendance.Count;
+                var skip = (searchModel.Page - 1) * searchModel.PageSize;
+
+                var pagedData = filteredAttendance
+                    .Skip(skip)
+                    .Take(searchModel.PageSize)
+                    .ToList();
+
+                result = new PagedResult<AttendanceDto>
+                {
+                    Data = pagedData,
+                    TotalCount = totalCount,
+                    Page = searchModel.Page,
+                    PageSize = searchModel.PageSize
+                };
+            }
         }
+        var allowedIps = await _ipAddressRepository.GetAllAsync();
+        var allowedIpStrings = allowedIps
+            .Select(ip => ip.IpAddressValue)
+            .ToHashSet();
+
+        foreach (var attendance in result.Data)
+        {
+            attendance.checkinLocationType =
+                attendance.checkinip != null &&
+                allowedIpStrings.Contains(attendance.checkinip)
+                    ? "Office"
+                    : "Outside";
+
+            attendance.checkoutLocationType =
+                attendance.checkoutip != null &&
+                allowedIpStrings.Contains(attendance.checkoutip)
+                    ? "Office"
+                    : "Outside";
+        }
+
+        return result;
     }
 
     public async Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate)
@@ -404,11 +643,15 @@ public class AttendanceService : IAttendanceService
         {
             throw new ArgumentException("Check-out time cannot be earlier than check-in time", nameof(request));
         }
+
+        var workDate = request.WorkDate != default ? request.WorkDate.Date : request.Date.Date;
+        if (await IsEmployeeHolidayAsync(request.EmployeeId, workDate))
+            throw new InvalidOperationException("Manual attendance cannot be created on a holiday.");
         
         var attendance = new Attendance
         {
             EmployeeId = request.EmployeeId,
-            Date = request.Date,
+            Date = workDate,
             CheckInTime = request.CheckInTime,
             CheckOutTime = request.CheckOutTime,
             CheckInLocation = request.CheckInLocation,
@@ -438,13 +681,17 @@ public class AttendanceService : IAttendanceService
         {
             throw new ArgumentException("Check-out time cannot be earlier than check-in time", nameof(request));
         }
+
+        var workDate = request.WorkDate != default ? request.WorkDate.Date : request.Date.Date;
+        if (await IsEmployeeHolidayAsync(request.EmployeeId, workDate))
+            throw new InvalidOperationException("Manual attendance cannot be updated to a holiday date.");
         
         var existingAttendance = await _attendanceRepository.GetAttendanceByIdAsync(attendanceId);
         if (existingAttendance == null)
             throw new KeyNotFoundException($"Attendance with ID {attendanceId} not found");
 
         // Update properties
-        existingAttendance.Date = request.Date;
+        existingAttendance.Date = workDate;
         existingAttendance.CheckInTime = request.CheckInTime;
         existingAttendance.CheckOutTime = request.CheckOutTime;
         existingAttendance.CheckInLocation = request.CheckInLocation;
@@ -513,6 +760,22 @@ public class AttendanceService : IAttendanceService
         _logger.LogInformation("Found {Count} approved leave dates for employee {EmployeeId} in {Year}-{Month}. Leaves: {Leaves}", 
             leaveDates.Count, employeeId, year, month, string.Join(", ", leaveDates));
 
+        // ✅ Get holidays for the month, filtered by employee's department/location/assignment
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var holidayDates = new Dictionary<DateTime, string>();
+        if (employee != null)
+        {
+            var holidays = await _holidayRepository.GetHolidaysInRangeForEmployeeAsync(
+                employee.OrganizationId, employee.EmployeeId, employee.DepartmentId, 
+                employee.WorkLocation, startDate, endDate);
+            foreach (var holiday in holidays)
+            {
+                holidayDates[holiday.HolidayDate.Date] = holiday.HolidayName;
+            }
+            _logger.LogInformation("Found {Count} holidays for employee {EmpId} (dept={Dept}, loc={Loc}) in {Year}-{Month}",
+                holidayDates.Count, employeeId, employee.DepartmentId, employee.WorkLocation, year, month);
+        }
+
         var calendar = new List<AttendanceCalendarDto>();
 
         for (var date = startDate; date <= endDate; date = date.AddDays(1))
@@ -520,6 +783,7 @@ public class AttendanceService : IAttendanceService
             var normalizedDate = date.Date; // Normalize to date only (remove time component)
             var dayAttendance = attendance.FirstOrDefault(a => a.WorkDate.Date == normalizedDate);
             bool isWeekend = date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday;
+            bool isHoliday = holidayDates.ContainsKey(normalizedDate);
 
             string status;
             
@@ -529,9 +793,15 @@ public class AttendanceService : IAttendanceService
                 status = "Leave";
                 _logger.LogDebug("Date {Date} marked as Leave for employee {EmployeeId}", normalizedDate, employeeId);
             }
+            else if (isHoliday)
+            {
+                status = "Holiday";
+                _logger.LogDebug("Date {Date} marked as Holiday ({HolidayName}) for employee {EmployeeId}",
+                    normalizedDate, holidayDates[normalizedDate], employeeId);
+            }
             else if (normalizedDate > today)
             {
-                status = "No Record"; // ✅ Future days (only if not on leave)
+                status = "No Record"; // ✅ Future days (only if not on leave or holiday)
             }
             else if (dayAttendance != null)
             {
@@ -553,8 +823,9 @@ public class AttendanceService : IAttendanceService
                 CheckInTime = dayAttendance?.CheckInTime,
                 CheckOutTime = dayAttendance?.CheckOutTime,
                 TotalHours = dayAttendance?.TotalHours ?? 0,
-                IsWorkingDay = !isWeekend,
-                IsHoliday = false // ✅ Don't mark weekends as holidays - use Status instead
+                IsWorkingDay = !isWeekend && !isHoliday,
+                IsHoliday = isHoliday,
+                HolidayName = isHoliday ? holidayDates[normalizedDate] : null
             });
         }
 
@@ -596,39 +867,387 @@ public class AttendanceService : IAttendanceService
         return true;
     }
 
-    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request,Guid currentEmpid)
-    {
-        var result = await _attendanceRepository.AssignShiftToEmployeeAsync(organizationId, request);
+    //overtime 
 
-        //Create Notification 
+
+    public async Task<bool> CreateEmployeeOvertimeRequestAsync(Guid organizationId, Guid employeeId, CreateEmployeeOvertimeDto request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        if (request.OvertimeEndTime <= request.OvertimeStartTime)
+            throw new ArgumentException("Overtime end time must be greater than start time.");
+
+        if (string.IsNullOrWhiteSpace(request.OvertimeType))
+            throw new ArgumentException("Overtime type is required.");
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            throw new ArgumentException("Reason is required.");
+
+        // ✅ TimeSpan subtraction directly
+        decimal requestedhours = Math.Round(
+            (decimal)(request.OvertimeEndTime - request.OvertimeStartTime).TotalHours, 2);
+
+        if (requestedhours <= 0)
+            throw new ArgumentException("Invalid overtime duration.");
+
+        var reportingManager = await _notificationRepository.GetReciveridAsync(employeeId);
+        var status = "pending";
+        var attendanceId = await _attendanceRepository.GetAttendanceIdAsync(employeeId, request.OverTimeDate.Date);
+        var existingRequest = await _attendanceRepository
+                .GetEmployeeCreatedOvertimeRequestTodayAsync(employeeId, request.OverTimeDate);
+        if (existingRequest != null)
+            throw new ArgumentException("Already Overtime Request Present for Today");
+
+
+        var result = await _attendanceRepository.CreateEmployeeOvertimeRequestAsync(
+            organizationId,
+            employeeId,
+            request,
+            reportingManager,
+            status,
+            requestedhours,
+            attendanceId
+        );
+
+        return result;
+    }
+    public async Task<bool> UpdateEmployeeOvertimeStatusAsync(
+        Guid organizationId,
+        Guid requestId,
+        Guid managerId,
+        string status)
+    {
+        try
+        {
+            var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(
+                DateTime.UtcNow,
+                TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+            if (organizationId == Guid.Empty)
+                throw new ArgumentException("OrganizationId cannot be empty");
+
+            if (requestId == Guid.Empty)
+                throw new ArgumentException("RequestId cannot be empty");
+
+            if (managerId == Guid.Empty)
+                throw new ArgumentException("ManagerId cannot be empty");
+
+            if (string.IsNullOrWhiteSpace(status))
+                throw new ArgumentException("Status is required");
+
+            var result = await _attendanceRepository
+                .UpdateEmployeeOvertimeStatusAsync(requestId, status);
+
+            if (status.Equals("Approved", StringComparison.OrdinalIgnoreCase))
+            {
+                var existingRequest = await _attendanceRepository
+                    .GetEmployeeOvertimeRequestByIdAsync(requestId);
+
+                var attendance = await _attendanceRepository
+                    .GetAttendanceByIdAsync(existingRequest.AttendanceId);
+
+                var shift = await _attendanceRepository
+                    .GetShiftByEmployeeIdAsync(attendance.EmployeeId);
+
+                if (attendance == null || shift == null)
+                    return false;
+
+                // ✅ Shift hours handling (cross midnight safe)
+                decimal shiftHours = (decimal)(shift.EndTime - shift.StartTime).TotalHours;
+                if (shiftHours < 0) shiftHours += 24;
+
+                decimal totalWorked = attendance.TotalHours;
+                if (totalWorked < 0) totalWorked += 24;
+
+                // ✅ Convert to minutes
+                int workedMinutes = (int)Math.Round(totalWorked * 60);
+                int shiftMinutes = (int)Math.Round(shiftHours * 60);
+                int requestedMinutes = (int)Math.Round(existingRequest.RequestedHours * 60);
+
+                int actualMinutes = 0;
+
+                // ✅ Regular Overtime
+                if (existingRequest.OvertimeType.Equals("Regular", StringComparison.OrdinalIgnoreCase)
+                    && workedMinutes > shiftMinutes)
+                {
+                    actualMinutes = workedMinutes - shiftMinutes;
+                }
+                // ✅ Weekend / Holiday
+                else if (existingRequest.OvertimeType.Equals("Weekend", StringComparison.OrdinalIgnoreCase) ||
+                         existingRequest.OvertimeType.Equals("Holiday", StringComparison.OrdinalIgnoreCase))
+                {
+                    actualMinutes = workedMinutes;
+                }
+                else
+                {
+                    return false;
+                }
+
+                // ✅ APPLY CAP (IMPORTANT FIX)
+                int finalMinutes = Math.Min(actualMinutes, requestedMinutes);
+
+                // ✅ Convert back to hours
+                decimal overtimeHours = finalMinutes / 60m;
+
+                var overtimeDto = new OvertimeRequestDto
+                {
+                    RequestId = existingRequest.RequestId,
+                    EmployeeId = attendance.EmployeeId,
+                    RequestType = existingRequest.RequestType,
+                    OvertimeType = existingRequest.OvertimeType,
+                    OvertimeDate = existingRequest.OvertimeDate,
+                    OvertimeStart = existingRequest.OvertimeStart,
+                    OvertimeEnd = existingRequest.OvertimeEnd,
+                    RequestedHours = existingRequest.RequestedHours,
+                    Status = existingRequest.Status,
+                    CreatedAt = existingRequest.CreatedAt
+                };
+
+                await _attendanceRepository.CreateOvertimeFromRequestAsync(
+                    overtimeDto,
+                    overtimeHours,
+                    attendance.AttendanceId
+                );
+
+                await _attendanceRepository.UpdateOverTimehourAttendanceAsync(
+                    attendance.AttendanceId,
+                    overtimeHours
+                );
+
+                await _attendanceRepository.UpdateAttendanceOverTimeType(
+                    existingRequest.EmployeeId,
+                    nowInPk.Date,
+                    existingRequest.OvertimeType
+                );
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Error updating overtime status for RequestId {RequestId}",
+                requestId);
+
+            throw;
+        }
+    }
+    public async Task<bool> CreateManagerOvertimeAsync(Guid organizationId, Guid managerId, ManagerOvertimeRequestDto request)
+    {
+        if (request == null)
+            throw new ArgumentNullException(nameof(request));
+
+        if (request.OvertimeEndTime <= request.OvertimeStartTime)
+            throw new ArgumentException("Overtime end time must be greater than start time.");
+
+        if (string.IsNullOrWhiteSpace(request.OvertimeType))
+            throw new ArgumentException("Overtime type is required.");
+
+        if (string.IsNullOrWhiteSpace(request.Reason))
+            throw new ArgumentException("Reason is required.");
+
+        if (request.EmployeeId == Guid.Empty)
+            throw new ArgumentException("EmployeeId is required.");
+        var pakistanZone = TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time");
+        var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, pakistanZone);
+
+        // ✅ TimeSpan subtraction directly
+        decimal requestedhours = Math.Round(
+            (decimal)(request.OvertimeEndTime - request.OvertimeStartTime).TotalHours, 2);
+
+        if (requestedhours <= 0)
+            throw new ArgumentException("Invalid overtime duration.");
+        //Getting is employee already assigned overtime to employee or not 
+        var overtimeRequest = await _attendanceRepository
+                   .GettingEmployeeAssigendOverTimeRequestAsync(request.EmployeeId, request.OvertimeDate);
+        if (overtimeRequest != null)
+            throw new ArgumentException("Already Assigned Overtime for today");
+
+
+        var status = "pending";
+
+        var result = await _attendanceRepository.CreateManagerOvertimeAsync(
+            organizationId,
+            managerId,
+            request,
+            status,
+            requestedhours
+        );
+
+        return result;
+    }
+    //Updating approving status of request that are assigned by manager for overtime 
+    public async Task<bool> RespondToAssignedOvertimeRequestAsync(Guid requestId,Guid employeeId,string response)
+    {
+       
+        // 3. Update status
+        string newStatus = response == "accept"
+            ? "approved"
+            : "rejected";
+
+        return await _attendanceRepository.UpdateOvertimeAssignedStatusAsync(
+            requestId,
+            newStatus
+        );
+    }
+
+
+
+    //Employee overtime request of accept reject manager
+    public async Task<List<OvertimeRequestDto>> GetEmployeeOvertimeRequestsAsync(Guid organizationId, Guid employeeId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("EmployeeId is required.");
+
+        // ✅ Call repository
+        var result = await _attendanceRepository.GetEmployeeOvertimeRequestsAsync(
+            organizationId,
+            employeeId
+        );
+
+        // Optional: handle null
+        if (result == null || !result.Any())
+            return new List<OvertimeRequestDto>();
+
+        return result;
+    }
+    public async Task<OvertimeRequestDto?> GetEmployeeTodayOvertimeRequestsAsync(Guid organizationId, Guid employeeId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("EmployeeId is required.");
+        //var todayDate = DateTime.UtcNow.Date;
+        var nowInPk = TimeZoneInfo.ConvertTimeFromUtc(
+            DateTime.UtcNow,
+            TimeZoneInfo.FindSystemTimeZoneById("Pakistan Standard Time"));
+
+
+
+        // ✅ Call repository
+        var result = await _attendanceRepository.GetEmployeeTodayOvertimeRequestAsync(
+            employeeId,
+            nowInPk
+        );
+
+        return result;
+    }
+    //Getting all employee assigned overtime request that manager request him 
+    public async Task<List<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (employeeId == Guid.Empty)
+            throw new ArgumentException("EmployeeId is required.");
+
+        // ✅ Call repository
+        var result = await _attendanceRepository.GetAllEmployeeOvertimeAssignedRequests(
+            organizationId,
+            employeeId
+        );
+
+        // Optional: handle null
+        if (result == null || !result.Any())
+            return new List<OvertimeRequestDto>();
+
+        return result;
+    }
+
+    //Employee overtime request shows to manager for approval or reject
+    public async Task<List<EmployeeOverTimeDto>> EmplyeOverTimeRequesForManagerAsync(Guid organizationId, Guid managerId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (managerId == Guid.Empty)
+            throw new ArgumentException("ManagerId is required.");
+
+        // ✅ Call repository (updated to return EmployeeOverTimeDto)
+        var result = await _attendanceRepository.EmplyeOverTimeRequesForManagerAsync(
+            organizationId,
+            managerId
+        );
+
+        // Safety fallback
+        return result?.ToList() ?? new List<EmployeeOverTimeDto>();
+    }
+    //Get all employee created Overtime requests
+
+    public async Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequest(Guid organizationId, Guid managerId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("OrganizationId is required.");
+
+        if (managerId == Guid.Empty)
+            throw new ArgumentException("ManagerId is required.");
+        // ✅ Call repository (updated to return EmployeeOverTimeDto)
+        var result = await _attendanceRepository.GetAllEmployeeCreatedOverTimeRequests(
+            organizationId,
+            managerId
+        );
+
+        // Safety fallback
+        return result?.ToList() ?? new List<EmployeeOverTimeDto>();
+    }
+
+    public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request, Guid currentEmpid)
+    {
+        if (request.SelectedEmployees == null || !request.SelectedEmployees.Any())
+            return false;
+
+        // 1️⃣ Update all shifts in one DB call
+        var assignResult = await _attendanceRepository.AssignShiftToEmployeeAsync(organizationId, request);
+        if (!assignResult)
+            return false;
+
         var currentEmp = await _employeeRepository.GetEmployeeByIdAsync(currentEmpid);
-        //var employee = await _employeeRepository.GetEmployeeByIdAsync(currentEmp);
-        //Get shift details
         var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(request.ShiftId);
 
-        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
-        if (result!= null)
-
+        // 2️⃣ Prepare receiver list (Selected Employees)
+        var receiverIds = request.SelectedEmployees.ToList();
+       
+        if (receiverIds.Any())
         {
-            var notification = new NotificationCreateDto
+            foreach (var receiverId in receiverIds)
             {
-                Receiveruserid = request.EmployeeId,
-                Senderuserid = currentEmpid,
-                Title = "Shift Assign",
-                //RequestId = leaveRequest.RequestId,
-                Message = $"{currentEmp.FirstName} {currentEmp.LastName}, assign you shift of {shiftDetails.ShiftName} ",
-                Notificationtype = "Message",
-                Createdby = currentEmpid,
-                moduletype = "Shift",
-                Redirecturl = "/attendance/shift",
-                organizationId = organizationId
-            };
-            await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+                var message = receiverId == currentEmpid ? $"You assigned shift of {shiftDetails.ShiftName} successfully" :                                                     $"{currentEmp.FirstName} {currentEmp.LastName} assigned you shift of {shiftDetails.ShiftName}";
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = new List<Guid> { receiverId },  // All selected employees at once
+                    Senderuserid = currentEmpid,
+                    Title = "Shift Assign",
+                    Message = message,
+                    Notificationtype = "Message",
+                    Createdby = currentEmpid,
+                    moduletype = "Shift",
+                    Redirecturl = "/attendance/shift",
+                    organizationId = organizationId
+                };
+
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+
+            }
+
+
+            //Implemennting Email in news creation
+            var ReciverEmails = new List<string>();
+            var Emailmessage = $"{currentEmp.FirstName} {currentEmp.LastName} assigned you shift of {shiftDetails.ShiftName}";
+            var selectedEmployees = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(receiverIds);
+            ReciverEmails = selectedEmployees.Where(e => e.Email != null).Select(e => e.Email).ToList();
+
+            await _emailService.SendAssignShiftEmailAsync(ReciverEmails, Emailmessage, organizationId);
         }
 
         return true;
-
     }
+
 
 
     public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId,Guid currentEmployeeId)
@@ -670,42 +1289,37 @@ public class AttendanceService : IAttendanceService
     //Shiftswap 
 
    public async Task<bool> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
-    {
-  
-        var result= await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
+    {   
         //Step 2: Create notification
-
         var EMPID = await _attendanceRepository.GetEmpId(requestDto.EmployeeId);
 
         var employee = await _employeeRepository.GetEmployeeByIdAsync(EMPID);
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
         //Getting manager employeeid
-        //var reciverid = await _notificationRepository.GetEmpId(reportingmangerid);
-        // Get Request shift Details
+        var reportingManagerDetail = await _employeeRepository.GetEmployeeByIdAsync(reportingmangerid);
+       
+            var result = await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
+            var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(requestDto.RequestedShiftId);
+            if (result != null)
 
-        var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(requestDto.RequestedShiftId);
-
-
-        if (result!=null)
-
-        {
-            var notification = new NotificationCreateDto
             {
-                Receiveruserid = reportingmangerid,
-                Senderuserid = employee.EmployeeId,
-                Title = "Swap Request",
-                Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
-                Notificationtype = "Request",
-                Createdby = requestDto.EmployeeId,
-                moduletype = "attendance",
-                Redirecturl = "/attendance/shift",
-                RequestId = result.RequestId,
-                organizationId = organizationId
-            };
-            await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+                var notification = new NotificationCreateDto
+                {
+                    Receiveruserid = new List<Guid> { reportingmangerid },
+                    Senderuserid = employee.EmployeeId,
+                    Title = "Swap Request",
+                    Message = $"Employee {employee.FirstName} Department {employee.DepartmentName}  requested shift of {shiftDetails.ShiftName}",
+                    Notificationtype = "Request",
+                    Createdby = requestDto.EmployeeId,
+                    moduletype = "attendance",
+                    Redirecturl = "/attendance/shift",
+                    RequestId = result.RequestId,
+                    organizationId = organizationId
+                };
+                await _notificationRepository.CreateNotificationAsync(organizationId, notification);
 
-        }
+            }
 
         return true;
 
@@ -716,8 +1330,7 @@ public class AttendanceService : IAttendanceService
         // Optional: Add business validation
         // Example: check if the request is still pending
         var shiftrequestDetails = await _attendanceRepository.getshifrequestDetailsAsync(dto.RequestId);
-
-
+        string status;
         if (dto.IsApproved == false)
         {
             var success = await _attendanceRepository.RejectShiftSwapRequestAsync(dto);
@@ -727,7 +1340,7 @@ public class AttendanceService : IAttendanceService
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Receiveruserid = new List<Guid> { shiftrequestDetails.EmployeeId },
                     Senderuserid = dto.ApprovedBy,
                     Title = "Shift Swap Request",
                     Message = $"Your shift swap request is Rejected {dto.RejectionReason} ",
@@ -738,6 +1351,9 @@ public class AttendanceService : IAttendanceService
                     organizationId = organizationId
                 };
                 await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+                //update notificaiton request status 
+                status = "rejected";
+                await _notificationRepository.UpdateNotificationRequestStatusAsync(dto.RequestId, status);
 
             }
         }
@@ -749,7 +1365,7 @@ public class AttendanceService : IAttendanceService
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = shiftrequestDetails.EmployeeId,
+                    Receiveruserid = new List<Guid> { shiftrequestDetails.EmployeeId },
                     Senderuserid = dto.ApprovedBy,
                     Title = "Shift Swap Request",
                     Message = $"Your shift swap request is Accepted ",
@@ -760,7 +1376,8 @@ public class AttendanceService : IAttendanceService
                     organizationId = organizationId
                 };
                 await _notificationRepository.CreateNotificationAsync(organizationId, notification);
-
+                status = "approved";
+                await _notificationRepository.UpdateNotificationRequestStatusAsync(dto.RequestId, status);
             }
         }
         return true;
@@ -785,15 +1402,38 @@ public class AttendanceService : IAttendanceService
 
     public async Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId)
     {
-        return await _attendanceRepository.GetShiftByEmployeeIdAsync(employeeId);
+        var empId = await _attendanceRepository.GetEmpId(employeeId);
+        return await _attendanceRepository.GetShiftByEmployeeIdAsync(empId);
     }
 
     public async Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId)
     {
         return await _attendanceRepository.GetShiftSwapRequestsByEmployeeAsync(employeeId);
     }
+    //Getting Shift Summaary
+    public async Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Invalid organization id");
 
+        if (currentEmployeeId == Guid.Empty)
+            throw new ArgumentException("Invalid employee id");
 
+        var summary = await _attendanceRepository.GetShiftSummaryAsync(organizationId, currentEmployeeId);
+
+        if (summary == null)
+        {
+            return new ShiftSummary
+            {
+                TotalShifts = 0,
+                ShiftAssignedEmployee = 0,
+                UnassignedShiftsEmp = 0,
+                shiftSwapRequests = 0
+            };
+        }
+
+        return summary;
+    }
 
 
 
@@ -810,7 +1450,6 @@ public class AttendanceService : IAttendanceService
         }
     }
 
-
     public async Task<bool> UpdateShiftAsync(Guid organizationId, Guid shiftId, UpdateShiftDto request)
     {
         return await _attendanceRepository.UpdateShiftAsync(organizationId, shiftId, request);
@@ -820,10 +1459,6 @@ public class AttendanceService : IAttendanceService
     {
         return await _attendanceRepository.DeleteShiftAsync(organizationId, shiftId);
     }
-
-
-
-
 
 
     public async Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid currentEmployeeId, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10)
@@ -874,28 +1509,25 @@ public class AttendanceService : IAttendanceService
         List<EmployeeDto> result;
 
         // Check if user is Super Admin or HR Manager
-        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+        //var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
 
-        if (isAdminOrHR)
-        {
-            // Super Admin or HR Manager: Get all employees or filtered by department
-            _logger.LogInformation("User is Super Admin or HR Manager - returning all employees");
+        //if (isAdminOrHR)
+        //{
+        //    // Super Admin or HR Manager: Get all employees or filtered by department
+        //    _logger.LogInformation("User is Super Admin or HR Manager - returning all employees");
 
-            return  await _attendanceRepository.GetEmployeeForAdminAsync(organizationId,departmentId);
-        }
-        else
-        {
-            // Manager: Get only their team's employees, optionally filtered by department
-            _logger.LogInformation("User is Manager - returning team employees for manager: {EmployeeId}", currentEmployeeId);
 
-            return await _attendanceRepository.GetManagerEmployeeAsync(currentEmployeeId, organizationId, departmentId);
-        }
+        //}
+        //else
+        //{
+        //    // Manager: Get only their team's employees, optionally filtered by department
+        //    _logger.LogInformation("User is Manager - returning team employees for manager: {EmployeeId}", currentEmployeeId);
 
-        
+        //    return await _attendanceRepository.GetManagerEmployeeAsync(currentEmployeeId, organizationId, departmentId);
+        //}
+        return await _attendanceRepository.GetEmployeeForAdminAsync(organizationId, departmentId);
+
     }
-
-
-
 
     private async Task<AttendanceReportDto> GetFullAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId, string? status, Guid? employeeId, int pageNumber = 1, int pageSize = 10)
     {
@@ -1144,8 +1776,10 @@ public class AttendanceService : IAttendanceService
             var headerFont = workbook.CreateFont();
             headerFont.IsBold = true;
             headerStyle.SetFont(headerFont);
-            headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+            //headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
+            //headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
             headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+            headerStyle.FillForegroundColor = NPOI.SS.UserModel.IndexedColors.Grey25Percent.Index;
             cell.CellStyle = headerStyle;
         }
 
@@ -1160,6 +1794,7 @@ public class AttendanceService : IAttendanceService
             row.CreateCell(3).SetCellValue(record.CheckOutTime?.ToString("HH:mm") ?? "N/A");
             row.CreateCell(4).SetCellValue((double)record.TotalHours);
             row.CreateCell(5).SetCellValue((double)record.OvertimeHours);
+
             row.CreateCell(6).SetCellValue(record.Status);
             row.CreateCell(7).SetCellValue(record.Notes ?? "");
         }
@@ -1235,5 +1870,870 @@ public class AttendanceService : IAttendanceService
     {
         _logger.LogInformation("Getting Employee Id against User id: {EmployeeId}", Userid);
         return await _attendanceRepository.GetEmployeeFromTable(Userid);
+    }
+    public async Task<ServiceResponse<List<EmployeeTimesheetDto>>> GetTimesheetDetailsByIdAsync(
+    Guid timesheetId, Guid organizationId, Guid currentEmployeeId)
+    {
+        var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
+        if (snapshot == null)
+            return new ServiceResponse<List<EmployeeTimesheetDto>> { Success = false, Message = "Snapshot not found" };
+
+        var startDate = snapshot.StartDate != default
+            ? snapshot.StartDate
+            : new DateTime(snapshot.Year ?? DateTime.Today.Year, snapshot.Month ?? DateTime.Today.Month, 1);
+        var endDate = snapshot.EndDate != default
+            ? snapshot.EndDate
+            : startDate.AddMonths(1).AddDays(-1);
+        var today = DateTime.Today;
+
+        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+
+        var records = await _attendanceRepository.GetConsolidatedAttendanceAsync(
+            organizationId,
+            startDate,
+            endDate,
+            isAdminOrHR ? null : currentEmployeeId);
+
+        var holidayDatesByEmployee = new Dictionary<Guid, HashSet<DateTime>>();
+        foreach (var empId in records.Select(r => r.EmployeeId).Distinct())
+        {
+            holidayDatesByEmployee[empId] = await GetEmployeeHolidayDateSetAsync(empId, startDate, endDate);
+        }
+
+        var groupedTimesheet = records
+            .GroupBy(r => new {
+                r.EmployeeId,
+                r.EmployeeName,
+                r.EmployeeCode,
+                r.DepartmentName
+            })
+            .Select(g =>
+            {
+                var employeeHolidayDates = holidayDatesByEmployee.TryGetValue(g.Key.EmployeeId, out var dates)
+                    ? dates
+                    : new HashSet<DateTime>();
+
+                string EffectiveStatus(AttendanceDto r, DateTime todayDate)
+                {
+                    if (employeeHolidayDates.Contains(r.WorkDate.Date))
+                        return "holiday";
+
+                    if (!string.IsNullOrWhiteSpace(r.Status))
+                        return r.Status.Trim().ToLowerInvariant();
+
+                    var dow = r.WorkDate.DayOfWeek;
+                    if (dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday)
+                        return "weekend";
+
+                    if (r.WorkDate.Date > todayDate)
+                        return "no_record";
+
+                    return "absent";
+                }
+
+                var dailyRecords = g.Select(r => new DailyAttendanceRecord
+                {
+                    AttendanceId = r.AttendanceId,
+                    Date = r.WorkDate,
+                    CheckInTime = r.CheckInTime,
+                    CheckOutTime = r.CheckOutTime,
+                    Status = EffectiveStatus(r, today),
+                    TotalHours = r.TotalHours,
+                    OvertimeHours = r.OvertimeHours,
+                    OvertimeType = r.OvertimeType,
+                    LateMinutes = r.LateMinutes,
+                    LeaveTypeId = r.LeaveTypeId,
+                    LeaveTypeName = r.LeaveTypeName,
+                    LeavePayType = r.LeavePayType,
+                    IsFinalized = r.IsFinalized,
+                    HasPendingRequest = r.HasPendingRequest,
+                    HasDraftRequest = r.HasDraftRequest,
+                    RequestedCheckIn = r.RequestedCheckIn,
+                    RequestedCheckOut = r.RequestedCheckOut,
+                    RequestedStatus = r.RequestedStatus,
+                    RequestedLeaveTypeId = r.RequestedLeaveTypeId,
+                    RequestedLeaveTypeName = r.RequestedLeaveTypeName,
+                    RequestedLeavePayType = r.RequestedLeavePayType,
+                    RequestedOvertimeHours = r.RequestedOvertimeHours,
+                    RequestedOvertimeType = r.RequestedOvertimeType,
+                    RequestedLateMinutes = r.RequestedLateMinutes,
+                    IsManagerOverride = r.IsManagerOverride
+                }).OrderBy(d => d.Date).ToList();
+
+                int presentDays = g.Count(r => {
+                    var s = EffectiveStatus(r, today);
+                    return s == "present" || s == "late" || s == "half_day";
+                });
+
+                int absentDays = g.Count(r => EffectiveStatus(r, today) == "absent");
+
+                int leaveDays = g.Count(r => {
+                    var s = EffectiveStatus(r, today);
+                    return s == "leave" || s == "on_leave";
+                });
+
+                int halfDays = g.Count(r => EffectiveStatus(r, today) == "half_day");
+                // late_days: any day with positive late minutes (status-independent so half-day-and-late still counts).
+                int lateDays = g.Count(r => r.LateMinutes > 0);
+                int totalLateMinutes = g.Sum(r => r.LateMinutes);
+                decimal totalLateHours = Math.Round(totalLateMinutes / 60m, 2);
+                int weekendDays = g.Count(r => EffectiveStatus(r, today) == "weekend");
+                int holidayDays = g.Count(r => EffectiveStatus(r, today) == "holiday");
+                decimal totalHours = g.Sum(r => r.TotalHours);
+                decimal totalOvertimeHours = g.Sum(r => r.OvertimeHours);
+                decimal regularHours = Math.Max(totalHours - totalOvertimeHours, 0m);
+
+                int workedOrAbsentDays = g.Count(r => {
+                    var s = EffectiveStatus(r, today);
+                    return r.WorkDate.Date <= today
+                        && s != "weekend"
+                        && s != "holiday"
+                        && s != "no_record";
+                });
+
+                decimal attendancePct = workedOrAbsentDays > 0
+                    ? Math.Round((decimal)presentDays / workedOrAbsentDays * 100m, 1)
+                    : 0m;
+
+                return new EmployeeTimesheetDto
+                {
+                    EmployeeId = g.Key.EmployeeId,
+                    EmployeeName = g.Key.EmployeeName,
+                    EmployeeCode = g.Key.EmployeeCode,
+                    Department = g.Key.DepartmentName,
+                    DailyRecords = dailyRecords,
+                    IsFinalized = g.Any(r => r.IsFinalized)
+                    && g.Where(r => {
+                    var s = EffectiveStatus(r, today);
+                    return !string.Equals(s, "weekend", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(s, "holiday", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(s, "no_record", StringComparison.OrdinalIgnoreCase)
+                    && r.WorkDate.Date <= today;
+                     }).All(r => r.IsFinalized),
+                    TotalHoursWorked = totalHours,
+                    RegularHours = regularHours,
+                    OvertimeHours = totalOvertimeHours,
+                    PresentDays = presentDays,
+                    AbsentDays = absentDays,
+                    LeaveDays = leaveDays,
+                    HalfDays = halfDays,
+                    LateDays = lateDays,
+                    LateMinutes = totalLateMinutes,
+                    LateHours = totalLateHours,
+                    HolidayDays = holidayDays,
+                    WeekendDays = weekendDays,
+                    AttendancePercentage = attendancePct
+                };
+            }).ToList();
+
+        return new ServiceResponse<List<EmployeeTimesheetDto>> { Data = groupedTimesheet, Success = true };
+    }
+    public async Task<ServiceResponse<bool>> ProcessAttendanceUpdateRequestAsync(ProcessAttendanceRequestDto dto, Guid actionedBy, Guid organizationId)
+    {
+        try
+        {
+            var requestDetails = await _attendanceRepository.GetAttendanceUpdateRequestDetailsAsync(dto.RequestId);
+
+            if (requestDetails == null)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Update request not found." };
+            }
+
+            var result = await _attendanceRepository.ProcessUpdateRequestAsync(dto.RequestId, actionedBy, dto.IsApproved, dto.RejectionReason);
+
+            if (result && requestDetails.EmployeeId.HasValue)
+            {
+                string statusText = dto.IsApproved ? "Approved" : "Rejected";
+
+                await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
+                {
+                    Receiveruserid = new List<Guid> { requestDetails.EmployeeId.Value },
+                    Senderuserid = actionedBy,
+                    Title = "Attendance Correction " + statusText,
+                    Message = $"Your request for {requestDetails.RequestedStatus} on {requestDetails.WorkDate:yyyy-MM-dd} has been {statusText.ToLower()}.",                    Notificationtype = "Message",
+                    moduletype = "attendance",
+                    Redirecturl = "/attendance/dashboard",
+                    RequestId = dto.RequestId,
+                    organizationId = organizationId
+                });
+            }
+
+            return new ServiceResponse<bool>
+            {
+                Success = result,
+                Message = result ? "Request processed successfully." : "Failed to process request.",
+                Data = result
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing attendance update request {RequestId}", dto.RequestId);
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred while processing the request." };
+        }
+    }
+    public async Task<ServiceResponse<int>> FinalizeTimesheetBatchAsync(Guid timesheetId, Guid organizationId, Guid managerEmployeeId, Guid? employeeId = null)
+    {
+        try
+        {
+            int count;
+
+            if (employeeId.HasValue && employeeId.Value != Guid.Empty)
+            {
+                var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
+                if (snapshot == null)
+                    return new ServiceResponse<int> { Success = false, Message = "Timesheet snapshot not found." };
+
+                count = await _attendanceRepository.BatchFinalizeForEmployeeAsync(
+                     employeeId.Value, timesheetId);
+
+                return new ServiceResponse<int>
+                {
+                    Success = true,
+                    Message = $"Successfully finalized {count} attendance record(s) for the employee.",
+                    Data = count
+                };
+            }
+            else
+            {
+                count = await _attendanceRepository.BatchFinalizeMonthAsync(timesheetId, organizationId, managerEmployeeId);
+
+                return new ServiceResponse<int>
+                {
+                    Success = true,
+                    Message = $"Successfully finalized {count} attendance records for this period.",
+                    Data = count
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Batch finalization failed for Timesheet {TimesheetId} Employee {EmployeeId}", timesheetId, employeeId);
+            return new ServiceResponse<int> { Success = false, Message = "An error occurred during batch finalization." };
+        }
+    }
+
+    public async Task<ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>>> GetApprovedTimesheetAsync(Guid timesheetId, Guid currentUserEmployeeId, string role)
+    {
+        Guid? filterEmployeeId = (role == "Employee") ? currentUserEmployeeId : null;
+
+        var data = await _attendanceRepository.GetFinalizedRecordsAsync(timesheetId, filterEmployeeId);
+
+        return new ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>> { Success = true, Data = data };
+    }
+
+    public async Task<ServiceResponse<bool>> CreateTimesheetSnapshotAsync(Guid organizationId, Guid currentUserEmployeeId, MonthlyTimesheetCreateDto dto)
+    {
+        // Snapshot logic
+        var success = await _attendanceRepository.CreateMonthlySnapshotAsync(organizationId, currentUserEmployeeId, dto);
+        return new ServiceResponse<bool>
+        {
+            Success = success,
+            Message = success ? "Timesheet period created." : "Period already exists."
+        };
+    }
+    public async Task<ServiceResponse<List<PendingAttendanceRequest>>> GetPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId)
+    {
+        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+
+        var requests = await _attendanceRepository.GetAllPendingRequestsAsync(
+            organizationId,
+            isAdminOrHR ? null : currentEmployeeId // Managers only see their team
+        );
+
+        return new ServiceResponse<List<PendingAttendanceRequest>>
+        {
+            Data = requests.ToList(),
+            Success = true
+        };
+    }
+    public async Task<ServiceResponse<Guid>> RequestAttendanceUpdateAsync(Guid employeeId, Guid organizationId, AttendanceUpdateRequestDto dto)
+    {
+        try
+        {
+            if (await IsEmployeeHolidayAsync(employeeId, dto.WorkDate.Date))
+            {
+                return new ServiceResponse<Guid>
+                {
+                    Success = false,
+                    Message = "Attendance correction is not allowed on holidays."
+                };
+            }
+
+            var requestId = await _attendanceRepository.SubmitUpdateRequestAsync(employeeId, organizationId, dto);
+
+            var managerId = await _notificationRepository.GetReciveridAsync(employeeId);
+            await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
+            {
+                Receiveruserid = new List<Guid> { managerId },
+                Senderuserid = employeeId,
+                Title = "Attendance Edit Request",
+                Message = $"An employee has requested a change for {dto.RequestedStatus}",
+                Notificationtype = "Request",
+                moduletype = "attendance",
+                Redirecturl = "/attendance/manual"
+            });
+
+            return new ServiceResponse<Guid> { Success = true, Data = requestId };
+        }
+        catch (Npgsql.PostgresException ex) when (ex.SqlState == "23505") 
+        {
+            return new ServiceResponse<Guid> { Success = false, Message = "A pending request already exists for this date." };
+        }
+        catch (Npgsql.PostgresException ex) when (ex.Message.Contains("SUBMISSION_LOCKED"))
+        {
+            return new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = "Cannot add new corrections while your previous submission is awaiting manager review."
+            };
+        }
+        catch (Npgsql.PostgresException ex) when (ex.Message.Contains("OVERRIDDEN_RECORD"))
+        {
+            return new ServiceResponse<Guid>
+            {
+                Success = false,
+                Message = "This record has been overridden by a manager and cannot be corrected."
+            };
+        }
+    }
+    public async Task<ServiceResponse<List<MonthlyTimesheetSummary>>> GetMonthlyTimesheetSnapshotsAsync(
+    Guid organizationId, DateTime? startDate, DateTime? endDate, Guid currentEmployeeId)
+    {
+        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+        var snapshots = (await _attendanceRepository.GetMonthlySnapshotsAsync(organizationId, startDate, endDate)).ToList();
+        var today = DateTime.Today;
+
+        foreach (var snapshot in snapshots)
+        {
+            // Prefer the new period_start/period_end columns; fall back to month/year for legacy rows.
+            var start = snapshot.StartDate != default
+                ? snapshot.StartDate
+                : new DateTime(snapshot.Year ?? DateTime.Today.Year, snapshot.Month ?? DateTime.Today.Month, 1);
+            var end = snapshot.EndDate != default
+                ? snapshot.EndDate
+                : start.AddMonths(1).AddDays(-1);
+
+            var allRosterData = await _attendanceRepository.GetConsolidatedAttendanceAsync(
+                organizationId, start, end,
+                isAdminOrHR ? null : currentEmployeeId);
+
+            if (!allRosterData.Any()) continue;
+
+            var holidayDatesByEmployee = new Dictionary<Guid, HashSet<DateTime>>();
+            foreach (var empId in allRosterData.Select(r => r.EmployeeId).Distinct())
+            {
+                holidayDatesByEmployee[empId] = await GetEmployeeHolidayDateSetAsync(empId, start, end);
+            }
+
+            string EffectiveStatus(AttendanceDto r, DateTime todayDate)
+            {
+                if (holidayDatesByEmployee.TryGetValue(r.EmployeeId, out var empHolidayDates)
+                    && empHolidayDates.Contains(r.WorkDate.Date))
+                    return "holiday";
+
+                if (!string.IsNullOrWhiteSpace(r.Status))
+                    return r.Status.Trim().ToLowerInvariant();
+
+                var dow = r.WorkDate.DayOfWeek;
+                if (dow == DayOfWeek.Saturday || dow == DayOfWeek.Sunday) return "weekend";
+                if (r.WorkDate.Date > todayDate) return "no_record";
+                return "absent";
+            }
+
+            snapshot.TotalPresentDays = allRosterData.Count(r => {
+                var s = EffectiveStatus(r, today);
+                return s == "present" || s == "late" || s == "half_day";
+            });
+
+            snapshot.TotalAbsentDays = allRosterData.Count(r =>
+                EffectiveStatus(r, today) == "absent");
+
+            snapshot.TotalLateDays = allRosterData.Count(r =>
+                EffectiveStatus(r, today) == "late");
+
+            snapshot.TotalHoursWorked = allRosterData.Sum(r => r.TotalHours);
+
+            decimal totalExpectedManDays = 0;
+            foreach (var empId in allRosterData.Select(r => r.EmployeeId).Distinct())
+            {
+                holidayDatesByEmployee.TryGetValue(empId, out var empHolidayDates);
+                empHolidayDates ??= new HashSet<DateTime>();
+
+                int expectedForEmployee = Enumerable
+                    .Range(0, (end - start).Days + 1)
+                    .Count(offset =>
+                    {
+                        var d = start.AddDays(offset).Date;
+                        return d <= today
+                            && d.DayOfWeek != DayOfWeek.Saturday
+                            && d.DayOfWeek != DayOfWeek.Sunday
+                            && !empHolidayDates.Contains(d);
+                    });
+
+                totalExpectedManDays += expectedForEmployee;
+            }
+
+            snapshot.AttendancePercentage = totalExpectedManDays > 0
+                ? Math.Round((snapshot.TotalPresentDays / totalExpectedManDays) * 100m, 1)
+                : 0m;
+
+            if (!isAdminOrHR)
+                snapshot.TotalEmployees = 1;
+        }
+
+        return new ServiceResponse<List<MonthlyTimesheetSummary>> { Data = snapshots, Success = true };
+    }
+    public async Task<ServiceResponse<IEnumerable<Attendance>>> GetManualAttendanceAsync(ManualAttendanceSearchDto searchDto, Guid currentUserEmployeeId, string currentUserRole, Guid organizationId)
+    {
+        try
+        {
+            Guid? managerId = null;
+            Guid? employeeId = searchDto.EmployeeId;
+
+            if (currentUserRole is "Manager" or "Super Admin" or "HR Manager")
+            {
+                managerId = currentUserEmployeeId;
+            }
+            else if (currentUserRole == "Employee")
+            {
+                // Check if employee has permission (from settings or manager)
+                // For now, assuming if they reached here, they might have view access but only for themselves
+                employeeId = currentUserEmployeeId;
+            }
+
+            var records = await _attendanceRepository.GetManualAttendanceRecordsAsync(organizationId, managerId, employeeId, searchDto.StartDate, searchDto.EndDate);
+            
+            return new ServiceResponse<IEnumerable<Attendance>>
+            {
+                Success = true,
+                Data = records
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching manual attendance records");
+            return new ServiceResponse<IEnumerable<Attendance>> { Success = false, Message = "Failed to fetch records" };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> UpdateManualAttendanceAsync(ManualAttendanceUpdateDto updateDto, Guid currentUserEmployeeId, string currentUserRole, Guid organizationId, string ipAddress)
+    {
+        try
+        {
+            var hasPermission = await _attendanceRepository.HasPermissionToEditAsync(currentUserEmployeeId, updateDto.EmployeeId, organizationId);
+            if (!hasPermission && !new[] { "Super Admin", "HR Manager" }.Contains(currentUserRole))
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Permission denied" };
+            }
+            var timeLimitDays = await _settingsRepository.GetManualEntryTimeLimitAsync(organizationId);
+            if (!updateDto.AttendanceId.HasValue)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "AttendanceId is required" };
+            }
+
+            var attendanceRecord = await _attendanceRepository.GetAttendanceByIdAsync(updateDto.AttendanceId.Value);
+            if (attendanceRecord == null)
+            {
+                 return new ServiceResponse<bool> { Success = false, Message = "Attendance record not found" };
+            }
+
+            if (await IsEmployeeHolidayAsync(updateDto.EmployeeId, attendanceRecord.WorkDate.Date))
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Manual attendance updates are not allowed on holidays."
+                };
+            }
+
+            if ((DateTime.UtcNow.Date - attendanceRecord.WorkDate.Date).TotalDays > timeLimitDays)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = $"Edit period has expired ({timeLimitDays} days)" };
+            }
+            if (updateDto.CheckInTime.HasValue && updateDto.CheckOutTime.HasValue && updateDto.CheckOutTime <= updateDto.CheckInTime)
+            {
+                return new ServiceResponse<bool> { Success = false, Message = "Check-out time must be after check-in time" };
+            }
+            var oldValues = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                attendanceRecord.CheckInTime,
+                attendanceRecord.CheckOutTime,
+                attendanceRecord.Status,
+                attendanceRecord.Notes
+            });
+            var newValues = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                updateDto.CheckInTime,
+                updateDto.CheckOutTime,
+                updateDto.Status,
+                updateDto.Notes
+            });
+            var audit = new AttendanceAudit
+            {
+                AuditId = Guid.NewGuid(),
+                AttendanceId = updateDto.AttendanceId,
+                EmployeeId = updateDto.EmployeeId,
+                ModifiedBy = currentUserEmployeeId,
+                ModifiedAt = DateTime.UtcNow,
+                ChangeType = "UPDATE",
+                OldValues = oldValues,
+                NewValues = newValues,
+                IpAddress = ipAddress
+            };
+            attendanceRecord.CheckInTime = updateDto.CheckInTime;
+            attendanceRecord.CheckOutTime = updateDto.CheckOutTime;
+            attendanceRecord.Status = updateDto.Status;
+            attendanceRecord.Notes = updateDto.Notes;
+
+            var result = await _attendanceRepository.UpdateManualAttendanceAsync(attendanceRecord, audit);
+
+            return new ServiceResponse<bool>
+            {
+                Success = result,
+                Message = result ? "Attendance updated successfully" : "Failed to update attendance"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating manual attendance");
+            return new ServiceResponse<bool> { Success = false, Message = "An error occurred during update" };
+        }
+    }
+    public async Task<ServiceResponse<int>> SubmitTimesheetBatchAsync(Guid timesheetId, Guid employeeId, Guid organizationId)
+    {
+        var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
+        if (snapshot == null) return new ServiceResponse<int> { Success = false, Message = "Timesheet not found" };
+
+        // 1. Flip all 'draft' requests for this employee and period to 'pending'
+        var snapStart = snapshot.StartDate != default
+            ? snapshot.StartDate
+            : new DateTime(snapshot.Year ?? DateTime.Today.Year, snapshot.Month ?? DateTime.Today.Month, 1);
+        int updatedCount = await _attendanceRepository.FlipDraftsToPendingAsync(employeeId, snapStart.Month, snapStart.Year, timesheetId);
+
+        if (updatedCount > 0)
+        {
+            // 2. Notify the manager ONLY NOW that a batch is ready for review
+            var managerId = await _notificationRepository.GetReciveridAsync(employeeId);
+            await _notificationRepository.CreateNotificationAsync(organizationId, new NotificationCreateDto
+            {
+                Receiveruserid = new List<Guid> { managerId },
+                Senderuserid = employeeId,
+                Title = "Timesheet Submitted",
+                Message = $"Employee has submitted {updatedCount} changes for {snapshot.TimesheetName}.",
+                Notificationtype = "Request",
+                moduletype = "attendance",
+                organizationId = organizationId
+            });
+        }
+
+        return new ServiceResponse<int>
+        {
+            Success = true,
+            Data = updatedCount,
+            Message = $"Successfully submitted {updatedCount} changes for approval."
+        };
+    }
+    public async Task<ServiceResponse<int>> ApproveAllPendingAsync(Guid timesheetId, Guid? targetEmployeeId, Guid managerId, Guid orgId)
+    {
+        int count = await _attendanceRepository.ApproveAllBatchAsync(timesheetId, targetEmployeeId, managerId, orgId);
+
+        if (count == 0)
+        {
+            return new ServiceResponse<int>
+            {
+                Success = true,
+                Data = 0,
+                Message = "No pending requests were found to approve for this employee."
+            };
+        }
+
+        return new ServiceResponse<int>
+        {
+            Success = true,
+            Data = count,
+            Message = $"Successfully approved {count} requests."
+        };
+    }
+    public async Task<ServiceResponse<List<EmployeeSubmissionPackage>>> GetGroupedPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId)
+    {
+        var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+        var rawRequests = await _attendanceRepository.GetAllPendingRequestsAsync(
+            organizationId,
+            isAdminOrHR ? null : currentEmployeeId
+        ) ?? Enumerable.Empty<PendingAttendanceRequest>(); 
+        var grouped = rawRequests
+            .GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode })
+            .Select(g => new EmployeeSubmissionPackage
+            {
+                EmployeeId = g.Key.EmployeeId,
+                EmployeeName = g.Key.EmployeeName,
+                EmployeeCode = g.Key.EmployeeCode,
+                SubmittedAt = g.Max(r => r.Submittedat),
+                Corrections = g.OrderBy(r => r.WorkDate).ToList()
+            }).ToList();
+
+        return new ServiceResponse<List<EmployeeSubmissionPackage>>
+        {
+            Data = grouped,
+            Success = true
+        };
+    }
+    public async Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(
+    Guid timesheetId,
+    Guid organizationId,
+    Guid currentUserId,
+    Guid? targetEmployeeId = null)
+    {
+
+        //bool isGlobalViewer = await _attendanceRepository.IsAdminOrHRAsync(currentUserId, organizationId);
+        bool isGlobalViewer = true;
+        var today = DateTime.Today;
+
+        var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
+        if (snapshot == null) return new ServiceResponse<List<EmployeeReviewPackage>> { Success = false, Message = "Timesheet period not found" };
+
+        var start = snapshot.StartDate != default
+            ? snapshot.StartDate
+            : new DateTime(snapshot.Year ?? DateTime.Today.Year, snapshot.Month ?? DateTime.Today.Month, 1);
+        var end = snapshot.EndDate != default
+            ? snapshot.EndDate
+            : start.AddMonths(1).AddDays(-1);
+
+        Guid? filterManagerId = isGlobalViewer ? null : currentUserId;
+        var rawLogs = await _attendanceRepository.GetConsolidatedAttendanceAsync(organizationId, start, end, targetEmployeeId, filterManagerId);
+        var pendingReqs = await _attendanceRepository.GetAllReviewableRequestsAsync(organizationId, filterManagerId);
+        var holidayDatesByEmployee = new Dictionary<Guid, HashSet<DateTime>>();
+        foreach (var empId in rawLogs.Select(r => r.EmployeeId).Distinct())
+        {
+            holidayDatesByEmployee[empId] = await GetEmployeeHolidayDateSetAsync(empId, start, end);
+        }
+        var grouped = rawLogs.GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode, r.DepartmentName })
+            .Select(g => new EmployeeReviewPackage
+            {
+                EmployeeId = g.Key.EmployeeId,
+                EmployeeName = g.Key.EmployeeName,
+                EmployeeCode = g.Key.EmployeeCode,
+                Month = start.Month,
+                Year = start.Year,
+                TimesheetId = timesheetId,
+                Department = g.Key.DepartmentName ?? "Unassigned",
+                FullMonthRecords = Enumerable.Range(0, (end - start).Days + 1)
+    .Select(offset => {
+        var currentDay = start.AddDays(offset);
+        var log = g.FirstOrDefault(x => x.WorkDate.Date == currentDay.Date);
+        var req = pendingReqs?.FirstOrDefault(r => r.WorkDate.Date == currentDay.Date &&
+                        r.EmployeeId == g.Key.EmployeeId);
+        string calculatedStatus;
+        var employeeHolidayDates = holidayDatesByEmployee.TryGetValue(g.Key.EmployeeId, out var dates)
+            ? dates
+            : new HashSet<DateTime>();
+
+        if (employeeHolidayDates.Contains(currentDay.Date))
+        {
+            calculatedStatus = "holiday";
+        }
+        else if (log != null && !string.IsNullOrWhiteSpace(log.Status))
+        {
+            calculatedStatus = log.Status; 
+        }
+        else if (currentDay.Date > today)
+        {
+            calculatedStatus = "no_record"; 
+        }
+        else if (currentDay.DayOfWeek == DayOfWeek.Saturday || currentDay.DayOfWeek == DayOfWeek.Sunday)
+        {
+            calculatedStatus = "weekend"; 
+        }
+        else
+        {
+            calculatedStatus = "absent"; 
+        }
+        return new ReviewAttendanceRecord
+        {
+            AttendanceId = log?.AttendanceId,
+            RequestId = req?.RequestId,
+            Date = currentDay,
+            CheckInTime = log?.CheckInTime,
+            CheckOutTime = log?.CheckOutTime,
+            Status = calculatedStatus,
+            TotalHours = log?.TotalHours ?? 0,
+            OvertimeHours = log?.OvertimeHours ?? 0,
+            OvertimeType = log?.OvertimeType,
+            LateMinutes = log?.LateMinutes ?? 0,
+            LeaveTypeId = log?.LeaveTypeId,
+            LeaveTypeName = log?.LeaveTypeName,
+            LeavePayType = log?.LeavePayType,
+            RequestStatus = req?.Status ?? "none",
+            RequestedCheckIn = req?.RequestedCheckIn,
+            RequestedCheckOut = req?.RequestedCheckOut,
+            RequestedStatus = req?.RequestedStatus,
+            RequestedLeaveTypeId = log?.RequestedLeaveTypeId,
+            RequestedLeaveTypeName = log?.RequestedLeaveTypeName,
+            RequestedLeavePayType = log?.RequestedLeavePayType,
+            RequestedOvertimeHours = log?.RequestedOvertimeHours,
+            RequestedOvertimeType = log?.RequestedOvertimeType,
+            RequestedLateMinutes = log?.RequestedLateMinutes,
+            ReasonForEdit = req?.ReasonForEdit,
+            IsFinalized = log?.IsFinalized ?? false,
+            HasPendingRequest = (req != null && req.Status == "pending")
+                    || (log?.HasPendingRequest ?? false),
+            HasDraftRequest = (req != null && req.Status == "Draft")
+                    || (log?.HasDraftRequest ?? false),
+            HasApprovedRequest = (req != null && req.Status == "approved")
+        || (log?.HasApprovedRequest ?? false),
+            IsManagerOverride = log?.IsManagerOverride ?? false
+        };
+    }).ToList()
+            }).ToList();
+        foreach (var pkg in grouped)
+        {
+            var records = pkg.FullMonthRecords;
+
+            var workingDayRecords = records.Where(r => {
+                var s = (r.Status ?? "").ToLowerInvariant().Replace("_", "");
+                return s != "weekend" && s != "norecord" && s != "holiday";
+            }).ToList();
+
+            var elapsedWorkingRecords = workingDayRecords
+                .Where(r => r.Date.Date <= DateTime.Today)
+                .ToList();
+
+            pkg.TotalRecords = elapsedWorkingRecords.Count;
+
+            var finalizableRecords = elapsedWorkingRecords;
+
+            pkg.FinalizedCount = finalizableRecords.Count(r => r.IsFinalized);
+
+            pkg.PendingRequestCount = records.Count(r => r.HasPendingRequest);
+
+            pkg.ApprovedCount = records.Count(r =>
+                string.Equals(r.RequestStatus, "approved", StringComparison.OrdinalIgnoreCase)
+                || (r.HasApprovedRequest
+                    && !string.Equals(r.RequestStatus, "pending", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(r.RequestStatus, "rejected", StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(r.RequestStatus, "none", StringComparison.OrdinalIgnoreCase)));
+
+            pkg.RejectedCount = records.Count(r =>
+                string.Equals(r.RequestStatus, "rejected", StringComparison.OrdinalIgnoreCase));
+
+            pkg.IsFinalized = finalizableRecords.Count > 0
+                           && finalizableRecords.All(r => r.IsFinalized);
+        }
+
+        return new ServiceResponse<List<EmployeeReviewPackage>> { Data = grouped, Success = true };
+    }
+    public async Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(
+    Guid organizationId, int month, int year)
+    {
+        if (month < 1 || month > 12)
+            throw new ArgumentOutOfRangeException(nameof(month), "Month must be 1–12.");
+        if (year < 2000 || year > 2100)
+            throw new ArgumentOutOfRangeException(nameof(year), "Year is out of range.");
+
+        return await _attendanceRepository.GetOrgSubmissionProgressAsync(
+            organizationId, month, year);
+    }
+    public async Task<bool> AdminOverrideAttendanceAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId)
+    {
+        _logger.LogInformation("Admin override initiated by {ManagerId} for Employee {EmployeeId} on {Date}",
+            managerId, dto.EmployeeId, dto.WorkDate);
+
+        if (await IsEmployeeHolidayAsync(dto.EmployeeId, dto.WorkDate.Date))
+            throw new InvalidOperationException("Attendance override is not allowed on holidays.");
+
+        if (dto.TimesheetId != Guid.Empty)
+        {
+            var isPackageFinalized = await _attendanceRepository.IsEmployeePackageFinalizedAsync(
+                dto.TimesheetId, dto.EmployeeId);
+            if (isPackageFinalized)
+                throw new InvalidOperationException(
+                    "Cannot override: this employee's timesheet has been fully finalized.");
+        }
+
+        var result = await _attendanceRepository.AdminFinalizeRecordAsync(dto, managerId, orgId);
+
+        if (result)
+        {
+            await _notificationRepository.CreateNotificationAsync(orgId, new NotificationCreateDto
+            {
+                Receiveruserid = new List<Guid> { dto.EmployeeId },
+                Senderuserid = managerId,
+                Title = "Attendance Override",
+                Message = $"A manager has overridden your attendance record for {dto.WorkDate:yyyy-MM-dd}. The record has been updated but is not yet finalized.",
+                Notificationtype = "Message",
+                moduletype = "attendance",
+                Redirecturl = "/attendance/dashboard",
+                organizationId = orgId
+            });
+        }
+
+        return result;
+    }
+
+    // ────────────────────────────────────────────────────────────────────────────
+    // PAYROLL BRIDGE
+    // ────────────────────────────────────────────────────────────────────────────
+
+    public async Task<ServiceResponse<List<TimesheetPeriodLinkDto>>> GetFinalizedTimesheetLinksAsync(Guid organizationId)
+    {
+        try
+        {
+            var data = (await _attendanceRepository.GetFinalizedTimesheetLinksAsync(organizationId)).ToList();
+            return new ServiceResponse<List<TimesheetPeriodLinkDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch finalized timesheet links for org {OrgId}", organizationId);
+            return new ServiceResponse<List<TimesheetPeriodLinkDto>>
+            {
+                Success = false,
+                Message = "Failed to fetch finalized timesheets."
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<TimesheetPayrollSummaryDto?>> GetTimesheetPayrollSummaryAsync(Guid timesheetId)
+    {
+        try
+        {
+            var data = await _attendanceRepository.GetTimesheetPayrollSummaryAsync(timesheetId);
+            if (data == null)
+            {
+                return new ServiceResponse<TimesheetPayrollSummaryDto?>
+                {
+                    Success = false,
+                    Message = "Timesheet not found or has no payroll summary yet."
+                };
+            }
+            return new ServiceResponse<TimesheetPayrollSummaryDto?> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to fetch timesheet payroll summary for {TimesheetId}", timesheetId);
+            return new ServiceResponse<TimesheetPayrollSummaryDto?>
+            {
+                Success = false,
+                Message = "Failed to fetch timesheet payroll summary."
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> LockTimesheetAsync(Guid timesheetId, Guid lockedBy, Guid? payrollPeriodId)
+    {
+        try
+        {
+            var locked = await _attendanceRepository.LockTimesheetAsync(timesheetId, lockedBy, payrollPeriodId);
+            return new ServiceResponse<bool>
+            {
+                Success = locked,
+                Data    = locked,
+                Message = locked ? "Timesheet locked." : "Timesheet not in Finalized state — cannot lock."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to lock timesheet {TimesheetId}", timesheetId);
+            return new ServiceResponse<bool> { Success = false, Message = "Failed to lock timesheet." };
+        }
     }
 }

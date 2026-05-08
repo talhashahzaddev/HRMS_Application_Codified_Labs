@@ -1,13 +1,16 @@
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Asn1.Ocsp;
+using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
 using System.Linq;
+using HRMS.API.Authorization;
 
 namespace HRMS.API.Controllers;
 
@@ -82,8 +85,46 @@ public class EmployeeController : ControllerBase
         }
     }
 
+    [HttpGet("GetEmployeebyOrganization")]
+    public async Task<ActionResult<ServiceResponse<List<EmployeeNameList>>>> GetEmployeebyOrganization()
+    {
+        try
+        {
+            var reportingManagerId = GetCurrentEmployeeId();  // this is manager
+            var organizationid = GetCurrentOrganizationId();
+
+            var employees = await _employeeService
+                .GetEmployeeByOrganizationAsync(reportingManagerId,organizationid);
+
+            if (employees == null || !employees.Any())
+            {
+                return NotFound(new ServiceResponse<List<EmployeeNameList>>
+                {
+                    Success = false,
+                    Message = "Employees not found"
+                });
+            }
+
+            return Ok(new ServiceResponse<List<EmployeeNameList>>
+            {
+                Success = true,
+                Data = employees
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving employees");
+
+            return StatusCode(500, new ServiceResponse<List<EmployeeNameList>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving employees"
+            });
+        }
+    }
+
     [HttpPost]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("add_employee")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> CreateEmployee([FromBody] CreateEmployeeRequest request)
     {
         try
@@ -99,7 +140,7 @@ public class EmployeeController : ControllerBase
             }
             var organizationId = GetCurrentOrganizationId();
             var employee = await _employeeService.CreateEmployeeAsync(request, organizationId);
-            
+
             return CreatedAtAction(nameof(GetEmployee), new { id = employee.EmployeeId }, new ServiceResponse<EmployeeDto>
             {
                 Success = true,
@@ -143,9 +184,43 @@ public class EmployeeController : ControllerBase
             });
         }
     }
+    [HttpPost("get-selected-employees")]
+    public async Task<ActionResult<ServiceResponse<List<Employee>>>> GetEmployeesByIds([FromBody] List<Guid> recipientIds)
+    {
+        try
+        {
+            if (recipientIds == null || !recipientIds.Any())
+            {
+                return BadRequest(new ServiceResponse<List<Employee>>
+                {
+                    Success = false,
+                    Message = "RecipientIds are required"
+                });
+            }
+
+            var employees = await _employeeService.GetSelectedEmployeesByIdsAsync(recipientIds);
+
+            return Ok(new ServiceResponse<List<Employee>>
+            {
+                Success = true,
+                Message = "Employees fetched successfully",
+                Data = employees
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching employees");
+
+            return StatusCode(500, new ServiceResponse<List<Employee>>
+            {
+                Success = false,
+                Message = "Error fetching employees"
+            });
+        }
+    }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("edit_employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateEmployee(Guid id, [FromBody] UpdateEmployeeRequest request)
     {
         try
@@ -215,7 +290,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("delete_employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployee(Guid id, [FromQuery] string status)
     {
         try
@@ -284,7 +359,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPost("departments")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("add_department")]
     public async Task<ActionResult<ServiceResponse<DepartmentDto>>> CreateDepartment([FromBody] CreateDepartmentRequest request)
     {
         try
@@ -347,7 +422,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPut("departments/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("edit_department")]
     public async Task<ActionResult<ServiceResponse<DepartmentDto>>> UpdateDepartment(Guid id, [FromBody] CreateDepartmentRequest request)
     {
         try
@@ -417,7 +492,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpDelete("departments/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("delete_department")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteDepartment(Guid id)
     {
         try
@@ -489,6 +564,7 @@ public class EmployeeController : ControllerBase
   
     // GET: api/employees/positions/{positionId}/employees
     [HttpGet("positions/{positionId}/employees")]
+    [PermissionAuthorize("view_position_employees")]
     public async Task<ActionResult<ServiceResponse<PositionEmployeesMainDto>>> GetEmployeesByPosition(Guid positionId)
     {
         try
@@ -518,6 +594,7 @@ public class EmployeeController : ControllerBase
 
 
     [HttpPut("positions/{positionId}/status")]
+    [PermissionAuthorize("deactivat/activate_position")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdatePositionStatus(
     Guid positionId,
     [FromQuery] bool isActive)
@@ -561,6 +638,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPut("departments/{departmentId}/status")]
+    [PermissionAuthorize("deactivat/activate_department")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateDepartmentStatus(
     Guid departmentId,
     [FromQuery] bool isActive)
@@ -607,7 +685,7 @@ public class EmployeeController : ControllerBase
 
 
     [HttpPost("positions")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("add_position")]
     public async Task<ActionResult<ServiceResponse<PositionDto>>> CreatePosition([FromBody] CreatePositionRequest request)
     {
         try
@@ -679,7 +757,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPut("positions/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("edit_position")]
     public async Task<ActionResult<ServiceResponse<PositionDto>>> UpdatePosition(Guid id, [FromBody] CreatePositionRequest request)
     {
         try
@@ -752,7 +830,6 @@ public class EmployeeController : ControllerBase
 
 
     [HttpDelete("positions/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeletePosition(Guid id)
     {
         try
@@ -871,7 +948,7 @@ public class EmployeeController : ControllerBase
 
 
     [HttpPatch("{id}/activate")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("activate/deactivate_employee")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> ActivateEmployee(Guid id)
     {
         try
@@ -913,7 +990,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPatch("{id}/deactivate")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("activate/deactivate_employee")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> DeactivateEmployee(Guid id)
     {
         try
@@ -1088,7 +1165,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPatch("bulk/activate")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("activate/deactivate_employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> BulkActivateEmployees([FromBody] BulkEmployeeRequest request)
     {
         try
@@ -1113,7 +1190,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPatch("bulk/deactivate")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("activate/deactivate_employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> BulkDeactivateEmployees([FromBody] BulkEmployeeRequest request)
     {
         try
@@ -1195,6 +1272,24 @@ public class EmployeeController : ControllerBase
                 Message = "An error occurred while retrieving manager's employees"
             });
         }
+    }
+    private Guid GetCurrentEmployeeId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userIdClaim))
+        {
+            _logger.LogError("User ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("User ID not found in token");
+        }
+
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
+            throw new UnauthorizedAccessException("Invalid user ID format");
+        }
+
+        return userId;
     }
 
     private Guid GetCurrentOrganizationId()

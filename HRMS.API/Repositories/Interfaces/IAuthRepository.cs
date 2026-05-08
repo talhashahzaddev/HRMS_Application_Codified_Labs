@@ -8,6 +8,7 @@ public interface IAuthRepository
 {
 
     ////adding this line here
+    Task<string?> GetDomainByOrganizationIdAsync(Guid organizationId);
     Task<Guid> AdminIntoEmployeeDetailsAsync( Guid positionId, Guid employeeId);
     Task<Guid> GetEmployeeIdByEmailAsync(string email);
     Task<Guid> GetPositionByEmailAsync(string email);
@@ -20,19 +21,16 @@ public interface IAuthRepository
     // Adding changes For Profile now
     Task<Employee?> GetEmployeeByIdAsync(Guid userId);
 
-    Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request,string? profileUrl);
+    Task<bool> UpdateProfile_EmployeeAsync(Guid employeeId, UpdateProfileRequest request);
     Task<bool> UpdateProfile_EmployeeDetailsAsync(Guid employeeId, UpdateProfileRequest request);
 
     Task<bool> UpdateProfile_UserAsync(Guid userId, UpdateProfileRequest request);
-
-
-
-
     Task<User?> AuthenticateAsync(string email, string passwordHash);
+    Task<string> GetOrganizationDomainAsync(Guid? organizationId);
     Task<User?> GetUserByIdAsync(Guid? userId);
     Task<User?> GetUserByEmailAsync(string email);
     Task<User> CreateUserAsync(User user);
-    Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId, string title = "Super Admin");
+    Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId,Guid? departmentId, string? title);
     Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt);
     Task<bool> UpdateLastLoginAsync(Guid? userId);
     Task<string> GetHashedPassword(string email);
@@ -41,6 +39,19 @@ public interface IAuthRepository
     //Task<string> GenerateEmployeeCodeAsync()
     Task<Role?> GetRoleByNameAsync(Guid? organizationId, string roleName);
     Task<List<Role>> GetOrganizationRolesAsync(Guid? organizationId);
+    Task<IEnumerable<dynamic>> GetMenusAsync();
+    Task<Guid> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId);
+    Task<bool> UpdateRoleAsync(UpdateRoleRequest request, Guid? organizationId);
+    Task<int> GetUserCountByRoleIdAsync(Guid roleId, Guid? organizationId);
+    Task<bool> DeleteRoleAsync(Guid roleId, Guid? organizationId);
+    Task<Role> GetRoleByNameforTokenAsync(string roleName, Guid? organizationId);
+    Task<bool> MenuExistsAsync(Guid menuId);
+    Task<bool> SubMenuExistsAsync(Guid subMenuId, Guid menuId);
+    Task<bool> ActionExistsAsync(Guid actionId, Guid subMenuId);
+    Task<List<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId);
+    Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId);
+    Task<Role> GetRoleByIdAsync(Guid roleId);
+    Task<(User user, Guid? roleId)> GetUserWithRoleAsync(Guid userId);
     Task<Role> CreateRoleAsync(Role role);
     Task<bool> UpdateUserRoleAsync(Guid? userId, Guid? roleId);
     Task<bool> VerifyEmail(string token);

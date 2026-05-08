@@ -49,11 +49,50 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                 Reason = reason
             };
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
             return null;
         }
     }
+
+
+    public async Task<bool> SubstractLeaveDayAsync(
+    Guid leaveTypeId,
+    Guid employeeId,
+    int totalLeaveDays)
+    {
+        var year = DateTime.UtcNow.Year;
+
+        const string sql = @"
+        UPDATE attendance.leaveentitlements
+        SET 
+            useddays = useddays + @TotalLeaveDays,
+            remainingdays = remainingdays - @TotalLeaveDays,
+            updatedat = CURRENT_TIMESTAMP
+        WHERE employeeid = @EmployeeId
+          AND leavetypeid = @LeaveTypeId
+          AND year = @Year
+          AND remainingdays >= @TotalLeaveDays
+        RETURNING entitlementid;
+    ";
+
+        var result = await ExecuteScalarAsync<Guid?>(
+            sql,
+            new
+            {
+                EmployeeId = employeeId,
+                LeaveTypeId = leaveTypeId,
+                Year = year,
+                TotalLeaveDays = totalLeaveDays
+            });
+
+        if (result == null)
+            throw new InvalidOperationException("Insufficient leave balance or entitlement not found");
+
+        return true;
+    }
+
+
 
     public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, string status, Guid approvedBy, string? rejectionReason = null)
     {
@@ -65,7 +104,33 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         }
         catch(Exception ex)
         {
-            return false; 
+            return false;
+        }
+    }
+
+    public async Task<PushEmailLeaveRequest> GetEmployeeDetails(Guid requestId)
+    {
+        try
+        {
+            return await QuerySingleOrDefaultAsync<PushEmailLeaveRequest>(
+             @"SELECT e.email,
+                     e.firstname,
+                     e.lastname,
+                     CONCAT(e.firstname, ' ', e.lastname) AS EmployeeName,
+                     lt.typename,
+                     lr.startdate,
+                     lr.enddate
+              FROM employee.employees e
+              JOIN attendance.leaverequests lr 
+                  ON lr.employeeid = e.employeeid
+              JOIN attendance.leavetypes lt
+                  ON lt.leavetypeid = lr.leavetypeid
+              WHERE lr.requestid = @RequestId",
+             new { RequestId = requestId });
+        }
+        catch (Exception)
+        {
+            return null;
         }
     }
 
@@ -219,6 +284,18 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     {
         var sql = @"
             SELECT leavetypeid, typename, description, maxdaysperyear, 
+                   ispaid,ishalfpaid, carryforwardallowed, maxcarryforwarddays, color, isactive
+            FROM attendance.leavetypes 
+            WHERE organizationid = @organizationId 
+            ORDER BY typename";
+
+        var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
+        return results.ToList();
+    }
+    public async Task<List<LeaveTypeDto>> GetLeaveTypesforRequestAsync(Guid organizationId)
+    {
+        var sql = @"
+            SELECT leavetypeid, typename, description, maxdaysperyear, 
                    ispaid, carryforwardallowed, maxcarryforwarddays, color, isactive
             FROM attendance.leavetypes 
             WHERE organizationid = @organizationId AND isactive = true
@@ -238,15 +315,26 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId,LeaveType });
         return results.ToList();
     }
+    public async Task<string> GetLeaveTypeNameByIdAsync(Guid LeaveTypeid, Guid organizationId)
+    {
+        var sql = @"
+            SELECT typename
+            FROM attendance.leavetypes 
+            WHERE organizationid = @organizationId AND leavetypeid = @LeaveTypeid AND isactive = true
+            ORDER BY typename";
+
+        var results = await QuerySingleOrDefaultAsync<string>(sql, new { organizationId, LeaveTypeid });
+        return results;
+    }
     public async Task<bool> CreateLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto)
     {
         var sqlInsert = @"
         INSERT INTO attendance.leavetypes 
             (leavetypeid, organizationid, typename, description, maxdaysperyear, 
-             ispaid, carryforwardallowed, maxcarryforwarddays, color, isactive, createdat)
+             ispaid,ishalfpaid,carryforwardallowed, maxcarryforwarddays, color, isactive, createdat)
         VALUES
             (@LeaveTypeId, @OrganizationId, @TypeName, @Description, @MaxDaysPerYear, 
-             @IsPaid, @CarryForwardAllowed, @maxcarryforwarddays, @Color, @IsActive, NOW());
+             @IsPaid,@IsHalfPaid, @CarryForwardAllowed, @maxcarryforwarddays, @Color, @IsActive, NOW());
     ";
 
         var sqlInitEntitlements = @"
@@ -268,6 +356,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                         dto.Description,
                         dto.MaxDaysPerYear,
                         dto.IsPaid,
+                        dto.IsHalfPaid,
                         dto.CarryForwardAllowed,
                         dto.MaxCarryForwardDays,
                         dto.Color,
@@ -428,6 +517,103 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
             return null;
         }
     }
+    //EdiT Elementals for edit leave request
+
+    public async Task<LeaveEntitlementDto> EditingLeaveElementals(Guid empId, Guid leaveTypeid, decimal Days)
+    {
+        try
+        {
+            int Year = DateTime.UtcNow.Year;
+
+
+            var selectSql = @"
+                SELECT 
+                    entitlementid AS EntitlementId,
+                    totaldays AS TotalDays,
+                    useddays AS UsedDays,
+                    remainingdays AS RemainingDays,
+                    leavetypeid AS LeaveTypeId,
+                    employeeid AS EmployeeId,
+                    year AS Year,
+                    carryforwarddays AS CarryForwardDays
+                FROM attendance.leaveentitlements
+                WHERE employeeid=@empId AND leavetypeid=@leaveTypeid AND year=@year;
+                ";
+
+            var result = await QuerySingleOrDefaultAsync<LeaveEntitlementDto>(
+                selectSql, new { empId, leaveTypeid, Year });
+
+            if (result == null) return null;
+
+            var updateSql = @"
+                UPDATE attendance.leaveentitlements
+                SET remainingdays = remainingdays - @Days,
+                useddays=useddays+@Days
+                WHERE entitlementid = @EntitlementId;
+                ";
+
+            await ExecuteAsync(updateSql, new { Days, result.EntitlementId });
+
+            //result.RemainingDays += days;
+            return result;
+
+
+        }
+        catch (Exception ex)
+        {
+            return null;
+
+        }
+    }
+
+
+
+    public async Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days)
+    {
+        try
+        {
+            int Year = DateTime.UtcNow.Year;
+
+
+            var selectSql = @"
+                    SELECT 
+                        entitlementid AS EntitlementId,
+                        totaldays AS TotalDays,
+                        useddays AS UsedDays,
+                        remainingdays AS RemainingDays,
+                        leavetypeid AS LeaveTypeId,
+                        employeeid AS EmployeeId,
+                        year AS Year,
+                        carryforwarddays AS CarryForwardDays
+                    FROM attendance.leaveentitlements
+                    WHERE employeeid=@empId AND leavetypeid=@leaveTypeid AND year=@year;
+                    ";
+
+            var result = await QuerySingleOrDefaultAsync<LeaveEntitlementDto>(
+                selectSql, new { empId, leaveTypeid, Year });
+
+            if (result == null) return null;
+
+            var updateSql = @"
+            UPDATE attendance.leaveentitlements
+            SET remainingdays = remainingdays + @Days,
+            useddays=useddays-@Days
+            WHERE entitlementid = @EntitlementId;
+            ";
+
+            await ExecuteAsync(updateSql, new { Days, result.EntitlementId });
+
+            //result.RemainingDays += days;
+            return result;
+
+
+        }
+        catch (Exception ex)
+        {
+            return null;
+
+        }
+    }
 
     public async Task<bool> UpdateLeaveRequestAsync(Guid requestId, Guid leaveTypeId, DateTime startDate, DateTime endDate, decimal daysRequested, string? reason = null)
     {
@@ -444,14 +630,14 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
                 WHERE requestid = @requestId
                   AND status = 'pending'";
 
-            var rowsAffected = await ExecuteAsync(sql, new 
-            { 
-                requestId, 
-                leaveTypeId, 
-                startDate, 
-                endDate, 
-                daysRequested, 
-                reason 
+            var rowsAffected = await ExecuteAsync(sql, new
+            {
+                requestId,
+                leaveTypeId,
+                startDate,
+                endDate,
+                daysRequested,
+                reason
             });
 
             return rowsAffected > 0;
@@ -467,7 +653,9 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
         try
         {
             var sql = @"
-                DELETE FROM attendance.leaverequests
+                UPDATE attendance.leaverequests
+                SET status = 'cancelled',
+                    updatedat = CURRENT_TIMESTAMP
                 WHERE requestid = @requestId
                   AND status = 'pending'";
 
@@ -482,17 +670,17 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
 
     public async Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null)
     {
-       try
+        try
         {
             //var employeeid = await GetEmpId(employeeId);
-            
+
             // Normalize dates to date-only (remove time component) for proper comparison
             var normalizedStartDate = startDate.Date;
             var normalizedEndDate = endDate.Date;
-            
+
             // Debug logging
             //Console.WriteLine($"Checking overlap for EmployeeId: {employeeId}, StartDate: {normalizedStartDate:yyyy-MM-dd}, EndDate: {normalizedEndDate:yyyy-MM-dd}, ExcludeRequestId: {excludeRequestId}");
-            
+
             var sql = @"
 SELECT COUNT(*) > 0
 FROM attendance.leaverequests
@@ -502,12 +690,12 @@ WHERE employeeid = @employeeid
   AND NOT (enddate < @normalizedStartDate OR startdate > @normalizedEndDate)";
 
             var result = await ExecuteScalarAsync<bool>(sql, new {
-                employeeId, 
-                normalizedStartDate, 
-                normalizedEndDate, 
-                excludeRequestId 
+                employeeId,
+                normalizedStartDate,
+                normalizedEndDate,
+                excludeRequestId
             });
-            
+
             //Console.WriteLine($"Overlap check result: {result} for EmployeeId: {employeeId}");
             return result;
         }
@@ -524,9 +712,11 @@ WHERE employeeid = @employeeid
         try
         {
             var sql = @"
-        SELECT *
-        FROM attendance.leaverequests
-        WHERE employeeid = @employeeId";
+        SELECT lr.*, lt.typename
+        FROM attendance.leaverequests lr
+        JOIN attendance.leavetypes lt 
+            ON lt.leavetypeid = lr.leavetypeid
+        WHERE lr.employeeid = @employeeId";
 
             var results = await QueryAsync<LeaveRequest>(sql, new { employeeId });
             return results.ToList();
@@ -599,25 +789,25 @@ WHERE employeeid = @employeeid
     }
 
     public async Task<PagedResult<EmployeeLeaveBalanceDto>> GetTeamRemainingLeavesAsync(
-        Guid managerEmployeeId, 
-        Guid organizationId, 
-        int year,
-        string? employeeName = null,
-        Guid? leaveTypeId = null,
-        int page = 1,
-        int pageSize = 50,
-        string? sortBy = null,
-        string? sortOrder = "asc")
+      Guid managerEmployeeId,
+      Guid organizationId,
+      int year,
+      string? employeeName = null,
+      Guid? leaveTypeId = null,
+      int page = 1,
+      int pageSize = 50,
+      string? sortBy = null,
+      string? sortOrder = "asc")
     {
         var parameters = new DynamicParameters();
         parameters.Add("managerEmployeeId", managerEmployeeId);
         parameters.Add("organizationId", organizationId);
         parameters.Add("year", year);
 
-        var employeeFilter = string.IsNullOrWhiteSpace(employeeName) 
-            ? "" 
+        var employeeFilter = string.IsNullOrWhiteSpace(employeeName)
+            ? ""
             : "AND LOWER(e.firstname || ' ' || e.lastname) LIKE LOWER(@employeeName)";
-        
+
         if (!string.IsNullOrWhiteSpace(employeeName))
         {
             parameters.Add("employeeName", $"%{employeeName}%");
@@ -638,14 +828,14 @@ WHERE employeeid = @employeeid
 
         // Count distinct employees
         var countSql = $@"
-            SELECT COUNT(DISTINCT e.employeeid)
-            FROM employee.employees e
-            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
-            WHERE ed.reportingmanagerid = @managerEmployeeId
-              AND ed.iscurrent = true
-              AND e.organizationid = @organizationId
-              AND e.status = 'active'
-              {employeeFilter}";
+         SELECT COUNT(DISTINCT e.employeeid)
+         FROM employee.employees e
+         INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+         WHERE ed.reportingmanagerid = @managerEmployeeId
+           AND ed.iscurrent = true
+           AND e.organizationid = @organizationId
+           AND e.status = 'active'
+           {employeeFilter}";
 
         var totalCount = await QuerySingleAsync<int>(countSql, parameters);
 
@@ -655,50 +845,62 @@ WHERE employeeid = @employeeid
         parameters.Add("pageSize", pageSize);
 
         var sql = $@"
-            WITH TeamEmployees AS (
-                SELECT DISTINCT e.employeeid, 
-                       e.firstname || ' ' || e.lastname AS employeename
-                FROM employee.employees e
-                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
-                WHERE ed.reportingmanagerid = @managerEmployeeId
-                  AND ed.iscurrent = true
-                  AND e.organizationid = @organizationId
-                  AND e.status = 'active'
-                  {employeeFilter}
-                {employeeOrderBy}
-                LIMIT @pageSize OFFSET @offset
-            ),
-            LeaveTypes AS (
-                SELECT leavetypeid, 
-                       typename, 
-                       maxdaysperyear
-                FROM attendance.leavetypes
-                WHERE organizationid = @organizationId
-                  AND isactive = true
-                  {leaveTypeFilter}
-            ),
-            UsedLeaves AS (
-                SELECT lr.employeeid,
-                       lr.leavetypeid,
-                       COALESCE(SUM(lr.daysrequested), 0) AS useddays
-                FROM attendance.leaverequests lr
-                INNER JOIN TeamEmployees te ON lr.employeeid = te.employeeid
-                WHERE lr.status = 'approved'
-                  AND EXTRACT(YEAR FROM lr.startdate) = @year
-                GROUP BY lr.employeeid, lr.leavetypeid
-            )
-            SELECT te.employeeid AS EmployeeId,
-                   te.employeename AS EmployeeName,
-                   lt.leavetypeid AS LeaveTypeId,
-                   lt.typename AS LeaveTypeName,
-                   lt.maxdaysperyear AS TotalDays,
-                   COALESCE(ul.useddays, 0) AS UsedDays,
-                   (lt.maxdaysperyear - COALESCE(ul.useddays, 0)) AS RemainingDays
-            FROM TeamEmployees te
-            CROSS JOIN LeaveTypes lt
-            LEFT JOIN UsedLeaves ul ON te.employeeid = ul.employeeid 
-                                   AND lt.leavetypeid = ul.leavetypeid
-            ORDER BY te.employeename, lt.typename";
+         WITH TeamEmployees AS (
+             SELECT DISTINCT e.employeeid, 
+                    e.firstname || ' ' || e.lastname AS employeename
+             FROM employee.employees e
+             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+             WHERE ed.reportingmanagerid = @managerEmployeeId
+               AND ed.iscurrent = true
+               AND e.organizationid = @organizationId
+               AND e.status = 'active'
+               {employeeFilter}
+             {employeeOrderBy}
+             LIMIT @pageSize OFFSET @offset
+         ),
+         LeaveTypes AS (
+             SELECT leavetypeid, 
+                    typename
+             FROM attendance.leavetypes
+             WHERE organizationid = @organizationId
+               AND isactive = true
+               {leaveTypeFilter}
+         ),
+         LeaveEntitlements AS (
+             SELECT le.employeeid,
+                    le.leavetypeid,
+                    le.totaldays,
+                    le.useddays,
+                    le.remainingdays,
+                    le.carryforwarddays
+             FROM attendance.leaveentitlements le
+             INNER JOIN TeamEmployees te ON le.employeeid = te.employeeid
+             WHERE le.year = @year
+         ),
+         UsedLeaves AS (
+             SELECT lr.employeeid,
+                    lr.leavetypeid,
+                    COALESCE(SUM(lr.daysrequested), 0) AS useddays
+             FROM attendance.leaverequests lr
+             INNER JOIN TeamEmployees te ON lr.employeeid = te.employeeid
+             WHERE lr.status = 'approved'
+               AND EXTRACT(YEAR FROM lr.startdate) = @year
+             GROUP BY lr.employeeid, lr.leavetypeid
+         )
+         SELECT te.employeeid AS EmployeeId,
+                te.employeename AS EmployeeName,
+                lt.leavetypeid AS LeaveTypeId,
+                lt.typename AS LeaveTypeName,
+                COALESCE(le.totaldays, 0) AS TotalDays,
+                COALESCE(le.useddays, 0) + COALESCE(ul.useddays, 0) AS UsedDays,
+                COALESCE(le.remainingdays, 0) AS RemainingDays
+         FROM TeamEmployees te
+         CROSS JOIN LeaveTypes lt
+         LEFT JOIN LeaveEntitlements le ON te.employeeid = le.employeeid 
+                                       AND lt.leavetypeid = le.leavetypeid
+         LEFT JOIN UsedLeaves ul ON te.employeeid = ul.employeeid 
+                                AND lt.leavetypeid = ul.leavetypeid
+         ORDER BY te.employeename, lt.typename";
 
         var results = await QueryAsync<EmployeeLeaveBalanceDto>(sql, parameters);
 
@@ -712,23 +914,23 @@ WHERE employeeid = @employeeid
     }
 
     public async Task<PagedResult<EmployeeLeaveBalanceDto>> GetTeamRemainingLeavesByOrganizationAsync(
-        Guid organizationId, 
-        int year,
-        string? employeeName = null,
-        Guid? leaveTypeId = null,
-        int page = 1,
-        int pageSize = 50,
-        string? sortBy = null,
-        string? sortOrder = "asc")
+      Guid organizationId,
+      int year,
+      string? employeeName = null,
+      Guid? leaveTypeId = null,
+      int page = 1,
+      int pageSize = 50,
+      string? sortBy = null,
+      string? sortOrder = "asc")
     {
         var parameters = new DynamicParameters();
         parameters.Add("organizationId", organizationId);
         parameters.Add("year", year);
 
-        var employeeFilter = string.IsNullOrWhiteSpace(employeeName) 
-            ? "" 
+        var employeeFilter = string.IsNullOrWhiteSpace(employeeName)
+            ? ""
             : "AND LOWER(e.firstname || ' ' || e.lastname) LIKE LOWER(@employeeName)";
-        
+
         if (!string.IsNullOrWhiteSpace(employeeName))
         {
             parameters.Add("employeeName", $"%{employeeName}%");
@@ -749,13 +951,13 @@ WHERE employeeid = @employeeid
 
         // Count distinct employees
         var countSql = $@"
-            SELECT COUNT(DISTINCT e.employeeid)
-            FROM employee.employees e
-            INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
-            WHERE ed.iscurrent = true
-              AND e.organizationid = @organizationId
-              AND e.status = 'active'
-              {employeeFilter}";
+         SELECT COUNT(DISTINCT e.employeeid)
+         FROM employee.employees e
+         INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+         WHERE ed.iscurrent = true
+           AND e.organizationid = @organizationId
+           AND e.status = 'active'
+           {employeeFilter}";
 
         var totalCount = await QuerySingleAsync<int>(countSql, parameters);
 
@@ -765,49 +967,61 @@ WHERE employeeid = @employeeid
         parameters.Add("pageSize", pageSize);
 
         var sql = $@"
-            WITH AllEmployees AS (
-                SELECT DISTINCT e.employeeid, 
-                       e.firstname || ' ' || e.lastname AS employeename
-                FROM employee.employees e
-                INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
-                WHERE ed.iscurrent = true
-                  AND e.organizationid = @organizationId
-                  AND e.status = 'active'
-                  {employeeFilter}
-                {employeeOrderBy}
-                LIMIT @pageSize OFFSET @offset
-            ),
-            LeaveTypes AS (
-                SELECT leavetypeid, 
-                       typename, 
-                       maxdaysperyear
-                FROM attendance.leavetypes
-                WHERE organizationid = @organizationId
-                  AND isactive = true
-                  {leaveTypeFilter}
-            ),
-            UsedLeaves AS (
-                SELECT lr.employeeid,
-                       lr.leavetypeid,
-                       COALESCE(SUM(lr.daysrequested), 0) AS useddays
-                FROM attendance.leaverequests lr
-                INNER JOIN AllEmployees ae ON lr.employeeid = ae.employeeid
-                WHERE lr.status = 'approved'
-                  AND EXTRACT(YEAR FROM lr.startdate) = @year
-                GROUP BY lr.employeeid, lr.leavetypeid
-            )
-            SELECT ae.employeeid AS EmployeeId,
-                   ae.employeename AS EmployeeName,
-                   lt.leavetypeid AS LeaveTypeId,
-                   lt.typename AS LeaveTypeName,
-                   lt.maxdaysperyear AS TotalDays,
-                   COALESCE(ul.useddays, 0) AS UsedDays,
-                   (lt.maxdaysperyear - COALESCE(ul.useddays, 0)) AS RemainingDays
-            FROM AllEmployees ae
-            CROSS JOIN LeaveTypes lt
-            LEFT JOIN UsedLeaves ul ON ae.employeeid = ul.employeeid 
-                                   AND lt.leavetypeid = ul.leavetypeid
-            ORDER BY ae.employeename, lt.typename";
+         WITH AllEmployees AS (
+             SELECT DISTINCT e.employeeid, 
+                    e.firstname || ' ' || e.lastname AS employeename
+             FROM employee.employees e
+             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
+             WHERE ed.iscurrent = true
+               AND e.organizationid = @organizationId
+               AND e.status = 'active'
+               {employeeFilter}
+             {employeeOrderBy}
+             LIMIT @pageSize OFFSET @offset
+         ),
+         LeaveTypes AS (
+             SELECT leavetypeid, 
+                    typename
+             FROM attendance.leavetypes
+             WHERE organizationid = @organizationId
+               AND isactive = true
+               {leaveTypeFilter}
+         ),
+         LeaveEntitlements AS (
+             SELECT le.employeeid,
+                    le.leavetypeid,
+                    le.totaldays,
+                    le.useddays,
+                    le.remainingdays,
+                    le.carryforwarddays
+             FROM attendance.leaveentitlements le
+             INNER JOIN AllEmployees ae ON le.employeeid = ae.employeeid
+             WHERE le.year = @year
+         ),
+         UsedLeaves AS (
+             SELECT lr.employeeid,
+                    lr.leavetypeid,
+                    COALESCE(SUM(lr.daysrequested), 0) AS useddays
+             FROM attendance.leaverequests lr
+             INNER JOIN AllEmployees ae ON lr.employeeid = ae.employeeid
+             WHERE lr.status = 'approved'
+               AND EXTRACT(YEAR FROM lr.startdate) = @year
+             GROUP BY lr.employeeid, lr.leavetypeid
+         )
+         SELECT ae.employeeid AS EmployeeId,
+                ae.employeename AS EmployeeName,
+                lt.leavetypeid AS LeaveTypeId,
+                lt.typename AS LeaveTypeName,
+                COALESCE(le.totaldays, 0) AS TotalDays,
+                COALESCE(le.useddays, 0) + COALESCE(ul.useddays, 0) AS UsedDays,
+                COALESCE(le.remainingdays, 0) AS RemainingDays
+         FROM AllEmployees ae
+         CROSS JOIN LeaveTypes lt
+         LEFT JOIN LeaveEntitlements le ON ae.employeeid = le.employeeid 
+                                       AND lt.leavetypeid = le.leavetypeid
+         LEFT JOIN UsedLeaves ul ON ae.employeeid = ul.employeeid 
+                                AND lt.leavetypeid = ul.leavetypeid
+         ORDER BY ae.employeename, lt.typename";
 
         var results = await QueryAsync<EmployeeLeaveBalanceDto>(sql, parameters);
 

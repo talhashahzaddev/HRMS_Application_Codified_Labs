@@ -18,6 +18,7 @@ public class EmployeeSearchViewModel
 
 public class AttendanceSearchViewModel
 {
+    public string? SearchTerm { get; set; }
     public Guid? EmployeeId { get; set; }
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
@@ -56,4 +57,10 @@ public class PayrollSearchViewModel
     public string? Status { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;
+}
+
+public class AssetSearchViewModel
+{
+    public Guid? AssetTypeId { get; set; }
+    public string? Status { get; set; }
 }

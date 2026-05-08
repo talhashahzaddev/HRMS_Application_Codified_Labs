@@ -5,18 +5,25 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface ILeaveRepository
 {
+    //adding gthe method  here
+    Task<bool> SubstractLeaveDayAsync(Guid leaveTypeId, Guid employeeId, int totalLeaveDays);
     Task<Guid> GetEmpId(Guid? employeeId);
     Task<LeaveRequest> CreateLeaveRequestAsync(Guid employeeId, Guid leaveTypeId, DateTime startDate, DateTime endDate, string? reason = null);
     Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, string status, Guid approvedBy, string? rejectionReason = null);
+    Task<PushEmailLeaveRequest> GetEmployeeDetails(Guid RequestId);
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsAsync(Guid? employeeId , Guid organizationId , string? status = null, int page = 1, int pageSize = 50);
     Task<PagedResult<LeaveRequestDto>> GetLeaveRequestsByOrganizationAsync(Guid organizationId, string? status = null, int page = 1, int pageSize = 50);
     Task<List<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId);
+    Task<List<LeaveTypeDto>> GetLeaveTypesforRequestAsync(Guid organizationId);
     Task<List<LeaveTypeDto>> GetLeaveTypeIdByNameAsync(string LeaveType, Guid organizationId);
+    Task<string> GetLeaveTypeNameByIdAsync(Guid LeaveTypeid, Guid organizationId);
     Task<bool> CreateLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto);
     Task<bool> EditLeaveTypeAsync(Guid organizationId, LeaveTypeDto dto);
     Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year);
     Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year);
     Task<LeaveRequest?> GetLeaveRequestByIdAsync(Guid requestId);
+    Task<LeaveEntitlementDto> EditingLeaveElementals(Guid empId, Guid leaveTypeid, decimal Days);
+    Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days);
     Task<bool> UpdateLeaveRequestAsync(Guid requestId, Guid leaveTypeId, DateTime startDate, DateTime endDate, decimal daysRequested, string? reason = null);
     Task<bool> CancelLeaveRequestAsync(Guid requestId);
     Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null);

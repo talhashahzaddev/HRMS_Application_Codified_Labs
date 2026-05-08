@@ -5,11 +5,11 @@ namespace HRMS.API.Models.DTOs
 
         public class NotificationCreateDto
         {
-            public Guid? Receiveruserid { get; set; } // Who sees it
+            public List<Guid>? Receiveruserid { get; set; }
             public Guid? Senderuserid { get; set; }  // Who triggered it
             public string Title { get; set; }       // Leave, Attendance, Employee
             public string Notificationtype { get; set; } // RequestCreated, Approved, etc.
-            public Guid RequestId { get; set; }  //For getting request id 
+            public Guid? RequestId { get; set; }  //For getting request id 
             public string Message { get; set; }
             public string Redirecturl { get; set; }
             public string moduletype { get; set; }
@@ -20,7 +20,7 @@ namespace HRMS.API.Models.DTOs
         public class Notification
         {
             public Guid notificationid { get; set; }
-            public Guid ReceiverUserId { get; set; }
+            public Guid[] ReceiverUserIds { get; set; }
             public Guid? SenderUserId { get; set; }
             public Guid? organizationId { get; set; }
             public string title { get; set; }
@@ -31,6 +31,14 @@ namespace HRMS.API.Models.DTOs
             public string moduletype { get; set; }
             public bool IsRead { get; set; }
             public DateTime CreatedAt { get; set; }
+            public string requestStatus { get; set; }
+        }
+
+        public class leaveNotification
+        {
+            public Guid reportingmanagerid { get; set; }
+            public string email { get; set; }
+            public string receivername { get; set; }
         }
 
 

@@ -16,6 +16,9 @@ public class LeaveService : ILeaveService
     private readonly ILeaveRepository _leaveRepository;
     private readonly INotificationRepository _notificationRepository;
     private readonly IEmployeeRepository _employeeRepository;
+    private readonly IAttendanceRepository _attendanceRepository;
+    private readonly IHolidayRepository _holidayRepository;
+    private readonly IEmailService _emailService;
     private readonly IMapper _mapper;
     private readonly ILogger<LeaveService> _logger;
 
@@ -23,17 +26,23 @@ public class LeaveService : ILeaveService
         ILeaveRepository leaveRepository,
         INotificationRepository notificationRepository,
         IEmployeeRepository employeeRepository,
+        IAttendanceRepository attendanceRepository,
+        IHolidayRepository holidayRepository,
+        IEmailService emailService,
         IMapper mapper,
         ILogger<LeaveService> logger)
     {
         _leaveRepository = leaveRepository;
         _notificationRepository = notificationRepository;
         _employeeRepository = employeeRepository;
+        _attendanceRepository = attendanceRepository;
+        _holidayRepository = holidayRepository;
+        _emailService = emailService;
         _mapper = mapper;
         _logger = logger;
     }
 
-    public async Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequest request, Guid employeeId)
+    public async Task<LeaveRequestDto> CreateLeaveRequestAsync(CreateLeaveRequest request, Guid employeeId, Guid organizationid)
     {
         _logger.LogInformation("Creating leave request for employee: {EmployeeId}", employeeId);
 
@@ -52,21 +61,89 @@ public class LeaveService : ILeaveService
         try
         {
             var empId = await _leaveRepository.GetEmpId(employeeId);
+            var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
+            if (employee == null)
+                throw new InvalidOperationException("Employee profile not found");
+
+            var holidaysInRange = (await _holidayRepository.GetHolidaysInRangeForEmployeeAsync(
+                employee.OrganizationId,
+                employee.EmployeeId,
+                employee.DepartmentId,
+                employee.WorkLocation,
+                request.StartDate.Date,
+                request.EndDate.Date)).ToList();
+
+            if (holidaysInRange.Any())
+            {
+                throw new InvalidOperationException("Leave cannot be applied on holiday dates.");
+            }
+
             var hasOverlap = await _leaveRepository.HasOverlappingLeaveAsync(empId, request.StartDate, request.EndDate);
             if (hasOverlap)
                 throw new InvalidOperationException("Leave request overlaps with existing leave");
 
-            var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
-                empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
+            //Subtracting the days From leave Elementals of Employee
+            //var totalleaveDays = (request.EndDate.Date - request.StartDate.Date).Days + 1;
+            var currentshiftdetails = await _attendanceRepository.GetShiftByEmployeeIdAsync(empId);
+            int totalleaveDays = 0;
 
-            var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
-            var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
+            if (currentshiftdetails != null)
+            {
+               
+                var workingDays = new HashSet<int>(currentshiftdetails.DaysOfWeek);
+
+                for (var date = request.StartDate.Date; date <= request.EndDate.Date; date = date.AddDays(1))
+                {
+                    if (workingDays.Contains((int)date.DayOfWeek))
+                    {
+                        totalleaveDays++;
+                    }
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException("No Shift assigned");
+
+            }
+            var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
+          empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
+
+            var typename = await _leaveRepository.GetLeaveTypeNameByIdAsync(request.LeaveTypeId,organizationid);
+
+            ////Method for Subctracting the days
+
+            if (leaveRequest != null && leaveRequest.RequestId != Guid.Empty)
+            {
+                var SubctractingDays = await _leaveRepository.SubstractLeaveDayAsync(request.LeaveTypeId, empId, totalleaveDays);
+
+            }
+
+            var reportingmangerdetails = await _notificationRepository.GetReciveridANdEmailAsync(employee.EmployeeId);
+
+            //if no manager assigne then push notification to superadmin
+
+            if (reportingmangerdetails == null)
+            {
+                var superadmin = await _notificationRepository.GetNoManagerReciveridAsync(employee.EmployeeId);
+                if (superadmin != null)
+                {
+                    // Create a new instance and assign values
+                    reportingmangerdetails = new leaveNotification
+                    {
+                        reportingmanagerid = superadmin.reportingmanagerid,
+                        email = superadmin.email,
+                        receivername = superadmin.receivername
+                    };
+                }
+            }
+
+            
 
             if (leaveRequest != null)
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = reportingmangerid,
+                    Receiveruserid = new List<Guid> { reportingmangerdetails.reportingmanagerid },
                     Senderuserid = employee.EmployeeId,
                     Title = "Leave Request",
                     RequestId = leaveRequest.RequestId,
@@ -78,6 +155,8 @@ public class LeaveService : ILeaveService
                     organizationId = employee.OrganizationId
                 };
                 await _notificationRepository.CreateNotificationAsync(employee.OrganizationId, notification);
+                var EmployeeFullName = employee.FirstName +" "+ employee.LastName;
+                await _emailService.SendLeaveRequestToManagerAsync(reportingmangerdetails.email,reportingmangerdetails.receivername ,EmployeeFullName, typename,request.StartDate,request.EndDate,request.Reason,organizationid);
             }
 
             return _mapper.Map<LeaveRequestDto>(leaveRequest);
@@ -100,38 +179,82 @@ public class LeaveService : ILeaveService
             throw new InvalidOperationException("An error occurred while creating the leave request", ex);
         }
     }
-    public async Task<LeaveApplicationDetails> CreateLeaveRequestByChatBotAsync(LeaveApplicationDetails request, Guid employeeId, Guid organizationId)
+    public async Task<LeaveApplicationDetails> CreateLeaveRequestByChatBotAsync(LeaveApplicationDetails request, Guid employeeId, Guid organizationId, string? baseUrl = null)
     {
         try
         {
-            var leavetypeId = await _leaveRepository.GetLeaveTypeIdByNameAsync(request.leaveType, organizationId);
-            var typeId = leavetypeId.FirstOrDefault().LeaveTypeId;
+            if (request == null)
+            {
+                throw new ArgumentNullException(nameof(request), "Leave request details are required.");
+            }
+
+            var startDate = request.startDate.Date;
+            var endDate = request.endDate.Date;
+            var today = DateTime.Today;
+
+            if (startDate == DateTime.MinValue || endDate == DateTime.MinValue)
+            {
+                throw new InvalidOperationException("Please provide valid start and end dates for leave application.");
+            }
+
+            if (startDate < today)
+            {
+                throw new InvalidOperationException("Leave start date must be today or a future date.");
+            }
+
+            if (endDate < startDate)
+            {
+                throw new InvalidOperationException("Leave end date must be on or after the start date.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.leaveType))
+            {
+                throw new InvalidOperationException("Please provide a valid leave type.");
+            }
+
+            var leaveTypeInput = request.leaveType.Trim();
+            var leaveTypeMatches = await _leaveRepository.GetLeaveTypeIdByNameAsync(leaveTypeInput, organizationId);
+            var leaveType = leaveTypeMatches.FirstOrDefault();
+
+            // Fallback: tolerate case and phrasing differences from AI extraction.
+            if (leaveType == null)
+            {
+                var availableTypes = await _leaveRepository.GetLeaveTypesAsync(organizationId);
+                leaveType = availableTypes.FirstOrDefault(x =>
+                    string.Equals(x.TypeName?.Trim(), leaveTypeInput, StringComparison.OrdinalIgnoreCase));
+
+                if (leaveType == null)
+                {
+                    leaveType = availableTypes.FirstOrDefault(x =>
+                        !string.IsNullOrWhiteSpace(x.TypeName) &&
+                        (x.TypeName.Contains(leaveTypeInput, StringComparison.OrdinalIgnoreCase)
+                         || leaveTypeInput.Contains(x.TypeName, StringComparison.OrdinalIgnoreCase)));
+                }
+            }
+
+            if (leaveType == null)
+            {
+                throw new InvalidOperationException($"Leave type '{request.leaveType}' was not found.");
+            }
+
             var requestDto = new CreateLeaveRequest
             {
-                LeaveTypeId = typeId,
+                LeaveTypeId = leaveType.LeaveTypeId,
                 StartDate = request.startDate,
                 EndDate = request.endDate,
                 Reason = request.reason,
                 AttachmentUrl = null
             };
-            var startDate = request.startDate.Date;
-            var endDate = request.endDate.Date;
-            var today = DateTime.Today;
-            var response = await CreateLeaveRequestAsync(requestDto, employeeId);
+            var response = await CreateLeaveRequestAsync(requestDto, employeeId,organizationId);
             var daysrequested = CalculateWorkingDays(request.startDate, request.endDate);
 
             if (daysrequested > 0)
             {
                 response.DaysRequested = daysrequested;
             }
-
-            if (startDate <= today)
-            {
-                throw new InvalidOperationException("Leave start date must be a future date.");
-            }
-
             if (response != null)
             {
+                var calendarUrl = BuildVerifyLink(baseUrl, "/leave/calendar");
                 return new LeaveApplicationDetails
                 {
                     leavetypeid = response.LeaveTypeId,
@@ -141,7 +264,7 @@ public class LeaveService : ILeaveService
                     reason = response.Reason,
                     status = response.Status,
                     statustext = $"✅ Your leave request from {response.StartDate:dd MMM yyyy} to {response.EndDate:dd MMM yyyy} " +
-                          $"for {response.DaysRequested} day(s) has been submitted with {response.Status} status \nfor more details check your calander https://frontend-hrms-phi.vercel.app/leave/calendar"
+                          $"for {response.DaysRequested} day(s) has been submitted with {response.Status} status.\nFor more details, check your leave calendar: {calendarUrl}"
                 };
             }
             else
@@ -172,6 +295,15 @@ public class LeaveService : ILeaveService
             };
         }
     }
+
+    private static string BuildVerifyLink(string? baseUrl, string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return baseUrl ?? string.Empty;
+        var normalizedBase = (baseUrl ?? string.Empty).TrimEnd('/');
+        var normalizedPath = path.StartsWith("/") ? path : "/" + path;
+        return string.IsNullOrWhiteSpace(normalizedBase) ? normalizedPath : normalizedBase + normalizedPath;
+    }
+
     public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
     {
         if (employeeId == Guid.Empty)
@@ -181,7 +313,7 @@ public class LeaveService : ILeaveService
         return LeaveRequest;
     }
 
-    public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy)
+    public async Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, UpdateLeaveRequestStatusRequest request, Guid approvedBy,Guid organizationid)
     {
         if (requestId == Guid.Empty)
             throw new ArgumentException("Request ID cannot be empty", nameof(requestId));
@@ -195,13 +327,13 @@ public class LeaveService : ILeaveService
         var normalizedStatus = request.Status.Trim().ToLowerInvariant();
         if (normalizedStatus != "approved" && normalizedStatus != "rejected")
             throw new ArgumentException("Invalid status. Allowed: approved or rejected", nameof(request));
-        if (normalizedStatus == "rejected" && string.IsNullOrWhiteSpace(request.RejectionReason))
-            throw new ArgumentException("Rejection reason is required when rejecting", nameof(request));
 
         try
         {
             var empId = await _leaveRepository.GetEmpId(approvedBy);
             var result = await _leaveRepository.UpdateLeaveRequestStatusAsync(requestId, request.Status, empId, request.RejectionReason);
+
+
 
             if (!result)
             {
@@ -215,12 +347,21 @@ public class LeaveService : ILeaveService
                 ? "Your leave request has been approved"
                 : $"Your leave request has been rejected. Reason: {request.RejectionReason}";
 
+            await _notificationRepository.UpdateNotificationRequestStatusAsync(requestId, request.Status);
+
+            var employeedetails = await _leaveRepository.GetEmployeeDetails(requestId);
+
+            bool isApproval = request.Status == "approved" ? true : false;
+
+
+            await _emailService.SendLeaveApprovalRejectionEmailAsync(employeedetails.email,employeedetails.EmployeeName,employeedetails.typename,employeedetails.startdate,employeedetails.enddate, isApproval, organizationid);
+
             if (Originalnotification != null)
             {
                 var notification = new NotificationCreateDto
                 {
-                    Receiveruserid = Originalnotification.SenderUserId,
-                    Senderuserid = Originalnotification.ReceiverUserId,
+                    Receiveruserid = new List<Guid> { Originalnotification.SenderUserId.Value },
+                    Senderuserid = Originalnotification.ReceiverUserIds.FirstOrDefault(),
                     Title = "Leave Request",
                     RequestId = Originalnotification.requestid,
                     Message = message,
@@ -239,7 +380,7 @@ public class LeaveService : ILeaveService
                     {
                         var notification = new NotificationCreateDto
                         {
-                            Receiveruserid = employeeInfo.Value.userId,
+                            Receiveruserid = new List<Guid> { employeeInfo.Value.userId },
                             Senderuserid = empId,
                             Title = "Leave Request",
                             RequestId = requestId,
@@ -323,6 +464,12 @@ public class LeaveService : ILeaveService
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _leaveRepository.GetLeaveTypesAsync(organizationId);
     }
+    public async Task<List<LeaveTypeDto>> GetLeaveTypesforrequestAsync(Guid organizationId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        return await _leaveRepository.GetLeaveTypesforRequestAsync(organizationId);
+    }
     public async Task<Guid> CreateLeaveTypeAsync(Guid organizationId, CreateLeaveTypeRequest request)
     {
         _logger.LogInformation("Creating leave type for organization: {OrganizationId}", organizationId);
@@ -353,6 +500,7 @@ public class LeaveService : ILeaveService
             Description = request.Description,
             MaxDaysPerYear = request.MaxDaysPerYear,
             IsPaid = request.IsPaid,
+            IsHalfPaid=request.IsHalfPaid,
             CarryForwardAllowed = request.CarryForwardAllowed,
             MaxCarryForwardDays = request.MaxCarryForwardDays,
             Color = request.Color,
@@ -517,8 +665,31 @@ public class LeaveService : ILeaveService
             throw new InvalidOperationException("Leave request overlaps with existing leave");
         }
 
-        // Calculate days requested
-        var daysRequested = (decimal)(request.EndDate - request.StartDate).TotalDays + 1;
+        //Getting old requested days
+
+        var OldRequestedDays = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
+
+        // Calculate days requested after edit 
+        var daysRequested = 0;
+        for (DateTime date = request.StartDate; date <= request.EndDate; date = date.AddDays(1))
+        {
+            if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
+            {
+                daysRequested++;
+            }
+        }
+
+        if (daysRequested > OldRequestedDays.DaysRequested)
+        {
+            var DaysAfterEdit = daysRequested - OldRequestedDays.DaysRequested;
+            var Editing_Elementals = await _leaveRepository.EditingLeaveElementals(empId, request.LeaveTypeId, DaysAfterEdit);
+        }
+
+        if (daysRequested < OldRequestedDays.DaysRequested)
+        {
+            var DaysAfterEdit = OldRequestedDays.DaysRequested - daysRequested;
+            var Editing_Elementals = await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, request.LeaveTypeId, DaysAfterEdit);
+        }
 
         // Update the request
         var updated = await _leaveRepository.UpdateLeaveRequestAsync(
@@ -566,7 +737,15 @@ public class LeaveService : ILeaveService
         }
 
         // Cancel the request
-        return await _leaveRepository.CancelLeaveRequestAsync(requestId);
+        var result = await _leaveRepository.CancelLeaveRequestAsync(requestId);
+        //Handling Balance while canceling the request
+        var Editing_Elementals = await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, existingRequest.LeaveTypeId, existingRequest.DaysRequested);
+
+        //Cancel notification too
+        return await _notificationRepository.DeleteNotificationAsync(requestId);
+        //update the Balance again
+
+        //return await _leaveRepository.
     }
     public async Task<List<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {

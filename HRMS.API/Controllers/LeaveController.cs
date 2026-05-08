@@ -1,12 +1,13 @@
+using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
+using HRMS.API.Models.ViewModels;
+using HRMS.API.Requests;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
 using System.Linq;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Models.ViewModels;
-using HRMS.API.Services.Interfaces;
-using HRMS.API.Models.Entities;
-using HRMS.API.Requests;
+using System.Security.Claims;
 
 namespace HRMS.API.Controllers;
 
@@ -145,6 +146,7 @@ public class LeaveController : ControllerBase
 
 
     [HttpPost("requests")]
+    [PermissionAuthorize("my_leave_request_leave")]
     public async Task<ActionResult<ServiceResponse<LeaveRequestDto>>> CreateLeaveRequest([FromBody] CreateLeaveRequest request)
     {
         try
@@ -159,7 +161,8 @@ public class LeaveController : ControllerBase
                 });
             }
             var UserId = GetCurrentEmployeeId();
-            var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, UserId);
+            var organizationid = GetCurrentOrganizationId();
+            var leaveRequest = await _leaveService.CreateLeaveRequestAsync(request, UserId,organizationid);
             
             return CreatedAtAction(nameof(GetLeaveRequest), new { id = leaveRequest.RequestId }, new ServiceResponse<LeaveRequestDto>
             {
@@ -206,14 +209,15 @@ public class LeaveController : ControllerBase
     }
 
     [HttpPut("requests/{id}/approve")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("team_leave_approve")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveLeaveRequest(Guid id)
     {
         try
         {
             var approvedBy = GetCurrentEmployeeId();
+            var organizationid = GetCurrentOrganizationId();
             var request = new UpdateLeaveRequestStatusRequest { Status = "approved" };
-            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
+            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy, organizationid);
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -267,7 +271,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpPut("requests/{id}/reject")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("team_leave_reject")]
     public async Task<ActionResult<ServiceResponse<bool>>> RejectLeaveRequest(Guid id, [FromBody] UpdateLeaveRequestStatusRequest request)
     {
         try
@@ -282,8 +286,9 @@ public class LeaveController : ControllerBase
                 });
             }
             var approvedBy = GetCurrentEmployeeId();
+            var organizationid = GetCurrentOrganizationId();
             request.Status = "rejected";
-            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy);
+            var result = await _leaveService.UpdateLeaveRequestStatusAsync(id, request, approvedBy,organizationid);
             
             return Ok(new ServiceResponse<bool>
             {
@@ -338,6 +343,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpPut("requests/{id}")]
+    [PermissionAuthorize("my_leave_edit_request")]
     public async Task<ActionResult<ServiceResponse<LeaveRequestDto>>> UpdateLeaveRequest(Guid id, [FromBody] UpdateLeaveRequest request)
     {
         try
@@ -412,6 +418,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpDelete("requests/{id}")]
+    [PermissionAuthorize("my_leave_cancel_request")]
     public async Task<ActionResult<ServiceResponse<bool>>> CancelLeaveRequest(Guid id)
     {
         try
@@ -491,7 +498,32 @@ public class LeaveController : ControllerBase
             });
         }
     }
+    [HttpGet("typesforrequest")]
+    public async Task<ActionResult<ServiceResponse<List<LeaveTypeDto>>>> GetLeaveTypesforRequest()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var leaveTypes = await _leaveService.GetLeaveTypesforrequestAsync(organizationId);
+
+            return Ok(new ServiceResponse<List<LeaveTypeDto>>
+            {
+                Success = true,
+                Data = leaveTypes
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving leave types");
+            return StatusCode(500, new ServiceResponse<List<LeaveTypeDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving leave types"
+            });
+        }
+    }
     [HttpPost("types")]
+    [PermissionAuthorize("leave_type_add_leave_type")]
     public async Task<ActionResult<ServiceResponse<Guid>>> CreateLeaveType([FromBody] CreateLeaveTypeRequest request)
     {
         try
@@ -552,6 +584,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpPut("types/{leaveTypeId:guid}")]
+    [PermissionAuthorize("leave_type_edit")]
     public async Task<ActionResult<ServiceResponse<Guid>>> EditLeaveType(
     Guid leaveTypeId,
     [FromBody] EditLeaveTypeRequest request)
@@ -711,7 +744,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("team/remaining-leaves")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("team_request_team_leave_balance")]
     public async Task<ActionResult<ServiceResponse<PagedResult<TeamRemainingLeavesDto>>>> GetTeamRemainingLeaves([FromQuery] TeamRemainingLeavesSearchViewModel searchModel)
     {
         try
