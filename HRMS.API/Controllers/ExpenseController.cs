@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 
@@ -30,7 +31,7 @@ public class ExpenseController : ControllerBase
 
     // ==================== Expense Categories ====================
     [HttpGet("categories")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("expense_category_view")]
     public async Task<ActionResult<ServiceResponse<List<ExpenseCategoryDto>>>> GetExpenseCategories()
     {
         try
@@ -64,7 +65,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("categories/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("expense_category_view_details")]
     public async Task<ActionResult<ServiceResponse<ExpenseCategoryDto>>> GetExpenseCategoryById(Guid id)
     {
         try
@@ -96,7 +97,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPost("categories")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("expense_category_add")]
     public async Task<ActionResult<ServiceResponse<ExpenseCategoryDto>>> CreateExpenseCategory([FromBody] CreateExpenseCategoryRequest request)
     {
         try
@@ -146,7 +147,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPut("categories/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("expense_category_edit")]
     public async Task<ActionResult<ServiceResponse<ExpenseCategoryDto>>> UpdateExpenseCategory(Guid id, [FromBody] UpdateExpenseCategoryRequest request)
     {
         try
@@ -198,7 +199,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpDelete("categories/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("expense_category_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteExpenseCategory(Guid id)
     {
         try
@@ -232,7 +233,7 @@ public class ExpenseController : ControllerBase
 
      //==================== Expenses ====================
     [HttpGet("expenses")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("all_claims")]
     public async Task<ActionResult<ServiceResponse<PagedResult<ExpenseDto>>>> GetExpenses(
         [FromQuery] Guid? employeeId,
         [FromQuery] string? status,
@@ -268,7 +269,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("expenses/me")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("my_claims")]
     public async Task<ActionResult<ServiceResponse<PagedResult<ExpenseDto>>>> GetAllExpensesByEmployeeId(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
@@ -303,7 +304,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("expenses/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("claims_view_details")]
     public async Task<ActionResult<ServiceResponse<ExpenseDto>>> GetExpenseById(Guid id)
     {
         try
@@ -335,7 +336,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPost("upload-receipt")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("claims_upload_receipt")]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<ActionResult<ServiceResponse<string>>> UploadReceipt(IFormFile file)
     {
@@ -374,7 +375,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPost("expenses")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("claims_add_claims")]
     public async Task<ActionResult<ServiceResponse<ExpenseDto>>> CreateExpense([FromBody] CreateExpenseRequest request)
     {
         try
@@ -428,7 +429,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPut("expenses/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("claims_edit")]
     public async Task<ActionResult<ServiceResponse<ExpenseDto>>> UpdateExpense(Guid id, [FromBody] UpdateExpenseRequest request)
     {
         try
@@ -476,7 +477,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPut("expenses/{id}/request-action")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("claims_request_action")]
     public async Task<ActionResult<ServiceResponse<ExpenseDto>>> ExpenseRequestAction(Guid id, [FromBody] ExpenseRequestActionRequest request)
     {
         try
@@ -534,7 +535,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpDelete("expenses/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("claims_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteExpense(Guid id)
     {
         try
@@ -568,7 +569,7 @@ public class ExpenseController : ControllerBase
 
     // ==================== Recurring Expenses ====================
     [HttpGet("recurring")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("all_recurring")]
     public async Task<ActionResult<ServiceResponse<PagedResult<RecurringExpenseDto>>>> GetRecurringExpenses(
         [FromQuery] Guid? employeeId,
         [FromQuery] string? status,
@@ -604,7 +605,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("recurring/me")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("my_rescurring_expenses")]
     public async Task<ActionResult<ServiceResponse<PagedResult<RecurringExpenseDto>>>> GetRecurringByEmployeeId(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10)
@@ -639,7 +640,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("recurring/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("recurring_view_details")]
     public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> GetRecurringExpenseById(Guid id)
     {
         try
@@ -671,7 +672,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPost("recurring")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("add_recurring")]
     public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> CreateRecurringExpense([FromBody] CreateRecurringExpenseRequest request)
     {
         try
@@ -725,7 +726,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPut("recurring/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("recurring_edit")]
     public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> UpdateRecurringExpense(Guid id, [FromBody] UpdateRecurringExpenseRequest request)
     {
         try
@@ -773,7 +774,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpPut("recurring/{id}/request-action")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("recurring_request_action")]
     public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> RecurringRequestAction(Guid id, [FromBody] ExpenseRequestActionRequest request)
     {
         try
@@ -831,7 +832,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("pie-report")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("report_expense_by_category")]
     public async Task<ActionResult<ServiceResponse<List<ExpensePieReportItemDto>>>> GetExpensePieReport(
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
@@ -869,7 +870,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("line-chart")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("report_expense_by_month")]
     public async Task<ActionResult<ServiceResponse<List<ExpenseLineChartItemDto>>>> GetExpenseLineChart(
         [FromQuery] int? year,
         [FromQuery] bool expense,
@@ -907,7 +908,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpGet("bar-chart")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("report_expense_by_year")]
     public async Task<ActionResult<ServiceResponse<List<ExpenseBarChartItemDto>>>> GetExpenseBarChart(
         [FromQuery] int? years,
         [FromQuery] bool expense,
@@ -955,7 +956,7 @@ public class ExpenseController : ControllerBase
     }
 
     [HttpDelete("recurring/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("recurring_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteRecurringExpense(Guid id)
     {
         try
