@@ -803,6 +803,7 @@ public class EmployeePayrollSummaryDto
     public string? Department { get; set; }
     public string? Designation { get; set; }
     public Guid TimesheetId { get; set; }
+    public Guid? ShiftId { get; set; }
     public DateTime PeriodStart { get; set; }
     public DateTime PeriodEnd   { get; set; }
 

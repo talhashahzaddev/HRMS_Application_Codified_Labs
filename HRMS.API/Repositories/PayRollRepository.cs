@@ -5922,7 +5922,7 @@ ORDER BY l.createdat DESC;";
 
             var timesheetsSql = @"
                 SELECT employee_id,
-                       MAX(shiftid) as shiftid,
+                       MAX(shift_id) as shiftid,
                        SUM(scheduled_working_days) as scheduled_working_days,
                        SUM(total_calendar_days) as total_calendar_days,
                        SUM(present_days) as present_days,
