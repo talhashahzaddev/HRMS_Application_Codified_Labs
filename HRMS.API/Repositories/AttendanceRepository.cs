@@ -485,18 +485,22 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         const string sql = @"
             SELECT
-                timesheet_id, timesheet_name, period_start, period_end, status,
-                finalized_at, locked_at,
-                employee_id, employee_code, employee_name, department, designation,
-                total_calendar_days, scheduled_working_days, weekend_days, holiday_days,
-                present_days, absent_days, late_days, half_days, early_departure_days,
-                leave_days_total, paid_leave_days, unpaid_leave_days, half_paid_leave_days,
-                total_hours_worked, regular_hours, overtime_hours,
-                regular_overtime_hours, weekend_overtime_hours, holiday_overtime_hours,
-                late_minutes, late_hours, early_departure_minutes,
-                effective_present_days, attendance_percentage,
-                is_consumed_by_payroll, aggregated_at
-              FROM attendance.fn_get_timesheet_payroll_summary(@timesheetId);";
+                fn.timesheet_id, fn.timesheet_name, fn.period_start, fn.period_end, fn.status,
+                fn.finalized_at, fn.locked_at,
+                fn.employee_id, fn.employee_code, fn.employee_name, fn.department, fn.designation,
+                tps.shift_id AS shift_id,
+                fn.total_calendar_days, fn.scheduled_working_days, fn.weekend_days, fn.holiday_days,
+                fn.present_days, fn.absent_days, fn.late_days, fn.half_days, fn.early_departure_days,
+                fn.leave_days_total, fn.paid_leave_days, fn.unpaid_leave_days, fn.half_paid_leave_days,
+                fn.total_hours_worked, fn.regular_hours, fn.overtime_hours,
+                fn.regular_overtime_hours, fn.weekend_overtime_hours, fn.holiday_overtime_hours,
+                fn.late_minutes, fn.late_hours, fn.early_departure_minutes,
+                fn.effective_present_days, fn.attendance_percentage,
+                fn.is_consumed_by_payroll, fn.aggregated_at
+              FROM attendance.fn_get_timesheet_payroll_summary(@timesheetId) AS fn
+              LEFT JOIN attendance.timesheet_payroll_summary tps
+                     ON tps.timesheet_id = fn.timesheet_id
+                    AND tps.employee_id  = fn.employee_id;";
 
         var rows = (await QueryAsync<TimesheetPayrollSummaryRow>(sql, new { timesheetId })).ToList();
         if (rows.Count == 0) return null;
@@ -523,6 +527,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
                 EmployeeName            = r.employee_name ?? string.Empty,
                 Department              = r.department,
                 Designation             = r.designation,
+                ShiftId                 = r.shift_id,
                 PeriodStart             = r.period_start,
                 PeriodEnd               = r.period_end,
                 TotalCalendarDays       = r.total_calendar_days,
@@ -579,6 +584,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         public string?  employee_name          { get; set; }
         public string?  department             { get; set; }
         public string?  designation            { get; set; }
+        public Guid?    shift_id               { get; set; }
         public int      total_calendar_days    { get; set; }
         public int      scheduled_working_days { get; set; }
         public int      weekend_days           { get; set; }

@@ -844,6 +844,7 @@ CREATE TABLE attendance.timesheet_payroll_summary (
     timesheet_id uuid NOT NULL,
     organization_id uuid NOT NULL,
     employee_id uuid NOT NULL,
+    shift_id uuid,
     period_start date NOT NULL,
     period_end   date NOT NULL,
     total_calendar_days     integer NOT NULL DEFAULT 0,
@@ -862,6 +863,9 @@ CREATE TABLE attendance.timesheet_payroll_summary (
     total_hours_worked      numeric(8,2) NOT NULL DEFAULT 0,
     regular_hours           numeric(8,2) NOT NULL DEFAULT 0,
     overtime_hours          numeric(8,2) NOT NULL DEFAULT 0,
+    regular_overtime_hours  numeric(8,2) NOT NULL DEFAULT 0,
+    weekend_overtime_hours  numeric(8,2) NOT NULL DEFAULT 0,
+    holiday_overtime_hours  numeric(8,2) NOT NULL DEFAULT 0,
     late_minutes            integer NOT NULL DEFAULT 0,
     late_hours              numeric(6,2) NOT NULL DEFAULT 0,
     early_departure_minutes integer NOT NULL DEFAULT 0,
@@ -885,10 +889,13 @@ ALTER TABLE ONLY attendance.timesheet_payroll_summary
     ADD CONSTRAINT tps_employee_id_fkey   FOREIGN KEY (employee_id)     REFERENCES employee.employees(employeeid);
 ALTER TABLE ONLY attendance.timesheet_payroll_summary
     ADD CONSTRAINT tps_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES auth.organizations(organizationid);
+ALTER TABLE ONLY attendance.timesheet_payroll_summary
+    ADD CONSTRAINT fk_tps_shift_id          FOREIGN KEY (shift_id)        REFERENCES attendance.shifts(shiftid) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS ix_tps_org_period       ON attendance.timesheet_payroll_summary (organization_id, period_start, period_end);
 CREATE INDEX IF NOT EXISTS ix_tps_employee         ON attendance.timesheet_payroll_summary (employee_id, period_start);
 CREATE INDEX IF NOT EXISTS ix_tps_payroll_period   ON attendance.timesheet_payroll_summary (payroll_period_id) WHERE payroll_period_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_tps_org_period_shift ON attendance.timesheet_payroll_summary (organization_id, period_start, period_end, shift_id);
 
 COMMENT ON TABLE  attendance.timesheet_payroll_summary IS
     'Bridge between a finalized timesheet and payroll. One row per (timesheet, employee) holding every attendance-derived counter the payroll engine consumes.';
