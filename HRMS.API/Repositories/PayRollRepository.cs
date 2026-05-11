@@ -6011,6 +6011,68 @@ ORDER BY l.createdat DESC;";
                 WHERE pf.organizationid = @organizationId AND LOWER(COALESCE(e.status, '')) = 'active' AND LOWER(COALESCE(pf.pfstatus, '')) = 'active' AND pf.isactive = true;";
             var activeProvidentFunds = (await connection.QueryAsync<dynamic>(pfSql, new { organizationId }, transaction)).ToList();
 
+            // ── Social Security prefetch ──────────────────────────────────────
+            // 1. Approved transactions for this period (already computed by HR/system)
+            var ssTransactionsSql = @"
+                SELECT
+                    st.id                  AS Id,
+                    st.employeeid          AS EmployeeId,
+                    st.ruleid              AS RuleId,
+                    st.contributionbasis   AS ContributionBasis,
+                    st.contributionbase    AS ContributionBase,
+                    COALESCE(st.employeerate, 0)  AS EmployeeRate,
+                    COALESCE(st.employerrate, 0)  AS EmployerRate,
+                    st.employeefixedamount AS EmployeeFixedAmount,
+                    st.employerfixedamount AS EmployerFixedAmount,
+                    COALESCE(st.actualsalary, 0)   AS ActualSalary,
+                    COALESCE(st.employeeamount, 0) AS EmployeeAmount,
+                    COALESCE(st.employeramount, 0) AS EmployerAmount,
+                    COALESCE(st.totalamount, 0)    AS TotalAmount,
+                    COALESCE(st.transactiontype, 'monthly') AS TransactionType,
+                    COALESCE(st.ismanualoverride, false)    AS IsManualOverride
+                FROM payroll.socialsecuritytransactions st
+                WHERE st.organizationid = @organizationId
+                  AND st.periodid       = @PeriodId
+                  AND st.isenrolled     = TRUE
+                  AND LOWER(st.requeststatus) IN ('approved', 'deducted')
+                  AND NOT (COALESCE(st.withdrawalrequest, FALSE) = TRUE
+                           AND LOWER(COALESCE(st.withdrawalstatus, '')) = 'approved');";
+            var ssTransactions = (await connection.QueryAsync<dynamic>(ssTransactionsSql, new { organizationId, PeriodId = dto.PeriodId }, transaction)).ToList();
+
+            // 2. Active enrollments without a transaction yet (auto-create candidates)
+            var ssEnrollmentsSql = @"
+                SELECT
+                    e.enrollmentid         AS EnrollmentId,
+                    e.employeeid           AS EmployeeId,
+                    e.ruleid               AS RuleId,
+                    e.configid             AS ConfigId,
+                    e.employeecustompct    AS EmployeeCustomPct,
+                    e.employercustompct    AS EmployerCustomPct,
+                    e.salarycapoverride    AS SalaryCapOverride,
+                    r.schemeid             AS SchemeId,
+                    r.contributionbasis    AS ContributionBasis,
+                    COALESCE(r.employeedefaultpct, 0) AS EmployeeDefaultPct,
+                    COALESCE(r.employerdefaultpct, 0) AS EmployerDefaultPct,
+                    r.employeefixedamount  AS EmployeeFixedAmount,
+                    r.employerfixedamount  AS EmployerFixedAmount,
+                    r.minsalarylimit       AS MinSalaryLimit,
+                    r.maxsalarylimit       AS MaxSalaryLimit
+                FROM payroll.socialsecurityemployeeenrollments e
+                JOIN payroll.socialsecurityrules r ON r.ruleid = e.ruleid
+                WHERE e.organizationid     = @organizationId
+                  AND e.iscurrent          = TRUE
+                  AND e.isdeleted          = FALSE
+                  AND LOWER(e.enrollmentstatus) = 'active'
+                  AND r.isactive = TRUE
+                  AND r.isdeleted = FALSE
+                  AND NOT EXISTS (
+                      SELECT 1 FROM payroll.socialsecuritytransactions st
+                      WHERE st.organizationid = @organizationId
+                        AND st.employeeid     = e.employeeid
+                        AND st.periodid       = @PeriodId
+                  );";
+            var ssEnrollmentsForAutoCreate = (await connection.QueryAsync<dynamic>(ssEnrollmentsSql, new { organizationId, PeriodId = dto.PeriodId }, transaction)).ToList();
+
             var taxRuleSql = @"SELECT componentruleid, taxability, limitamount, limitpercentage FROM payroll.taxcomponentrules WHERE organizationid = @organizationId AND LOWER(applystage) = 'providentfunds' AND isdeleted = false LIMIT 1;";
             var pfTaxRule = await connection.QueryFirstOrDefaultAsync<dynamic>(taxRuleSql, new { organizationId }, transaction);
 
@@ -6572,6 +6634,151 @@ ORDER BY l.createdat DESC;";
                     }
                 }
 
+                // 4b. Social Security Deduction
+                // ──────────────────────────────────────────────────────────────
+                // Two paths:
+                //   (a) An approved transaction already exists for this period → read & subtract.
+                //   (b) Employee has an active enrollment but no transaction yet → auto-create one,
+                //       then read & subtract.
+                {
+                    dynamic? ssRow = ssTransactions.FirstOrDefault(t => (Guid)t.employeeid == employeeId);
+
+                    if (ssRow == null)
+                    {
+                        var enrollment = ssEnrollmentsForAutoCreate.FirstOrDefault(e => (Guid)e.employeeid == employeeId);
+                        if (enrollment != null)
+                        {
+                            var basis = ((string?)enrollment.contributionbasis ?? "gross").Trim().ToLowerInvariant();
+
+                            // Step 1: pick salary number based on basis
+                            decimal contributionBase = basis == "fixed" ? 0m : basicSalary;
+
+                            // Step 2: apply min/max caps (enrollment override > rule cap)
+                            decimal? maxCap = enrollment.salarycapoverride != null
+                                ? (decimal?)Convert.ToDecimal(enrollment.salarycapoverride)
+                                : (enrollment.maxsalarylimit != null ? (decimal?)Convert.ToDecimal(enrollment.maxsalarylimit) : null);
+                            decimal? minLimit = enrollment.minsalarylimit != null
+                                ? (decimal?)Convert.ToDecimal(enrollment.minsalarylimit) : null;
+
+                            if (basis != "fixed")
+                            {
+                                if (minLimit.HasValue && contributionBase < minLimit.Value) contributionBase = 0m;
+                                if (maxCap.HasValue && maxCap.Value > 0 && contributionBase > maxCap.Value) contributionBase = maxCap.Value;
+                            }
+
+                            // Step 3: rates (enrollment override > rule default)
+                            decimal employeeRate = enrollment.employeecustompct != null
+                                ? Convert.ToDecimal(enrollment.employeecustompct)
+                                : Convert.ToDecimal(enrollment.employeedefaultpct);
+                            decimal employerRate = enrollment.employercustompct != null
+                                ? Convert.ToDecimal(enrollment.employercustompct)
+                                : Convert.ToDecimal(enrollment.employerdefaultpct);
+
+                            // Step 4: compute employee/employer amounts
+                            decimal employeeAmount;
+                            decimal employerAmount;
+                            if (basis == "fixed")
+                            {
+                                employeeAmount = enrollment.employeefixedamount != null ? Convert.ToDecimal(enrollment.employeefixedamount) : 0m;
+                                employerAmount = enrollment.employerfixedamount != null ? Convert.ToDecimal(enrollment.employerfixedamount) : 0m;
+                            }
+                            else
+                            {
+                                employeeAmount = Math.Round((contributionBase * employeeRate) / 100m, 2, MidpointRounding.AwayFromZero);
+                                employerAmount = Math.Round((contributionBase * employerRate) / 100m, 2, MidpointRounding.AwayFromZero);
+                            }
+
+                            // Insert a fresh transaction row for this period
+                            var insertSsTxSql = @"
+                                INSERT INTO payroll.socialsecuritytransactions
+                                    (organizationid, employeeid, periodid, ruleid, schemeid, configid, enrollmentid,
+                                     actualsalary, salarycapped, contributionbase, contributionbasis,
+                                     employeerate, employerrate, employeefixedamount, employerfixedamount,
+                                     employeeamount, employeramount,
+                                     requeststatus, isenrolled, withdrawalrequest,
+                                     transactiontype, sourcetype, referencecode)
+                                VALUES
+                                    (@organizationId, @EmployeeId, @PeriodId, @RuleId, @SchemeId, @ConfigId, @EnrollmentId,
+                                     @ActualSalary, @SalaryCapped, @ContributionBase, @ContributionBasis,
+                                     @EmployeeRate, @EmployerRate, @EmployeeFixedAmount, @EmployerFixedAmount,
+                                     @EmployeeAmount, @EmployerAmount,
+                                     'approved', TRUE, FALSE,
+                                     'monthly', 'system',
+                                     ('SS-' || upper(substring(replace(uuid_generate_v4()::text, '-', ''), 1, 10))))
+                                ON CONFLICT (employeeid, periodid) DO NOTHING
+                                RETURNING id, employeeamount AS EmployeeAmount, employeramount AS EmployerAmount,
+                                          contributionbasis AS ContributionBasis, contributionbase AS ContributionBase,
+                                          employeerate AS EmployeeRate, employerrate AS EmployerRate,
+                                          transactiontype AS TransactionType, ismanualoverride AS IsManualOverride;";
+
+                            var inserted = await connection.QuerySingleOrDefaultAsync<dynamic>(insertSsTxSql, new
+                            {
+                                organizationId,
+                                EmployeeId = employeeId,
+                                PeriodId = dto.PeriodId,
+                                RuleId = (Guid)enrollment.ruleid,
+                                SchemeId = enrollment.schemeid != null ? (Guid?)enrollment.schemeid : null,
+                                ConfigId = enrollment.configid != null ? (Guid?)enrollment.configid : null,
+                                EnrollmentId = (Guid)enrollment.enrollmentid,
+                                ActualSalary = basicSalary,
+                                SalaryCapped = contributionBase,
+                                ContributionBase = contributionBase,
+                                ContributionBasis = basis,
+                                EmployeeRate = employeeRate,
+                                EmployerRate = employerRate,
+                                EmployeeFixedAmount = enrollment.employeefixedamount != null ? (decimal?)Convert.ToDecimal(enrollment.employeefixedamount) : null,
+                                EmployerFixedAmount = enrollment.employerfixedamount != null ? (decimal?)Convert.ToDecimal(enrollment.employerfixedamount) : null,
+                                EmployeeAmount = employeeAmount,
+                                EmployerAmount = employerAmount
+                            }, transaction);
+
+                            if (inserted != null)
+                            {
+                                ssRow = inserted;
+                            }
+                        }
+                    }
+
+                    if (ssRow != null)
+                    {
+                        decimal ssEmployeeAmount = Convert.ToDecimal(ssRow.employeeamount);
+                        decimal ssEmployerAmount = Convert.ToDecimal(ssRow.employeramount);
+                        string txType = ((string?)ssRow.transactiontype ?? "monthly").Trim().ToLowerInvariant();
+                        bool isOverride = ssRow.ismanualoverride != null && Convert.ToBoolean(ssRow.ismanualoverride);
+
+                        // Refund flips direction; everything else is a deduction.
+                        if (txType == "refund")
+                        {
+                            remainingSalary += ssEmployeeAmount;
+                        }
+                        else
+                        {
+                            remainingSalary -= ssEmployeeAmount;
+                        }
+
+                        result.SocialSecurityDeductionsApplied += 1;
+                        result.TotalSocialSecurityEmployeeAmount += (txType == "refund" ? -ssEmployeeAmount : ssEmployeeAmount);
+                        result.TotalSocialSecurityEmployerAmount += ssEmployerAmount;
+                        result.SocialSecurityDeductionDetails.Add(new PayrollSocialSecurityDeductionDetailDto
+                        {
+                            EmployeeId = employeeId,
+                            TransactionId = (Guid)ssRow.id,
+                            RuleId = ssRow.ruleid != null ? (Guid?)ssRow.ruleid : null,
+                            ContributionBasis = (string?)ssRow.contributionbasis,
+                            ContributionBase = ssRow.contributionbase != null ? (decimal?)Convert.ToDecimal(ssRow.contributionbase) : null,
+                            EmployeeRate = ssRow.employeerate != null ? Convert.ToDecimal(ssRow.employeerate) : 0m,
+                            EmployerRate = ssRow.employerrate != null ? Convert.ToDecimal(ssRow.employerrate) : 0m,
+                            EmployeeAmount = ssEmployeeAmount,
+                            EmployerAmount = ssEmployerAmount,
+                            TotalAmount = ssEmployeeAmount + ssEmployerAmount,
+                            TransactionType = txType,
+                            IsManualOverride = isOverride,
+                            AutoCreated = false,
+                            NetSalaryAfterSocialSecurityDeduction = remainingSalary
+                        });
+                    }
+                }
+
                 // 5. TAX Calculation
                 decimal monthlyGross = basicSalary + totalBonuses;
                 decimal pfExemptAmount = 0;
@@ -6694,6 +6901,7 @@ ORDER BY l.createdat DESC;";
                 var empLoanDeductions = JsonSerializer.Serialize(result.LoanDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
                 var empSalaryAdvances = JsonSerializer.Serialize(result.SalaryAdvanceDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
                 var empPfDeductions = JsonSerializer.Serialize(result.ProvidentFundDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
+                var empSocialSecurityDeductions = JsonSerializer.Serialize(result.SocialSecurityDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
                 var empTaxDeductions = JsonSerializer.Serialize(result.TaxDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
                 var empAttendanceDeductions = JsonSerializer.Serialize(result.AttendanceDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
                 var empLateAttendanceDeductions = JsonSerializer.Serialize(result.LateAttendanceDeductionDetails.Where(x => x.EmployeeId == employeeId).ToList());
@@ -6706,17 +6914,17 @@ ORDER BY l.createdat DESC;";
                 var upsertResultSql = @"
                     INSERT INTO payroll.payrollresults (
                         organizationid, employeeid, periodid, basicsalary, totaldeductions, totalbonuses, netsalary,
-                        loandeductions, salaryadvancedeductions, pfdeductions, taxdeductions,
+                        loandeductions, salaryadvancedeductions, pfdeductions, socialsecuritydeductions, taxdeductions,
                         attendancedeductions, lateattendancedeductions, leavedeductions,
                         performancebonuses, generalbonuses, gratuity, overtimedetails, calculatedat
                     ) VALUES (
                         @OrganizationId, @EmployeeId, @PeriodId, @BasicSalary, @TotalDeductions, @TotalBonuses, @NetSalary,
-                        @LoanDeductions::jsonb, @SalaryAdvanceDeductions::jsonb, @PfDeductions::jsonb, @TaxDeductions::jsonb,
+                        @LoanDeductions::jsonb, @SalaryAdvanceDeductions::jsonb, @PfDeductions::jsonb, @SocialSecurityDeductions::jsonb, @TaxDeductions::jsonb,
                         @AttendanceDeductions::jsonb, @LateAttendanceDeductions::jsonb, @LeaveDeductions::jsonb,
                         @PerformanceBonuses::jsonb, @GeneralBonuses::jsonb, @Gratuity::jsonb, @OvertimeDetails::jsonb, CURRENT_TIMESTAMP
                     )
-                    ON CONFLICT (organizationid, employeeid, periodid) 
-                    DO UPDATE SET 
+                    ON CONFLICT (organizationid, employeeid, periodid)
+                    DO UPDATE SET
                         basicsalary = EXCLUDED.basicsalary,
                         totaldeductions = EXCLUDED.totaldeductions,
                         totalbonuses = EXCLUDED.totalbonuses,
@@ -6724,6 +6932,7 @@ ORDER BY l.createdat DESC;";
                         loandeductions = EXCLUDED.loandeductions,
                         salaryadvancedeductions = EXCLUDED.salaryadvancedeductions,
                         pfdeductions = EXCLUDED.pfdeductions,
+                        socialsecuritydeductions = EXCLUDED.socialsecuritydeductions,
                         taxdeductions = EXCLUDED.taxdeductions,
                         attendancedeductions = EXCLUDED.attendancedeductions,
                         lateattendancedeductions = EXCLUDED.lateattendancedeductions,
@@ -6746,6 +6955,7 @@ ORDER BY l.createdat DESC;";
                     LoanDeductions = empLoanDeductions,
                     SalaryAdvanceDeductions = empSalaryAdvances,
                     PfDeductions = empPfDeductions,
+                    SocialSecurityDeductions = empSocialSecurityDeductions,
                     TaxDeductions = empTaxDeductions,
                     AttendanceDeductions = empAttendanceDeductions,
                     LateAttendanceDeductions = empLateAttendanceDeductions,

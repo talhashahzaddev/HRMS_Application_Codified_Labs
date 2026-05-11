@@ -1850,6 +1850,24 @@ public class PayrollGratuityDetailDto
     public decimal NetSalaryAfterGratuity { get; set; }
 }
 
+public class PayrollSocialSecurityDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid TransactionId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? ContributionBasis { get; set; }
+    public decimal? ContributionBase { get; set; }
+    public decimal EmployeeRate { get; set; }
+    public decimal EmployerRate { get; set; }
+    public decimal EmployeeAmount { get; set; }
+    public decimal EmployerAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string? TransactionType { get; set; }
+    public bool IsManualOverride { get; set; }
+    public bool AutoCreated { get; set; }
+    public decimal NetSalaryAfterSocialSecurityDeduction { get; set; }
+}
+
 public class PayrollTaxDeductionDetailDto
 {
     public Guid EmployeeId { get; set; }
@@ -1899,6 +1917,11 @@ public class PayrollCalculationResultDto
     public decimal TotalProvidentFundDeductionAmount { get; set; }
     public List<PayrollProvidentFundDeductionDetailDto> ProvidentFundDeductionDetails { get; set; } = new();
 
+    public int SocialSecurityDeductionsApplied { get; set; }
+    public decimal TotalSocialSecurityEmployeeAmount { get; set; }
+    public decimal TotalSocialSecurityEmployerAmount { get; set; }
+    public List<PayrollSocialSecurityDeductionDetailDto> SocialSecurityDeductionDetails { get; set; } = new();
+
     public int PerformanceBonusApplied { get; set; }
     public decimal TotalPerformanceBonusAmount { get; set; }
     public List<PayrollPerformanceBonusDetailDto> PerformanceBonusDetails { get; set; } = new();
@@ -1934,7 +1957,7 @@ public class PayrollCalculationResultDto
     public decimal TotalHolidayOvertimeAmount { get; set; }
     public List<PayrollOvertimeDetailDto> OvertimeDetails { get; set; } = new();
 
-    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount + TotalLeaveDeductionAmount;
+    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalSocialSecurityEmployeeAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount + TotalLeaveDeductionAmount;
 }
 
 public class PayrollLeaveDeductionDetailDto
