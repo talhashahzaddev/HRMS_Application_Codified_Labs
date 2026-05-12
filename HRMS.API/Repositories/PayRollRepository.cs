@@ -5883,15 +5883,28 @@ ORDER BY l.createdat DESC;";
             var period = await connection.QuerySingleOrDefaultAsync<dynamic>(periodSql, new { dto.PeriodId, organizationId }, transaction);
             if (period == null) { transaction.Rollback(); return null; }
 
+            var applyAttendanceRule = dto.ApplyAttendanceRule ?? dto.AttendanceRuleId.HasValue;
+            var applyLateAttendanceRule = dto.ApplyLateAttendanceRule ?? dto.LateAttendanceRuleId.HasValue;
+            var applyLeaveRule = dto.ApplyLeaveRule ?? dto.LeaveRuleId.HasValue;
+            var applyOvertime = dto.ApplyOvertime ?? true;
+            var applyPerformanceBonus = dto.ApplyPerformanceBonus ?? (dto.CycleId.HasValue && dto.CycleId.Value != Guid.Empty);
+            var applyGeneralBonus = dto.ApplyGeneralBonus ?? true;
+            var applyGratuity = dto.ApplyGratuity ?? true;
+            var applyProvidentFund = dto.ApplyProvidentFund ?? true;
+            var applySocialSecurity = dto.ApplySocialSecurity ?? true;
+            var applyTax = dto.ApplyTax ?? true;
+            var applyLoanDeductions = dto.ApplyLoanDeductions ?? true;
+            var applySalaryAdvanceDeductions = dto.ApplySalaryAdvanceDeductions ?? true;
+
             // 1. Fetch Active Employees
             var activeEmployeesSql = @"
                 SELECT
                     e.employeeid AS EmployeeId,
                     COALESCE(ed.basicsalary, 0) AS BasicSalary,
-                    ed.categoryid AS CategoryId
+                    e.categoryid AS CategoryId
                 FROM employee.employees e
                 LEFT JOIN LATERAL (
-                    SELECT ed2.basicsalary, ed2.categoryid
+                    SELECT ed2.basicsalary
                     FROM employee.employmentdetails ed2
                     WHERE ed2.employeeid = e.employeeid
                     ORDER BY ed2.iscurrent DESC, ed2.effectivedate DESC, ed2.createdat DESC
@@ -5914,7 +5927,7 @@ ORDER BY l.createdat DESC;";
 
             // Prefetch components
             dynamic? attendanceRule = null;
-            if (dto.AttendanceRuleId.HasValue && dto.AttendanceRuleId.Value != Guid.Empty)
+            if (applyAttendanceRule && dto.AttendanceRuleId.HasValue && dto.AttendanceRuleId.Value != Guid.Empty)
             {
                 var attRuleSql = @"SELECT ruleid, fixeddeduction, percentagededuction, halfdaymultiplier FROM payroll.attendancedeductionrules WHERE ruleid = @RuleId AND organizationid = @organizationId AND isactive = true AND isdeleted = false LIMIT 1;";
                 attendanceRule = await connection.QuerySingleOrDefaultAsync<dynamic?>(attRuleSql, new { organizationId, RuleId = dto.AttendanceRuleId.Value }, transaction);
@@ -5946,7 +5959,7 @@ ORDER BY l.createdat DESC;";
 
             // Prefetch late attendance rule
             dynamic? lateAttendanceRule = null;
-            if (dto.LateAttendanceRuleId.HasValue && dto.LateAttendanceRuleId.Value != Guid.Empty)
+            if (applyLateAttendanceRule && dto.LateAttendanceRuleId.HasValue && dto.LateAttendanceRuleId.Value != Guid.Empty)
             {
                 var lateRuleSql = @"SELECT ruleid, fixeddeduction, percentagededuction, graceminutes FROM payroll.lateattendancerules WHERE ruleid = @RuleId AND organizationid = @organizationId AND isactive = true AND isdeleted = false LIMIT 1;";
                 lateAttendanceRule = await connection.QuerySingleOrDefaultAsync<dynamic?>(lateRuleSql, new { organizationId, RuleId = dto.LateAttendanceRuleId.Value }, transaction);
@@ -5968,7 +5981,7 @@ ORDER BY l.createdat DESC;";
 
             // Prefetch leave rule
             dynamic? leaveRule = null;
-            if (dto.LeaveRuleId.HasValue && dto.LeaveRuleId.Value != Guid.Empty)
+            if (applyLeaveRule && dto.LeaveRuleId.HasValue && dto.LeaveRuleId.Value != Guid.Empty)
             {
                 var leaveRuleSql = @"SELECT ruleid, unpaidmultiplier, halfpaidmultiplier FROM payroll.leaverules WHERE ruleid = @RuleId AND organizationid = @organizationId AND isactive = true AND isdeleted = false LIMIT 1;";
                 leaveRule = await connection.QuerySingleOrDefaultAsync<dynamic?>(leaveRuleSql, new { organizationId, RuleId = dto.LeaveRuleId.Value }, transaction);
@@ -5980,22 +5993,22 @@ ORDER BY l.createdat DESC;";
 
             var performanceRules = new List<dynamic>();
             var appraisals = new List<dynamic>();
-            if (dto.CycleId != Guid.Empty)
+            if (applyPerformanceBonus && dto.CycleId.HasValue && dto.CycleId.Value != Guid.Empty)
             {
                 var perfSql = @"SELECT ruleid, minscore, maxscore, fixedamount, percentage FROM payroll.performancerules WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false;";
                 performanceRules = (await connection.QueryAsync<dynamic>(perfSql, new { organizationId }, transaction)).ToList();
                 var appSql = @"SELECT employeeid, finalrating FROM performance.hrappraisals WHERE organizationid = @organizationId AND cycleid = @CycleId AND LOWER(status) = 'submitted';";
-                appraisals = (await connection.QueryAsync<dynamic>(appSql, new { organizationId, CycleId = dto.CycleId }, transaction)).ToList();
+                appraisals = (await connection.QueryAsync<dynamic>(appSql, new { organizationId, CycleId = dto.CycleId.Value }, transaction)).ToList();
             }
 
             dynamic? bonusRule = null;
             var bonusEntries = new List<dynamic>();
-            if (dto.BonusRuleId.HasValue && dto.BonusRuleId.Value != Guid.Empty)
+            if (applyGeneralBonus && dto.BonusRuleId.HasValue && dto.BonusRuleId.Value != Guid.Empty)
             {
                 var ruleSql = @"SELECT ruleid, bonustype, bonusamount, bonuspercentage FROM payroll.bonusrules WHERE organizationid = @organizationId AND ruleid = @RuleId AND isactive = true AND isdeleted = false LIMIT 1;";
                 bonusRule = await connection.QuerySingleOrDefaultAsync<dynamic?>(ruleSql, new { organizationId, RuleId = dto.BonusRuleId.Value }, transaction);
             }
-            else
+            else if (applyGeneralBonus)
             {
                 var entriesSql = @"SELECT bonusid, employeeid, ruleid, bonousamount FROM payroll.bonusentries WHERE organizationid = @organizationId AND periodid = @PeriodId;";
                 bonusEntries = (await connection.QueryAsync<dynamic>(entriesSql, new { organizationId, PeriodId = dto.PeriodId }, transaction)).ToList();
@@ -6102,7 +6115,7 @@ ORDER BY l.createdat DESC;";
                 decimal totalBonuses = 0;
 
                 // 0. Attendance Deduction
-                if (attendanceRule != null)
+                if (applyAttendanceRule && attendanceRule != null)
                 {
                     var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
                     if (ts != null)
@@ -6196,7 +6209,7 @@ ORDER BY l.createdat DESC;";
                 }
 
                 // 0b. Late Attendance Deduction
-                if (lateAttendanceRule != null)
+                if (applyLateAttendanceRule && lateAttendanceRule != null)
                 {
                     var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
                     if (ts != null)
@@ -6303,7 +6316,7 @@ ORDER BY l.createdat DESC;";
                 }
 
                 // 0c. Leave Deduction
-                if (leaveRule != null)
+                if (applyLeaveRule && leaveRule != null)
                 {
                     var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
                     if (ts != null)
@@ -6374,7 +6387,7 @@ ORDER BY l.createdat DESC;";
                 }
 
                 // 0d. Overtime Bonus
-                if (overtimeRules.Any())
+                if (applyOvertime && overtimeRules.Any())
                 {
                     var ts = timesheets.FirstOrDefault(t => t.employee_id == employeeId);
                     if (ts != null)
@@ -6508,7 +6521,7 @@ ORDER BY l.createdat DESC;";
                 }
 
                 // 1. Performance Bonus
-                if (dto.CycleId != Guid.Empty && performanceRules.Any() && appraisals.Any(a => a.employeeid == employeeId))
+                if (applyPerformanceBonus && dto.CycleId.HasValue && dto.CycleId.Value != Guid.Empty && performanceRules.Any() && appraisals.Any(a => a.employeeid == employeeId))
                 {
                     var appraisal = appraisals.First(a => a.employeeid == employeeId);
                     var finalRating = appraisal.finalrating != null ? Convert.ToDecimal(appraisal.finalrating) : 0m;
@@ -6544,7 +6557,7 @@ ORDER BY l.createdat DESC;";
                 // 2. General Bonus
                 decimal generalBonusAmount = 0;
                 Guid? appliedGeneralBonusRule = null;
-                if (bonusRule != null)
+                if (applyGeneralBonus && bonusRule != null)
                 {
                     var isFixed = ((string)bonusRule.bonustype).ToLower() == "fixed";
                     var fixedAmount = bonusRule.bonusamount != null ? Convert.ToDecimal(bonusRule.bonusamount) : 0m;
@@ -6563,7 +6576,7 @@ ORDER BY l.createdat DESC;";
                         appliedGeneralBonusRule = dto.BonusRuleId!.Value;
                     }
                 }
-                else
+                else if (applyGeneralBonus)
                 {
                     var entry = bonusEntries.FirstOrDefault(e => e.employeeid == employeeId);
                     if (entry != null)
@@ -6573,7 +6586,7 @@ ORDER BY l.createdat DESC;";
                     }
                 }
 
-                if (generalBonusAmount > 0)
+                if (applyGeneralBonus && generalBonusAmount > 0)
                 {
                     remainingSalary += generalBonusAmount;
                     totalBonuses += generalBonusAmount;
@@ -6583,8 +6596,8 @@ ORDER BY l.createdat DESC;";
                 }
 
                 // 3. Gratuity
-                var grat = gratuities.FirstOrDefault(g => g.employeeid == employeeId);
-                if (grat != null)
+                var grat = applyGratuity ? gratuities.FirstOrDefault(g => g.employeeid == employeeId) : null;
+                if (applyGratuity && grat != null)
                 {
                     var gratAmount = Convert.ToDecimal(grat.totalamount);
                     var gratTxId = (Guid)grat.id;
@@ -6601,7 +6614,7 @@ ORDER BY l.createdat DESC;";
                 // 4. Provident Fund
                 decimal employeePfAmount = 0;
                 var pf = activeProvidentFunds.FirstOrDefault(p => p.employeeid == employeeId);
-                if (pf != null && remainingSalary > 0)
+                if (applyProvidentFund && pf != null && remainingSalary > 0)
                 {
                     var pfId = (Guid)pf!.pfid;
                     var employeePct = Convert.ToDecimal(pf!.employeepct);
@@ -6640,6 +6653,7 @@ ORDER BY l.createdat DESC;";
                 //   (a) An approved transaction already exists for this period → read & subtract.
                 //   (b) Employee has an active enrollment but no transaction yet → auto-create one,
                 //       then read & subtract.
+                if (applySocialSecurity)
                 {
                     dynamic? ssRow = ssTransactions.FirstOrDefault(t => (Guid)t.employeeid == employeeId);
 
@@ -6826,7 +6840,7 @@ ORDER BY l.createdat DESC;";
                     }
                 }
 
-                if (monthlyTax > 0)
+                if (applyTax && monthlyTax > 0)
                 {
                     var existingTaxSql = @"SELECT id FROM payroll.taxtransactions WHERE organizationid = @organizationId AND employeeid = @EmployeeId AND periodid = @PeriodId LIMIT 1;";
                     var existingTax = await connection.QuerySingleOrDefaultAsync<Guid?>(existingTaxSql, new { organizationId, EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
@@ -6843,7 +6857,7 @@ ORDER BY l.createdat DESC;";
                 }
 
                 // 6. Loans
-                var empLoans = loans.Where(l => l.employeeid == employeeId).ToList();
+                var empLoans = applyLoanDeductions ? loans.Where(l => l.employeeid == employeeId).ToList() : new List<dynamic>();
                 foreach (var empLoan in empLoans)
                 {
                     var loanId = (Guid)empLoan.loanid;
@@ -6874,7 +6888,7 @@ ORDER BY l.createdat DESC;";
                 }
 
                 // 7. Salary Advance
-                var empAdvances = advances.Where(a => a.employeeid == employeeId).ToList();
+                var empAdvances = applySalaryAdvanceDeductions ? advances.Where(a => a.employeeid == employeeId).ToList() : new List<dynamic>();
                 foreach (var empAdvance in empAdvances)
                 {
                     var advanceId = (Guid)empAdvance.advanceid;

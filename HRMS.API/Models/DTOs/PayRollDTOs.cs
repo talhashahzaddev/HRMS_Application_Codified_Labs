@@ -1788,11 +1788,23 @@ public class AddLoanPaymentDto
 public class CalculatePayrollDto
 {
     public Guid PeriodId { get; set; }
-    public Guid CycleId { get; set; }
+    public Guid? CycleId { get; set; }
     public Guid? BonusRuleId { get; set; }
     public Guid? AttendanceRuleId { get; set; }
     public Guid? LateAttendanceRuleId { get; set; }
     public Guid? LeaveRuleId { get; set; }
+    public bool? ApplyAttendanceRule { get; set; }
+    public bool? ApplyLateAttendanceRule { get; set; }
+    public bool? ApplyLeaveRule { get; set; }
+    public bool? ApplyOvertime { get; set; }
+    public bool? ApplyPerformanceBonus { get; set; }
+    public bool? ApplyGeneralBonus { get; set; }
+    public bool? ApplyGratuity { get; set; }
+    public bool? ApplyProvidentFund { get; set; }
+    public bool? ApplySocialSecurity { get; set; }
+    public bool? ApplyTax { get; set; }
+    public bool? ApplyLoanDeductions { get; set; }
+    public bool? ApplySalaryAdvanceDeductions { get; set; }
 }
 
 public class PayrollLoanDeductionDetailDto
