@@ -96,4 +96,6 @@ namespace HRMS.API.Services
             return new ServiceResponse<IEnumerable<OrganizationDTO>> { Data = organizationDTOs, Success = true };
         }
     }
+
+
 }

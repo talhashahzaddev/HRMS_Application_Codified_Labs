@@ -437,13 +437,89 @@ public class OnboardingService : IOnboardingService
 
         return await _repo.GetFullStatusAsync(employeeId.Value, organizationId);
     }
+
+// ── Step 4 – bank details ─────────────────────────────────────────────────────
+
+public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
+    {
+        var employeeId = await _employeeRepo.getemployeeid(userId)
+            ?? throw new KeyNotFoundException("Employee not found.");
+
+        var session = await _repo.GetSessionByEmployeeIdAsync(employeeId);
+        if (session is null) return null;
+
+        var record = await _repo.GetBankDetailsByOnboardingIdAsync(session.OnboardingId);
+        if (record is null) return null;
+
+        return new OnboardingBankDetailsDto
+        {
+            BankDetailsId = record.BankDetailsId,
+            OnboardingId = record.OnboardingId,
+            NoBankAccount = record.NoBankAccount,
+            AccountHolderName = record.AccountHolderName,
+            AccountNumber = record.AccountNumber,
+            BankName = record.BankName,
+            PaymentMethod = record.PaymentMethod,
+            Iban = record.Iban,
+            BranchName = record.BranchName,
+            BranchCode = record.BranchCode
+        };
+    }
+
+    public async Task<(bool success, string message)> SaveBankDetailsAsync(
+        Guid userId,
+        OnboardingBankDetailsRequest request)
+    {
+        try
+        {
+            var employeeId = await _employeeRepo.getemployeeid(userId)
+                ?? throw new KeyNotFoundException("Employee record not found for this user.");
+
+            var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
+                ?? throw new InvalidOperationException(
+                    "No active onboarding session found. Please complete Step 1 first.");
+
+            var record = new OnboardingBankDetails
+            {
+                OnboardingId = session.OnboardingId,
+                NoBankAccount = request.NoBankAccount,
+                AccountHolderName = request.NoBankAccount ? null : request.AccountHolderName?.Trim(),
+                AccountNumber = request.NoBankAccount ? null : request.AccountNumber?.Trim(),
+                BankName = request.NoBankAccount ? null : request.BankName?.Trim(),
+                PaymentMethod = request.NoBankAccount ? null : request.PaymentMethod?.Trim(),
+                Iban = request.NoBankAccount ? null : request.Iban?.Trim(),
+                BranchName = request.NoBankAccount ? null : request.BranchName?.Trim(),
+                BranchCode = request.NoBankAccount ? null : request.BranchCode?.Trim()
+            };
+
+            await _repo.UpsertBankDetailsAsync(record);
+
+            // Advance step tracker and recalculate completion
+            session.CurrentStep = Math.Max(session.CurrentStep, 4);
+            var education = await _repo.GetEducationBySessionAsync(session.OnboardingId);
+            var experience = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
+            session.CompletionRate = CalculateCompletion(session,
+                education.Count > 0, experience.Count > 0);
+            await _repo.UpdateSessionAsync(session);
+
+            return (true, "Bank details saved successfully.");
+        }
+        catch (KeyNotFoundException ex) { throw; }
+        catch (InvalidOperationException ex) { throw; }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving bank details for user {UserId}", userId);
+            throw;
+        }
+    }
+
 }
 // PolicyService.cs
 
 
-// ============================================================
-// FILE: Services/PolicyService.cs
-// ============================================================
+    // ============================================================
+    // FILE: Services/PolicyService.cs
+    // ============================================================
 
 public class PolicyService : IPolicyService
 {
@@ -518,8 +594,8 @@ public class PolicyService : IPolicyService
     /// If request.FileUrl is null     → keep the existing URL in DB (COALESCE).
     /// </summary>
     public async Task<(bool found, bool updated)> UpdateAsync(
-        Guid organizationId,
         Guid policyId,
+        Guid organizationId,
         UpdatePolicyRequest request)
     {
         var existing = await _repo.GetByIdAsync(policyId, organizationId);

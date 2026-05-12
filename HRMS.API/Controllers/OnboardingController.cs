@@ -453,6 +453,75 @@ public class OnboardingController : ControllerBase
             throw new UnauthorizedAccessException("Organization ID not found in token.");
         return id;
     }
+    // ── GET /api/onboarding/bank-details  (Step 4 – load existing) ───────────────
+
+    /// <summary>
+    /// Returns existing bank details for the logged-in employee's onboarding session.
+    /// The frontend calls this on Step 4 load if my-status didn't already include it.
+    /// Returns 404 when no bank details have been saved yet.
+    /// </summary>
+    [HttpGet("bank-details")]
+    public async Task<IActionResult> GetBankDetails()
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var dto = await _service.GetBankDetailsAsync(userId);
+
+            if (dto is null)
+                return NotFound(new { success = false, message = "No bank details found." });
+
+            return Ok(new { success = true, data = dto });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving bank details");
+            return StatusCode(500, new { success = false, message = "Failed to retrieve bank details." });
+        }
+    }
+
+    // ── POST /api/onboarding/bank-details  (Step 4 – save / upsert) ──────────────
+
+    /// <summary>
+    /// Saves or updates bank details.
+    /// The UNIQUE constraint on onboardingid means there is always at most one row
+    /// per onboarding session — the repository uses INSERT … ON CONFLICT DO UPDATE,
+    /// so this endpoint is idempotent.
+    ///
+    /// When noBankAccount = true all financial fields are stored as NULL and
+    /// the session is advanced to step 4 so the employee can continue.
+    /// </summary>
+    [HttpPost("bank-details")]
+    public async Task<IActionResult> SaveBankDetails([FromBody] OnboardingBankDetailsRequest request)
+    {
+        try
+        {
+            if (request is null)
+                return BadRequest(new { success = false, message = "Request body is required." });
+
+            var userId = GetCurrentUserId();
+            var (success, message) = await _service.SaveBankDetailsAsync(userId, request);
+
+            return Ok(new { success, message });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { success = false, message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { success = false, message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving bank details");
+            return StatusCode(500, new { success = false, message = "Failed to save bank details." });
+        }
+    }
 }
 
 // ── Inline request bodies for simple PUT endpoints ────────────────────────────

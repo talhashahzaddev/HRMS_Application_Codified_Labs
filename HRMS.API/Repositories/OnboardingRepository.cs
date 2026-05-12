@@ -431,6 +431,61 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             }).ToList()
         };
     }
+    // ── BANK DETAILS ──────────────────────────────────────────────────────────────
+
+    public async Task<OnboardingBankDetails?> GetBankDetailsByOnboardingIdAsync(Guid onboardingId)
+    {
+        const string sql = @"
+        SELECT bankdetailsid, onboardingid, nobankaccount,
+               accountholdername, accountnumber, bankname,
+               paymentmethod, iban, branchname, branchcode,
+               createdat, updatedat
+        FROM   onboarding.bank_details
+        WHERE  onboardingid = @OnboardingId
+        LIMIT  1";
+
+        return await QuerySingleOrDefaultAsync<OnboardingBankDetails>(
+            sql, new { OnboardingId = onboardingId });
+    }
+
+    public async Task<OnboardingBankDetails> UpsertBankDetailsAsync(OnboardingBankDetails record)
+    {
+        // Single statement — safe to call repeatedly; never creates duplicates.
+        const string sql = @"
+        INSERT INTO onboarding.bank_details
+            (onboardingid, nobankaccount, accountholdername, accountnumber,
+             bankname, paymentmethod, iban, branchname, branchcode)
+        VALUES
+            (@OnboardingId, @NoBankAccount, @AccountHolderName, @AccountNumber,
+             @BankName, @PaymentMethod, @Iban, @BranchName, @BranchCode)
+        ON CONFLICT (onboardingid) DO UPDATE SET
+            nobankaccount     = EXCLUDED.nobankaccount,
+            accountholdername = EXCLUDED.accountholdername,
+            accountnumber     = EXCLUDED.accountnumber,
+            bankname          = EXCLUDED.bankname,
+            paymentmethod     = EXCLUDED.paymentmethod,
+            iban              = EXCLUDED.iban,
+            branchname        = EXCLUDED.branchname,
+            branchcode        = EXCLUDED.branchcode,
+            updatedat         = CURRENT_TIMESTAMP
+        RETURNING bankdetailsid";
+
+        var id = await ExecuteScalarAsync<Guid>(sql, new
+        {
+            record.OnboardingId,
+            record.NoBankAccount,
+            record.AccountHolderName,
+            record.AccountNumber,
+            record.BankName,
+            record.PaymentMethod,
+            record.Iban,
+            record.BranchName,
+            record.BranchCode
+        });
+
+        record.BankDetailsId = id;
+        return record;
+    }
     // PolicyRepository.cs
     public class PolicyRepository : BaseRepository, IPolicyRepository
     {

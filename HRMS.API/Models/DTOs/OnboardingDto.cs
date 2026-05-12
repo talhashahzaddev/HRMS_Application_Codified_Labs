@@ -9,7 +9,9 @@ namespace HRMS.API.Models.DTOs;
 // REQUEST DTOs
 // ─────────────────────────────────────────────────────────────
 
-/// <summary>Step 1 – Personal info (upsert, no create-duplicate).</summary>
+/// <summary>Step 1 – Personal info (upsert, no 
+/// 
+/// -duplicate).</summary>
 public class OnboardingPersonalInfoRequest
 {
     public string FullName { get; set; } = string.Empty;  // split → FirstName + LastName
@@ -305,5 +307,119 @@ public class PolicyDto
     public string? FileName { get; set; }   // Original filename for display
     public string? FieldToggles { get; set; }   // Serialised PolicyFieldToggle JSON
     public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+/// <summary>
+/// Payload for POST /api/onboarding/bank-details
+///
+/// When NoBankAccount = true, all financial fields should be sent as null.
+/// The service enforces this by nulling them out regardless, but the frontend
+/// already does the same so both sides agree.
+/// </summary>
+public class OnboardingBankDetailsRequest
+{
+    /// <summary>
+    /// The onboarding session this record belongs to.
+    /// Resolved server-side from the JWT in most flows, but accepted here
+    /// as a belt-and-suspenders cross-check (ignored if it doesn't match).
+    /// </summary>
+    public Guid? OnboardingId { get; set; }
+
+    /// <summary>True = employee has no bank account; all financial fields are null.</summary>
+    public bool NoBankAccount { get; set; }
+
+    public string? AccountHolderName { get; set; }
+
+    public string? AccountNumber { get; set; }
+
+    public string? BankName { get; set; }
+
+    /// <summary>e.g. "Bank Transfer (EFT)", "Cheque", "Cash", "Wire Transfer"</summary>
+    public string? PaymentMethod { get; set; }
+
+    /// <summary>IBAN or SWIFT code — optional for domestic transfers.</summary>
+    public string? Iban { get; set; }
+
+    public string? BranchName { get; set; }
+
+    /// <summary>Routing number or Sort code.</summary>
+    public string? BranchCode { get; set; }
+}
+/// <summary>
+/// Bank details record returned by:
+///   GET  /api/onboarding/bank-details
+///   GET  /api/onboarding/my-status  (nested inside OnboardingStatusResponse.BankDetails)
+///
+/// AccountNumber is returned as-is so the frontend can mask it
+/// (e.g. "•••• 4521") without a separate endpoint.
+/// </summary>
+public class OnboardingBankDetailsDto
+{
+    public Guid BankDetailsId { get; set; }
+
+    public Guid OnboardingId { get; set; }
+
+    public bool NoBankAccount { get; set; }
+
+    public string? AccountHolderName { get; set; }
+
+    public string? AccountNumber { get; set; }
+
+    public string? BankName { get; set; }
+
+    public string? PaymentMethod { get; set; }
+
+    public string? Iban { get; set; }
+
+    public string? BranchName { get; set; }
+
+    public string? BranchCode { get; set; }
+
+    /// <summary>Populated on reads so the frontend knows when the record was last changed.</summary>
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime UpdatedAt { get; set; }
+}
+/// <summary>
+/// Maps 1-to-1 to onboarding.bank_details
+///
+/// Column name mapping (PostgreSQL lowercase → C# PascalCase via Dapper):
+///   bankdetailsid     → BankDetailsId
+///   onboardingid      → OnboardingId
+///   nobankaccount     → NoBankAccount
+///   accountholdername → AccountHolderName
+///   accountnumber     → AccountNumber
+///   bankname          → BankName
+///   paymentmethod     → PaymentMethod
+///   iban              → Iban
+///   branchname        → BranchName
+///   branchcode        → BranchCode
+///   createdat         → CreatedAt
+///   updatedat         → UpdatedAt
+/// </summary>
+public class OnboardingBankDetails
+{
+    public Guid BankDetailsId { get; set; }
+
+    public Guid OnboardingId { get; set; }
+
+    public bool NoBankAccount { get; set; }
+
+    public string? AccountHolderName { get; set; }
+
+    public string? AccountNumber { get; set; }
+
+    public string? BankName { get; set; }
+
+    public string? PaymentMethod { get; set; }
+
+    public string? Iban { get; set; }
+
+    public string? BranchName { get; set; }
+
+    public string? BranchCode { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
     public DateTime UpdatedAt { get; set; }
 }

@@ -30,6 +30,14 @@ public interface IOnboardingService
 
     // GET /onboarding/my-status
     Task<OnboardingStatusResponse?> GetMyStatusAsync(Guid userId, Guid organizationId);
+    // In Services/Interfaces/IOnboardingService.cs
+    // Add these two methods to the existing interface:
+
+    Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId);
+
+    Task<(bool success, string message)> SaveBankDetailsAsync(
+        Guid userId,
+        OnboardingBankDetailsRequest request);
 }
 // IPolicyService.cs
 // ============================================================

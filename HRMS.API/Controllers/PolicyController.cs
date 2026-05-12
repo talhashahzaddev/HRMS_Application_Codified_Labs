@@ -95,28 +95,10 @@ namespace HRMS.API.Controllers
         [HttpPost("Create/Policy")]
         [Authorize(Roles = "Super Admin")]
         [Consumes("multipart/form-data")]
-        public async Task<IActionResult> CreatePolicy(
-            [FromForm] string policyName,
-            [FromForm] string category,
-            [FromForm] string policyContent,
-            [FromForm] bool isPublished,
-            [FromForm] string? fieldToggles,
-            [FromForm] string? fileUrl,
-            [FromForm] string? fileName)
+        public async Task<IActionResult> CreatePolicy([FromForm] CreatePolicyRequest request)
         {
             try
             {
-                var request = new CreatePolicyRequest
-                {
-                    PolicyName = policyName,
-                    Category = category,
-                    PolicyContent = policyContent,
-                    IsPublished = isPublished,
-                    FieldToggles = fieldToggles,
-                    FileUrl = fileUrl,
-                    FileName = fileName
-                };
-
                 var orgId = GetCurrentOrganizationId();
                 var policy = await _service.CreateAsync(orgId, request);
 
@@ -126,7 +108,7 @@ namespace HRMS.API.Controllers
                     new
                     {
                         success = true,
-                        message = isPublished
+                        message = request.IsPublished
                             ? "Policy created and published successfully."
                             : "Policy saved as draft.",
                         data = policy
@@ -136,13 +118,7 @@ namespace HRMS.API.Controllers
             {
                 return BadRequest(new { success = false, message = ex.Message });
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error creating policy");
-                return StatusCode(500, new { success = false, message = "Failed to create policy." });
-            }
         }
-
         // ── PUT /api/policies/{id}  (Super Admin only) ───────────────────────
 
         [HttpPut("{id:guid}")]

@@ -44,6 +44,21 @@ public interface IOnboardingRepository
     Task<bool> UpdateWorkExperienceAsync(OnboardingWorkExperience record);
     Task<bool> DeleteWorkExperienceAsync(Guid experienceId, Guid onboardingId);
 
+    // ── Bank Details ─────────────────────────────────────────
+    //Task<OnboardingBankDetails?> GetBankDetailsBySessionAsync(Guid onboardingId);
+    //Task<OnboardingBankDetails> AddBankDetailsAsync(OnboardingBankDetails record);
+    //Task<bool> UpdateBankDetailsAsync(OnboardingBankDetails record);
+
     // ── Full status for GET /my-status ───────────────────────
     Task<OnboardingStatusResponse?> GetFullStatusAsync(Guid employeeId, Guid organizationId);
+    // In Repositories/Interfaces/IOnboardingRepository.cs
+    // Add these two methods to the existing interface:
+
+    Task<OnboardingBankDetails?> GetBankDetailsByOnboardingIdAsync(Guid onboardingId);
+
+    /// <summary>
+    /// INSERT ... ON CONFLICT (onboardingid) DO UPDATE
+    /// Guarantees one row per session — safe to call on every save.
+    /// </summary>
+    Task<OnboardingBankDetails> UpsertBankDetailsAsync(OnboardingBankDetails record);
 }

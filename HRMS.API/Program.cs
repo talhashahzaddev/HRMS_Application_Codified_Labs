@@ -11,6 +11,7 @@ using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using System.Text;
@@ -253,7 +254,10 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 // -------------------- HOSTED SERVICES --------------------
 builder.Services.AddHostedService<LeaveBalanceResetHostedService>();
-
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 200_000_000; // 200MB
+});
 // ===================== PIPELINE =====================
 var app = builder.Build();
 
@@ -263,6 +267,7 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "HRMS API V1");
     c.RoutePrefix = string.Empty;
 });
+
 
 app.UseStaticFiles();
 

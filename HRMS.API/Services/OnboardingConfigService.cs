@@ -4,9 +4,6 @@ using HRMS.API.Services.Interfaces;
 
 namespace HRMS.API.Services
 {
-  
-   
-
     // OnboardingConfigService.cs
     public class OnboardingConfigService : IOnboardingConfigService
     {
@@ -16,29 +13,26 @@ namespace HRMS.API.Services
         private static readonly Dictionary<string, List<string>> AllFields = new()
         {
             ["personalInformation"] = new()
-        {
-            "fullName", "jobTitle", "email", "phone",
-            "department", "gender", "nationality", "idNumber",
-            "profilePhoto", "resume"
-        },
+            {
+                "fullName", "jobTitle", "email", "phone",
+                "department", "gender", "nationality", "idNumber",
+                "profilePhoto", "resume"
+            },
             ["educationDetails"] = new()
-        {
-            "degreeLevel", "institutionName", "fieldOfStudy",
-            "gpa", "attachDocument", "description"
-        },
+            {
+                "degreeLevel", "institutionName", "fieldOfStudy",
+                "gpa", "attachDocument", "description"
+            },
             ["workExperience"] = new()
-        {
-            "jobTitle", "company", "employmentType", "location",
-            "startDate", "endDate", "currentlyWorking",
-            "keyResponsibilities", "attachDocument"
-        }
+            {
+                "jobTitle", "company", "employmentType", "location",
+                "startDate", "endDate", "currentlyWorking",
+                "keyResponsibilities", "attachDocument"
+            }
         };
 
-        // Fields that are always required and cannot be disabled
-        private static readonly HashSet<string> AlwaysRequired = new()
-    {
-        "fullName", "email", "phone"
-    };
+        // AlwaysRequired has been REMOVED.
+        // All field required-status is now driven purely by Super Admin configuration.
 
         public OnboardingConfigService(IOnboardingConfigRepository repo)
         {
@@ -48,7 +42,7 @@ namespace HRMS.API.Services
         public async Task<OnboardingFieldConfigResponse> GetConfigAsync(Guid organizationId)
         {
             var records = await _repo.GetByOrganizationAsync(organizationId);
-            var lookup = records.ToDictionary(r => $"{r.Section}:{r.FieldKey}", r => r);
+            var lookup  = records.ToDictionary(r => $"{r.Section}:{r.FieldKey}", r => r);
 
             var sections = new Dictionary<string, Dictionary<string, FieldConfigDto>>();
 
@@ -60,19 +54,22 @@ namespace HRMS.API.Services
                     var key = $"{section}:{field}";
                     if (lookup.TryGetValue(key, out var saved))
                     {
+                        // Use saved config exactly as Super Admin stored it —
+                        // no AlwaysRequired override.
                         sections[section][field] = new FieldConfigDto
                         {
-                            Enabled = AlwaysRequired.Contains(field) || saved.Enabled,
-                            Required = AlwaysRequired.Contains(field) || saved.Required
+                            Enabled  = saved.Enabled,
+                            Required = saved.Required
                         };
                     }
                     else
                     {
-                        // No saved config → use sensible defaults
+                        // No saved config → sensible default: visible but NOT required.
+                        // Super Admin must explicitly mark a field required.
                         sections[section][field] = new FieldConfigDto
                         {
-                            Enabled = true,
-                            Required = AlwaysRequired.Contains(field)
+                            Enabled  = true,
+                            Required = false
                         };
                     }
                 }
@@ -81,7 +78,7 @@ namespace HRMS.API.Services
             return new OnboardingFieldConfigResponse
             {
                 OrganizationId = organizationId,
-                Sections = sections
+                Sections       = sections
             };
         }
 
@@ -93,17 +90,16 @@ namespace HRMS.API.Services
             {
                 foreach (var (fieldKey, config) in fields)
                 {
-                    // Protect always-required fields
-                    bool enabled = AlwaysRequired.Contains(fieldKey) || config.Enabled;
-                    bool required = AlwaysRequired.Contains(fieldKey) || (config.Enabled && config.Required);
-
+                    // No AlwaysRequired override — honour exactly what Super Admin sent.
+                    // A disabled field cannot be required (enforce consistency here).
                     records.Add(new FieldConfigRecord
                     {
                         OrganizationId = organizationId,
-                        Section = section,
-                        FieldKey = fieldKey,
-                        Enabled = enabled,
-                        Required = required
+                        Section        = section,
+                        FieldKey       = fieldKey,
+                        Enabled        = config.Enabled,
+                        Required       = config.Enabled && config.Required
+                        // If disabled, required is forced false to stay consistent.
                     });
                 }
             }
@@ -113,14 +109,15 @@ namespace HRMS.API.Services
 
         public Task<OnboardingFieldConfigResponse> GetDefaultConfig()
         {
+            // Default: every field visible, nothing required until Super Admin configures.
             var sections = AllFields.ToDictionary(
                 kvp => kvp.Key,
                 kvp => kvp.Value.ToDictionary(
                     f => f,
                     f => new FieldConfigDto
                     {
-                        Enabled = true,
-                        Required = AlwaysRequired.Contains(f)
+                        Enabled  = true,
+                        Required = false
                     }
                 )
             );
@@ -128,7 +125,7 @@ namespace HRMS.API.Services
             return Task.FromResult(new OnboardingFieldConfigResponse
             {
                 OrganizationId = Guid.Empty,
-                Sections = sections
+                Sections       = sections
             });
         }
     }
