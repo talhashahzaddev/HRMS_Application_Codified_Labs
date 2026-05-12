@@ -48,6 +48,37 @@ public class CareerPageDto
     public string? CareerDescription { get; set; }
 }
 
+public class CompanyPolicyDto
+{
+    public Guid Id { get; set; }
+    public Guid OrganizationId { get; set; }
+    public string PolicyName { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string PolicyContent { get; set; } = string.Empty;
+    public int Version { get; set; }
+    public bool IsPublished { get; set; }
+    public string CreatedBy { get; set; } = string.Empty;
+    public string UpdatedBy { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}
+
+public class CreateCompanyPolicyRequest
+{
+    public string PolicyName { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string PolicyContent { get; set; } = string.Empty;
+    public bool IsPublished { get; set; }
+}
+
+public class UpdateCompanyPolicyRequest
+{
+    public string PolicyName { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
+    public string PolicyContent { get; set; } = string.Empty;
+    public bool IsPublished { get; set; }
+}
+
 
 
 

@@ -1,19 +1,21 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using Serilog;
-using FluentValidation;
 using AutoMapper;
+using FluentValidation;
+using HRMS.AI.Services;
+using HRMS.AI.Services.Interface;
+using HRMS.API.Authorization;
 using HRMS.API.Configuration;
 using HRMS.API.Middleware;
-using HRMS.API.Services.Interfaces;
-using HRMS.API.Services;
-using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Repositories;
-using HRMS.AI.Services.Interface;
-using HRMS.AI.Services;
+using HRMS.API.Repositories.Interfaces;
+using HRMS.API.Services;
+using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
-using HRMS.API.Authorization;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.IdentityModel.Tokens;
+using Serilog;
+using System.Text;
+using static HRMS.API.Repositories.OnboardingRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -201,6 +203,11 @@ builder.Services.AddScoped<IPayRollService, PayRollService>();
 builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
 builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<IGeoFenceService, GeoFenceService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<IOnboardingConfigService, OnboardingConfigService>();
+builder.Services.AddScoped<IPolicyService, PolicyService>();
+
 
 // --- Super Admin Portal Services ---
 builder.Services.AddScoped<IPlatformAdminAuthService, PlatformAdminAuthService>();
@@ -231,6 +238,10 @@ builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 builder.Services.AddScoped<IPayRollRepository, PayRollRepository>();
 builder.Services.AddScoped<IHelpDeskRepository, HelpDeskRepository>();
 builder.Services.AddScoped<IGeoFenceRepository, GeoFenceRepository>();
+builder.Services.AddScoped<IOnboardingRepository, OnboardingRepository>();
+// In Program.cs / Startup.cs — add these two lines with your other DI registrations:
+builder.Services.AddScoped<IOnboardingConfigRepository, OnboardingConfigRepository>();
+builder.Services.AddScoped<IPolicyRepository, PolicyRepository>();
 
 // --- Super Admin Portal Repositories ---
 builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
@@ -243,7 +254,10 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 // -------------------- HOSTED SERVICES --------------------
 builder.Services.AddHostedService<LeaveBalanceResetHostedService>();
-
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 200_000_000; // 200MB
+});
 // ===================== PIPELINE =====================
 var app = builder.Build();
 
@@ -253,6 +267,7 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "HRMS API V1");
     c.RoutePrefix = string.Empty;
 });
+
 
 app.UseStaticFiles();
 
