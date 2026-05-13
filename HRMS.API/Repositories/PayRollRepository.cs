@@ -5915,6 +5915,12 @@ ORDER BY l.createdat DESC;";
                   AND LOWER(COALESCE(e.status, '')) = 'active';";
 
             var activeEmployeesList = (await connection.QueryAsync<dynamic>(activeEmployeesSql, new { organizationId }, transaction)).ToList();
+            // One row per employee — duplicate rows (bad joins / legacy data) would run the whole payroll block twice
+            // and duplicate JSON line items (e.g. overtimeDetails, generalBonuses) while corrupting totals.
+            activeEmployeesList = activeEmployeesList
+                .GroupBy(e => (Guid)e.employeeid)
+                .Select(g => g.First())
+                .ToList();
 
             // Setup Result Object
             var result = new PayrollCalculationResultDto
@@ -6178,12 +6184,6 @@ ORDER BY l.createdat DESC;";
                                         HalfDayDeduction = halfDayDeductionAmt,
                                         TotalDeduction = totalAttDeduction
                                     }, transaction);
-
-                                    var updateTsSql = @"
-                                        UPDATE attendance.timesheet_payroll_summary 
-                                        SET is_consumed_by_payroll = TRUE, consumed_at = CURRENT_TIMESTAMP, payroll_period_id = @PeriodId
-                                        WHERE employee_id = @EmployeeId AND organization_id = @organizationId AND period_end <= @PeriodEndDate AND is_consumed_by_payroll = FALSE;";
-                                    await connection.ExecuteAsync(updateTsSql, new { EmployeeId = employeeId, organizationId, PeriodEndDate = (DateTime)period.enddate, PeriodId = dto.PeriodId }, transaction);
 
                                     remainingSalary -= totalAttDeduction;
 
@@ -6507,6 +6507,7 @@ ORDER BY l.createdat DESC;";
                             result.TotalRegularOvertimeAmount += regularOtAmount;
                             result.TotalWeekendOvertimeAmount += weekendOtAmount;
                             result.TotalHolidayOvertimeAmount += holidayOtAmount;
+                            result.OvertimeDetails.RemoveAll(x => x.EmployeeId == employeeId);
                             result.OvertimeDetails.Add(new PayrollOvertimeDetailDto
                             {
                                 EmployeeId = employeeId,
@@ -6987,6 +6988,18 @@ ORDER BY l.createdat DESC;";
                     Gratuity = empGratuity,
                     OvertimeDetails = empOvertime
                 }, transaction);
+
+                // Timesheet summaries were prefetched for this payroll run; mark them consumed for every
+                // active employee included in that batch — not only when attendancesummary is newly inserted
+                // (existing summary / zero absent deduction still uses OT, late, leave from the same rows).
+                if (timesheets.Any(t => (Guid)t.employee_id == employeeId))
+                {
+                    var consumeTimesheetsSql = @"
+                        UPDATE attendance.timesheet_payroll_summary 
+                        SET is_consumed_by_payroll = TRUE, consumed_at = CURRENT_TIMESTAMP, payroll_period_id = @PeriodId
+                        WHERE employee_id = @EmployeeId AND organization_id = @organizationId AND period_end <= @PeriodEndDate AND is_consumed_by_payroll = FALSE;";
+                    await connection.ExecuteAsync(consumeTimesheetsSql, new { EmployeeId = employeeId, organizationId, PeriodEndDate = (DateTime)period.enddate, PeriodId = dto.PeriodId }, transaction);
+                }
             }
 
             transaction.Commit();
