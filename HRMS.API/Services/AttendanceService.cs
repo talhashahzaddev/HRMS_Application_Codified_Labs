@@ -894,6 +894,7 @@ public class AttendanceService : IAttendanceService
         var reportingManager = await _notificationRepository.GetReciveridAsync(employeeId);
         var status = "pending";
         var attendanceId = await _attendanceRepository.GetAttendanceIdAsync(employeeId, request.OverTimeDate.Date);
+        if (attendanceId == null) throw new ArgumentException("No Attendance Record found for overtime Request");
         var existingRequest = await _attendanceRepository
                 .GetEmployeeCreatedOvertimeRequestTodayAsync(employeeId, request.OverTimeDate);
         if (existingRequest != null)
