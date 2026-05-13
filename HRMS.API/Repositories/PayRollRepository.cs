@@ -5891,7 +5891,8 @@ ORDER BY l.createdat DESC;";
             var applyGeneralBonus = dto.ApplyGeneralBonus ?? true;
             var applyGratuity = dto.ApplyGratuity ?? true;
             var applyProvidentFund = dto.ApplyProvidentFund ?? true;
-            var applySocialSecurity = dto.ApplySocialSecurity ?? true;
+            //var applySocialSecurity = dto.ApplySocialSecurity ?? false;   
+            var applySocialSecurity = false;
             var applyTax = dto.ApplyTax ?? true;
             var applyLoanDeductions = dto.ApplyLoanDeductions ?? true;
             var applySalaryAdvanceDeductions = dto.ApplySalaryAdvanceDeductions ?? true;
@@ -5935,7 +5936,7 @@ ORDER BY l.createdat DESC;";
 
             var timesheetsSql = @"
                 SELECT employee_id,
-                       MAX(shift_id) as shiftid,
+                       (MAX(shift_id::text))::uuid AS shiftid,
                        SUM(scheduled_working_days) as scheduled_working_days,
                        SUM(total_calendar_days) as total_calendar_days,
                        SUM(present_days) as present_days,
@@ -6089,7 +6090,7 @@ ORDER BY l.createdat DESC;";
             var taxRuleSql = @"SELECT componentruleid, taxability, limitamount, limitpercentage FROM payroll.taxcomponentrules WHERE organizationid = @organizationId AND LOWER(applystage) = 'providentfunds' AND isdeleted = false LIMIT 1;";
             var pfTaxRule = await connection.QueryFirstOrDefaultAsync<dynamic>(taxRuleSql, new { organizationId }, transaction);
 
-            var taxSlabsSql = @"SELECT categoryid, minincome, maxincome, fixedamount, percentage FROM payroll.taxslabs WHERE isdeleted = false;";
+            var taxSlabsSql = @"SELECT categoryid, slaborder, minincome, maxincome, fixedamount, percentage FROM payroll.taxslabs WHERE isdeleted = false;";
             var taxSlabs = (await connection.QueryAsync<dynamic>(taxSlabsSql, null, transaction)).ToList();
 
             var loansSql = @"
@@ -6460,39 +6461,43 @@ ORDER BY l.createdat DESC;";
 
                         if (totalOvertimeBonus > 0)
                         {
-                            // Insert one entry per OT type that has hours
-                            var typesToInsert = new[]
+                            // One row per employee + period: combined hours and amounts (unique constraint on employee/period).
+                            var totalOtHours = regularOtHours + weekendOtHours + holidayOtHours;
+                            var existingOtSql = @"SELECT overtimeid FROM payroll.overtimeentries WHERE employeeid = @EmployeeId AND periodid = @PeriodId LIMIT 1;";
+                            var existingOtId = await connection.QuerySingleOrDefaultAsync<Guid?>(existingOtSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
+                            if (existingOtId == null)
                             {
-                                (Rule: regularRule, Hours: regularOtHours, Amount: regularOtAmount),
-                                (Rule: weekendRule, Hours: weekendOtHours, Amount: weekendOtAmount),
-                                (Rule: holidayRule, Hours: holidayOtHours, Amount: holidayOtAmount)
-                            };
-
-                            foreach (var (otRule, otHours, otAmount) in typesToInsert)
-                            {
-                                if (otRule != null && otHours > 0 && otAmount > 0)
-                                {
-                                    var otRuleId = (Guid)otRule!.ruleid;
-                                    var existingOtSql = @"SELECT overtimeid FROM payroll.overtimeentries WHERE employeeid = @EmployeeId AND periodid = @PeriodId AND ruleid = @RuleId LIMIT 1;";
-                                    var existingOt = await connection.QuerySingleOrDefaultAsync<Guid?>(existingOtSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId, RuleId = otRuleId }, transaction);
-                                    if (existingOt == null)
-                                    {
-                                        var insertOtSql = @"
+                                var insertOtSql = @"
                                             INSERT INTO payroll.overtimeentries (
                                                 employeeid, periodid, ruleid, hoursworked, finalamount, entrystatus, overtimedate
                                             ) VALUES (
-                                                @EmployeeId, @PeriodId, @RuleId, @HoursWorked, @FinalAmount, 'approved', CURRENT_DATE
+                                                @EmployeeId, @PeriodId, NULL, @HoursWorked, @FinalAmount, 'approved', CURRENT_DATE
                                             ) RETURNING overtimeid;";
-                                        await connection.QuerySingleOrDefaultAsync<Guid?>(insertOtSql, new
-                                        {
-                                            EmployeeId = employeeId,
-                                            PeriodId = dto.PeriodId,
-                                            RuleId = otRuleId,
-                                            HoursWorked = otHours,
-                                            FinalAmount = otAmount
-                                        }, transaction);
-                                    }
-                                }
+                                await connection.QuerySingleOrDefaultAsync<Guid?>(insertOtSql, new
+                                {
+                                    EmployeeId = employeeId,
+                                    PeriodId = dto.PeriodId,
+                                    HoursWorked = totalOtHours,
+                                    FinalAmount = totalOvertimeBonus
+                                }, transaction);
+                            }
+                            else
+                            {
+                                var updateOtSql = @"
+                                            UPDATE payroll.overtimeentries
+                                            SET ruleid = NULL,
+                                                hoursworked = @HoursWorked,
+                                                finalamount = @FinalAmount,
+                                                entrystatus = 'approved',
+                                                overtimedate = CURRENT_DATE,
+                                                updatedat = CURRENT_TIMESTAMP
+                                            WHERE overtimeid = @OvertimeId;";
+                                await connection.ExecuteAsync(updateOtSql, new
+                                {
+                                    OvertimeId = existingOtId.Value,
+                                    HoursWorked = totalOtHours,
+                                    FinalAmount = totalOvertimeBonus
+                                }, transaction);
                             }
 
                             remainingSalary += totalOvertimeBonus;
@@ -6827,7 +6832,10 @@ ORDER BY l.createdat DESC;";
 
                 if (categoryId.HasValue && annualTaxableIncome > 0)
                 {
-                    var empSlabs = taxSlabs.Where(s => (Guid)s.categoryid == categoryId.Value).OrderBy(s => (int)s.slaborder).ToList();
+                    var empSlabs = taxSlabs
+                        .Where(s => (Guid)s.categoryid == categoryId.Value)
+                        .OrderBy(s => s.slaborder == null ? int.MaxValue : Convert.ToInt32(s.slaborder))
+                        .ToList();
                     var applicableSlab = empSlabs.FirstOrDefault(s => annualTaxableIncome >= Convert.ToDecimal(s.minincome) && (s.maxincome == null || annualTaxableIncome <= Convert.ToDecimal(s.maxincome)));
                     if (applicableSlab != null)
                     {
