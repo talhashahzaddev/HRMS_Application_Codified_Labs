@@ -26,7 +26,8 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-in")]
-    [PermissionAuthorize("time_tracket_clock_in")]
+    [PermissionAuthorize("Clock In Button")]
+
     public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockIn([FromBody] ClockInOutRequest request)
     {
         try
@@ -93,7 +94,8 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-out")]
-    [PermissionAuthorize("time_tracket_clock_out")]
+    [PermissionAuthorize("CLOCK_OUT_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockOut([FromBody] ClockInOutRequest request)
     {
         try
@@ -261,7 +263,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("department/{departmentId}")]
-    [PermissionAuthorize("team_attendance_view_details")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceDto>>>> GetDepartmentAttendance(Guid departmentId, [FromQuery] DateTime? date = null)
     {
         try
@@ -480,7 +481,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("manual")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<AttendanceDto>>> CreateManualAttendance([FromBody] ManualAttendanceRequest request)
     {
         try
@@ -542,7 +542,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<AttendanceDto>>> UpdateAttendance(Guid id, [FromBody] ManualAttendanceRequest request)
     {
         try
@@ -612,7 +611,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAttendance(Guid id)
     {
         try
@@ -767,7 +765,6 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("employee/{employeeId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceDto>>>> GetEmployeeAttendance(Guid employeeId, [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
         try
@@ -802,7 +799,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("calendar/employee/{employeeId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceCalendarDto>>>> GetEmployeeAttendanceCalendar(Guid employeeId, [FromQuery] int year, [FromQuery] int month)
     {
         try
@@ -838,7 +834,8 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPost("shift")]
-    [PermissionAuthorize("shifts_create_shift")]
+    [PermissionAuthorize("Create Shift Button")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> CreateShift([FromBody] CreateShiftDto request)
     {
         try
@@ -903,6 +900,8 @@ public class AttendanceController : ControllerBase
 
     ////Overtime changes
     [HttpPost("create/employee/overtime")]
+    [PermissionAuthorize("Employee Overtime Section")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> CreateEmployeeOvertime([FromBody] CreateEmployeeOvertimeDto request)
     {
         try
@@ -1019,6 +1018,8 @@ public class AttendanceController : ControllerBase
 
     //Manager Overtime request
     [HttpPost("create/manager/overtime")]
+    [PermissionAuthorize("MANAGER_OVERTIME_SECTION")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> CreateManagerOvertime(
     [FromBody] ManagerOvertimeRequestDto request)
     {
@@ -1349,7 +1350,6 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPost("assign-shift")]
-    [PermissionAuthorize("shifts_assign_shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> AssignShift([FromBody] AssignShiftDto request)
     {
         try
@@ -1454,7 +1454,6 @@ public class AttendanceController : ControllerBase
     //Shift swap Create
 
     [HttpPost("shiftswap")]
-    [PermissionAuthorize("shifts_swap_shift")]
     public async Task<ActionResult<ServiceResponse<bool>>> CreateShiftSwapRequest([FromBody] CreateShiftSwapRequestDto requestDto)
     {
         try
@@ -1710,7 +1709,6 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("shifts")]
-    [PermissionAuthorize("all_shifts")]
     public async Task<ActionResult<ServiceResponse<List<ShiftDto>>>> GetAllShifts()
     {
         try
@@ -1749,7 +1747,6 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPut("shift/{shiftId}")]
-    [PermissionAuthorize("shifts_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateShift(Guid shiftId, [FromBody] UpdateShiftDto request)
     {
         try
@@ -1815,7 +1812,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpDelete("shift/{shiftId}")]
-    [PermissionAuthorize("shifts_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteShift(Guid shiftId)
     {
         try
@@ -2289,7 +2285,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("manual")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<Attendance>>>> GetManualAttendance([FromQuery] ManualAttendanceSearchDto searchDto)
     {
         try
