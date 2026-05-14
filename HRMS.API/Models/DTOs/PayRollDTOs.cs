@@ -2183,6 +2183,7 @@ public class PayrollResultItemDto
     public Guid OrganizationId { get; set; }
     public Guid EmployeeId { get; set; }
     public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeCode { get; set; } = string.Empty;
     public string DepartmentName { get; set; } = string.Empty;
@@ -2202,6 +2203,60 @@ public class PayrollResultItemDto
     public string? GeneralBonuses { get; set; }
     public string? Gratuity { get; set; }
     public string? OvertimeDetails { get; set; }
+    public string? SocialSecurityDeductions { get; set; }
     public DateTime CalculatedAt { get; set; }
     public int TotalCount { get; set; }
+}
+
+/// <summary>Compliance payslips grid — sourced from payroll.payrollresults (+ optional payroll.payslips URL).</summary>
+public class CompliancePayslipFilterDto
+{
+    public Guid? PayrollPeriodId { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? SearchTerm { get; set; }
+    /// <summary>Optional: draft | generated (sent/viewed treated as generated for filtering).</summary>
+    public string? Status { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+}
+
+public class CompliancePayslipStatsDto
+{
+    public int TotalCount { get; set; }
+    public int GeneratedCount { get; set; }
+    public int PendingCount { get; set; }
+}
+
+public class CompliancePayslipRowDto
+{
+    public Guid ResultId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public string PeriodLabel { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+    public Guid? DepartmentId { get; set; }
+    public decimal GrossSalaryPkr { get; set; }
+    public decimal DeductionsPkr { get; set; }
+    public decimal NetSalaryPkr { get; set; }
+    public string Status { get; set; } = "draft";
+    public int VersionNo { get; set; } = 1;
+    public string? PayslipUrl { get; set; }
+    public DateTime CalculatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class BulkPayslipPdfRequestDto
+{
+    public Guid PayrollPeriodId { get; set; }
+    public List<Guid> EmployeeIds { get; set; } = new();
+    public bool OverwriteExisting { get; set; }
+}
+
+public class BulkPayslipPdfResponseDto
+{
+    public int GeneratedCount { get; set; }
+    public int SkippedCount { get; set; }
+    public List<string> Messages { get; set; } = new();
 }

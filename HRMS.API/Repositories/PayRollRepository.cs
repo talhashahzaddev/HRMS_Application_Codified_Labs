@@ -10534,14 +10534,16 @@ ORDER BY l.createdat DESC;";
             SELECT 
                 pr.resultid, pr.organizationid, pr.employeeid, pr.periodid, pr.basicsalary, pr.totaldeductions, 
                 pr.totalbonuses, pr.netsalary, pr.loandeductions, pr.salaryadvancedeductions, pr.pfdeductions, 
-                pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
+                pr.socialsecuritydeductions, pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
                 pr.performancebonuses, pr.generalbonuses, pr.gratuity, pr.overtimedetails, pr.calculatedat,
+                COALESCE(pp.periodname, '') AS PeriodName,
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 e.employeecode AS EmployeeCode,
                 d.departmentname AS DepartmentName,
                 d.departmentid AS DepartmentId,
                 COUNT(*) OVER() AS TotalCount
             FROM payroll.payrollresults pr
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
             INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
             LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
             LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
@@ -10584,5 +10586,232 @@ ORDER BY l.createdat DESC;";
             Page = filter.Page,
             PageSize = filter.PageSize
         };
+    }
+
+    public async Task<PagedResult<CompliancePayslipRowDto>> GetCompliancePayslipsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
+    {
+        var sql = @"
+            SELECT 
+                pr.resultid AS ResultId,
+                pr.employeeid AS EmployeeId,
+                pr.periodid AS PeriodId,
+                COALESCE(pp.periodname, '') AS PeriodLabel,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                COALESCE(d.departmentname, '') AS DepartmentName,
+                d.departmentid AS DepartmentId,
+                (pr.basicsalary + pr.totalbonuses) AS GrossSalaryPkr,
+                pr.totaldeductions AS DeductionsPkr,
+                pr.netsalary AS NetSalaryPkr,
+                CASE 
+                    WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '' THEN 'generated'
+                    ELSE 'draft'
+                END AS Status,
+                1 AS VersionNo,
+                ps.payslipurl AS PayslipUrl,
+                pr.calculatedat AS CalculatedAt,
+                COUNT(*) OVER() AS TotalCount
+            FROM payroll.payrollresults pr
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            LEFT JOIN LATERAL (
+                SELECT ps2.payslipurl
+                FROM payroll.payslips ps2
+                WHERE ps2.resultid = pr.resultid
+                ORDER BY ps2.payslipid DESC
+                LIMIT 1
+            ) ps ON true
+            WHERE pr.organizationid = @organizationId";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (filter.PayrollPeriodId.HasValue && filter.PayrollPeriodId != Guid.Empty)
+        {
+            sql += " AND pr.periodid = @PayrollPeriodId";
+            parameters.Add("PayrollPeriodId", filter.PayrollPeriodId.Value);
+        }
+
+        if (filter.DepartmentId.HasValue && filter.DepartmentId != Guid.Empty)
+        {
+            sql += " AND ed.departmentid = @DepartmentId";
+            parameters.Add("DepartmentId", filter.DepartmentId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            sql += " AND (e.firstname || ' ' || e.lastname ILIKE @Search OR e.employeecode ILIKE @Search)";
+            parameters.Add("Search", $"%{filter.SearchTerm.Trim()}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            var st = filter.Status.Trim().ToLowerInvariant();
+            if (st == "draft")
+            {
+                sql += " AND (ps.payslipurl IS NULL OR btrim(ps.payslipurl) = '')";
+            }
+            else if (st is "generated" or "sent" or "viewed")
+            {
+                sql += " AND ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''";
+            }
+        }
+
+        sql += " ORDER BY pr.calculatedat DESC";
+        sql += " OFFSET @Offset LIMIT @Limit;";
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+        parameters.Add("Limit", filter.PageSize);
+
+        var items = (await QueryAsync<CompliancePayslipRowDto>(sql, parameters)).ToList();
+        var totalCount = items.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<CompliancePayslipRowDto>
+        {
+            Data = items,
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<CompliancePayslipStatsDto> GetCompliancePayslipStatsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
+    {
+        var sql = @"
+            SELECT 
+                COUNT(*)::int AS TotalCount,
+                COALESCE(SUM(CASE WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '' THEN 1 ELSE 0 END), 0)::int AS GeneratedCount
+            FROM payroll.payrollresults pr
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            LEFT JOIN LATERAL (
+                SELECT ps2.payslipurl
+                FROM payroll.payslips ps2
+                WHERE ps2.resultid = pr.resultid
+                ORDER BY ps2.payslipid DESC
+                LIMIT 1
+            ) ps ON true
+            WHERE pr.organizationid = @organizationId";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (filter.PayrollPeriodId.HasValue && filter.PayrollPeriodId != Guid.Empty)
+        {
+            sql += " AND pr.periodid = @PayrollPeriodId";
+            parameters.Add("PayrollPeriodId", filter.PayrollPeriodId.Value);
+        }
+
+        if (filter.DepartmentId.HasValue && filter.DepartmentId != Guid.Empty)
+        {
+            sql += " AND ed.departmentid = @DepartmentId";
+            parameters.Add("DepartmentId", filter.DepartmentId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            sql += " AND (e.firstname || ' ' || e.lastname ILIKE @Search OR e.employeecode ILIKE @Search)";
+            parameters.Add("Search", $"%{filter.SearchTerm.Trim()}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            var st = filter.Status.Trim().ToLowerInvariant();
+            if (st == "draft")
+            {
+                sql += " AND (ps.payslipurl IS NULL OR btrim(ps.payslipurl) = '')";
+            }
+            else if (st is "generated" or "sent" or "viewed")
+            {
+                sql += " AND ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''";
+            }
+        }
+
+        var r = await QuerySingleOrDefaultAsync<CompliancePayslipStatsDto>(sql, parameters);
+        if (r == null)
+        {
+            return new CompliancePayslipStatsDto();
+        }
+
+        r.PendingCount = Math.Max(0, r.TotalCount - r.GeneratedCount);
+        return r;
+    }
+
+    public async Task<PayrollResultItemDto?> GetPayrollResultByResultIdAsync(Guid organizationId, Guid resultId)
+    {
+        const string sql = @"
+            SELECT 
+                pr.resultid AS ResultId, pr.organizationid, pr.employeeid, pr.periodid, pr.basicsalary, pr.totaldeductions, 
+                pr.totalbonuses, pr.netsalary, pr.loandeductions, pr.salaryadvancedeductions, pr.pfdeductions, 
+                pr.socialsecuritydeductions, pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
+                pr.performancebonuses, pr.generalbonuses, pr.gratuity, pr.overtimedetails, pr.calculatedat,
+                COALESCE(pp.periodname, '') AS PeriodName,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                COALESCE(d.departmentname, '') AS DepartmentName,
+                d.departmentid AS DepartmentId,
+                0 AS TotalCount
+            FROM payroll.payrollresults pr
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            WHERE pr.organizationid = @organizationId AND pr.resultid = @resultId
+            LIMIT 1;";
+        return await QuerySingleOrDefaultAsync<PayrollResultItemDto>(sql, new { organizationId, resultId });
+    }
+
+    public async Task<PayrollResultItemDto?> GetPayrollResultForEmployeePeriodAsync(Guid organizationId, Guid periodId, Guid employeeId)
+    {
+        const string sql = @"
+            SELECT 
+                pr.resultid AS ResultId, pr.organizationid, pr.employeeid, pr.periodid, pr.basicsalary, pr.totaldeductions, 
+                pr.totalbonuses, pr.netsalary, pr.loandeductions, pr.salaryadvancedeductions, pr.pfdeductions, 
+                pr.socialsecuritydeductions, pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
+                pr.performancebonuses, pr.generalbonuses, pr.gratuity, pr.overtimedetails, pr.calculatedat,
+                COALESCE(pp.periodname, '') AS PeriodName,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                COALESCE(d.departmentname, '') AS DepartmentName,
+                d.departmentid AS DepartmentId,
+                0 AS TotalCount
+            FROM payroll.payrollresults pr
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            WHERE pr.organizationid = @organizationId AND pr.periodid = @periodId AND pr.employeeid = @employeeId
+            LIMIT 1;";
+        return await QuerySingleOrDefaultAsync<PayrollResultItemDto>(sql, new { organizationId, periodId, employeeId });
+    }
+
+    public async Task<string?> GetPayslipUrlByResultIdAsync(Guid organizationId, Guid resultId)
+    {
+        const string sql = @"
+            SELECT payslipurl FROM payroll.payslips
+            WHERE organizationid = @organizationId AND resultid = @resultId
+            ORDER BY payslipid DESC
+            LIMIT 1;";
+        return await QuerySingleOrDefaultAsync<string?>(sql, new { organizationId, resultId });
+    }
+
+    public async Task UpsertPayslipUrlAsync(Guid organizationId, Guid resultId, Guid employeeId, string payslipUrl)
+    {
+        const string existsSql = @"SELECT payslipid FROM payroll.payslips WHERE organizationid = @organizationId AND resultid = @resultId ORDER BY payslipid DESC LIMIT 1;";
+        var existing = await QuerySingleOrDefaultAsync<Guid?>(existsSql, new { organizationId, resultId });
+        if (existing.HasValue && existing.Value != Guid.Empty)
+        {
+            await ExecuteAsync(@"UPDATE payroll.payslips SET payslipurl = @payslipUrl WHERE payslipid = @payslipId;",
+                new { payslipUrl, payslipId = existing.Value });
+            return;
+        }
+
+        await ExecuteAsync(@"
+            INSERT INTO payroll.payslips (resultid, payslipurl, organizationid, employeeid, mailsentstatus)
+            VALUES (@resultId, @payslipUrl, @organizationId, @employeeId, 'pending');",
+            new { resultId, payslipUrl, organizationId, employeeId });
     }
 }

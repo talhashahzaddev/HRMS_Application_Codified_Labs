@@ -1,5 +1,4 @@
 using HRMS.API.Models.DTOs;
-using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -3715,6 +3714,143 @@ public class PayRollController : ControllerBase
         {
             _logger.LogError(ex, "Error fetching gratuity status for current employee");
             return StatusCode(500, new ServiceResponse<GratuityTransactionDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    // ── Compliance payslips (payroll.payrollresults + PDF) ───────────────────────
+
+    [HttpGet("compliance-payslips")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<CompliancePayslipRowDto>>>> GetCompliancePayslips([FromQuery] CompliancePayslipFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetCompliancePayslipsAsync(organizationId, filter);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access while listing compliance payslips");
+            return StatusCode(403, new ServiceResponse<PagedResult<CompliancePayslipRowDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing compliance payslips");
+            return StatusCode(500, new ServiceResponse<PagedResult<CompliancePayslipRowDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("compliance-payslips/stats")]
+    public async Task<ActionResult<ServiceResponse<CompliancePayslipStatsDto>>> GetCompliancePayslipStats([FromQuery] CompliancePayslipFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetCompliancePayslipStatsAsync(organizationId, filter);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access while loading compliance payslip stats");
+            return StatusCode(403, new ServiceResponse<CompliancePayslipStatsDto> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading compliance payslip stats");
+            return StatusCode(500, new ServiceResponse<CompliancePayslipStatsDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("compliance-payslips/{resultId:guid}/source")]
+    public async Task<ActionResult<ServiceResponse<PayrollResultItemDto>>> GetCompliancePayslipSource(Guid resultId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetPayrollPayslipSourceAsync(organizationId, resultId);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            if (response.Data == null)
+            {
+                return NotFound(new ServiceResponse<PayrollResultItemDto?> { Success = false, Message = "Payroll result not found" });
+            }
+
+            return Ok(new ServiceResponse<PayrollResultItemDto> { Success = true, Data = response.Data });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading compliance payslip source {ResultId}", resultId);
+            return StatusCode(500, new ServiceResponse<PayrollResultItemDto?> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("compliance-payslips/{resultId:guid}/pdf")]
+    public async Task<IActionResult> GetCompliancePayslipPdf(Guid resultId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var pdf = await _payRollService.GetCompliancePayslipPdfBytesAsync(organizationId, resultId);
+            if (pdf == null || pdf.Length == 0)
+            {
+                return NotFound();
+            }
+
+            var meta = await _payRollService.GetPayrollPayslipSourceAsync(organizationId, resultId);
+            var row = meta.Data;
+            var periodLabel = row == null || string.IsNullOrWhiteSpace(row.PeriodName) ? resultId.ToString("D") : row.PeriodName;
+            var safeCode = row == null || string.IsNullOrWhiteSpace(row.EmployeeCode)
+                ? "employee"
+                : row.EmployeeCode.Replace(Path.DirectorySeparatorChar, '-').Replace(Path.AltDirectorySeparatorChar, '-');
+            var fileName = $"payslip-{safeCode}-{periodLabel}".Replace(' ', '_');
+            return File(pdf, "application/pdf", $"{fileName}.pdf");
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Forbid();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error building payslip PDF {ResultId}", resultId);
+            return StatusCode(500);
+        }
+    }
+
+    [HttpPost("compliance-payslips/bulk-generate-pdfs")]
+    public async Task<ActionResult<ServiceResponse<BulkPayslipPdfResponseDto>>> BulkGenerateCompliancePayslipPdfs([FromBody] BulkPayslipPdfRequestDto dto)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.BulkGeneratePayslipPdfsAsync(organizationId, dto);
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error bulk-generating compliance payslip PDFs");
+            return StatusCode(500, new ServiceResponse<BulkPayslipPdfResponseDto> { Success = false, Message = "An error occurred" });
         }
     }
 
