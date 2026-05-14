@@ -900,7 +900,7 @@ public class AttendanceController : ControllerBase
 
     ////Overtime changes
     [HttpPost("create/employee/overtime")]
-    [PermissionAuthorize("Employee Overtime Section")]
+    [PermissionAuthorize("EMPLOYEE_OVERTIME_SECTION")]
 
     public async Task<ActionResult<ServiceResponse<bool>>> CreateEmployeeOvertime([FromBody] CreateEmployeeOvertimeDto request)
     {
@@ -1350,6 +1350,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPost("assign-shift")]
+    [PermissionAuthorize(" ASSIGN_SHIFT_BUTTON")]   
     public async Task<ActionResult<ServiceResponse<bool>>> AssignShift([FromBody] AssignShiftDto request)
     {
         try
@@ -1454,6 +1455,7 @@ public class AttendanceController : ControllerBase
     //Shift swap Create
 
     [HttpPost("shiftswap")]
+    [PermissionAuthorize("SWAP_SHIFT_BUTTON")]
     public async Task<ActionResult<ServiceResponse<bool>>> CreateShiftSwapRequest([FromBody] CreateShiftSwapRequestDto requestDto)
     {
         try
@@ -1709,6 +1711,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("shifts")]
+    [PermissionAuthorize("ALL_SHIFT_TABLE")]
     public async Task<ActionResult<ServiceResponse<List<ShiftDto>>>> GetAllShifts()
     {
         try
@@ -1812,6 +1815,8 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpDelete("shift/{shiftId}")]
+    [PermissionAuthorize("SHIFT_DELETE_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteShift(Guid shiftId)
     {
         try
