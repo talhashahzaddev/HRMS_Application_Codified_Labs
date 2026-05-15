@@ -10605,11 +10605,15 @@ ORDER BY l.createdat DESC;";
                 pr.netsalary AS NetSalaryPkr,
                 CASE
                     WHEN COALESCE(ps.mailsentstatus, 'pending') <> 'pending' THEN ps.mailsentstatus
-                    WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '' THEN 'generated'
+                    WHEN (ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '')
+                         OR (ps.payslipuploadurl IS NOT NULL AND btrim(ps.payslipuploadurl) <> '') THEN 'generated'
                     ELSE 'draft'
                 END AS Status,
                 1 AS VersionNo,
-                ps.payslipurl AS PayslipUrl,
+                CASE
+                    WHEN ps.payslipuploadurl IS NOT NULL AND btrim(ps.payslipuploadurl) <> '' THEN ps.payslipuploadurl
+                    ELSE ps.payslipurl
+                END AS PayslipUrl,
                 pr.calculatedat AS CalculatedAt,
                 COUNT(*) OVER() AS TotalCount
             FROM payroll.payrollresults pr
@@ -10618,7 +10622,7 @@ ORDER BY l.createdat DESC;";
             LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
             LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
             LEFT JOIN LATERAL (
-                SELECT ps2.payslipurl, ps2.mailsentstatus
+                SELECT ps2.payslipurl, ps2.payslipuploadurl, ps2.mailsentstatus
                 FROM payroll.payslips ps2
                 WHERE ps2.resultid = pr.resultid
                 ORDER BY ps2.payslipid DESC
@@ -10675,8 +10679,11 @@ ORDER BY l.createdat DESC;";
             SELECT 
                 COUNT(*)::int AS TotalCount,
                 COALESCE(SUM(CASE
-                    WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''
-                         AND COALESCE(ps.mailsentstatus, 'pending') = 'pending' THEN 1
+                    WHEN COALESCE(ps.mailsentstatus, 'pending') = 'pending'
+                         AND (
+                             (ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '')
+                             OR (ps.payslipuploadurl IS NOT NULL AND btrim(ps.payslipuploadurl) <> '')
+                         ) THEN 1
                     ELSE 0
                 END), 0)::int AS GeneratedCount
             FROM payroll.payrollresults pr
@@ -10685,7 +10692,7 @@ ORDER BY l.createdat DESC;";
             LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
             LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
             LEFT JOIN LATERAL (
-                SELECT ps2.payslipurl, ps2.mailsentstatus
+                SELECT ps2.payslipurl, ps2.payslipuploadurl, ps2.mailsentstatus
                 FROM payroll.payslips ps2
                 WHERE ps2.resultid = pr.resultid
                 ORDER BY ps2.payslipid DESC
@@ -10881,10 +10888,16 @@ ORDER BY l.createdat DESC;";
     {
         return status switch
         {
-            "draft" => " AND (ps.payslipurl IS NULL OR btrim(ps.payslipurl) = '')",
+            "draft" => """
+                 AND (ps.payslipurl IS NULL OR btrim(ps.payslipurl) = '')
+                 AND (ps.payslipuploadurl IS NULL OR btrim(ps.payslipuploadurl) = '')
+                """,
             "generated" => """
-                 AND ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''
                  AND COALESCE(ps.mailsentstatus, 'pending') = 'pending'
+                 AND (
+                     (ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '')
+                     OR (ps.payslipuploadurl IS NOT NULL AND btrim(ps.payslipuploadurl) <> '')
+                 )
                 """,
             "sent" or "failed" or "bounced" => AddMailStatusFilter(status, parameters),
             "viewed" => AddMailStatusFilter("sent", parameters),
