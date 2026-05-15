@@ -292,4 +292,10 @@ public interface IPayRollService
     Task<ServiceResponse<bool>> VerifySocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid verifiedByUserId, VerifySocialSecurityRequestDocumentDto dto);
     Task<ServiceResponse<bool>> DeleteSocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid employeeId);
     Task<ServiceResponse<PagedResult<PayrollResultItemDto>>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter);
+
+    Task<ServiceResponse<PagedResult<CompliancePayslipRowDto>>> GetCompliancePayslipsAsync(Guid organizationId, CompliancePayslipFilterDto filter);
+    Task<ServiceResponse<CompliancePayslipStatsDto>> GetCompliancePayslipStatsAsync(Guid organizationId, CompliancePayslipFilterDto filter);
+    Task<ServiceResponse<PayrollResultItemDto?>> GetPayrollPayslipSourceAsync(Guid organizationId, Guid resultId);
+    Task<ServiceResponse<BulkPayslipPdfResponseDto>> BulkGeneratePayslipPdfsAsync(Guid organizationId, BulkPayslipPdfRequestDto dto);
+    Task<byte[]?> GetCompliancePayslipPdfBytesAsync(Guid organizationId, Guid resultId);
 }

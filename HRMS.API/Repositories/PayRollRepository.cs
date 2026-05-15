@@ -5891,7 +5891,8 @@ ORDER BY l.createdat DESC;";
             var applyGeneralBonus = dto.ApplyGeneralBonus ?? true;
             var applyGratuity = dto.ApplyGratuity ?? true;
             var applyProvidentFund = dto.ApplyProvidentFund ?? true;
-            var applySocialSecurity = dto.ApplySocialSecurity ?? true;
+            //var applySocialSecurity = dto.ApplySocialSecurity ?? false;   
+            var applySocialSecurity = false;
             var applyTax = dto.ApplyTax ?? true;
             var applyLoanDeductions = dto.ApplyLoanDeductions ?? true;
             var applySalaryAdvanceDeductions = dto.ApplySalaryAdvanceDeductions ?? true;
@@ -5914,6 +5915,12 @@ ORDER BY l.createdat DESC;";
                   AND LOWER(COALESCE(e.status, '')) = 'active';";
 
             var activeEmployeesList = (await connection.QueryAsync<dynamic>(activeEmployeesSql, new { organizationId }, transaction)).ToList();
+            // One row per employee — duplicate rows (bad joins / legacy data) would run the whole payroll block twice
+            // and duplicate JSON line items (e.g. overtimeDetails, generalBonuses) while corrupting totals.
+            activeEmployeesList = activeEmployeesList
+                .GroupBy(e => (Guid)e.employeeid)
+                .Select(g => g.First())
+                .ToList();
 
             // Setup Result Object
             var result = new PayrollCalculationResultDto
@@ -5935,7 +5942,7 @@ ORDER BY l.createdat DESC;";
 
             var timesheetsSql = @"
                 SELECT employee_id,
-                       MAX(shift_id) as shiftid,
+                       (MAX(shift_id::text))::uuid AS shiftid,
                        SUM(scheduled_working_days) as scheduled_working_days,
                        SUM(total_calendar_days) as total_calendar_days,
                        SUM(present_days) as present_days,
@@ -6089,7 +6096,7 @@ ORDER BY l.createdat DESC;";
             var taxRuleSql = @"SELECT componentruleid, taxability, limitamount, limitpercentage FROM payroll.taxcomponentrules WHERE organizationid = @organizationId AND LOWER(applystage) = 'providentfunds' AND isdeleted = false LIMIT 1;";
             var pfTaxRule = await connection.QueryFirstOrDefaultAsync<dynamic>(taxRuleSql, new { organizationId }, transaction);
 
-            var taxSlabsSql = @"SELECT categoryid, minincome, maxincome, fixedamount, percentage FROM payroll.taxslabs WHERE isdeleted = false;";
+            var taxSlabsSql = @"SELECT categoryid, slaborder, minincome, maxincome, fixedamount, percentage FROM payroll.taxslabs WHERE isdeleted = false;";
             var taxSlabs = (await connection.QueryAsync<dynamic>(taxSlabsSql, null, transaction)).ToList();
 
             var loansSql = @"
@@ -6177,12 +6184,6 @@ ORDER BY l.createdat DESC;";
                                         HalfDayDeduction = halfDayDeductionAmt,
                                         TotalDeduction = totalAttDeduction
                                     }, transaction);
-
-                                    var updateTsSql = @"
-                                        UPDATE attendance.timesheet_payroll_summary 
-                                        SET is_consumed_by_payroll = TRUE, consumed_at = CURRENT_TIMESTAMP, payroll_period_id = @PeriodId
-                                        WHERE employee_id = @EmployeeId AND organization_id = @organizationId AND period_end <= @PeriodEndDate AND is_consumed_by_payroll = FALSE;";
-                                    await connection.ExecuteAsync(updateTsSql, new { EmployeeId = employeeId, organizationId, PeriodEndDate = (DateTime)period.enddate, PeriodId = dto.PeriodId }, transaction);
 
                                     remainingSalary -= totalAttDeduction;
 
@@ -6460,39 +6461,43 @@ ORDER BY l.createdat DESC;";
 
                         if (totalOvertimeBonus > 0)
                         {
-                            // Insert one entry per OT type that has hours
-                            var typesToInsert = new[]
+                            // One row per employee + period: combined hours and amounts (unique constraint on employee/period).
+                            var totalOtHours = regularOtHours + weekendOtHours + holidayOtHours;
+                            var existingOtSql = @"SELECT overtimeid FROM payroll.overtimeentries WHERE employeeid = @EmployeeId AND periodid = @PeriodId LIMIT 1;";
+                            var existingOtId = await connection.QuerySingleOrDefaultAsync<Guid?>(existingOtSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId }, transaction);
+                            if (existingOtId == null)
                             {
-                                (Rule: regularRule, Hours: regularOtHours, Amount: regularOtAmount),
-                                (Rule: weekendRule, Hours: weekendOtHours, Amount: weekendOtAmount),
-                                (Rule: holidayRule, Hours: holidayOtHours, Amount: holidayOtAmount)
-                            };
-
-                            foreach (var (otRule, otHours, otAmount) in typesToInsert)
-                            {
-                                if (otRule != null && otHours > 0 && otAmount > 0)
-                                {
-                                    var otRuleId = (Guid)otRule!.ruleid;
-                                    var existingOtSql = @"SELECT overtimeid FROM payroll.overtimeentries WHERE employeeid = @EmployeeId AND periodid = @PeriodId AND ruleid = @RuleId LIMIT 1;";
-                                    var existingOt = await connection.QuerySingleOrDefaultAsync<Guid?>(existingOtSql, new { EmployeeId = employeeId, PeriodId = dto.PeriodId, RuleId = otRuleId }, transaction);
-                                    if (existingOt == null)
-                                    {
-                                        var insertOtSql = @"
+                                var insertOtSql = @"
                                             INSERT INTO payroll.overtimeentries (
                                                 employeeid, periodid, ruleid, hoursworked, finalamount, entrystatus, overtimedate
                                             ) VALUES (
-                                                @EmployeeId, @PeriodId, @RuleId, @HoursWorked, @FinalAmount, 'approved', CURRENT_DATE
+                                                @EmployeeId, @PeriodId, NULL, @HoursWorked, @FinalAmount, 'approved', CURRENT_DATE
                                             ) RETURNING overtimeid;";
-                                        await connection.QuerySingleOrDefaultAsync<Guid?>(insertOtSql, new
-                                        {
-                                            EmployeeId = employeeId,
-                                            PeriodId = dto.PeriodId,
-                                            RuleId = otRuleId,
-                                            HoursWorked = otHours,
-                                            FinalAmount = otAmount
-                                        }, transaction);
-                                    }
-                                }
+                                await connection.QuerySingleOrDefaultAsync<Guid?>(insertOtSql, new
+                                {
+                                    EmployeeId = employeeId,
+                                    PeriodId = dto.PeriodId,
+                                    HoursWorked = totalOtHours,
+                                    FinalAmount = totalOvertimeBonus
+                                }, transaction);
+                            }
+                            else
+                            {
+                                var updateOtSql = @"
+                                            UPDATE payroll.overtimeentries
+                                            SET ruleid = NULL,
+                                                hoursworked = @HoursWorked,
+                                                finalamount = @FinalAmount,
+                                                entrystatus = 'approved',
+                                                overtimedate = CURRENT_DATE,
+                                                updatedat = CURRENT_TIMESTAMP
+                                            WHERE overtimeid = @OvertimeId;";
+                                await connection.ExecuteAsync(updateOtSql, new
+                                {
+                                    OvertimeId = existingOtId.Value,
+                                    HoursWorked = totalOtHours,
+                                    FinalAmount = totalOvertimeBonus
+                                }, transaction);
                             }
 
                             remainingSalary += totalOvertimeBonus;
@@ -6502,6 +6507,7 @@ ORDER BY l.createdat DESC;";
                             result.TotalRegularOvertimeAmount += regularOtAmount;
                             result.TotalWeekendOvertimeAmount += weekendOtAmount;
                             result.TotalHolidayOvertimeAmount += holidayOtAmount;
+                            result.OvertimeDetails.RemoveAll(x => x.EmployeeId == employeeId);
                             result.OvertimeDetails.Add(new PayrollOvertimeDetailDto
                             {
                                 EmployeeId = employeeId,
@@ -6827,7 +6833,10 @@ ORDER BY l.createdat DESC;";
 
                 if (categoryId.HasValue && annualTaxableIncome > 0)
                 {
-                    var empSlabs = taxSlabs.Where(s => (Guid)s.categoryid == categoryId.Value).OrderBy(s => (int)s.slaborder).ToList();
+                    var empSlabs = taxSlabs
+                        .Where(s => (Guid)s.categoryid == categoryId.Value)
+                        .OrderBy(s => s.slaborder == null ? int.MaxValue : Convert.ToInt32(s.slaborder))
+                        .ToList();
                     var applicableSlab = empSlabs.FirstOrDefault(s => annualTaxableIncome >= Convert.ToDecimal(s.minincome) && (s.maxincome == null || annualTaxableIncome <= Convert.ToDecimal(s.maxincome)));
                     if (applicableSlab != null)
                     {
@@ -6979,6 +6988,18 @@ ORDER BY l.createdat DESC;";
                     Gratuity = empGratuity,
                     OvertimeDetails = empOvertime
                 }, transaction);
+
+                // Timesheet summaries were prefetched for this payroll run; mark them consumed for every
+                // active employee included in that batch — not only when attendancesummary is newly inserted
+                // (existing summary / zero absent deduction still uses OT, late, leave from the same rows).
+                if (timesheets.Any(t => (Guid)t.employee_id == employeeId))
+                {
+                    var consumeTimesheetsSql = @"
+                        UPDATE attendance.timesheet_payroll_summary 
+                        SET is_consumed_by_payroll = TRUE, consumed_at = CURRENT_TIMESTAMP, payroll_period_id = @PeriodId
+                        WHERE employee_id = @EmployeeId AND organization_id = @organizationId AND period_end <= @PeriodEndDate AND is_consumed_by_payroll = FALSE;";
+                    await connection.ExecuteAsync(consumeTimesheetsSql, new { EmployeeId = employeeId, organizationId, PeriodEndDate = (DateTime)period.enddate, PeriodId = dto.PeriodId }, transaction);
+                }
             }
 
             transaction.Commit();
@@ -10513,14 +10534,16 @@ ORDER BY l.createdat DESC;";
             SELECT 
                 pr.resultid, pr.organizationid, pr.employeeid, pr.periodid, pr.basicsalary, pr.totaldeductions, 
                 pr.totalbonuses, pr.netsalary, pr.loandeductions, pr.salaryadvancedeductions, pr.pfdeductions, 
-                pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
+                pr.socialsecuritydeductions, pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
                 pr.performancebonuses, pr.generalbonuses, pr.gratuity, pr.overtimedetails, pr.calculatedat,
+                COALESCE(pp.periodname, '') AS PeriodName,
                 e.firstname || ' ' || e.lastname AS EmployeeName,
                 e.employeecode AS EmployeeCode,
                 d.departmentname AS DepartmentName,
                 d.departmentid AS DepartmentId,
                 COUNT(*) OVER() AS TotalCount
             FROM payroll.payrollresults pr
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
             INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
             LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
             LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
@@ -10563,5 +10586,315 @@ ORDER BY l.createdat DESC;";
             Page = filter.Page,
             PageSize = filter.PageSize
         };
+    }
+
+    public async Task<PagedResult<CompliancePayslipRowDto>> GetCompliancePayslipsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
+    {
+        var sql = @"
+            SELECT 
+                pr.resultid AS ResultId,
+                pr.employeeid AS EmployeeId,
+                pr.periodid AS PeriodId,
+                COALESCE(pp.periodname, '') AS PeriodLabel,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                COALESCE(d.departmentname, '') AS DepartmentName,
+                d.departmentid AS DepartmentId,
+                (pr.basicsalary + pr.totalbonuses) AS GrossSalaryPkr,
+                pr.totaldeductions AS DeductionsPkr,
+                pr.netsalary AS NetSalaryPkr,
+                CASE
+                    WHEN COALESCE(ps.mailsentstatus, 'pending') <> 'pending' THEN ps.mailsentstatus
+                    WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '' THEN 'generated'
+                    ELSE 'draft'
+                END AS Status,
+                1 AS VersionNo,
+                ps.payslipurl AS PayslipUrl,
+                pr.calculatedat AS CalculatedAt,
+                COUNT(*) OVER() AS TotalCount
+            FROM payroll.payrollresults pr
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            LEFT JOIN LATERAL (
+                SELECT ps2.payslipurl, ps2.mailsentstatus
+                FROM payroll.payslips ps2
+                WHERE ps2.resultid = pr.resultid
+                ORDER BY ps2.payslipid DESC
+                LIMIT 1
+            ) ps ON true
+            WHERE pr.organizationid = @organizationId";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (filter.PayrollPeriodId.HasValue && filter.PayrollPeriodId != Guid.Empty)
+        {
+            sql += " AND pr.periodid = @PayrollPeriodId";
+            parameters.Add("PayrollPeriodId", filter.PayrollPeriodId.Value);
+        }
+
+        if (filter.DepartmentId.HasValue && filter.DepartmentId != Guid.Empty)
+        {
+            sql += " AND ed.departmentid = @DepartmentId";
+            parameters.Add("DepartmentId", filter.DepartmentId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            sql += " AND (e.firstname || ' ' || e.lastname ILIKE @Search OR e.employeecode ILIKE @Search)";
+            parameters.Add("Search", $"%{filter.SearchTerm.Trim()}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            sql += BuildCompliancePayslipStatusFilter(filter.Status.Trim().ToLowerInvariant(), parameters);
+        }
+
+        sql += " ORDER BY pr.calculatedat DESC";
+        sql += " OFFSET @Offset LIMIT @Limit;";
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+        parameters.Add("Limit", filter.PageSize);
+
+        var items = (await QueryAsync<CompliancePayslipRowDto>(sql, parameters)).ToList();
+        var totalCount = items.FirstOrDefault()?.TotalCount ?? 0;
+
+        return new PagedResult<CompliancePayslipRowDto>
+        {
+            Data = items,
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<CompliancePayslipStatsDto> GetCompliancePayslipStatsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
+    {
+        var sql = @"
+            SELECT 
+                COUNT(*)::int AS TotalCount,
+                COALESCE(SUM(CASE
+                    WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''
+                         AND COALESCE(ps.mailsentstatus, 'pending') = 'pending' THEN 1
+                    ELSE 0
+                END), 0)::int AS GeneratedCount
+            FROM payroll.payrollresults pr
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            LEFT JOIN LATERAL (
+                SELECT ps2.payslipurl, ps2.mailsentstatus
+                FROM payroll.payslips ps2
+                WHERE ps2.resultid = pr.resultid
+                ORDER BY ps2.payslipid DESC
+                LIMIT 1
+            ) ps ON true
+            WHERE pr.organizationid = @organizationId";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+
+        if (filter.PayrollPeriodId.HasValue && filter.PayrollPeriodId != Guid.Empty)
+        {
+            sql += " AND pr.periodid = @PayrollPeriodId";
+            parameters.Add("PayrollPeriodId", filter.PayrollPeriodId.Value);
+        }
+
+        if (filter.DepartmentId.HasValue && filter.DepartmentId != Guid.Empty)
+        {
+            sql += " AND ed.departmentid = @DepartmentId";
+            parameters.Add("DepartmentId", filter.DepartmentId.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+        {
+            sql += " AND (e.firstname || ' ' || e.lastname ILIKE @Search OR e.employeecode ILIKE @Search)";
+            parameters.Add("Search", $"%{filter.SearchTerm.Trim()}%");
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            sql += BuildCompliancePayslipStatusFilter(filter.Status.Trim().ToLowerInvariant(), parameters);
+        }
+
+        var r = await QuerySingleOrDefaultAsync<CompliancePayslipStatsDto>(sql, parameters);
+        if (r == null)
+        {
+            return new CompliancePayslipStatsDto();
+        }
+
+        r.PendingCount = Math.Max(0, r.TotalCount - r.GeneratedCount);
+        return r;
+    }
+
+    public async Task<PayrollResultItemDto?> GetPayrollResultByResultIdAsync(Guid organizationId, Guid resultId)
+    {
+        const string sql = @"
+            SELECT 
+                pr.resultid AS ResultId, pr.organizationid, pr.employeeid, pr.periodid, pr.basicsalary, pr.totaldeductions, 
+                pr.totalbonuses, pr.netsalary, pr.loandeductions, pr.salaryadvancedeductions, pr.pfdeductions, 
+                pr.socialsecuritydeductions, pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
+                pr.performancebonuses, pr.generalbonuses, pr.gratuity, pr.overtimedetails, pr.calculatedat,
+                COALESCE(pp.periodname, '') AS PeriodName,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                COALESCE(d.departmentname, '') AS DepartmentName,
+                d.departmentid AS DepartmentId,
+                0 AS TotalCount
+            FROM payroll.payrollresults pr
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            WHERE pr.organizationid = @organizationId AND pr.resultid = @resultId
+            LIMIT 1;";
+        return await QuerySingleOrDefaultAsync<PayrollResultItemDto>(sql, new { organizationId, resultId });
+    }
+
+    public async Task<PayrollResultItemDto?> GetPayrollResultForEmployeePeriodAsync(Guid organizationId, Guid periodId, Guid employeeId)
+    {
+        const string sql = @"
+            SELECT 
+                pr.resultid AS ResultId, pr.organizationid, pr.employeeid, pr.periodid, pr.basicsalary, pr.totaldeductions, 
+                pr.totalbonuses, pr.netsalary, pr.loandeductions, pr.salaryadvancedeductions, pr.pfdeductions, 
+                pr.socialsecuritydeductions, pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
+                pr.performancebonuses, pr.generalbonuses, pr.gratuity, pr.overtimedetails, pr.calculatedat,
+                COALESCE(pp.periodname, '') AS PeriodName,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                COALESCE(d.departmentname, '') AS DepartmentName,
+                d.departmentid AS DepartmentId,
+                0 AS TotalCount
+            FROM payroll.payrollresults pr
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            WHERE pr.organizationid = @organizationId AND pr.periodid = @periodId AND pr.employeeid = @employeeId
+            LIMIT 1;";
+        return await QuerySingleOrDefaultAsync<PayrollResultItemDto>(sql, new { organizationId, periodId, employeeId });
+    }
+
+    public async Task<string?> GetPayslipUrlByResultIdAsync(Guid organizationId, Guid resultId)
+    {
+        const string sql = @"
+            SELECT payslipurl FROM payroll.payslips
+            WHERE organizationid = @organizationId AND resultid = @resultId
+            ORDER BY payslipid DESC
+            LIMIT 1;";
+        return await QuerySingleOrDefaultAsync<string?>(sql, new { organizationId, resultId });
+    }
+
+    public async Task UpsertPayslipUrlAsync(Guid organizationId, Guid resultId, Guid employeeId, string payslipUrl)
+    {
+        const string existsSql = @"SELECT payslipid FROM payroll.payslips WHERE organizationid = @organizationId AND resultid = @resultId ORDER BY payslipid DESC LIMIT 1;";
+        var existing = await QuerySingleOrDefaultAsync<Guid?>(existsSql, new { organizationId, resultId });
+        if (existing.HasValue && existing.Value != Guid.Empty)
+        {
+            await ExecuteAsync(@"UPDATE payroll.payslips SET payslipurl = @payslipUrl WHERE payslipid = @payslipId;",
+                new { payslipUrl, payslipId = existing.Value });
+            return;
+        }
+
+        await ExecuteAsync(@"
+            INSERT INTO payroll.payslips (resultid, payslipurl, organizationid, employeeid, mailsentstatus)
+            VALUES (@resultId, @payslipUrl, @organizationId, @employeeId, 'pending');",
+            new { resultId, payslipUrl, organizationId, employeeId });
+    }
+
+    public async Task<IReadOnlyList<PendingPayslipForSendDto>> GetPendingPayslipsForBulkSendAsync(
+        Guid organizationId,
+        Guid payrollPeriodId,
+        IReadOnlyList<Guid> employeeIds)
+    {
+        if (employeeIds == null || employeeIds.Count == 0)
+        {
+            return Array.Empty<PendingPayslipForSendDto>();
+        }
+
+        const string sql = @"
+            SELECT
+                ps.payslipid AS PayslipId,
+                ps.resultid AS ResultId,
+                ps.employeeid AS EmployeeId,
+                ps.payslipurl AS PayslipUrl,
+                e.email AS EmployeeEmail,
+                e.firstname AS EmployeeFirstName,
+                e.lastname AS EmployeeLastName,
+                pp.periodname AS PeriodName
+            FROM payroll.payslips ps
+            INNER JOIN payroll.payrollresults pr
+                ON pr.resultid = ps.resultid
+                AND pr.organizationid = ps.organizationid
+            INNER JOIN employee.employees e
+                ON e.employeeid = ps.employeeid
+                AND e.organizationid = ps.organizationid
+            LEFT JOIN payroll.payrollperiods pp
+                ON pp.periodid = pr.periodid
+                AND pp.organizationid = ps.organizationid
+            WHERE ps.organizationid = @organizationId
+              AND pr.periodid = @payrollPeriodId
+              AND ps.employeeid = ANY(@employeeIds)
+              AND ps.mailsentstatus = 'pending'
+              AND ps.payslipurl IS NOT NULL
+              AND btrim(ps.payslipurl) <> ''
+            ORDER BY ps.payslipid;";
+
+        var rows = await QueryAsync<PendingPayslipForSendDto>(sql, new
+        {
+            organizationId,
+            payrollPeriodId,
+            employeeIds = employeeIds.ToArray()
+        });
+
+        return rows.ToList();
+    }
+
+    public async Task UpdatePayslipAfterSendAsync(
+        Guid payslipId,
+        string? payslipUploadUrl,
+        string mailsentstatus,
+        DateTime? mailsentat,
+        Guid mailsentby)
+    {
+        const string sql = @"
+            UPDATE payroll.payslips
+            SET payslipuploadurl = COALESCE(@payslipUploadUrl, payslipuploadurl),
+                mailsentstatus = @mailsentstatus,
+                mailsentat = @mailsentat,
+                mailsentby = @mailsentby
+            WHERE payslipid = @payslipId;";
+
+        await ExecuteAsync(sql, new
+        {
+            payslipId,
+            payslipUploadUrl,
+            mailsentstatus,
+            mailsentat,
+            mailsentby
+        });
+    }
+
+    private static string BuildCompliancePayslipStatusFilter(string status, DynamicParameters parameters)
+    {
+        return status switch
+        {
+            "draft" => " AND (ps.payslipurl IS NULL OR btrim(ps.payslipurl) = '')",
+            "generated" => """
+                 AND ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''
+                 AND COALESCE(ps.mailsentstatus, 'pending') = 'pending'
+                """,
+            "sent" or "failed" or "bounced" => AddMailStatusFilter(status, parameters),
+            "viewed" => AddMailStatusFilter("sent", parameters),
+            _ => string.Empty
+        };
+    }
+
+    private static string AddMailStatusFilter(string mailStatus, DynamicParameters parameters)
+    {
+        parameters.Add("MailStatus", mailStatus);
+        return " AND ps.mailsentstatus = @MailStatus";
     }
 }
