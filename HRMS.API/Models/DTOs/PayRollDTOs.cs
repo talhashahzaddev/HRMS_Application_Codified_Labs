@@ -2214,7 +2214,7 @@ public class CompliancePayslipFilterDto
     public Guid? PayrollPeriodId { get; set; }
     public Guid? DepartmentId { get; set; }
     public string? SearchTerm { get; set; }
-    /// <summary>Optional: draft | generated (sent/viewed treated as generated for filtering).</summary>
+    /// <summary>Optional: draft | generated | sent | failed | bounced | viewed (viewed maps to sent).</summary>
     public string? Status { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 50;
@@ -2259,4 +2259,44 @@ public class BulkPayslipPdfResponseDto
     public int GeneratedCount { get; set; }
     public int SkippedCount { get; set; }
     public List<string> Messages { get; set; } = new();
+}
+
+public class UploadSendPayslipsRequestDto
+{
+    public Guid PayrollPeriodId { get; set; }
+    public List<Guid> EmployeeIds { get; set; } = new();
+    public string? Subject { get; set; }
+    public string? Message { get; set; }
+    /// <summary>Optional SignalR connection id; client should also call JoinJob on the hub with the returned JobId.</summary>
+    public string? ConnectionId { get; set; }
+}
+
+public class UploadSendPayslipsResponseDto
+{
+    public string JobId { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+}
+
+public class PayslipBulkProgressDto
+{
+    public string JobId { get; set; } = string.Empty;
+    public int Total { get; set; }
+    public int Processed { get; set; }
+    public int Failed { get; set; }
+    public decimal PercentageCompleted { get; set; }
+    public bool IsComplete { get; set; }
+    public Guid? CurrentEmployeeId { get; set; }
+    public string? LastError { get; set; }
+}
+
+public class PendingPayslipForSendDto
+{
+    public Guid PayslipId { get; set; }
+    public Guid ResultId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string PayslipUrl { get; set; } = string.Empty;
+    public string EmployeeEmail { get; set; } = string.Empty;
+    public string EmployeeFirstName { get; set; } = string.Empty;
+    public string EmployeeLastName { get; set; } = string.Empty;
+    public string? PeriodName { get; set; }
 }

@@ -1,9 +1,12 @@
 using AutoMapper;
 using FluentValidation;
+using Hangfire;
+using Hangfire.PostgreSql;
 using HRMS.AI.Services;
 using HRMS.AI.Services.Interface;
 using HRMS.API.Authorization;
 using HRMS.API.Configuration;
+using HRMS.API.Hubs;
 using HRMS.API.Middleware;
 using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
@@ -130,6 +133,20 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // -------------------- CLOUDINARY --------------------
@@ -140,14 +157,35 @@ builder.Services.AddScoped<CloudinaryService>();
 builder.Services.AddScoped<ICloudinaryService>(sp => sp.GetRequiredService<CloudinaryService>());
 builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<CloudinaryService>());
 
+// -------------------- SIGNALR & HANGFIRE --------------------
+builder.Services.AddSignalR();
+
+var hangfireConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
+    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new Exception("Database connection string not found for Hangfire");
+
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(hangfireConnectionString)));
+
+builder.Services.AddHangfireServer();
+
 // -------------------- CORS --------------------
+var configuredOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+var allowedHostSuffixes = builder.Configuration.GetSection("CORS:AllowedHostSuffixes").Get<string[]>()
+    ?? new[] { ".localhost", ".briskpeople.com", ".vercel.app" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(origin => CorsOriginHelper.IsOriginAllowed(origin, configuredOrigins, allowedHostSuffixes))
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -200,6 +238,8 @@ builder.Services.AddScoped<ICareerService, CareerService>();
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IHolidayService, HolidayService>();
 builder.Services.AddScoped<IPayRollService, PayRollService>();
+builder.Services.AddScoped<IPayslipBulkUploadService, PayslipBulkUploadService>();
+builder.Services.AddScoped<IBulkPayslipJobService, BulkPayslipJobService>();
 builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
 builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<IGeoFenceService, GeoFenceService>();
@@ -281,6 +321,12 @@ app.UseAuthorization();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireDashboardAuthorizationFilter() }
+});
+
+app.MapHub<PayslipBulkHub>("/hubs/payslip-bulk");
 app.MapControllers();
 
 try

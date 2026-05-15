@@ -1,4 +1,5 @@
-﻿using DocumentFormat.OpenXml.Wordprocessing;
+using System.Net;
+using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
@@ -965,6 +966,87 @@ public class EmailService : IEmailService
         return true;
     }
 
+    public async Task<bool> SendPayslipEmailAsync(
+        string toEmail,
+        string employeeName,
+        string periodName,
+        string payslipDownloadUrl,
+        Guid organizationId,
+        string? emailSubject = null,
+        string? emailMessage = null)
+    {
+        var domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationId);
+        var cleanDomain = domain.Trim().ToLower()
+            .Replace("http://", "", StringComparison.OrdinalIgnoreCase)
+            .Replace("https://", "", StringComparison.OrdinalIgnoreCase)
+            .Replace(".com", "", StringComparison.OrdinalIgnoreCase);
+        var portalLink = $"https://{cleanDomain}.briskpeople.com";
+        var safeEmployeeName = WebUtility.HtmlEncode(employeeName);
+        var safePeriodName = WebUtility.HtmlEncode(periodName);
+        var subject = string.IsNullOrWhiteSpace(emailSubject)
+            ? $"Your Payslip — {periodName} | BriskPeople"
+            : emailSubject.Trim();
 
+        var messageHtml = string.IsNullOrWhiteSpace(emailMessage)
+            ? $"<p>Your payslip for <strong>{safePeriodName}</strong> is ready.</p>"
+            : $"<div style='margin:0 0 1rem;'>{FormatPayslipEmailMessageHtml(emailMessage)}</div>";
 
+        var body = $@"<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='margin:0;padding:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;'>
+<table width='100%' cellpadding='0' cellspacing='0' style='padding:30px 0;'>
+<tr><td align='center'>
+<table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff;border-radius:8px;overflow:hidden;'>
+<tr>
+<td align='center' style='padding:30px;background:#ffffff;'>
+    <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
+    <tr>
+        <td style='vertical-align:middle;padding-right:10px;'>
+            <img src='https://www.briskpeople.com/hub.png' alt='BriskPeople' style='height:40px;display:block;' />
+        </td>
+        <td style='vertical-align:middle;font-size:22px;font-weight:bold;color:#1f4fd8;'>BriskPeople</td>
+    </tr>
+    </table>
+</td>
+</tr>
+<tr>
+<td style='padding:30px;color:#333;font-size:14px;line-height:1.7;'>
+    <p style='margin-top:0;'>Hi <strong>{safeEmployeeName}</strong>,</p>
+    {messageHtml}
+    <table width='100%' cellpadding='0' cellspacing='0' style='margin:30px 0;'>
+    <tr>
+        <td align='center'>
+            <a href='{payslipDownloadUrl}'
+               style='background:#1f4fd8;color:#fff;padding:14px 28px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;display:inline-block;'>
+                Download Payslip (PDF)
+            </a>
+        </td>
+    </tr>
+    </table>
+    <p>You can also sign in to the employee portal: <a href='{portalLink}'>{portalLink}</a></p>
+    <p style='margin-bottom:0;'>Best regards,<br/><strong>BriskPeople Team</strong></p>
+</td>
+</tr>
+<tr>
+<td align='center' style='padding:20px;background:#f4f6f8;font-size:12px;color:#777;'>
+© {DateTime.UtcNow.Year} BriskPeople. All rights reserved.
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>";
+
+        return await SendEmailAsync(toEmail, subject, body);
+    }
+
+    private static string FormatPayslipEmailMessageHtml(string message)
+    {
+        return WebUtility.HtmlEncode(message.Trim())
+            .Replace("\r\n", "<br/>", StringComparison.Ordinal)
+            .Replace("\n", "<br/>", StringComparison.Ordinal);
+    }
 }
+

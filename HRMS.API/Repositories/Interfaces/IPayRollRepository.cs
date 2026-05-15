@@ -300,4 +300,14 @@ public interface IPayRollRepository
     Task<PayrollResultItemDto?> GetPayrollResultForEmployeePeriodAsync(Guid organizationId, Guid periodId, Guid employeeId);
     Task<string?> GetPayslipUrlByResultIdAsync(Guid organizationId, Guid resultId);
     Task UpsertPayslipUrlAsync(Guid organizationId, Guid resultId, Guid employeeId, string payslipUrl);
+    Task<IReadOnlyList<PendingPayslipForSendDto>> GetPendingPayslipsForBulkSendAsync(
+        Guid organizationId,
+        Guid payrollPeriodId,
+        IReadOnlyList<Guid> employeeIds);
+    Task UpdatePayslipAfterSendAsync(
+        Guid payslipId,
+        string? payslipUploadUrl,
+        string mailsentstatus,
+        DateTime? mailsentat,
+        Guid mailsentby);
 }

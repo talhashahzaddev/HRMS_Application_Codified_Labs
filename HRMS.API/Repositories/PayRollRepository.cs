@@ -10603,7 +10603,8 @@ ORDER BY l.createdat DESC;";
                 (pr.basicsalary + pr.totalbonuses) AS GrossSalaryPkr,
                 pr.totaldeductions AS DeductionsPkr,
                 pr.netsalary AS NetSalaryPkr,
-                CASE 
+                CASE
+                    WHEN COALESCE(ps.mailsentstatus, 'pending') <> 'pending' THEN ps.mailsentstatus
                     WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '' THEN 'generated'
                     ELSE 'draft'
                 END AS Status,
@@ -10617,7 +10618,7 @@ ORDER BY l.createdat DESC;";
             LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
             LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
             LEFT JOIN LATERAL (
-                SELECT ps2.payslipurl
+                SELECT ps2.payslipurl, ps2.mailsentstatus
                 FROM payroll.payslips ps2
                 WHERE ps2.resultid = pr.resultid
                 ORDER BY ps2.payslipid DESC
@@ -10648,15 +10649,7 @@ ORDER BY l.createdat DESC;";
 
         if (!string.IsNullOrWhiteSpace(filter.Status))
         {
-            var st = filter.Status.Trim().ToLowerInvariant();
-            if (st == "draft")
-            {
-                sql += " AND (ps.payslipurl IS NULL OR btrim(ps.payslipurl) = '')";
-            }
-            else if (st is "generated" or "sent" or "viewed")
-            {
-                sql += " AND ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''";
-            }
+            sql += BuildCompliancePayslipStatusFilter(filter.Status.Trim().ToLowerInvariant(), parameters);
         }
 
         sql += " ORDER BY pr.calculatedat DESC";
@@ -10681,14 +10674,18 @@ ORDER BY l.createdat DESC;";
         var sql = @"
             SELECT 
                 COUNT(*)::int AS TotalCount,
-                COALESCE(SUM(CASE WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> '' THEN 1 ELSE 0 END), 0)::int AS GeneratedCount
+                COALESCE(SUM(CASE
+                    WHEN ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''
+                         AND COALESCE(ps.mailsentstatus, 'pending') = 'pending' THEN 1
+                    ELSE 0
+                END), 0)::int AS GeneratedCount
             FROM payroll.payrollresults pr
             INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
             INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
             LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
             LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
             LEFT JOIN LATERAL (
-                SELECT ps2.payslipurl
+                SELECT ps2.payslipurl, ps2.mailsentstatus
                 FROM payroll.payslips ps2
                 WHERE ps2.resultid = pr.resultid
                 ORDER BY ps2.payslipid DESC
@@ -10719,15 +10716,7 @@ ORDER BY l.createdat DESC;";
 
         if (!string.IsNullOrWhiteSpace(filter.Status))
         {
-            var st = filter.Status.Trim().ToLowerInvariant();
-            if (st == "draft")
-            {
-                sql += " AND (ps.payslipurl IS NULL OR btrim(ps.payslipurl) = '')";
-            }
-            else if (st is "generated" or "sent" or "viewed")
-            {
-                sql += " AND ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''";
-            }
+            sql += BuildCompliancePayslipStatusFilter(filter.Status.Trim().ToLowerInvariant(), parameters);
         }
 
         var r = await QuerySingleOrDefaultAsync<CompliancePayslipStatsDto>(sql, parameters);
@@ -10813,5 +10802,99 @@ ORDER BY l.createdat DESC;";
             INSERT INTO payroll.payslips (resultid, payslipurl, organizationid, employeeid, mailsentstatus)
             VALUES (@resultId, @payslipUrl, @organizationId, @employeeId, 'pending');",
             new { resultId, payslipUrl, organizationId, employeeId });
+    }
+
+    public async Task<IReadOnlyList<PendingPayslipForSendDto>> GetPendingPayslipsForBulkSendAsync(
+        Guid organizationId,
+        Guid payrollPeriodId,
+        IReadOnlyList<Guid> employeeIds)
+    {
+        if (employeeIds == null || employeeIds.Count == 0)
+        {
+            return Array.Empty<PendingPayslipForSendDto>();
+        }
+
+        const string sql = @"
+            SELECT
+                ps.payslipid AS PayslipId,
+                ps.resultid AS ResultId,
+                ps.employeeid AS EmployeeId,
+                ps.payslipurl AS PayslipUrl,
+                e.email AS EmployeeEmail,
+                e.firstname AS EmployeeFirstName,
+                e.lastname AS EmployeeLastName,
+                pp.periodname AS PeriodName
+            FROM payroll.payslips ps
+            INNER JOIN payroll.payrollresults pr
+                ON pr.resultid = ps.resultid
+                AND pr.organizationid = ps.organizationid
+            INNER JOIN employee.employees e
+                ON e.employeeid = ps.employeeid
+                AND e.organizationid = ps.organizationid
+            LEFT JOIN payroll.payrollperiods pp
+                ON pp.periodid = pr.periodid
+                AND pp.organizationid = ps.organizationid
+            WHERE ps.organizationid = @organizationId
+              AND pr.periodid = @payrollPeriodId
+              AND ps.employeeid = ANY(@employeeIds)
+              AND ps.mailsentstatus = 'pending'
+              AND ps.payslipurl IS NOT NULL
+              AND btrim(ps.payslipurl) <> ''
+            ORDER BY ps.payslipid;";
+
+        var rows = await QueryAsync<PendingPayslipForSendDto>(sql, new
+        {
+            organizationId,
+            payrollPeriodId,
+            employeeIds = employeeIds.ToArray()
+        });
+
+        return rows.ToList();
+    }
+
+    public async Task UpdatePayslipAfterSendAsync(
+        Guid payslipId,
+        string? payslipUploadUrl,
+        string mailsentstatus,
+        DateTime? mailsentat,
+        Guid mailsentby)
+    {
+        const string sql = @"
+            UPDATE payroll.payslips
+            SET payslipuploadurl = COALESCE(@payslipUploadUrl, payslipuploadurl),
+                mailsentstatus = @mailsentstatus,
+                mailsentat = @mailsentat,
+                mailsentby = @mailsentby
+            WHERE payslipid = @payslipId;";
+
+        await ExecuteAsync(sql, new
+        {
+            payslipId,
+            payslipUploadUrl,
+            mailsentstatus,
+            mailsentat,
+            mailsentby
+        });
+    }
+
+    private static string BuildCompliancePayslipStatusFilter(string status, DynamicParameters parameters)
+    {
+        return status switch
+        {
+            "draft" => " AND (ps.payslipurl IS NULL OR btrim(ps.payslipurl) = '')",
+            "generated" => """
+                 AND ps.payslipurl IS NOT NULL AND btrim(ps.payslipurl) <> ''
+                 AND COALESCE(ps.mailsentstatus, 'pending') = 'pending'
+                """,
+            "sent" or "failed" or "bounced" => AddMailStatusFilter(status, parameters),
+            "viewed" => AddMailStatusFilter("sent", parameters),
+            _ => string.Empty
+        };
+    }
+
+    private static string AddMailStatusFilter(string mailStatus, DynamicParameters parameters)
+    {
+        parameters.Add("MailStatus", mailStatus);
+        return " AND ps.mailsentstatus = @MailStatus";
     }
 }

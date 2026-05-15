@@ -1,3 +1,4 @@
+using Hangfire;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -3833,6 +3834,66 @@ public class PayRollController : ControllerBase
         }
     }
 
+    [HttpPost("/api/payroll/upload-send-payslips")]
+    public ActionResult<ServiceResponse<UploadSendPayslipsResponseDto>> UploadSendPayslips([FromBody] UploadSendPayslipsRequestDto dto)
+    {
+        try
+        {
+            if (dto.PayrollPeriodId == Guid.Empty || dto.EmployeeIds == null || dto.EmployeeIds.Count == 0)
+            {
+                return BadRequest(new ServiceResponse<UploadSendPayslipsResponseDto>
+                {
+                    Success = false,
+                    Message = "Payroll period and at least one employee are required."
+                });
+            }
+
+            var organizationId = GetCurrentOrganizationId();
+            var sentByUserId = GetCurrentUserId();
+            var jobId = Guid.NewGuid().ToString("D");
+            var employeeIds = dto.EmployeeIds.Where(id => id != Guid.Empty).Distinct().ToList();
+
+            var emailSubject = string.IsNullOrWhiteSpace(dto.Subject) ? null : dto.Subject.Trim();
+            var emailMessage = string.IsNullOrWhiteSpace(dto.Message) ? null : dto.Message.Trim();
+
+            BackgroundJob.Enqueue<IBulkPayslipJobService>(service =>
+                service.ProcessBulkUploadAndSendAsync(
+                    jobId,
+                    organizationId,
+                    dto.PayrollPeriodId,
+                    employeeIds,
+                    sentByUserId,
+                    dto.ConnectionId,
+                    emailSubject,
+                    emailMessage));
+
+            return Accepted(new ServiceResponse<UploadSendPayslipsResponseDto>
+            {
+                Success = true,
+                Message = "Bulk payslip upload and email job has been queued.",
+                Data = new UploadSendPayslipsResponseDto
+                {
+                    JobId = jobId,
+                    Message = "Connect to SignalR hub /hubs/payslip-bulk and call JoinJob with this job id for live progress."
+                }
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access while queueing bulk payslip send");
+            return StatusCode(403, new ServiceResponse<UploadSendPayslipsResponseDto> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error queueing bulk payslip upload and send");
+            return StatusCode(500, new ServiceResponse<UploadSendPayslipsResponseDto>
+            {
+                Success = false,
+                Message = "An error occurred while starting the bulk payslip job."
+            });
+        }
+    }
+
     [HttpPost("compliance-payslips/bulk-generate-pdfs")]
     public async Task<ActionResult<ServiceResponse<BulkPayslipPdfResponseDto>>> BulkGenerateCompliancePayslipPdfs([FromBody] BulkPayslipPdfRequestDto dto)
     {
@@ -3869,6 +3930,24 @@ public class PayRollController : ControllerBase
         }
         var employeeId = await _attendanceService.GetEmployeeFromTable(userId);
         return employeeId;
+    }
+
+    private Guid GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userIdClaim))
+        {
+            _logger.LogError("User ID claim not found in JWT token");
+            throw new UnauthorizedAccessException("User ID not found in token");
+        }
+
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            _logger.LogError("Invalid user ID format in JWT token: {UserId}", userIdClaim);
+            throw new UnauthorizedAccessException("Invalid user ID format");
+        }
+
+        return userId;
     }
 
     private Guid GetCurrentOrganizationId()
