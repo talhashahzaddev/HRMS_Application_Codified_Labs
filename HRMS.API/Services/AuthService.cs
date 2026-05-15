@@ -76,6 +76,12 @@ public class AuthService : IAuthService
         }
         User? user = await _authRepository.AuthenticateAsync(request.Email, hashedPassword);
 
+        if (user?.UserId == Guid.Empty)
+        {
+            _logger.LogError("Email verification failed - for email: {Email}", request.Email);
+            throw new InvalidOperationException("Verify Your Account Email!");
+        }
+
         if (user == null)
         {
             _logger.LogWarning("Login failed after credential verification for email: {Email}", request.Email);

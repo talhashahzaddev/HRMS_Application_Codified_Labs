@@ -95,6 +95,31 @@ CREATE FUNCTION auth.fn_authenticate_user(p_email character varying, p_password_
     LANGUAGE plpgsql
     AS $$
 BEGIN
+	IF EXISTS (
+    SELECT 1
+    FROM auth.users u
+    INNER JOIN auth.roles r
+        ON u.roleId = r.roleId
+    WHERE u.email = p_email
+      AND u.passwordHash = p_password_hash
+      AND r.roleName = 'Super Admin'
+      AND COALESCE(u.emailverify, false) = false
+	) THEN
+		RETURN QUERY
+		SELECT
+		    '00000000-0000-0000-0000-000000000000'::uuid AS userid,
+		    NULL::uuid AS organizationid,
+		    NULL::varchar AS email,
+		    NULL::varchar AS firstname,
+		    NULL::varchar AS lastname,
+		    NULL::varchar AS rolename,
+		    NULL::jsonb AS permissions,
+		    NULL::varchar AS organizationname,
+		    NULL::varchar AS domain,
+		    false AS isactive;
+		RETURN;
+	END IF;
+	
     RETURN QUERY
     SELECT 
         u.userId,
