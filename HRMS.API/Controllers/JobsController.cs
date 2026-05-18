@@ -27,7 +27,6 @@ public class JobsController : ControllerBase
 
     // ==================== Stage Master ====================
     [HttpGet("stages")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<List<StageMasterDto>>>> GetAllStages()
     {
         try
@@ -61,7 +60,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("stages/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> GetStageById(Guid id)
     {
         try
@@ -93,7 +91,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("stages")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> CreateStage([FromBody] CreateStageMasterRequest request)
     {
         try
@@ -143,7 +140,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("stages/{id}")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> UpdateStage(Guid id, [FromBody] UpdateStageMasterRequest request)
     {
         try
@@ -195,7 +191,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("stages/{id}")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteStage(Guid id)
     {
         try
@@ -229,7 +224,6 @@ public class JobsController : ControllerBase
 
     // ==================== Job Openings ====================
     [HttpGet("openings")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobOpeningDto>>>> GetAllJobOpenings(
         [FromQuery] string? search,
         [FromQuery] string? status,
@@ -274,7 +268,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("OpeningOverallDetails")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobOpeningStatsDto>>> GetOpeningOverallDetails()
     {
         try
@@ -308,7 +301,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("openings/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> GetJobOpeningById(Guid id)
     {
         try
@@ -340,7 +332,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("openings")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> CreateJobOpening([FromBody] CreateJobOpeningRequest request)
     {
         try
@@ -391,7 +382,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("openings/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> UpdateJobOpening(Guid id, [FromBody] UpdateJobOpeningRequest request)
     {
         try
@@ -438,7 +428,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("openings/{id}")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobOpening(Guid id)
     {
         try

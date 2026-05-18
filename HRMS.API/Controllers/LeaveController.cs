@@ -52,7 +52,6 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("requests/hr")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<LeaveRequestDto>>>> GetLeaveRequestsForHR([FromQuery] LeaveRequestSearchViewModel searchModel)
     {
         try
