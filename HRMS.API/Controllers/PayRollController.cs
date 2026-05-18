@@ -3720,6 +3720,24 @@ public class PayRollController : ControllerBase
 
     // ── Compliance payslips (payroll.payrollresults + PDF) ───────────────────────
 
+    [HttpGet("my-payslips")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<MyPayslipDto>>>> GetMyPayslips([FromQuery] MyPayslipFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMyPayslipsAsync(organizationId, employeeId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my payslips");
+            return StatusCode(500, new ServiceResponse<PagedResult<MyPayslipDto>> { Success = false, Message = "An error occurred." });
+        }
+    }
+
     [HttpGet("compliance-payslips")]
     public async Task<ActionResult<ServiceResponse<PagedResult<CompliancePayslipRowDto>>>> GetCompliancePayslips([FromQuery] CompliancePayslipFilterDto filter)
     {
