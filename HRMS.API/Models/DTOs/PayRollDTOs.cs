@@ -2300,3 +2300,21 @@ public class PendingPayslipForSendDto
     public string EmployeeLastName { get; set; } = string.Empty;
     public string? PeriodName { get; set; }
 }
+
+public class MyPayslipDto
+{
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public string? PayslipUploadUrl { get; set; }
+    public decimal BasicSalary { get; set; }
+    public decimal NetSalary { get; set; }
+    public DateTime CalculatedAt { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid OrganizationId { get; set; }
+}
+public class MyPayslipFilterDto
+{
+    public Guid? PeriodId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}

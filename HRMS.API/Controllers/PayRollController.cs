@@ -1,4 +1,5 @@
 using Hangfire;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,8 @@ namespace HRMS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+//[Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+[Authorize]
 public class PayRollController : ControllerBase
 {
     private readonly IPayRollService _payRollService;
@@ -285,6 +287,7 @@ public class PayRollController : ControllerBase
 
     // Payroll Periods
     [HttpGet("periods")]
+    [PermissionAuthorize("payroll_period_view")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodPagedResult>>> GetAllPayrollPeriods([FromQuery] PayrollPeriodFilterDto filter)
     {
         try
@@ -302,6 +305,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("periods/{id}")]
+    [PermissionAuthorize("payroll_period_view_details")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> GetPayrollPeriodById(Guid id)
     {
         try
@@ -319,6 +323,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("periods")]
+    [PermissionAuthorize("payroll_period_add")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> CreatePayrollPeriod([FromBody] CreatePayrollPeriodDto dto)
     {
         try
@@ -337,6 +342,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("periods/{id}")]
+    [PermissionAuthorize("payroll_period_edit")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> UpdatePayrollPeriod(Guid id, [FromBody] UpdatePayrollPeriodDto dto)
     {
         try
@@ -354,6 +360,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("periods/{id}")]
+    [PermissionAuthorize("payroll_period_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeletePayrollPeriod(Guid id)
     {
         try

@@ -1,4 +1,4 @@
-﻿INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, updated_date) VALUES
+INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, updated_date) VALUES
 
 -- Employee Management (New)
 ('6d880c64-e0b6-4634-b3eb-bb549cce65bf', 'Add Employee', 'add_employee', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -223,7 +223,15 @@
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Add New Role', 'add_new_role', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'View Role Details', 'role_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Edit Role', 'role_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Delete Role', 'role_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Delete Role', 'role_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Payroll
+-- Payroll Period
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'View Payroll Periods', 'payroll_period_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'View Payroll Period Details', 'payroll_period_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Add Payroll Period', 'payroll_period_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Edit Payroll Period', 'payroll_period_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Delete Payroll Period', 'payroll_period_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================
 -- SEED DATA: Country Holiday Catalogs
