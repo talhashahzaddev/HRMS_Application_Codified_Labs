@@ -192,6 +192,7 @@ public interface IPayRollRepository
     Task<bool> CancelMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId);
     Task<PagedResult<MySalaryAdvanceDto>> GetMySalaryAdvancesAsync(Guid organizationId, Guid employeeId, SalaryAdvanceFilterDto filter);
     Task<MySalaryAdvanceDto?> GetMySalaryAdvanceByIdAsync(Guid advanceId, Guid organizationId, Guid employeeId);
+    Task<SalaryAdvanceSummaryDto> GetMySalaryAdvanceSummaryAsync(Guid organizationId, Guid employeeId);
     Task<PagedResult<AdminSalaryAdvanceDto>> GetAllSalaryAdvanceRequestsAsync(Guid organizationId, AdminSalaryAdvanceFilterDto filter);
     Task<AdminSalaryAdvanceDto?> GetSalaryAdvanceRequestByIdAsync(Guid advanceId, Guid organizationId);
     Task<bool> ApproveSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid approvedBy);
@@ -277,6 +278,7 @@ public interface IPayRollRepository
 
     // Social Security — Employee lifecycle (enrollments, requests, claims, documents)
     Task<SocialSecurityEnrollmentDto?> GetMySocialSecurityEnrollmentAsync(Guid organizationId, Guid employeeId);
+    Task<PagedResult<SocialSecurityEnrollmentRosterDto>> GetSocialSecurityEnrollmentsAsync(Guid organizationId, SocialSecurityEnrollmentFilterDto filter);
     Task<PagedResult<SocialSecurityEnrollmentRequestDto>> GetMySocialSecurityRequestsAsync(Guid organizationId, Guid employeeId, MySocialSecurityRequestFilterDto filter);
     Task<PagedResult<SocialSecurityEnrollmentRequestDto>> GetSocialSecurityEnrollmentRequestsAsync(Guid organizationId, SocialSecurityEnrollmentRequestFilterDto filter);
     Task<Guid?> CreateSocialSecurityEnrollmentRequestAsync(Guid organizationId, Guid employeeId, Guid requestedByUserId, CreateSocialSecurityEnrollmentRequestDto dto);
