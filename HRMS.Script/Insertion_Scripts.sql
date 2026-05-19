@@ -231,7 +231,94 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'View Payroll Period Details', 'payroll_period_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Add Payroll Period', 'payroll_period_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Edit Payroll Period', 'payroll_period_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Delete Payroll Period', 'payroll_period_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Delete Payroll Period', 'payroll_period_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Policies (SubMenuId: 2b3df626-459b-4435-acf8-a85ba23f6b7b)
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Payroll Rules', 'payroll_rules_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Overtime Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Overtime Rules', 'overtime_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Overtime Rule', 'overtime_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Overtime Rule', 'overtime_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Overtime Rule', 'overtime_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Attendance Deduction Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Attendance Deduction Rules', 'attendance_deduction_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Attendance Deduction Rule', 'attendance_deduction_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Attendance Deduction Rule', 'attendance_deduction_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Attendance Deduction Rule', 'attendance_deduction_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Late Arrival Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Late Arrival Rules', 'late_arrival_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Late Arrival Rule', 'late_arrival_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Late Arrival Rule', 'late_arrival_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Late Arrival Rule', 'late_arrival_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Leave Deduction Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Leave Deduction Rules', 'leave_deduction_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Leave Deduction Rule', 'leave_deduction_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Leave Deduction Rule', 'leave_deduction_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Leave Deduction Rule', 'leave_deduction_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Performance Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Performance Rules', 'performance_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Performance Rule', 'performance_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Performance Rule', 'performance_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Performance Rule', 'performance_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Bonus Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Bonus Rules', 'bonus_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Bonus Rule', 'bonus_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Bonus Rule', 'bonus_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Bonus Rule', 'bonus_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Loan Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Loan Rules', 'loan_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Loan Rule', 'loan_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Loan Rule', 'loan_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Loan Rule', 'loan_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Salary Advance Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Salary Advance Rules', 'salary_advance_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Salary Advance Rule', 'salary_advance_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Salary Advance Rule', 'salary_advance_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Salary Advance Rule', 'salary_advance_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Provident Fund Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Provident Fund Rules', 'provident_fund_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Provident Fund Rule', 'provident_fund_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Provident Fund Rule', 'provident_fund_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Provident Fund Rule', 'provident_fund_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Regimes
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Tax Regimes', 'tax_regime_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Regime', 'tax_regime_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Regime', 'tax_regime_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Regime', 'tax_regime_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Categories
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Tax Categories', 'tax_category_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Category', 'tax_category_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Category', 'tax_category_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Category', 'tax_category_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Slabs
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Tax Slabs', 'tax_slab_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Slab', 'tax_slab_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Slab', 'tax_slab_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Slab', 'tax_slab_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Component Rules / Tax Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Tax Component Rules', 'tax_component_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Component Rule', 'tax_component_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Component Rule', 'tax_component_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Component Rule', 'tax_component_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Gratuity Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Gratuity Rules', 'gratuity_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Gratuity Rule', 'gratuity_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Gratuity Rule', 'gratuity_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Gratuity Rule', 'gratuity_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================
 -- SEED DATA: Country Holiday Catalogs
