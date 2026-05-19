@@ -969,6 +969,46 @@ public class SocialSecurityEnrollmentDto
     public DateTime UpdatedAt { get; set; }
 }
 
+// ───────────────────────────── Social Security: Enrollment Roster (admin) ───────────────
+
+public class SocialSecurityEnrollmentRosterDto
+{
+    public Guid EnrollmentId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? EmployeeCode { get; set; }
+    public Guid RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public Guid? SchemeId { get; set; }
+    public string? SchemeName { get; set; }
+    public string EnrollmentType { get; set; } = string.Empty;
+    public string EnrollmentStatus { get; set; } = string.Empty;
+    public DateTime EffectiveDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public decimal? EmployeeCustomPct { get; set; }
+    public decimal? EmployerCustomPct { get; set; }
+    public decimal? RuleEmployeeDefaultPct { get; set; }
+    public decimal? RuleEmployerDefaultPct { get; set; }
+    public decimal? SalaryCapOverride { get; set; }
+    public string? ContributionBasis { get; set; }
+    public bool IsCurrent { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class SocialSecurityEnrollmentFilterDto
+{
+    public string? SearchTerm { get; set; }
+    public string? EnrollmentStatus { get; set; }
+    public Guid? RuleId { get; set; }
+    public Guid? SchemeId { get; set; }
+    public bool? CurrentOnly { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
 // ───────────────────────────── Social Security: Enrollment Requests ─────────────────────
 
 public class SocialSecurityEnrollmentRequestDto
@@ -1628,6 +1668,21 @@ public class SalaryAdvanceFilterDto
     public string? AdvanceStatus { get; set; }
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
+}
+
+public class SalaryAdvanceSummaryDto
+{
+    /// <summary>
+    /// Employee's current basic salary resolved from employment details. This is the
+    /// basis every rule cap is applied against ("max % of salary"). Zero when the
+    /// employee has no basic salary configured.
+    /// </summary>
+    public decimal BasicSalary { get; set; }
+    public bool HasBasicSalary { get; set; }
+    public decimal OutstandingAmount { get; set; }
+    public decimal DisbursedAmount { get; set; }
+    public decimal DeductedAmount { get; set; }
+    public int ActiveAdvanceCount { get; set; }
 }
 
 public class AdminSalaryAdvanceDto

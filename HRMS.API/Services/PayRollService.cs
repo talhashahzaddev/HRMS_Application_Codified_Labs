@@ -2270,6 +2270,10 @@ public class PayRollService : IPayRollService
             var result = await _payRollRepository.CreateSalaryAdvanceAsync(organizationId, employeeId, dto);
             return new ServiceResponse<SalaryAdvanceDto> { Success = true, Data = result };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating salary advance request");
@@ -2285,6 +2289,10 @@ public class PayRollService : IPayRollService
             if (result == null)
                 return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "Salary advance request not found or cannot be updated." };
             return new ServiceResponse<SalaryAdvanceDto> { Success = true, Data = result };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = ex.Message };
         }
         catch (Exception ex)
         {
@@ -2339,6 +2347,20 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error getting salary advance request by ID for employee");
             return new ServiceResponse<MySalaryAdvanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SalaryAdvanceSummaryDto>> GetMySalaryAdvanceSummaryAsync(Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMySalaryAdvanceSummaryAsync(organizationId, employeeId);
+            return new ServiceResponse<SalaryAdvanceSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting salary advance summary for employee");
+            return new ServiceResponse<SalaryAdvanceSummaryDto> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -3804,6 +3826,20 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error fetching social security enrollment for employee {EmployeeId}", employeeId);
             return new ServiceResponse<SocialSecurityEnrollmentDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>>> GetSocialSecurityEnrollmentsAsync(Guid organizationId, SocialSecurityEnrollmentFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetSocialSecurityEnrollmentsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security enrollments for organization {OrganizationId}", organizationId);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>> { Success = false, Message = "An error occurred." };
         }
     }
 

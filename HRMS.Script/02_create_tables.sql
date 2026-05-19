@@ -1925,7 +1925,7 @@ create table if not exists payroll.salaryadvancerules (
     isactive            boolean default true,
     isdeleted           boolean default false,
     createdat           timestamptz default current_timestamp,
-    updatedat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp
 );
 
 -- Table: payroll.salaryadvance
@@ -1965,7 +1965,7 @@ CREATE TABLE IF NOT EXISTS payroll.salaryadvance
 TABLESPACE pg_default;
 
 ALTER TABLE IF EXISTS payroll.salaryadvance
-    OWNER to postgres; // advance salary
+    OWNER to postgres; -- advance salary
 
 // pf rules
 create table if not exists payroll.pfrules(

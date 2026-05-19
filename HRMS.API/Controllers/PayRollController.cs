@@ -2495,6 +2495,24 @@ public class PayRollController : ControllerBase
         }
     }
 
+    [HttpGet("salary-advance/summary")]
+    public async Task<ActionResult<ServiceResponse<SalaryAdvanceSummaryDto>>> GetMySalaryAdvanceSummary()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMySalaryAdvanceSummaryAsync(organizationId, employeeId);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving salary advance summary");
+            return StatusCode(500, new ServiceResponse<SalaryAdvanceSummaryDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
     [HttpGet("salary-advance/my-requests/{id}")]
     public async Task<ActionResult<ServiceResponse<MySalaryAdvanceDto>>> GetMySalaryAdvanceById(Guid id)
     {
@@ -4042,6 +4060,23 @@ public class PayRollController : ControllerBase
         {
             _logger.LogError(ex, "Error fetching social security enrollment requests");
             return StatusCode(500, new ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    [HttpGet("social-security/enrollments")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>>>> GetSocialSecurityEnrollments([FromQuery] SocialSecurityEnrollmentFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var response = await _payRollService.GetSocialSecurityEnrollmentsAsync(organizationId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security enrollments");
+            return StatusCode(500, new ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>> { Success = false, Message = "An error occurred" });
         }
     }
 

@@ -4908,8 +4908,68 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Salary Advance
+    /// <summary>
+    /// Validates a salary-advance request against the org rule cap, the employee's
+    /// basic salary and outstanding-advance state. Throws InvalidOperationException
+    /// with a user-facing message on any rule violation.
+    /// </summary>
+    private async Task ValidateSalaryAdvanceAsync(Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto, Guid? excludeAdvanceId)
+    {
+        if (dto.Amount <= 0)
+            throw new InvalidOperationException("Advance amount must be greater than zero.");
+
+        if (!dto.RuleId.HasValue || dto.RuleId.Value == Guid.Empty)
+            throw new InvalidOperationException("A salary advance rule must be selected.");
+
+        var rule = await QuerySingleOrDefaultAsync<SalaryAdvanceRuleDto>(@"
+            SELECT ruleid AS RuleId, maxpercentage AS MaxPercentage, isactive AS IsActive, isdeleted AS IsDeleted
+            FROM payroll.salaryadvancerules
+            WHERE ruleid = @RuleId AND organizationid = @organizationId;",
+            new { dto.RuleId, organizationId });
+
+        if (rule == null || rule.IsDeleted)
+            throw new InvalidOperationException("Selected salary advance rule is not available for this organization.");
+        if (!rule.IsActive)
+            throw new InvalidOperationException("Selected salary advance rule is inactive.");
+
+        // Block stacking: only one un-deducted advance at a time.
+        var outstandingSql = @"
+            SELECT EXISTS (
+                SELECT 1 FROM payroll.salaryadvance
+                WHERE organizationid = @organizationId
+                  AND employeeid     = @employeeId
+                  AND LOWER(advancestatus) IN ('pending', 'approved', 'disbursed')
+                  AND (@excludeAdvanceId IS NULL OR advanceid <> @excludeAdvanceId)
+            );";
+        var hasOutstanding = await ExecuteScalarAsync<bool>(outstandingSql,
+            new { organizationId, employeeId, excludeAdvanceId });
+        if (hasOutstanding)
+            throw new InvalidOperationException("You already have an active salary advance that is not yet fully deducted.");
+
+        // Enforce the rule cap server-side (FE cap is advisory only).
+        if (rule.MaxPercentage.HasValue && rule.MaxPercentage.Value > 0)
+        {
+            var basicSalary = await ExecuteScalarAsync<decimal?>(@"
+                SELECT ed.basicsalary
+                FROM employee.employmentdetails ed
+                WHERE ed.employeeid = @employeeId
+                ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC
+                LIMIT 1;", new { employeeId });
+
+            if (!basicSalary.HasValue || basicSalary.Value <= 0)
+                throw new InvalidOperationException("Your basic salary is not configured; a salary advance cannot be validated.");
+
+            var maxAllowed = Math.Round(basicSalary.Value * rule.MaxPercentage.Value / 100m, 2, MidpointRounding.AwayFromZero);
+            if (dto.Amount > maxAllowed)
+                throw new InvalidOperationException(
+                    $"Requested amount exceeds the allowed limit of {maxAllowed:0.##} ({rule.MaxPercentage.Value:0.##}% of basic salary).");
+        }
+    }
+
     public async Task<SalaryAdvanceDto> CreateSalaryAdvanceAsync(Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
     {
+        await ValidateSalaryAdvanceAsync(organizationId, employeeId, dto, null);
+
         var sql = @"
             INSERT INTO payroll.salaryadvance (
                 organizationid, employeeid, ruleid, amount, reason, createdby
@@ -4943,6 +5003,8 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
     public async Task<SalaryAdvanceDto?> UpdateMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
     {
+        await ValidateSalaryAdvanceAsync(organizationId, employeeId, dto, advanceId);
+
         var sql = @"
             UPDATE payroll.salaryadvance
             SET
@@ -5065,6 +5127,32 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND employeeid = @employeeId;";
 
         return await QuerySingleOrDefaultAsync<MySalaryAdvanceDto>(sql, new { advanceId, organizationId, employeeId });
+    }
+
+    public async Task<SalaryAdvanceSummaryDto> GetMySalaryAdvanceSummaryAsync(Guid organizationId, Guid employeeId)
+    {
+        // Same resolution as ValidateSalaryAdvanceAsync / payroll: most relevant
+        // employment record wins. This is the basis every rule cap is applied to.
+        var basicSalary = await ExecuteScalarAsync<decimal?>(@"
+            SELECT ed.basicsalary
+            FROM employee.employmentdetails ed
+            WHERE ed.employeeid = @employeeId
+            ORDER BY ed.iscurrent DESC, ed.effectivedate DESC, ed.createdat DESC
+            LIMIT 1;", new { employeeId });
+
+        var aggregates = await QuerySingleOrDefaultAsync<SalaryAdvanceSummaryDto>(@"
+            SELECT
+                COALESCE(SUM(amount) FILTER (WHERE LOWER(advancestatus) = 'disbursed'), 0) AS OutstandingAmount,
+                COALESCE(SUM(amount) FILTER (WHERE LOWER(advancestatus) = 'disbursed'), 0) AS DisbursedAmount,
+                COALESCE(SUM(amount) FILTER (WHERE LOWER(advancestatus) = 'deducted'), 0)  AS DeductedAmount,
+                COUNT(*) FILTER (WHERE LOWER(advancestatus) = 'disbursed')                 AS ActiveAdvanceCount
+            FROM payroll.salaryadvance
+            WHERE organizationid = @organizationId AND employeeid = @employeeId;",
+            new { organizationId, employeeId }) ?? new SalaryAdvanceSummaryDto();
+
+        aggregates.BasicSalary = basicSalary.HasValue && basicSalary.Value > 0 ? basicSalary.Value : 0m;
+        aggregates.HasBasicSalary = aggregates.BasicSalary > 0m;
+        return aggregates;
     }
 
     public async Task<PagedResult<AdminSalaryAdvanceDto>> GetAllSalaryAdvanceRequestsAsync(Guid organizationId, AdminSalaryAdvanceFilterDto filter)
@@ -9734,6 +9822,82 @@ ORDER BY l.createdat DESC;";
         return await QuerySingleOrDefaultAsync<SocialSecurityEnrollmentDto>(sql, new { organizationId, employeeId });
     }
 
+    public async Task<PagedResult<SocialSecurityEnrollmentRosterDto>> GetSocialSecurityEnrollmentsAsync(Guid organizationId, SocialSecurityEnrollmentFilterDto filter)
+    {
+        var conditions = new List<string>
+        {
+            "e.organizationid = @organizationId",
+            "e.isdeleted = FALSE"
+        };
+
+        if (!string.IsNullOrWhiteSpace(filter.SearchTerm))
+            conditions.Add("(emp.firstname || ' ' || emp.lastname) ILIKE '%' || @SearchTerm || '%'");
+        if (!string.IsNullOrWhiteSpace(filter.EnrollmentStatus))
+            conditions.Add("LOWER(e.enrollmentstatus) = LOWER(@EnrollmentStatus)");
+        if (filter.RuleId.HasValue)
+            conditions.Add("e.ruleid = @RuleId");
+        if (filter.SchemeId.HasValue)
+            conditions.Add("r.schemeid = @SchemeId");
+        if (filter.CurrentOnly == true)
+            conditions.Add("e.iscurrent = TRUE");
+
+        var where = string.Join(" AND ", conditions);
+
+        var sql = $@"
+            SELECT
+                e.enrollmentid          AS EnrollmentId,
+                e.organizationid        AS OrganizationId,
+                e.employeeid            AS EmployeeId,
+                COALESCE(NULLIF(TRIM(emp.firstname || ' ' || emp.lastname), ''), 'Employee') AS EmployeeName,
+                emp.employeecode        AS EmployeeCode,
+                e.ruleid                AS RuleId,
+                r.rulename              AS RuleName,
+                r.schemeid              AS SchemeId,
+                s.schemename            AS SchemeName,
+                e.enrollmenttype        AS EnrollmentType,
+                e.enrollmentstatus      AS EnrollmentStatus,
+                e.effectivedate         AS EffectiveDate,
+                e.enddate               AS EndDate,
+                e.employeecustompct     AS EmployeeCustomPct,
+                e.employercustompct     AS EmployerCustomPct,
+                r.employeedefaultpct    AS RuleEmployeeDefaultPct,
+                r.employerdefaultpct    AS RuleEmployerDefaultPct,
+                e.salarycapoverride     AS SalaryCapOverride,
+                r.contributionbasis     AS ContributionBasis,
+                e.iscurrent             AS IsCurrent,
+                e.createdat             AS CreatedAt,
+                e.updatedat             AS UpdatedAt,
+                COUNT(*) OVER ()        AS TotalCount
+            FROM payroll.socialsecurityemployeeenrollments e
+            LEFT JOIN employee.employees       emp ON emp.employeeid = e.employeeid
+            LEFT JOIN payroll.socialsecurityrules r  ON r.ruleid     = e.ruleid
+            LEFT JOIN payroll.socialsecurityschemes s ON s.schemeid   = r.schemeid
+            WHERE {where}
+            ORDER BY e.iscurrent DESC, e.effectivedate DESC, e.createdat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var pageSize = filter.PageSize <= 0 ? 10 : filter.PageSize;
+        var page = filter.Page <= 0 ? 1 : filter.Page;
+        var rows = (await QueryAsync<SocialSecurityEnrollmentRosterDto>(sql, new
+        {
+            organizationId,
+            filter.SearchTerm,
+            filter.EnrollmentStatus,
+            filter.RuleId,
+            filter.SchemeId,
+            PageSize = pageSize,
+            Offset = (page - 1) * pageSize
+        })).ToList();
+
+        return new PagedResult<SocialSecurityEnrollmentRosterDto>
+        {
+            Data = rows,
+            TotalCount = rows.Count > 0 ? rows[0].TotalCount : 0,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<PagedResult<SocialSecurityEnrollmentRequestDto>> GetMySocialSecurityRequestsAsync(Guid organizationId, Guid employeeId, MySocialSecurityRequestFilterDto filter)
     {
         var conditions = new List<string>
@@ -9923,18 +10087,33 @@ ORDER BY l.createdat DESC;";
             var currentEnrollment = await connection.QuerySingleOrDefaultAsync<dynamic>(currentEnrollmentSql, new { organizationId, employeeId }, transaction);
 
             Guid? enrollmentId = currentEnrollment != null ? (Guid?)currentEnrollment.enrollmentid : null;
+            // For enrollment/update/reactivation the employee picks the rule explicitly.
+            // For withdrawal/suspension/exemption/correction we derive it from the
+            // employee's current enrollment (they're acting on what they already have).
             Guid? resolvedRuleId = dto.RuleId ?? (currentEnrollment != null ? (Guid?)currentEnrollment.ruleid : null);
 
-            // For enrollment requests, ruleId is required (or pick the org's first active rule)
-            if (requestType == "enrollment" && !resolvedRuleId.HasValue)
+            var ruleDrivenTypes = new[] { "enrollment", "update", "reactivation" };
+            if (ruleDrivenTypes.Contains(requestType) && !resolvedRuleId.HasValue)
             {
-                var fallbackRule = await connection.ExecuteScalarAsync<Guid?>(@"
-                    SELECT ruleid FROM payroll.socialsecurityrules
-                    WHERE organizationid = @organizationId
-                      AND isactive = TRUE AND isdeleted = FALSE
-                    ORDER BY createdat DESC
-                    LIMIT 1;", new { organizationId }, transaction);
-                resolvedRuleId = fallbackRule;
+                transaction.Rollback();
+                throw new InvalidOperationException("A social security rule must be selected for this request.");
+            }
+
+            // Validate the chosen rule actually belongs to this organization and is active.
+            if (resolvedRuleId.HasValue)
+            {
+                var ruleOk = await connection.ExecuteScalarAsync<bool>(@"
+                    SELECT EXISTS (
+                        SELECT 1 FROM payroll.socialsecurityrules
+                        WHERE ruleid = @ruleId
+                          AND organizationid = @organizationId
+                          AND isdeleted = FALSE
+                    );", new { ruleId = resolvedRuleId.Value, organizationId }, transaction);
+                if (!ruleOk)
+                {
+                    transaction.Rollback();
+                    throw new InvalidOperationException("Selected social security rule is not available for this organization.");
+                }
             }
 
             var requestedValues = System.Text.Json.JsonSerializer.Serialize(new
