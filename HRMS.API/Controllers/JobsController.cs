@@ -1,8 +1,9 @@
+using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Services.Interfaces;
 
 namespace HRMS.API.Controllers;
 
@@ -91,6 +92,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("stages")]
+    [PermissionAuthorize("add_stage")]
+
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> CreateStage([FromBody] CreateStageMasterRequest request)
     {
         try
@@ -140,6 +143,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("stages/{id}")]
+    [PermissionAuthorize("stage_edit")]
+
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> UpdateStage(Guid id, [FromBody] UpdateStageMasterRequest request)
     {
         try
@@ -191,6 +196,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("stages/{id}")]
+    [PermissionAuthorize("stage_delete")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteStage(Guid id)
     {
         try
@@ -332,6 +339,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("openings")]
+    [PermissionAuthorize("opnings_create_job")]
+
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> CreateJobOpening([FromBody] CreateJobOpeningRequest request)
     {
         try
@@ -382,6 +391,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("openings/{id}")]
+    [PermissionAuthorize("opnongs_edit")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> UpdateJobOpening(Guid id, [FromBody] UpdateJobOpeningRequest request)
     {
         try
@@ -428,6 +438,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("openings/{id}")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobOpening(Guid id)
     {
         try
@@ -461,7 +472,6 @@ public class JobsController : ControllerBase
 
     // ==================== Job Applications ====================
     [HttpGet("applications")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetAllJobApplications()
     {
         try
@@ -495,7 +505,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/posted-by-me")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetJobApplicationsPostedByMe(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -536,7 +545,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/received")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetReceivedJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -577,7 +585,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/by-job/{jobId}")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
     {
         try
@@ -610,7 +617,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/me")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMyJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -649,7 +655,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/me/self")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMySelfJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -688,7 +693,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> GetJobApplicationById(Guid id)
     {
         try
@@ -720,7 +724,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("applications")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> CreateJobApplication([FromBody] CreateJobApplicationRequest request)
     {
         try
@@ -772,7 +775,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("applications/apply-for-myself")]
-    [Authorize(Roles = "Manager,Employee")]
+
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> ApplyForMySelf([FromBody] ApplyForMySelfRequest request)
     {
         try
@@ -823,7 +826,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("applications/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("job_application_edit")]
+
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> UpdateJobApplication(Guid id, [FromBody] UpdateJobApplicationRequest request)
     {
         try
@@ -870,7 +874,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("applications/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("job_application_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobApplication(Guid id)
     {
         try
@@ -904,7 +908,6 @@ public class JobsController : ControllerBase
 
     // ==================== Application Stages ====================
     [HttpGet("application-stages")]
-   [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetAllApplicationStages()
     {
         try
@@ -938,7 +941,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("application-stages/by-application/{jobApplyId}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
     {
         try
@@ -971,7 +973,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> GetApplicationStageById(Guid id)
     {
         try
@@ -1003,7 +1004,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("application-stages")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> CreateApplicationStage([FromBody] CreateApplicationStageRequest request)
     {
         try
@@ -1058,7 +1058,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> UpdateApplicationStage(Guid id, [FromBody] UpdateApplicationStageRequest request)
     {
         try
@@ -1106,7 +1105,6 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteApplicationStage(Guid id)
     {
         try
