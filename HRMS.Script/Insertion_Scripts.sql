@@ -318,7 +318,43 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Gratuity Rules', 'gratuity_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Gratuity Rule', 'gratuity_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Gratuity Rule', 'gratuity_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Gratuity Rule', 'gratuity_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Gratuity Rule', 'gratuity_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Bonus Pay (entries)
+('4bbf6fcb-c7be-40ba-bb48-c208074d5b87', 'View Bonus Pay', 'bonus_entry_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4bbf6fcb-c7be-40ba-bb48-c208074d5b87', 'Add Bonus Pay', 'bonus_entry_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4bbf6fcb-c7be-40ba-bb48-c208074d5b87', 'Edit Bonus Pay', 'bonus_entry_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4bbf6fcb-c7be-40ba-bb48-c208074d5b87', 'Delete Bonus Pay', 'bonus_entry_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Performance Pay (entries)
+('caef7fa3-2ede-4bf2-85a1-72d1d8fc001f', 'View Performance Pay', 'performance_pay_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('caef7fa3-2ede-4bf2-85a1-72d1d8fc001f', 'Add Performance Pay', 'performance_pay_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('caef7fa3-2ede-4bf2-85a1-72d1d8fc001f', 'Edit Performance Pay', 'performance_pay_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('caef7fa3-2ede-4bf2-85a1-72d1d8fc001f', 'Delete Performance Pay', 'performance_pay_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Overtime (entries)
+('c65b2d29-0090-4810-ac4f-6e38273532c4', 'View Overtime', 'overtime_entry_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c65b2d29-0090-4810-ac4f-6e38273532c4', 'Add Overtime', 'overtime_entry_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c65b2d29-0090-4810-ac4f-6e38273532c4', 'Edit Overtime', 'overtime_entry_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c65b2d29-0090-4810-ac4f-6e38273532c4', 'Delete Overtime', 'overtime_entry_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Attendance Summary / Absences (entries)
+('87327a28-6212-4467-815e-c9c3023fc0ac', 'View Absences', 'attendance_summary_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('87327a28-6212-4467-815e-c9c3023fc0ac', 'Add Absence', 'attendance_summary_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('87327a28-6212-4467-815e-c9c3023fc0ac', 'Edit Absence', 'attendance_summary_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('87327a28-6212-4467-815e-c9c3023fc0ac', 'Delete Absence', 'attendance_summary_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Late / Half-day Attendance (entries)
+('22032ca4-cb23-40ce-bf58-9fe5a7c8f01d', 'View Late / Half-day', 'late_attendance_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('22032ca4-cb23-40ce-bf58-9fe5a7c8f01d', 'Add Late / Half-day', 'late_attendance_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('22032ca4-cb23-40ce-bf58-9fe5a7c8f01d', 'Edit Late / Half-day', 'late_attendance_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('22032ca4-cb23-40ce-bf58-9fe5a7c8f01d', 'Delete Late / Half-day', 'late_attendance_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Leave Summary (entries)
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'View Leave Summary', 'leave_summary_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Add Leave Summary', 'leave_summary_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Edit Leave Summary', 'leave_summary_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Delete Leave Summary', 'leave_summary_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================
 -- SEED DATA: Country Holiday Catalogs
