@@ -2421,6 +2421,7 @@ public class PayRollController : ControllerBase
     //PF Admin Side
 
     [HttpGet("provident-fund/requests")]
+    [PermissionAuthorize("pf_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundRequestDto>>>> GetAllProvidentFundRequests([FromQuery] AdminProvidentFundRequestFilterDto filter)
     {
         try
@@ -2438,6 +2439,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("provident-fund/accounts")]
+    [PermissionAuthorize("pf_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundAccountDto>>>> GetAllProvidentFundAccounts([FromQuery] AdminProvidentFundAccountFilterDto filter)
     {
         try
@@ -2455,6 +2457,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("provident-fund/repayments")]
+    [PermissionAuthorize("pf_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>>>> GetAllProvidentFundRepayments([FromQuery] AdminProvidentFundRepaymentFilterDto filter)
     {
         try
@@ -2472,6 +2475,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("provident-fund/requests/approve")]
+    [PermissionAuthorize("pf_admin_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveProvidentFundRequest([FromBody] ApproveProvidentFundRequestDto dto)
     {
         try
@@ -2490,6 +2494,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("/api/admin/provident-fund/requests/{requestId}/reject")]
+    [PermissionAuthorize("pf_admin_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> RejectProvidentFundRequest(Guid requestId, [FromBody] RejectProvidentFundRequestDto dto)
     {
         try
@@ -2507,6 +2512,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("/api/admin/provident-fund/monthly-transaction")]
+    [PermissionAuthorize("pf_admin_add")]
     public async Task<ActionResult<ServiceResponse<bool>>> AddProvidentFundMonthlyTransaction([FromBody] CreateProvidentFundMonthlyTransactionDto dto)
     {
         try
@@ -2524,6 +2530,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("/api/admin/provident-fund/manual-enroll")]
+    [PermissionAuthorize("pf_admin_add")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> ManualProvidentFundEnrollment([FromBody] ManualProvidentFundEnrollmentDto dto)
     {
         try
@@ -2905,6 +2912,7 @@ public class PayRollController : ControllerBase
     // Admin side
 
     [HttpGet("loans/{id}")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> GetLoanById(Guid id)
     {
         try
@@ -2922,6 +2930,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("loans/disburse")]
+    [PermissionAuthorize("loan_admin_edit")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> DisburseLoan([FromBody] DisburseLoanDto dto)
     {
         try
@@ -2940,6 +2949,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("loans/status")]
+    [PermissionAuthorize("loan_admin_edit")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> UpdateLoanStatus([FromBody] UpdateLoanStatusDto dto)
     {
         try
@@ -2958,6 +2968,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("loans/payment")]
+    [PermissionAuthorize("loan_admin_add")]
     public async Task<ActionResult<ServiceResponse<bool>>> AddLoanPayment([FromBody] AddLoanPaymentDto dto)
     {
         try
@@ -3009,6 +3020,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("loans/payment")]
+    [PermissionAuthorize("loan_admin_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateLoanPayment([FromBody] UpdateLoanPaymentDto dto)
     {
         try
@@ -3026,6 +3038,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/payment/{id}")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<LoanPaymentDto>>> GetLoanPaymentById(Guid id)
     {
         try
@@ -3043,6 +3056,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/all")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<LoanDto>>>> GetAllLoans([FromQuery] LoanFilterDto filter)
     {
         try
@@ -3060,6 +3074,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/disbursed-loans")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<MyActiveLoanDto>>>> GetDisbursedLoans([FromQuery] DisbursedLoanFilterDto filter)
     {
         try
@@ -3077,6 +3092,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/disbursed-active-loans")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<MyActiveLoanDto>>>> GetDisbursedActiveLoans([FromQuery] DisbursedLoanFilterDto filter)
     {
         try
@@ -3093,6 +3109,7 @@ public class PayRollController : ControllerBase
         }
     }
     [HttpGet("repayments/all")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<RepaymentHistoryDto>>>> GetAllRepayments([FromQuery] RepaymentFilterDto filter)
     {
         try

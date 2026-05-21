@@ -354,7 +354,19 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'View Leave Summary', 'leave_summary_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Add Leave Summary', 'leave_summary_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Edit Leave Summary', 'leave_summary_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Delete Leave Summary', 'leave_summary_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Delete Leave Summary', 'leave_summary_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Loan Admin
+('4672c999-66a9-4920-8849-ab6b117d5104', 'View Loans Admin', 'loan_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4672c999-66a9-4920-8849-ab6b117d5104', 'Add Loan Admin', 'loan_admin_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4672c999-66a9-4920-8849-ab6b117d5104', 'Edit Loan Admin', 'loan_admin_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4672c999-66a9-4920-8849-ab6b117d5104', 'Delete Loan Admin', 'loan_admin_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Provident Fund Admin
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'View Provident Fund Admin', 'pf_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Add Provident Fund Admin', 'pf_admin_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Edit Provident Fund Admin', 'pf_admin_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Delete Provident Fund Admin', 'pf_admin_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================
 -- SEED DATA: Country Holiday Catalogs
