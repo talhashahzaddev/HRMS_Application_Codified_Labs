@@ -2986,6 +2986,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("calculate-payroll")]
+    [PermissionAuthorize("payroll_calculation")]
     public async Task<ActionResult<ServiceResponse<PayrollCalculationResultDto>>> CalculatePayroll([FromBody] CalculatePayrollDto dto)
     {
         try
@@ -3003,6 +3004,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("payroll-results")]
+    [PermissionAuthorize("payroll_result")]
     public async Task<ActionResult<ServiceResponse<PagedResult<PayrollResultItemDto>>>> GetPayrollResults([FromQuery] PayrollResultsFilterDto filter)
     {
         try
@@ -3720,6 +3722,7 @@ public class PayRollController : ControllerBase
     // ─── Gratuity Transactions ────────────────────────────────────────────────
 
     [HttpGet("gratuity-transactions")]
+    [PermissionAuthorize("gratuity_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<GratuityTransactionDto>>>> GetAllGratuityTransactions([FromQuery] GratuityTransactionFilterDto filter)
     {
         try
@@ -3737,6 +3740,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("gratuity-transactions/{id}")]
+    [PermissionAuthorize("gratuity_admin_view")]
     public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> GetGratuityTransactionById(Guid id)
     {
         try
@@ -3754,6 +3758,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("gratuity-transactions")]
+    [PermissionAuthorize("gratuity_admin_add")]
     public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> CreateGratuityTransaction([FromBody] CreateGratuityTransactionDto dto)
     {
         try
@@ -3772,6 +3777,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("gratuity-transactions/{id}")]
+    [PermissionAuthorize("gratuity_admin_edit")]
     public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> UpdateGratuityTransaction(Guid id, [FromBody] UpdateGratuityTransactionDto dto)
     {
         try
@@ -3789,6 +3795,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("gratuity-transactions/{id}")]
+    [PermissionAuthorize("gratuity_admin_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteGratuityTransaction(Guid id)
     {
         try
@@ -3806,6 +3813,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("gratuity-transactions/{id}/approve")]
+    [PermissionAuthorize("gratuity_admin_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveGratuityTransaction(Guid id, [FromBody] ApproveGratuityDto dto)
     {
         try
@@ -3824,6 +3832,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("gratuity-transactions/{id}/mark-paid")]
+    [PermissionAuthorize("gratuity_admin_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> MarkGratuityPaid(Guid id, [FromBody] MarkGratuityPaidDto dto)
     {
         try
@@ -3862,6 +3871,7 @@ public class PayRollController : ControllerBase
     // ── Compliance payslips (payroll.payrollresults + PDF) ───────────────────────
 
     [HttpGet("my-payslips")]
+    [PermissionAuthorize("my_payslip")]
     public async Task<ActionResult<ServiceResponse<PagedResult<MyPayslipDto>>>> GetMyPayslips([FromQuery] MyPayslipFilterDto filter)
     {
         try
@@ -3880,6 +3890,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("compliance-payslips")]
+    [PermissionAuthorize("compliance_payslip_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<CompliancePayslipRowDto>>>> GetCompliancePayslips([FromQuery] CompliancePayslipFilterDto filter)
     {
         try
@@ -3910,6 +3921,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("compliance-payslips/stats")]
+    [PermissionAuthorize("compliance_payslip_view")]
     public async Task<ActionResult<ServiceResponse<CompliancePayslipStatsDto>>> GetCompliancePayslipStats([FromQuery] CompliancePayslipFilterDto filter)
     {
         try
@@ -3936,6 +3948,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("compliance-payslips/{resultId:guid}/source")]
+    [PermissionAuthorize("compliance_payslip_view")]
     public async Task<ActionResult<ServiceResponse<PayrollResultItemDto>>> GetCompliancePayslipSource(Guid resultId)
     {
         try
@@ -3962,6 +3975,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("compliance-payslips/{resultId:guid}/pdf")]
+    [PermissionAuthorize("compliance_payslip_view")]
     public async Task<IActionResult> GetCompliancePayslipPdf(Guid resultId)
     {
         try
@@ -3994,6 +4008,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("/api/payroll/upload-send-payslips")]
+    [PermissionAuthorize("mail_upload_payslip")]
     public ActionResult<ServiceResponse<UploadSendPayslipsResponseDto>> UploadSendPayslips([FromBody] UploadSendPayslipsRequestDto dto)
     {
         try
@@ -4054,6 +4069,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("compliance-payslips/bulk-generate-pdfs")]
+    [PermissionAuthorize("payslip_generation")]
     public async Task<ActionResult<ServiceResponse<BulkPayslipPdfResponseDto>>> BulkGenerateCompliancePayslipPdfs([FromBody] BulkPayslipPdfRequestDto dto)
     {
         try

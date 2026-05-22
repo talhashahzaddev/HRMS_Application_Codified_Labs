@@ -366,7 +366,25 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('d6dad615-5f4b-40c1-9756-7610b9380efc', 'View Provident Fund Admin', 'pf_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Add Provident Fund Admin', 'pf_admin_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Edit Provident Fund Admin', 'pf_admin_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Delete Provident Fund Admin', 'pf_admin_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Delete Provident Fund Admin', 'pf_admin_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- My Payslips (employee self-service tab — single permission)
+('257937b5-ee02-41cc-8ae3-2136447d54f1', 'My Payslips', 'my_payslip', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Compliance Payslips (admin management tab)
+('257937b5-ee02-41cc-8ae3-2136447d54f1', 'View Compliance Payslips', 'compliance_payslip_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('257937b5-ee02-41cc-8ae3-2136447d54f1', 'Generate Payslips', 'payslip_generation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('257937b5-ee02-41cc-8ae3-2136447d54f1', 'Mail Upload Payslips', 'mail_upload_payslip', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Gratuity Admin
+('b9f1b555-f313-40b5-9773-13fd3b07d8c8', 'View Gratuity Admin', 'gratuity_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b9f1b555-f313-40b5-9773-13fd3b07d8c8', 'Add Gratuity Admin', 'gratuity_admin_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b9f1b555-f313-40b5-9773-13fd3b07d8c8', 'Edit Gratuity Admin', 'gratuity_admin_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b9f1b555-f313-40b5-9773-13fd3b07d8c8', 'Delete Gratuity Admin', 'gratuity_admin_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Payroll Calculation tab & Payroll Results tab
+('dd68096e-c54f-454c-9bc0-ee65f3628460', 'Payroll Calculation', 'payroll_calculation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('dd68096e-c54f-454c-9bc0-ee65f3628460', 'Payroll Results', 'payroll_result', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================
 -- SEED DATA: Country Holiday Catalogs
