@@ -1,7 +1,8 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
 namespace HRMS.API.Controllers;
@@ -21,7 +22,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("organization")]
-    //[Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<OrganizationSettingsDto>>> GetOrganizationSettings()
     {
         try
@@ -48,7 +48,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("currency")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateCurrency([FromBody] UpdateCurrencyRequest request)
     {
         try
@@ -76,7 +75,6 @@ public class SettingsController : ControllerBase
 
 
     [HttpPut("localization")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateLocalization(
     [FromBody] UpdateLocalizationSettingsRequest request)
     {
@@ -111,7 +109,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("career-page")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateCareerPage([FromBody] UpdateCareerPageRequest request)
     {
         try
@@ -138,7 +135,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("career-page")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<CareerPageDto>>> GetCareerPage()
     {
         try
@@ -165,7 +161,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("policies")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<List<CompanyPolicyDto>>>> GetPolicies()
     {
         try
@@ -186,7 +181,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("policies/{policyId}")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> GetPolicyById(Guid policyId)
     {
         try
@@ -213,7 +207,8 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPost("policies")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("Create_Policy")]
+
     public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> CreatePolicy([FromBody] CreateCompanyPolicyRequest request)
     {
         try
@@ -241,7 +236,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("policies/{policyId}")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> UpdatePolicy(Guid policyId, [FromBody] UpdateCompanyPolicyRequest request)
     {
         try
@@ -269,7 +263,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpDelete("policies/{policyId}")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeletePolicy(Guid policyId)
     {
         try
