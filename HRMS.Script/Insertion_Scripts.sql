@@ -384,7 +384,49 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 
 -- Payroll Calculation tab & Payroll Results tab
 ('dd68096e-c54f-454c-9bc0-ee65f3628460', 'Payroll Calculation', 'payroll_calculation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('dd68096e-c54f-454c-9bc0-ee65f3628460', 'Payroll Results', 'payroll_result', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('dd68096e-c54f-454c-9bc0-ee65f3628460', 'Payroll Results', 'payroll_result', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Salary Advance Admin
+('05c4c176-1feb-45d6-a662-cace9283001a', 'List Salary Advance Admin', 'salary_advance_admin_list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('05c4c176-1feb-45d6-a662-cace9283001a', 'View Salary Advance Admin', 'salary_advance_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('05c4c176-1feb-45d6-a662-cace9283001a', 'Approve Salary Advance Admin', 'salary_advance_admin_approve', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('05c4c176-1feb-45d6-a662-cace9283001a', 'Reject Salary Advance Admin', 'salary_advance_admin_reject', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('05c4c176-1feb-45d6-a662-cace9283001a', 'Disburse Salary Advance Admin', 'salary_advance_admin_disburse', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- My Benefits (employee overview)
+('0af0cd0c-c490-4389-bbfe-27e4b2cfb280', 'My Benefits', 'my_benefits', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Salary Advance Employee
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'Request Salary Advance', 'salary_advance_employee_request', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'View Salary Advance', 'salary_advance_employee_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'Edit Salary Advance', 'salary_advance_employee_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'Cancel Salary Advance', 'salary_advance_employee_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'List Salary Advances', 'salary_advance_employee_list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'Salary Advance Summary', 'salary_advance_employee_summary', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Provident Fund Employee
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Enroll Provident Fund', 'pf_employee_enroll', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Edit PF Enrollment', 'pf_employee_edit_enroll', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Update PF Percentage', 'pf_employee_update_percentage', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Withdraw Provident Fund', 'pf_employee_withdraw', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Delete PF Request', 'pf_employee_delete_request', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'List PF Pending Requests', 'pf_employee_pending_requests', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'View PF Active Account', 'pf_employee_active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'PF Transaction History', 'pf_employee_transactions', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Gratuity Employee
+('eb15b713-9c65-4751-a8fe-61d5aea10747', 'My Gratuity', 'gratuity_employee', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Loan Employee
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Request Loan', 'loan_employee_request', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'View Loan', 'loan_employee_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Edit Loan Request', 'loan_employee_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Cancel Loan Request', 'loan_employee_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'My Active Loans', 'loan_employee_active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'My Pending Loans', 'loan_employee_pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Loan Payment History', 'loan_employee_history', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Loan References', 'loan_employee_references', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'List My Loans', 'loan_employee_list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================
 -- SEED DATA: Country Holiday Catalogs
