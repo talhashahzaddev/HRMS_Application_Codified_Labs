@@ -11063,6 +11063,69 @@ ORDER BY l.createdat DESC;";
         });
     }
 
+    public async Task<PagedResult<MyPayslipDto>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter)
+    {
+        filter ??= new MyPayslipFilterDto();
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+        if (filter.Page <= 0) filter.Page = 1;
+
+        var conditions = new List<string> 
+        { 
+            "pr.organizationid = @organizationId",
+            "pr.employeeid = @employeeId",
+            "ps.payslipuploadurl IS NOT NULL"
+        };
+        
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("employeeId", employeeId);
+
+        if (filter.PeriodId.HasValue)
+        {
+            conditions.Add("pr.periodid = @PeriodId");
+            parameters.Add("PeriodId", filter.PeriodId.Value);
+        }
+
+        var whereClause = string.Join(" AND ", conditions);
+
+        var countSql = $@"
+            SELECT COUNT(1)
+            FROM payroll.payslips ps
+            JOIN payroll.payrollresults pr ON ps.resultid = pr.resultid
+            WHERE {whereClause};";
+
+        var sql = $@"
+            SELECT
+                pr.periodid AS PeriodId,
+                pp.periodname AS PeriodName,
+                ps.payslipuploadurl AS PayslipUploadUrl,
+                pr.basicsalary AS BasicSalary,
+                pr.netsalary AS NetSalary,
+                pr.calculatedat AS CalculatedAt,
+                pr.employeeid AS EmployeeId,
+                pr.organizationid AS OrganizationId
+            FROM payroll.payslips ps
+            JOIN payroll.payrollresults pr ON ps.resultid = pr.resultid
+            JOIN payroll.payrollperiods pp ON pr.periodid = pp.periodid
+            WHERE {whereClause}
+            ORDER BY pr.calculatedat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = await QueryAsync<MyPayslipDto>(sql, parameters);
+
+        return new PagedResult<MyPayslipDto>
+        {
+            Data = data.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
     private static string BuildCompliancePayslipStatusFilter(string status, DynamicParameters parameters)
     {
         return status switch

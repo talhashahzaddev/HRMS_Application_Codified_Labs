@@ -300,4 +300,5 @@ public interface IPayRollService
     Task<ServiceResponse<PayrollResultItemDto?>> GetPayrollPayslipSourceAsync(Guid organizationId, Guid resultId);
     Task<ServiceResponse<BulkPayslipPdfResponseDto>> BulkGeneratePayslipPdfsAsync(Guid organizationId, BulkPayslipPdfRequestDto dto);
     Task<byte[]?> GetCompliancePayslipPdfBytesAsync(Guid organizationId, Guid resultId);
+    Task<ServiceResponse<PagedResult<MyPayslipDto>>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter);
 }

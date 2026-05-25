@@ -312,4 +312,5 @@ public interface IPayRollRepository
         string mailsentstatus,
         DateTime? mailsentat,
         Guid mailsentby);
+    Task<PagedResult<MyPayslipDto>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter);
 }

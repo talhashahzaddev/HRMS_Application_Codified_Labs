@@ -1,4 +1,5 @@
 using Hangfire;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -9,7 +10,8 @@ namespace HRMS.API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+//[Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+[Authorize]
 public class PayRollController : ControllerBase
 {
     private readonly IPayRollService _payRollService;
@@ -24,6 +26,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("rules")]
+    [PermissionAuthorize("payroll_rules_view")]
     public async Task<ActionResult<ServiceResponse<PayRollRulesGroupedDto>>> GetAllRules()
     {
         try
@@ -59,6 +62,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("overtime-rules")]
+    [PermissionAuthorize("overtime_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<OvertimeRuleDto>>>> GetAllOvertimeRules()
     {
         try
@@ -79,6 +83,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("overtime-rules/active")]
+    [PermissionAuthorize("overtime_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<OvertimeRuleDto>>>> GetActiveOvertimeRules()
     {
         try
@@ -99,6 +104,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("overtime-rules/{id}")]
+    [PermissionAuthorize("overtime_rule_view")]
     public async Task<ActionResult<ServiceResponse<OvertimeRuleDto>>> GetOvertimeRuleById(Guid id)
     {
         try
@@ -119,6 +125,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("overtime-rules")]
+    [PermissionAuthorize("overtime_rule_add")]
     public async Task<ActionResult<ServiceResponse<OvertimeRuleDto>>> CreateOvertimeRule([FromBody] CreateOvertimeRuleDto dto)
     {
         try
@@ -139,6 +146,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("overtime-rules/{id}")]
+    [PermissionAuthorize("overtime_rule_edit")]
     public async Task<ActionResult<ServiceResponse<OvertimeRuleDto>>> UpdateOvertimeRule(Guid id, [FromBody] UpdateOvertimeRuleDto dto)
     {
         try
@@ -159,6 +167,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("overtime-rules/{id}")]
+    [PermissionAuthorize("overtime_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteOvertimeRule(Guid id)
     {
         try
@@ -179,6 +188,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("overtime-rules/{id}/toggle-status")]
+    [PermissionAuthorize("overtime_rule_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> ToggleOvertimeRuleStatus(Guid id)
     {
         try
@@ -199,6 +209,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("overtime-entries")]
+    [PermissionAuthorize("overtime_entry_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<OvertimeEntryDto>>>> GetAllOvertimeEntries([FromQuery] OvertimeEntryFilterDto filter)
     {
         try
@@ -216,6 +227,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("overtime-entries/{id}")]
+    [PermissionAuthorize("overtime_entry_view")]
     public async Task<ActionResult<ServiceResponse<OvertimeEntryDto>>> GetOvertimeEntryById(Guid id)
     {
         try
@@ -233,6 +245,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("overtime-entries")]
+    [PermissionAuthorize("overtime_entry_add")]
     public async Task<ActionResult<ServiceResponse<OvertimeEntryDto>>> CreateOvertimeEntry([FromBody] CreateOvertimeEntryDto dto)
     {
         try
@@ -250,6 +263,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("overtime-entries/{id}")]
+    [PermissionAuthorize("overtime_entry_edit")]
     public async Task<ActionResult<ServiceResponse<OvertimeEntryDto>>> UpdateOvertimeEntry(Guid id, [FromBody] UpdateOvertimeEntryDto dto)
     {
         try
@@ -267,6 +281,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("overtime-entries/{id}")]
+    [PermissionAuthorize("overtime_entry_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteOvertimeEntry(Guid id)
     {
         try
@@ -285,6 +300,7 @@ public class PayRollController : ControllerBase
 
     // Payroll Periods
     [HttpGet("periods")]
+    [PermissionAuthorize("payroll_period_view")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodPagedResult>>> GetAllPayrollPeriods([FromQuery] PayrollPeriodFilterDto filter)
     {
         try
@@ -302,6 +318,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("periods/{id}")]
+    [PermissionAuthorize("payroll_period_view_details")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> GetPayrollPeriodById(Guid id)
     {
         try
@@ -319,6 +336,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("periods")]
+    [PermissionAuthorize("payroll_period_add")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> CreatePayrollPeriod([FromBody] CreatePayrollPeriodDto dto)
     {
         try
@@ -337,6 +355,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("periods/{id}")]
+    [PermissionAuthorize("payroll_period_edit")]
     public async Task<ActionResult<ServiceResponse<PayrollPeriodDto>>> UpdatePayrollPeriod(Guid id, [FromBody] UpdatePayrollPeriodDto dto)
     {
         try
@@ -354,6 +373,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("periods/{id}")]
+    [PermissionAuthorize("payroll_period_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeletePayrollPeriod(Guid id)
     {
         try
@@ -372,6 +392,7 @@ public class PayRollController : ControllerBase
 
     // Attendance Deduction Rules
     [HttpGet("attendance-deduction-rules")]
+    [PermissionAuthorize("attendance_deduction_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>>> GetAllAttendanceDeductionRules()
     {
         try
@@ -389,6 +410,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("attendance-deduction-rules/active")]
+    [PermissionAuthorize("attendance_deduction_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>>> GetActiveAttendanceDeductionRules()
     {
         try
@@ -406,6 +428,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("attendance-deduction-rules/{id}")]
+    [PermissionAuthorize("attendance_deduction_rule_view")]
     public async Task<ActionResult<ServiceResponse<AttendanceDeductionRuleDto>>> GetAttendanceDeductionRuleById(Guid id)
     {
         try
@@ -423,6 +446,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("attendance-deduction-rules")]
+    [PermissionAuthorize("attendance_deduction_rule_add")]
     public async Task<ActionResult<ServiceResponse<AttendanceDeductionRuleDto>>> CreateAttendanceDeductionRule([FromBody] CreateAttendanceDeductionRuleDto dto)
     {
         try
@@ -440,6 +464,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("attendance-deduction-rules/{id}")]
+    [PermissionAuthorize("attendance_deduction_rule_edit")]
     public async Task<ActionResult<ServiceResponse<AttendanceDeductionRuleDto>>> UpdateAttendanceDeductionRule(Guid id, [FromBody] UpdateAttendanceDeductionRuleDto dto)
     {
         try
@@ -457,6 +482,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("attendance-deduction-rules/{id}")]
+    [PermissionAuthorize("attendance_deduction_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAttendanceDeductionRule(Guid id)
     {
         try
@@ -475,6 +501,7 @@ public class PayRollController : ControllerBase
 
     // Late Arrival Rules
     [HttpGet("late-arrival-rules")]
+    [PermissionAuthorize("late_arrival_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LateArrivalRuleDto>>>> GetAllLateArrivalRules()
     {
         try
@@ -492,6 +519,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("late-arrival-rules/active")]
+    [PermissionAuthorize("late_arrival_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LateArrivalRuleDto>>>> GetActiveLateArrivalRules()
     {
         try
@@ -509,6 +537,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("late-arrival-rules/{id}")]
+    [PermissionAuthorize("late_arrival_rule_view")]
     public async Task<ActionResult<ServiceResponse<LateArrivalRuleDto>>> GetLateArrivalRuleById(Guid id)
     {
         try
@@ -526,6 +555,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("late-arrival-rules")]
+    [PermissionAuthorize("late_arrival_rule_add")]
     public async Task<ActionResult<ServiceResponse<LateArrivalRuleDto>>> CreateLateArrivalRule([FromBody] CreateLateArrivalRuleDto dto)
     {
         try
@@ -543,6 +573,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("late-arrival-rules/{id}")]
+    [PermissionAuthorize("late_arrival_rule_edit")]
     public async Task<ActionResult<ServiceResponse<LateArrivalRuleDto>>> UpdateLateArrivalRule(Guid id, [FromBody] UpdateLateArrivalRuleDto dto)
     {
         try
@@ -560,6 +591,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("late-arrival-rules/{id}")]
+    [PermissionAuthorize("late_arrival_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteLateArrivalRule(Guid id)
     {
         try
@@ -578,6 +610,7 @@ public class PayRollController : ControllerBase
 
     // Leave Rules
     [HttpGet("leave-rules")]
+    [PermissionAuthorize("leave_deduction_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveRuleDto>>>> GetAllLeaveRules()
     {
         try
@@ -595,6 +628,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("leave-rules/active")]
+    [PermissionAuthorize("leave_deduction_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveRuleDto>>>> GetActiveLeaveRules()
     {
         try
@@ -612,6 +646,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("leave-rules/{id}")]
+    [PermissionAuthorize("leave_deduction_rule_view")]
     public async Task<ActionResult<ServiceResponse<LeaveRuleDto>>> GetLeaveRuleById(Guid id)
     {
         try
@@ -629,6 +664,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("leave-rules")]
+    [PermissionAuthorize("leave_deduction_rule_add")]
     public async Task<ActionResult<ServiceResponse<LeaveRuleDto>>> CreateLeaveRule([FromBody] CreateLeaveRuleDto dto)
     {
         try
@@ -646,6 +682,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("leave-rules/{id}")]
+    [PermissionAuthorize("leave_deduction_rule_edit")]
     public async Task<ActionResult<ServiceResponse<LeaveRuleDto>>> UpdateLeaveRule(Guid id, [FromBody] UpdateLeaveRuleDto dto)
     {
         try
@@ -663,6 +700,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("leave-rules/{id}")]
+    [PermissionAuthorize("leave_deduction_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteLeaveRule(Guid id)
     {
         try
@@ -681,6 +719,7 @@ public class PayRollController : ControllerBase
 
     // Late Attendance
     [HttpGet("late-attendance")]
+    [PermissionAuthorize("late_attendance_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<LateAttendanceDto>>>> GetAllLateAttendance([FromQuery] LateAttendanceFilterDto filter)
     {
         try
@@ -698,6 +737,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("late-attendance/{id}")]
+    [PermissionAuthorize("late_attendance_view")]
     public async Task<ActionResult<ServiceResponse<LateAttendanceDto>>> GetLateAttendanceById(Guid id)
     {
         try
@@ -715,6 +755,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("late-attendance")]
+    [PermissionAuthorize("late_attendance_add")]
     public async Task<ActionResult<ServiceResponse<LateAttendanceDto>>> CreateLateAttendance([FromBody] CreateLateAttendanceDto dto)
     {
         try
@@ -732,6 +773,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("late-attendance/{id}")]
+    [PermissionAuthorize("late_attendance_edit")]
     public async Task<ActionResult<ServiceResponse<LateAttendanceDto>>> UpdateLateAttendance(Guid id, [FromBody] UpdateLateAttendanceDto dto)
     {
         try
@@ -749,6 +791,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("late-attendance/{id}")]
+    [PermissionAuthorize("late_attendance_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteLateAttendance(Guid id)
     {
         try
@@ -767,6 +810,7 @@ public class PayRollController : ControllerBase
 
     // Attendance Summary
     [HttpGet("attendance-summaries")]
+    [PermissionAuthorize("attendance_summary_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<PayrollAttendanceSummaryDto>>>> GetAllAttendanceSummaries([FromQuery] PayrollAttendanceSummaryFilterDto filter)
     {
         try
@@ -784,6 +828,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("attendance-summaries/{id}")]
+    [PermissionAuthorize("attendance_summary_view")]
     public async Task<ActionResult<ServiceResponse<PayrollAttendanceSummaryDto>>> GetAttendanceSummaryById(Guid id)
     {
         try
@@ -801,6 +846,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("attendance-summaries")]
+    [PermissionAuthorize("attendance_summary_add")]
     public async Task<ActionResult<ServiceResponse<PayrollAttendanceSummaryDto>>> CreateAttendanceSummary([FromBody] CreatePayrollAttendanceSummaryDto dto)
     {
         try
@@ -818,6 +864,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("attendance-summaries/{id}")]
+    [PermissionAuthorize("attendance_summary_edit")]
     public async Task<ActionResult<ServiceResponse<PayrollAttendanceSummaryDto>>> UpdateAttendanceSummary(Guid id, [FromBody] UpdatePayrollAttendanceSummaryDto dto)
     {
         try
@@ -835,6 +882,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("attendance-summaries/{id}")]
+    [PermissionAuthorize("attendance_summary_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAttendanceSummary(Guid id)
     {
         try
@@ -853,6 +901,7 @@ public class PayRollController : ControllerBase
 
     // Leave Summary
     [HttpGet("leave-summaries")]
+    [PermissionAuthorize("leave_summary_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<LeaveSummaryDto>>>> GetAllLeaveSummaries([FromQuery] LeaveSummaryFilterDto filter)
     {
         try
@@ -870,6 +919,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("leave-summaries/{id}")]
+    [PermissionAuthorize("leave_summary_view")]
     public async Task<ActionResult<ServiceResponse<LeaveSummaryDto>>> GetLeaveSummaryById(Guid id)
     {
         try
@@ -887,6 +937,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("leave-summaries")]
+    [PermissionAuthorize("leave_summary_add")]
     public async Task<ActionResult<ServiceResponse<LeaveSummaryDto>>> CreateLeaveSummary([FromBody] CreateLeaveSummaryDto dto)
     {
         try
@@ -904,6 +955,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("leave-summaries/{id}")]
+    [PermissionAuthorize("leave_summary_edit")]
     public async Task<ActionResult<ServiceResponse<LeaveSummaryDto>>> UpdateLeaveSummary(Guid id, [FromBody] UpdateLeaveSummaryDto dto)
     {
         try
@@ -921,6 +973,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("leave-summaries/{id}")]
+    [PermissionAuthorize("leave_summary_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteLeaveSummary(Guid id)
     {
         try
@@ -940,6 +993,7 @@ public class PayRollController : ControllerBase
 
     // Performance Rules
     [HttpGet("performance-rules")]
+    [PermissionAuthorize("performance_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<PerformanceRuleDto>>>> GetAllPerformanceRules()
     {
         try
@@ -957,6 +1011,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("performance-rules/active")]
+    [PermissionAuthorize("performance_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<PerformanceRuleDto>>>> GetActivePerformanceRules()
     {
         try
@@ -974,6 +1029,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("performance-rules/{id}")]
+    [PermissionAuthorize("performance_rule_view")]
     public async Task<ActionResult<ServiceResponse<PerformanceRuleDto>>> GetPerformanceRuleById(Guid id)
     {
         try
@@ -991,6 +1047,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("performance-rules")]
+    [PermissionAuthorize("performance_rule_add")]
     public async Task<ActionResult<ServiceResponse<PerformanceRuleDto>>> CreatePerformanceRule([FromBody] CreatePerformanceRuleDto dto)
     {
         try
@@ -1008,6 +1065,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("performance-rules/{id}")]
+    [PermissionAuthorize("performance_rule_edit")]
     public async Task<ActionResult<ServiceResponse<PerformanceRuleDto>>> UpdatePerformanceRule(Guid id, [FromBody] UpdatePerformanceRuleDto dto)
     {
         try
@@ -1025,6 +1083,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("performance-rules/{id}")]
+    [PermissionAuthorize("performance_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeletePerformanceRule(Guid id)
     {
         try
@@ -1043,6 +1102,7 @@ public class PayRollController : ControllerBase
 
     // Bonus Rules
     [HttpGet("bonus-rules")]
+    [PermissionAuthorize("bonus_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<BonusRuleDto>>>> GetAllBonusRules()
     {
         try
@@ -1060,6 +1120,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("bonus-rules/active")]
+    [PermissionAuthorize("bonus_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<BonusRuleDto>>>> GetActiveBonusRules()
     {
         try
@@ -1077,6 +1138,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("bonus-rules/{id}")]
+    [PermissionAuthorize("bonus_rule_view")]
     public async Task<ActionResult<ServiceResponse<BonusRuleDto>>> GetBonusRuleById(Guid id)
     {
         try
@@ -1094,6 +1156,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("bonus-rules")]
+    [PermissionAuthorize("bonus_rule_add")]
     public async Task<ActionResult<ServiceResponse<BonusRuleDto>>> CreateBonusRule([FromBody] CreateBonusRuleDto dto)
     {
         try
@@ -1111,6 +1174,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("bonus-rules/{id}")]
+    [PermissionAuthorize("bonus_rule_edit")]
     public async Task<ActionResult<ServiceResponse<BonusRuleDto>>> UpdateBonusRule(Guid id, [FromBody] UpdateBonusRuleDto dto)
     {
         try
@@ -1128,6 +1192,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("bonus-rules/{id}")]
+    [PermissionAuthorize("bonus_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteBonusRule(Guid id)
     {
         try
@@ -1146,6 +1211,7 @@ public class PayRollController : ControllerBase
 
     // Performance Pay (entries)
     [HttpGet("performance-pay")]
+    [PermissionAuthorize("performance_pay_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<PerformancePayDto>>>> GetAllPerformancePay([FromQuery] PerformancePayFilterDto filter)
     {
         try
@@ -1163,6 +1229,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("performance-pay/{id}")]
+    [PermissionAuthorize("performance_pay_view")]
     public async Task<ActionResult<ServiceResponse<PerformancePayDto>>> GetPerformancePayById(Guid id)
     {
         try
@@ -1180,6 +1247,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("performance-pay")]
+    [PermissionAuthorize("performance_pay_add")]
     public async Task<ActionResult<ServiceResponse<PerformancePayDto>>> CreatePerformancePay([FromBody] CreatePerformancePayDto dto)
     {
         try
@@ -1197,6 +1265,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("performance-pay/{id}")]
+    [PermissionAuthorize("performance_pay_edit")]
     public async Task<ActionResult<ServiceResponse<PerformancePayDto>>> UpdatePerformancePay(Guid id, [FromBody] UpdatePerformancePayDto dto)
     {
         try
@@ -1214,6 +1283,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("performance-pay/{id}")]
+    [PermissionAuthorize("performance_pay_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeletePerformancePay(Guid id)
     {
         try
@@ -1232,6 +1302,7 @@ public class PayRollController : ControllerBase
 
     // Bonus Entries
     [HttpGet("bonus-entries")]
+    [PermissionAuthorize("bonus_entry_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<BonusEntryDto>>>> GetAllBonusEntries([FromQuery] BonusEntryFilterDto filter)
     {
         try
@@ -1249,6 +1320,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("bonus-entries/{id}")]
+    [PermissionAuthorize("bonus_entry_view")]
     public async Task<ActionResult<ServiceResponse<BonusEntryDto>>> GetBonusEntryById(Guid id)
     {
         try
@@ -1266,6 +1338,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("bonus-entries")]
+    [PermissionAuthorize("bonus_entry_add")]
     public async Task<ActionResult<ServiceResponse<BonusEntryDto>>> CreateBonusEntry([FromBody] CreateBonusEntryDto dto)
     {
         try
@@ -1283,6 +1356,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("bonus-entries/{id}")]
+    [PermissionAuthorize("bonus_entry_edit")]
     public async Task<ActionResult<ServiceResponse<BonusEntryDto>>> UpdateBonusEntry(Guid id, [FromBody] UpdateBonusEntryDto dto)
     {
         try
@@ -1300,6 +1374,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("bonus-entries/{id}")]
+    [PermissionAuthorize("bonus_entry_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteBonusEntry(Guid id)
     {
         try
@@ -1318,6 +1393,7 @@ public class PayRollController : ControllerBase
 
     // Loan Rules
     [HttpGet("loan-rules")]
+    [PermissionAuthorize("loan_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LoanRuleDto>>>> GetAllLoanRules()
     {
         try
@@ -1335,6 +1411,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loan-rules/active")]
+    [PermissionAuthorize("loan_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LoanRuleDto>>>> GetActiveLoanRules()
     {
         try
@@ -1352,6 +1429,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loan-rules/{id}")]
+    [PermissionAuthorize("loan_rule_view")]
     public async Task<ActionResult<ServiceResponse<LoanRuleDto>>> GetLoanRuleById(Guid id)
     {
         try
@@ -1369,6 +1447,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("loan-rules")]
+    [PermissionAuthorize("loan_rule_add")]
     public async Task<ActionResult<ServiceResponse<LoanRuleDto>>> CreateLoanRule([FromBody] CreateLoanRuleDto dto)
     {
         try
@@ -1386,6 +1465,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("loan-rules/{id}")]
+    [PermissionAuthorize("loan_rule_edit")]
     public async Task<ActionResult<ServiceResponse<LoanRuleDto>>> UpdateLoanRule(Guid id, [FromBody] UpdateLoanRuleDto dto)
     {
         try
@@ -1403,6 +1483,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("loan-rules/{id}")]
+    [PermissionAuthorize("loan_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteLoanRule(Guid id)
     {
         try
@@ -1421,6 +1502,7 @@ public class PayRollController : ControllerBase
 
     // Salary Advance Rules
     [HttpGet("salary-advance-rules")]
+    [PermissionAuthorize("salary_advance_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>>> GetAllSalaryAdvanceRules()
     {
         try
@@ -1438,6 +1520,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("salary-advance-rules/active")]
+    [PermissionAuthorize("salary_advance_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>>> GetActiveSalaryAdvanceRules()
     {
         try
@@ -1455,6 +1538,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("salary-advance-rules/{id}")]
+    [PermissionAuthorize("salary_advance_rule_view")]
     public async Task<ActionResult<ServiceResponse<SalaryAdvanceRuleDto>>> GetSalaryAdvanceRuleById(Guid id)
     {
         try
@@ -1472,6 +1556,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("salary-advance-rules")]
+    [PermissionAuthorize("salary_advance_rule_add")]
     public async Task<ActionResult<ServiceResponse<SalaryAdvanceRuleDto>>> CreateSalaryAdvanceRule([FromBody] CreateSalaryAdvanceRuleDto dto)
     {
         try
@@ -1489,6 +1574,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("salary-advance-rules/{id}")]
+    [PermissionAuthorize("salary_advance_rule_edit")]
     public async Task<ActionResult<ServiceResponse<SalaryAdvanceRuleDto>>> UpdateSalaryAdvanceRule(Guid id, [FromBody] UpdateSalaryAdvanceRuleDto dto)
     {
         try
@@ -1506,6 +1592,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("salary-advance-rules/{id}")]
+    [PermissionAuthorize("salary_advance_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSalaryAdvanceRule(Guid id)
     {
         try
@@ -1524,6 +1611,7 @@ public class PayRollController : ControllerBase
 
     // Provident Fund Rules
     [HttpGet("provident-fund-rules")]
+    [PermissionAuthorize("provident_fund_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<ProvidentFundRuleDto>>>> GetAllProvidentFundRules()
     {
         try
@@ -1541,6 +1629,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("provident-fund-rules/active")]
+    [PermissionAuthorize("provident_fund_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<ProvidentFundRuleDto>>>> GetActiveProvidentFundRules()
     {
         try
@@ -1558,6 +1647,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("provident-fund-rules/{id}")]
+    [PermissionAuthorize("provident_fund_rule_view")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundRuleDto>>> GetProvidentFundRuleById(Guid id)
     {
         try
@@ -1575,6 +1665,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("provident-fund-rules")]
+    [PermissionAuthorize("provident_fund_rule_add")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundRuleDto>>> CreateProvidentFundRule([FromBody] CreateProvidentFundRuleDto dto)
     {
         try
@@ -1592,6 +1683,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("provident-fund-rules/{id}")]
+    [PermissionAuthorize("provident_fund_rule_edit")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundRuleDto>>> UpdateProvidentFundRule(Guid id, [FromBody] UpdateProvidentFundRuleDto dto)
     {
         try
@@ -1609,6 +1701,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("provident-fund-rules/{id}")]
+    [PermissionAuthorize("provident_fund_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteProvidentFundRule(Guid id)
     {
         try
@@ -1627,6 +1720,7 @@ public class PayRollController : ControllerBase
 
     // Tax Regimes
     [HttpGet("tax-regimes")]
+    [PermissionAuthorize("tax_regime_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxRegimeDto>>>> GetAllTaxRegimes()
     {
         try
@@ -1644,6 +1738,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-regimes/active")]
+    [PermissionAuthorize("tax_regime_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxRegimeDto>>>> GetActiveTaxRegimes()
     {
         try
@@ -1661,6 +1756,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-regimes/{id}")]
+    [PermissionAuthorize("tax_regime_view")]
     public async Task<ActionResult<ServiceResponse<TaxRegimeDto>>> GetTaxRegimeById(Guid id)
     {
         try
@@ -1678,6 +1774,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("tax-regimes")]
+    [PermissionAuthorize("tax_regime_add")]
     public async Task<ActionResult<ServiceResponse<TaxRegimeDto>>> CreateTaxRegime([FromBody] CreateTaxRegimeDto dto)
     {
         try
@@ -1695,6 +1792,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("tax-regimes/{id}")]
+    [PermissionAuthorize("tax_regime_edit")]
     public async Task<ActionResult<ServiceResponse<TaxRegimeDto>>> UpdateTaxRegime(Guid id, [FromBody] UpdateTaxRegimeDto dto)
     {
         try
@@ -1712,6 +1810,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("tax-regimes/{id}")]
+    [PermissionAuthorize("tax_regime_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxRegime(Guid id)
     {
         try
@@ -1730,6 +1829,7 @@ public class PayRollController : ControllerBase
 
     // Tax Categories
     [HttpGet("tax-categories")]
+    [PermissionAuthorize("tax_category_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetAllTaxCategories()
     {
         try
@@ -1747,6 +1847,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-categories/active")]
+    [PermissionAuthorize("tax_category_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetActiveTaxCategories()
     {
         try
@@ -1764,6 +1865,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-categories/{id}")]
+    [PermissionAuthorize("tax_category_view")]
     public async Task<ActionResult<ServiceResponse<TaxCategoryDto>>> GetTaxCategoryById(Guid id)
     {
         try
@@ -1781,6 +1883,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-categories/regime/{regimeId}")]
+    [PermissionAuthorize("tax_category_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetTaxCategoriesByRegimeId(Guid regimeId)
     {
         try
@@ -1798,6 +1901,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("tax-categories")]
+    [PermissionAuthorize("tax_category_add")]
     public async Task<ActionResult<ServiceResponse<TaxCategoryDto>>> CreateTaxCategory([FromBody] CreateTaxCategoryDto dto)
     {
         try
@@ -1815,6 +1919,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("tax-categories/{id}")]
+    [PermissionAuthorize("tax_category_edit")]
     public async Task<ActionResult<ServiceResponse<TaxCategoryDto>>> UpdateTaxCategory(Guid id, [FromBody] UpdateTaxCategoryDto dto)
     {
         try
@@ -1832,6 +1937,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("tax-categories/{id}")]
+    [PermissionAuthorize("tax_category_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxCategory(Guid id)
     {
         try
@@ -1850,6 +1956,7 @@ public class PayRollController : ControllerBase
 
     // Tax Slabs
     [HttpGet("tax-slabs")]
+    [PermissionAuthorize("tax_slab_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxSlabDto>>>> GetAllTaxSlabs()
     {
         try
@@ -1867,6 +1974,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-slabs/active")]
+    [PermissionAuthorize("tax_slab_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxSlabDto>>>> GetActiveTaxSlabs()
     {
         try
@@ -1884,6 +1992,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-slabs/{id}")]
+    [PermissionAuthorize("tax_slab_view")]
     public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> GetTaxSlabById(Guid id)
     {
         try
@@ -1901,6 +2010,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("tax-slabs")]
+    [PermissionAuthorize("tax_slab_add")]
     public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> CreateTaxSlab([FromBody] CreateTaxSlabDto dto)
     {
         try
@@ -1918,6 +2028,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("tax-slabs/{id}")]
+    [PermissionAuthorize("tax_slab_edit")]
     public async Task<ActionResult<ServiceResponse<TaxSlabDto>>> UpdateTaxSlab(Guid id, [FromBody] UpdateTaxSlabDto dto)
     {
         try
@@ -1935,6 +2046,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("tax-slabs/{id}")]
+    [PermissionAuthorize("tax_slab_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxSlab(Guid id)
     {
         try
@@ -1953,6 +2065,7 @@ public class PayRollController : ControllerBase
 
     // Tax Component Rules
     [HttpGet("tax-component-rules")]
+    [PermissionAuthorize("tax_component_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxComponentRuleDto>>>> GetAllTaxComponentRules()
     {
         try
@@ -1970,6 +2083,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-component-rules/active")]
+    [PermissionAuthorize("tax_component_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxComponentRuleDto>>>> GetActiveTaxComponentRules()
     {
         try
@@ -1987,6 +2101,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-component-rules/{id}")]
+    [PermissionAuthorize("tax_component_rule_view")]
     public async Task<ActionResult<ServiceResponse<TaxComponentRuleDto>>> GetTaxComponentRuleById(Guid id)
     {
         try
@@ -2004,6 +2119,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("tax-component-rules")]
+    [PermissionAuthorize("tax_component_rule_add")]
     public async Task<ActionResult<ServiceResponse<TaxComponentRuleDto>>> CreateTaxComponentRule([FromBody] CreateTaxComponentRuleDto dto)
     {
         try
@@ -2021,6 +2137,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("tax-component-rules/{id}")]
+    [PermissionAuthorize("tax_component_rule_edit")]
     public async Task<ActionResult<ServiceResponse<TaxComponentRuleDto>>> UpdateTaxComponentRule(Guid id, [FromBody] UpdateTaxComponentRuleDto dto)
     {
         try
@@ -2038,6 +2155,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("tax-component-rules/{id}")]
+    [PermissionAuthorize("tax_component_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxComponentRule(Guid id)
     {
         try
@@ -2303,6 +2421,7 @@ public class PayRollController : ControllerBase
     //PF Admin Side
 
     [HttpGet("provident-fund/requests")]
+    [PermissionAuthorize("pf_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundRequestDto>>>> GetAllProvidentFundRequests([FromQuery] AdminProvidentFundRequestFilterDto filter)
     {
         try
@@ -2320,6 +2439,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("provident-fund/accounts")]
+    [PermissionAuthorize("pf_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundAccountDto>>>> GetAllProvidentFundAccounts([FromQuery] AdminProvidentFundAccountFilterDto filter)
     {
         try
@@ -2337,6 +2457,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("provident-fund/repayments")]
+    [PermissionAuthorize("pf_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AdminProvidentFundRepaymentDto>>>> GetAllProvidentFundRepayments([FromQuery] AdminProvidentFundRepaymentFilterDto filter)
     {
         try
@@ -2354,6 +2475,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("provident-fund/requests/approve")]
+    [PermissionAuthorize("pf_admin_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveProvidentFundRequest([FromBody] ApproveProvidentFundRequestDto dto)
     {
         try
@@ -2372,6 +2494,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("/api/admin/provident-fund/requests/{requestId}/reject")]
+    [PermissionAuthorize("pf_admin_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> RejectProvidentFundRequest(Guid requestId, [FromBody] RejectProvidentFundRequestDto dto)
     {
         try
@@ -2389,6 +2512,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("/api/admin/provident-fund/monthly-transaction")]
+    [PermissionAuthorize("pf_admin_add")]
     public async Task<ActionResult<ServiceResponse<bool>>> AddProvidentFundMonthlyTransaction([FromBody] CreateProvidentFundMonthlyTransactionDto dto)
     {
         try
@@ -2406,6 +2530,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("/api/admin/provident-fund/manual-enroll")]
+    [PermissionAuthorize("pf_admin_add")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundEnrollmentDto>>> ManualProvidentFundEnrollment([FromBody] ManualProvidentFundEnrollmentDto dto)
     {
         try
@@ -2805,6 +2930,7 @@ public class PayRollController : ControllerBase
     // Admin side
 
     [HttpGet("loans/{id}")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> GetLoanById(Guid id)
     {
         try
@@ -2822,6 +2948,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("loans/disburse")]
+    [PermissionAuthorize("loan_admin_edit")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> DisburseLoan([FromBody] DisburseLoanDto dto)
     {
         try
@@ -2840,6 +2967,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("loans/status")]
+    [PermissionAuthorize("loan_admin_edit")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> UpdateLoanStatus([FromBody] UpdateLoanStatusDto dto)
     {
         try
@@ -2858,6 +2986,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("loans/payment")]
+    [PermissionAuthorize("loan_admin_add")]
     public async Task<ActionResult<ServiceResponse<bool>>> AddLoanPayment([FromBody] AddLoanPaymentDto dto)
     {
         try
@@ -2875,6 +3004,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("calculate-payroll")]
+    [PermissionAuthorize("payroll_calculation")]
     public async Task<ActionResult<ServiceResponse<PayrollCalculationResultDto>>> CalculatePayroll([FromBody] CalculatePayrollDto dto)
     {
         try
@@ -2892,6 +3022,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("payroll-results")]
+    [PermissionAuthorize("payroll_result")]
     public async Task<ActionResult<ServiceResponse<PagedResult<PayrollResultItemDto>>>> GetPayrollResults([FromQuery] PayrollResultsFilterDto filter)
     {
         try
@@ -2909,6 +3040,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("loans/payment")]
+    [PermissionAuthorize("loan_admin_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateLoanPayment([FromBody] UpdateLoanPaymentDto dto)
     {
         try
@@ -2926,6 +3058,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/payment/{id}")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<LoanPaymentDto>>> GetLoanPaymentById(Guid id)
     {
         try
@@ -2943,6 +3076,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/all")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<LoanDto>>>> GetAllLoans([FromQuery] LoanFilterDto filter)
     {
         try
@@ -2960,6 +3094,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/disbursed-loans")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<MyActiveLoanDto>>>> GetDisbursedLoans([FromQuery] DisbursedLoanFilterDto filter)
     {
         try
@@ -2977,6 +3112,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/disbursed-active-loans")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<MyActiveLoanDto>>>> GetDisbursedActiveLoans([FromQuery] DisbursedLoanFilterDto filter)
     {
         try
@@ -2993,6 +3129,7 @@ public class PayRollController : ControllerBase
         }
     }
     [HttpGet("repayments/all")]
+    [PermissionAuthorize("loan_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<RepaymentHistoryDto>>>> GetAllRepayments([FromQuery] RepaymentFilterDto filter)
     {
         try
@@ -3493,6 +3630,7 @@ public class PayRollController : ControllerBase
     // ─── Gratuity Config ─────────────────────────────────────────────────────
 
     [HttpGet("gratuity-configs")]
+    [PermissionAuthorize("gratuity_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<GratuityConfigDto>>>> GetAllGratuityConfigs()
     {
         try
@@ -3510,6 +3648,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("gratuity-configs/active")]
+    [PermissionAuthorize("gratuity_rule_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<GratuityConfigDto>>>> GetActiveGratuityConfigs()
     {
         try
@@ -3527,6 +3666,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("gratuity-configs/{id}")]
+    [PermissionAuthorize("gratuity_rule_view")]
     public async Task<ActionResult<ServiceResponse<GratuityConfigDto>>> GetGratuityConfigById(Guid id)
     {
         try
@@ -3544,6 +3684,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("gratuity-configs")]
+    [PermissionAuthorize("gratuity_rule_add")]
     public async Task<ActionResult<ServiceResponse<GratuityConfigDto>>> CreateGratuityConfig([FromBody] CreateGratuityConfigDto dto)
     {
         try
@@ -3561,6 +3702,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("gratuity-configs/{id}")]
+    [PermissionAuthorize("gratuity_rule_edit")]
     public async Task<ActionResult<ServiceResponse<GratuityConfigDto>>> UpdateGratuityConfig(Guid id, [FromBody] UpdateGratuityConfigDto dto)
     {
         try
@@ -3578,6 +3720,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("gratuity-configs/{id}")]
+    [PermissionAuthorize("gratuity_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteGratuityConfig(Guid id)
     {
         try
@@ -3597,6 +3740,7 @@ public class PayRollController : ControllerBase
     // ─── Gratuity Transactions ────────────────────────────────────────────────
 
     [HttpGet("gratuity-transactions")]
+    [PermissionAuthorize("gratuity_admin_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<GratuityTransactionDto>>>> GetAllGratuityTransactions([FromQuery] GratuityTransactionFilterDto filter)
     {
         try
@@ -3614,6 +3758,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("gratuity-transactions/{id}")]
+    [PermissionAuthorize("gratuity_admin_view")]
     public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> GetGratuityTransactionById(Guid id)
     {
         try
@@ -3631,6 +3776,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("gratuity-transactions")]
+    [PermissionAuthorize("gratuity_admin_add")]
     public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> CreateGratuityTransaction([FromBody] CreateGratuityTransactionDto dto)
     {
         try
@@ -3649,6 +3795,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("gratuity-transactions/{id}")]
+    [PermissionAuthorize("gratuity_admin_edit")]
     public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> UpdateGratuityTransaction(Guid id, [FromBody] UpdateGratuityTransactionDto dto)
     {
         try
@@ -3666,6 +3813,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("gratuity-transactions/{id}")]
+    [PermissionAuthorize("gratuity_admin_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteGratuityTransaction(Guid id)
     {
         try
@@ -3683,6 +3831,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("gratuity-transactions/{id}/approve")]
+    [PermissionAuthorize("gratuity_admin_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveGratuityTransaction(Guid id, [FromBody] ApproveGratuityDto dto)
     {
         try
@@ -3701,6 +3850,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("gratuity-transactions/{id}/mark-paid")]
+    [PermissionAuthorize("gratuity_admin_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> MarkGratuityPaid(Guid id, [FromBody] MarkGratuityPaidDto dto)
     {
         try
@@ -3738,7 +3888,27 @@ public class PayRollController : ControllerBase
 
     // ── Compliance payslips (payroll.payrollresults + PDF) ───────────────────────
 
+    [HttpGet("my-payslips")]
+    [PermissionAuthorize("my_payslip")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<MyPayslipDto>>>> GetMyPayslips([FromQuery] MyPayslipFilterDto filter)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var employeeId = await GetCurrentEmployeeId();
+            var response = await _payRollService.GetMyPayslipsAsync(organizationId, employeeId, filter);
+            if (!response.Success) return BadRequest(response);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my payslips");
+            return StatusCode(500, new ServiceResponse<PagedResult<MyPayslipDto>> { Success = false, Message = "An error occurred." });
+        }
+    }
+
     [HttpGet("compliance-payslips")]
+    [PermissionAuthorize("compliance_payslip_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<CompliancePayslipRowDto>>>> GetCompliancePayslips([FromQuery] CompliancePayslipFilterDto filter)
     {
         try
@@ -3769,6 +3939,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("compliance-payslips/stats")]
+    [PermissionAuthorize("compliance_payslip_view")]
     public async Task<ActionResult<ServiceResponse<CompliancePayslipStatsDto>>> GetCompliancePayslipStats([FromQuery] CompliancePayslipFilterDto filter)
     {
         try
@@ -3795,6 +3966,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("compliance-payslips/{resultId:guid}/source")]
+    [PermissionAuthorize("compliance_payslip_view")]
     public async Task<ActionResult<ServiceResponse<PayrollResultItemDto>>> GetCompliancePayslipSource(Guid resultId)
     {
         try
@@ -3821,6 +3993,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("compliance-payslips/{resultId:guid}/pdf")]
+    [PermissionAuthorize("compliance_payslip_view")]
     public async Task<IActionResult> GetCompliancePayslipPdf(Guid resultId)
     {
         try
@@ -3853,6 +4026,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("/api/payroll/upload-send-payslips")]
+    [PermissionAuthorize("mail_upload_payslip")]
     public ActionResult<ServiceResponse<UploadSendPayslipsResponseDto>> UploadSendPayslips([FromBody] UploadSendPayslipsRequestDto dto)
     {
         try
@@ -3913,6 +4087,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("compliance-payslips/bulk-generate-pdfs")]
+    [PermissionAuthorize("payslip_generation")]
     public async Task<ActionResult<ServiceResponse<BulkPayslipPdfResponseDto>>> BulkGenerateCompliancePayslipPdfs([FromBody] BulkPayslipPdfRequestDto dto)
     {
         try

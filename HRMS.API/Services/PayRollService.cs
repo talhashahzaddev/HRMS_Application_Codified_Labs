@@ -4119,6 +4119,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<PagedResult<MyPayslipDto>>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetMyPayslipsAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<MyPayslipDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my payslips for employee: {EmployeeId}", employeeId);
+            return new ServiceResponse<PagedResult<MyPayslipDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<CompliancePayslipStatsDto>> GetCompliancePayslipStatsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
     {
         try
