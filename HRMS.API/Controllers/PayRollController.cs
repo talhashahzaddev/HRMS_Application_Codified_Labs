@@ -2276,6 +2276,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("provident-fund/enroll")]
+    [PermissionAuthorize("pf_employee_enroll")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> EnrollProvidentFund([FromBody] CreateProvidentFundEnrollmentDto dto)
     {
         try
@@ -2294,6 +2295,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("/api/employee/provident-fund/enroll/{requestId}")]
+    [PermissionAuthorize("pf_employee_edit_enroll")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> UpdateProvidentFundEnrollmentRequest(Guid requestId, [FromBody] CreateProvidentFundEnrollmentDto dto)
     {
         try
@@ -2312,6 +2314,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPatch("provident-fund/update-percentage")]
+    [PermissionAuthorize("pf_employee_update_percentage")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> UpdateProvidentFundPercentage([FromBody] UpdateProvidentFundPercentageDto dto)
     {
         try
@@ -2330,6 +2333,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("/api/employee/provident-fund/withdraw")]
+    [PermissionAuthorize("pf_employee_withdraw")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundRequestDto>>> WithdrawProvidentFund([FromBody] CreateProvidentFundWithdrawRequestDto dto)
     {
         try
@@ -2348,6 +2352,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("/api/employee/provident-fund/request/{requestId}")]
+    [PermissionAuthorize("pf_employee_delete_request")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteProvidentFundRequest(Guid requestId)
     {
         try
@@ -2366,6 +2371,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("/api/employee/provident-fund/my-pending-request")]
+    [PermissionAuthorize("pf_employee_pending_requests")]
     public async Task<ActionResult<ServiceResponse<PagedResult<ProvidentFundRequestDto>>>> GetMyPendingProvidentFundRequest([FromQuery] ProvidentFundRequestFilterDto filter)
     {
         try
@@ -2384,6 +2390,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("/api/employee/provident-fund/my-active-request")]
+    [PermissionAuthorize("pf_employee_active")]
     public async Task<ActionResult<ServiceResponse<ProvidentFundAccountDto>>> GetMyActiveProvidentFundRequest()
     {
         try
@@ -2402,6 +2409,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("/api/employee/provident-fund/my-transactions")]
+    [PermissionAuthorize("pf_employee_transactions")]
     public async Task<ActionResult<ServiceResponse<PagedResult<ProvidentFundTransactionDto>>>> GetMyProvidentFundTransactions([FromQuery] ProvidentFundTransactionFilterDto filter)
     {
         try
@@ -2549,6 +2557,7 @@ public class PayRollController : ControllerBase
 
 
     [HttpPost("salary-advance/request")]
+    [PermissionAuthorize("salary_advance_employee_request")]
     public async Task<ActionResult<ServiceResponse<SalaryAdvanceDto>>> CreateSalaryAdvance([FromBody] CreateSalaryAdvanceDto dto)
     {
         try
@@ -2567,6 +2576,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("salary-advance/my-requests/{id}")]
+    [PermissionAuthorize("salary_advance_employee_edit")]
     public async Task<ActionResult<ServiceResponse<SalaryAdvanceDto>>> UpdateMySalaryAdvance(Guid id, [FromBody] CreateSalaryAdvanceDto dto)
     {
         try
@@ -2585,6 +2595,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("salary-advance/my-requests/{id}")]
+    [PermissionAuthorize("salary_advance_employee_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> CancelMySalaryAdvance(Guid id)
     {
         try
@@ -2603,6 +2614,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("salary-advance/my-requests")]
+    [PermissionAuthorize("salary_advance_employee_list")]
     public async Task<ActionResult<ServiceResponse<PagedResult<MySalaryAdvanceDto>>>> GetMySalaryAdvances([FromQuery] SalaryAdvanceFilterDto filter)
     {
         try
@@ -2621,6 +2633,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("salary-advance/summary")]
+    [PermissionAuthorize("salary_advance_employee_summary")]
     public async Task<ActionResult<ServiceResponse<SalaryAdvanceSummaryDto>>> GetMySalaryAdvanceSummary()
     {
         try
@@ -2639,6 +2652,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("salary-advance/my-requests/{id}")]
+    [PermissionAuthorize("salary_advance_employee_view")]
     public async Task<ActionResult<ServiceResponse<MySalaryAdvanceDto>>> GetMySalaryAdvanceById(Guid id)
     {
         try
@@ -2657,6 +2671,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("salary-advance/all")]
+    [PermissionAuthorize("salary_advance_admin_list")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AdminSalaryAdvanceDto>>>> GetAllSalaryAdvanceRequests([FromQuery] AdminSalaryAdvanceFilterDto filter)
     {
         try
@@ -2674,6 +2689,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("salary-advance/all/{id}")]
+    [PermissionAuthorize("salary_advance_admin_view")]
     public async Task<ActionResult<ServiceResponse<AdminSalaryAdvanceDto>>> GetSalaryAdvanceRequestById(Guid id)
     {
         try
@@ -2691,6 +2707,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("salary-advance/{id}/approve")]
+    [PermissionAuthorize("salary_advance_admin_approve")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveSalaryAdvance(Guid id)
     {
         try
@@ -2709,6 +2726,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("salary-advance/{id}/reject")]
+    [PermissionAuthorize("salary_advance_admin_reject")]
     public async Task<ActionResult<ServiceResponse<bool>>> RejectSalaryAdvance(Guid id, [FromBody] RejectSalaryAdvanceDto dto)
     {
         try
@@ -2727,6 +2745,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("salary-advance/{id}/disburse")]
+    [PermissionAuthorize("salary_advance_admin_disburse")]
     public async Task<ActionResult<ServiceResponse<bool>>> DisburseSalaryAdvance(Guid id, [FromBody] DisburseSalaryAdvanceDto dto)
     {
         try
@@ -2747,6 +2766,7 @@ public class PayRollController : ControllerBase
     // Loans
     //Employee side
     [HttpPost("loans/request")]
+    [PermissionAuthorize("loan_employee_request")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> CreateLoanRequest([FromBody] CreateLoanRequestDto dto)
     {
         try
@@ -2765,6 +2785,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/my-requests/{id}")]
+    [PermissionAuthorize("loan_employee_view")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> GetMyLoanRequestById(Guid id)
     {
         try
@@ -2783,6 +2804,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("loans/my-requests/{id}")]
+    [PermissionAuthorize("loan_employee_edit")]
     public async Task<ActionResult<ServiceResponse<LoanDto>>> UpdateMyLoanRequest(Guid id, [FromBody] CreateLoanRequestDto dto)
     {
         try
@@ -2801,6 +2823,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("loans/my-requests/{id}")]
+    [PermissionAuthorize("loan_employee_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteMyLoanRequest(Guid id)
     {
         try
@@ -2821,6 +2844,7 @@ public class PayRollController : ControllerBase
 
 
     [HttpGet("loans/my-active-loans")]
+    [PermissionAuthorize("loan_employee_active")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<MyActiveLoanDto>>>> GetMyActiveLoans()
     {
         try
@@ -2839,6 +2863,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/my-pending-loans")]
+    [PermissionAuthorize("loan_employee_pending")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<MyActiveLoanDto>>>> GetMyPendingLoans()
     {
         try
@@ -2857,6 +2882,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/my-loan-history")]
+    [PermissionAuthorize("loan_employee_history")]
     public async Task<ActionResult<ServiceResponse<PagedResult<MyLoanPaymentDto>>>> GetMyLoanHistory([FromQuery] MyLoanHistoryFilterDto filter)
     {
         try
@@ -2875,6 +2901,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/my-references")]
+    [PermissionAuthorize("loan_employee_references")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LoanReferenceDto>>>> GetMyLoanReferences()
     {
         try
@@ -2893,6 +2920,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("loans/my-requests")]
+    [PermissionAuthorize("loan_employee_list")]
     public async Task<ActionResult<ServiceResponse<PagedResult<LoanDto>>>> GetMyLoans([FromQuery] LoanFilterDto filter)
     {
         try
@@ -2911,6 +2939,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("overview")]
+    [PermissionAuthorize("my_benefits")]
     public async Task<ActionResult<ServiceResponse<PayrollOverviewDto>>> GetPayrollOverview()
     {
         try
@@ -3869,6 +3898,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("gratuity-transactions/my-status")]
+    [PermissionAuthorize("gratuity_employee")]
     public async Task<ActionResult<ServiceResponse<GratuityTransactionDto>>> GetMyGratuityStatus()
     {
         try
