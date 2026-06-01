@@ -2,42 +2,76 @@
 // FILE: Services/Interfaces/IOnboardingService.cs
 // ============================================================
 using HRMS.API.Models.DTOs;
+using Microsoft.AspNetCore.Http;
 
 namespace HRMS.API.Services.Interfaces;
 
 public interface IOnboardingService
 {
-    // Step 1 – personal info (PUT /onboarding/personal-info)
+    // ── Step 1 – Personal Info ────────────────────────────────────────────────
     Task<(bool success, string onboardingId, string message)> SavePersonalInfoAsync(
-        Guid userId, Guid organizationId,
+        Guid userId,
+        Guid organizationId,
         OnboardingPersonalInfoRequest request,
-        IFormFile? photo, IFormFile? resume);
+        IFormFile? photo,
+        IFormFile? resume);
 
-    // Step 2 – education
-    Task<OnboardingEducationDto> AddEducationAsync(Guid userId, OnboardingEducationRequest request, IFormFile? file);
-    Task<bool> UpdateEducationAsync(Guid userId, Guid educationId, OnboardingEducationRequest request, IFormFile? file);
+    // ── Step 2 – Education ────────────────────────────────────────────────────
+    Task<OnboardingEducationDto> AddEducationAsync(
+        Guid userId,
+        OnboardingEducationRequest request,
+        string? fileUrl);
+
+    Task<bool> UpdateEducationAsync(
+        Guid userId,
+        Guid educationId,
+        OnboardingEducationRequest request,
+        IFormFile? file);
+
     Task<bool> DeleteEducationAsync(Guid userId, Guid educationId);
 
-    // Step 3 – work experience
-    Task<OnboardingWorkExperienceDto> AddWorkExperienceAsync(Guid userId, OnboardingWorkExperienceRequest request, IFormFile? file);
-    Task<bool> UpdateWorkExperienceAsync(Guid userId, Guid experienceId, OnboardingWorkExperienceRequest request, IFormFile? file);
+    // ── Step 3 – Work Experience ──────────────────────────────────────────────
+    Task<OnboardingWorkExperienceDto> AddWorkExperienceAsync(
+        Guid userId,
+        OnboardingWorkExperienceRequest request,
+        IFormFile? file);
+
+    Task<bool> UpdateWorkExperienceAsync(
+        Guid userId,
+        Guid experienceId,
+        OnboardingWorkExperienceRequest request,
+        IFormFile? file);
+
     Task<bool> DeleteWorkExperienceAsync(Guid userId, Guid experienceId);
 
-    // Step 4/5/6 – verification + policies + final submit
-    Task<bool> AcceptPoliciesAsync(Guid userId, bool accepted, string? documentNotes);
-    Task<bool> FinalSubmitAsync(Guid userId, Guid organizationId, OnboardingSubmitRequest request, IFormFile? photo, IFormFile? resume);
-    Task<bool> UpdateCurrentStepAsync(Guid userId, int step);
-
-    // GET /onboarding/my-status
-    Task<OnboardingStatusResponse?> GetMyStatusAsync(Guid userId, Guid organizationId);
-    // In Services/Interfaces/IOnboardingService.cs
-    // Add these two methods to the existing interface:
-
+    // ── Step 4 – Bank Details ─────────────────────────────────────────────────
     Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId);
 
     Task<(bool success, string message)> SaveBankDetailsAsync(
         Guid userId,
         OnboardingBankDetailsRequest request);
+
+    Task<bool> DeleteBankDetailsAsync(Guid userId, string? bankDetailsId);
+
+    // ── Step 5 – Policy Acceptance ────────────────────────────────────────────
+    Task<bool> AcceptPoliciesAsync(
+        Guid userId,
+        bool accepted,
+        string? documentNotes);
+
+    // ── Step 6 – Final Submit ─────────────────────────────────────────────────
+    Task<bool> FinalSubmitAsync(
+        Guid userId,
+        Guid organizationId,
+        OnboardingSubmitRequest request,
+        IFormFile? photo,
+        IFormFile? resume);
+
+    // ── Status ────────────────────────────────────────────────────────────────
+    Task<OnboardingStatusResponse?> GetMyStatusAsync(Guid userId, Guid organizationId);
+
+    // ── Step tracker ──────────────────────────────────────────────────────────
+    Task<bool> UpdateCurrentStepAsync(Guid userId, int step);
 }
 // IPolicyService.cs
 // ============================================================

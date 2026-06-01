@@ -1,11 +1,19 @@
-﻿using HRMS.API.Models.DTOs;
+﻿// ============================================================
+// FILE: Services/Interfaces/IOnboardingConfigService.cs
+// ============================================================
+using HRMS.API.Models.DTOs;
 
-namespace HRMS.API.Services.Interfaces
+namespace HRMS.API.Services.Interfaces;
+
+public interface IOnboardingConfigService
 {
-    public interface IOnboardingConfigService
-    {
-        Task<OnboardingFieldConfigResponse> GetConfigAsync(Guid organizationId);
-        Task<bool> SaveConfigAsync(Guid organizationId, OnboardingFieldConfigRequest request);
-        Task<OnboardingFieldConfigResponse> GetDefaultConfig();
-    }
+    /// <summary>
+    /// Returns the onboarding field configuration for the given organisation.
+    /// Returns null (never throws) when no configuration record exists — the
+    /// controller treats a null config as "no config-driven required fields".
+    /// </summary>
+    //Task<OnboardingConfiguration?> GetConfigurationAsync(string orgId);
+    //Task SaveConfigAsync(Guid orgId, OnboardingFieldConfigRequest request);
+    //Task<OnboardingConfiguration> SaveConfigurationAsync(string orgId, OnboardingConfiguration config);
+   Task<List<FieldConfigRecord>> GetConfigAsync(Guid orgId);
 }

@@ -88,6 +88,7 @@ public class OnboardingStatusResponse
     public OnboardingPersonalInfoDto? PersonalInfo { get; set; }
     public List<OnboardingEducationDto> EducationList { get; set; } = new();
     public List<OnboardingWorkExperienceDto> WorkExperienceList { get; set; } = new();
+    public OnboardingBankDetailsDto? BankDetails { get; internal set; }
 }
 
 public class OnboardingPersonalInfoDto
@@ -215,6 +216,54 @@ public class FieldConfigRecord
     public string FieldKey { get; set; } = string.Empty;
     public bool Enabled { get; set; }
     public bool Required { get; set; }
+}
+
+// ── Append to the bottom of OnboardingDTOs.cs ─────────────────────────────────
+// No existing DTOs are changed.
+
+/// <summary>
+/// Typed config object built from onboarding.field_configurations rows
+/// (section = "personalInformation") and passed from controller to service
+/// so that required-field validation is fully driven by the Super Admin's
+/// configuration rather than hardcoded conditions.
+/// </summary>
+public class PersonalInfoFieldConfig
+{
+    public bool NameRequired { get; set; } = true;
+    public bool EmailRequired { get; set; } = true;
+    public bool PhoneRequired { get; set; } = true;
+    public bool DepartmentRequired { get; set; } = true;
+    public bool GenderRequired { get; set; } = true;
+    public bool NationalityRequired { get; set; } = true;
+    public bool IdNumberRequired { get; set; } = true;
+    public bool PhotoRequired { get; set; } = true;
+    public bool ResumeRequired { get; set; } = false;
+}
+
+/// <summary>
+/// Canonical field-key constants for onboarding.field_configurations.
+/// Using constants prevents typos and makes future refactoring safe.
+/// </summary>
+public static class OnboardingFieldKeys
+{
+    // ── personalInformation ───────────────────────────────────────────────
+    public const string Name = "name";
+    public const string Email = "email";
+    public const string Phone = "phone";
+    public const string Department = "department";
+    public const string Gender = "gender";
+    public const string Nationality = "nationality";
+    public const string IdNumber = "idNumber";
+    public const string Photo = "photo";
+    public const string Resume = "resume";
+
+    // ── educationDetails ──────────────────────────────────────────────────
+    public const string University = "university";
+    public const string EduDocuments = "documents";
+
+    // ── workExperience ────────────────────────────────────────────────────
+    public const string EndDate = "endDate";
+    public const string ExpDocuments = "documents";
 }
 // ── Policy DTOs ──────────────────────────────────────────────────────────────
 // ============================================================

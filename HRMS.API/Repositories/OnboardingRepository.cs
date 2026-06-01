@@ -6,17 +6,9 @@ using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
-using Npgsql;
+
 namespace HRMS.API.Repositories;
 
-/// <summary>
-/// All SQL goes through the same BaseRepository helpers (QueryAsync,
-/// ExecuteAsync, ExecuteScalarAsync) that the existing EmployeeRepository uses.
-/// Schema:   onboarding.sessions
-///           onboarding.education
-///           onboarding.work_experience
-/// Personal info is kept in   employee.employees  (existing table).
-/// </summary>
 public class OnboardingRepository : BaseRepository, IOnboardingRepository
 {
     public OnboardingRepository(IDatabaseConnectionFactory connectionFactory)
@@ -34,7 +26,8 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             WHERE  employeeid = @EmployeeId
             LIMIT  1";
 
-        return await QuerySingleOrDefaultAsync<OnboardingSession>(sql, new { EmployeeId = employeeId });
+        return await QuerySingleOrDefaultAsync<OnboardingSession>(
+            sql, new { EmployeeId = employeeId });
     }
 
     public async Task<OnboardingSession> CreateSessionAsync(OnboardingSession session)
@@ -75,18 +68,18 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
     {
         const string sql = @"
             UPDATE onboarding.sessions
-            SET    currentstep     = @CurrentStep,
-                   status          = @Status,
-                   ispolicyaccepted= @IsPolicyAccepted,
-                   documentnotes   = @DocumentNotes,
-                   photourl        = COALESCE(@PhotoUrl, photourl),
-                   resumeurl       = COALESCE(@ResumeUrl, resumeurl),
-                   resumefilename  = COALESCE(@ResumeFileName, resumefilename),
-                   jobtitle        = COALESCE(@JobTitle, jobtitle),
-                   department      = COALESCE(@Department, department),
-                   idnumber        = COALESCE(@IdNumber, idnumber),
-                   completionrate  = @CompletionRate,
-                   updatedat       = CURRENT_TIMESTAMP
+            SET    currentstep      = @CurrentStep,
+                   status           = @Status,
+                   ispolicyaccepted = @IsPolicyAccepted,
+                   documentnotes    = @DocumentNotes,
+                   photourl         = COALESCE(@PhotoUrl,       photourl),
+                   resumeurl        = COALESCE(@ResumeUrl,      resumeurl),
+                   resumefilename   = COALESCE(@ResumeFileName, resumefilename),
+                   jobtitle         = COALESCE(@JobTitle,       jobtitle),
+                   department       = COALESCE(@Department,     department),
+                   idnumber         = COALESCE(@IdNumber,       idnumber),
+                   completionrate   = @CompletionRate,
+                   updatedat        = CURRENT_TIMESTAMP
             WHERE  onboardingid = @OnboardingId";
 
         var affected = await ExecuteAsync(sql, new
@@ -109,29 +102,34 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
     }
 
     // ── PERSONAL INFO ─────────────────────────────────────────────────────────
-    // Writes back into the existing employee.employees table — no duplicate risk.
 
     public async Task<bool> UpsertPersonalInfoAsync(
-        Guid employeeId, string fullName, string phone,
-        string gender, string nationality, string idNumber,
-        string? photoUrl, string? resumeUrl, string? resumeFileName,
-        string? jobTitle, string? department)
+        Guid employeeId,
+        string fullName,
+        string phone,
+        string gender,
+        string nationality,
+        string idNumber,
+        string? photoUrl,
+        string? resumeUrl,
+        string? resumeFileName,
+        string? jobTitle,
+        string? department)
     {
         var parts = fullName.Trim().Split(' ', 2, StringSplitOptions.RemoveEmptyEntries);
         var firstName = parts.Length > 0 ? parts[0] : string.Empty;
         var lastName = parts.Length > 1 ? parts[1] : string.Empty;
 
-        // Update employees table
         const string empSql = @"
             UPDATE employee.employees
-            SET    firstname   = @FirstName,
-                   lastname    = @LastName,
-                   phone       = @Phone,
-                   gender      = @Gender,
-                   nationality = @Nationality,
-                   profilepictureurl = COALESCE(@PhotoUrl, profilepictureurl),
-                   updatedat   = CURRENT_TIMESTAMP
-            WHERE  employeeid  = @EmployeeId";
+            SET    firstname          = @FirstName,
+                   lastname           = @LastName,
+                   phone              = @Phone,
+                   gender             = @Gender,
+                   nationality        = @Nationality,
+                   profilepictureurl  = COALESCE(@PhotoUrl, profilepictureurl),
+                   updatedat          = CURRENT_TIMESTAMP
+            WHERE  employeeid = @EmployeeId";
 
         await ExecuteAsync(empSql, new
         {
@@ -144,15 +142,14 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             EmployeeId = employeeId
         });
 
-        // Store CNIC, job title, department, resume in onboarding.sessions
         const string sessionSql = @"
             UPDATE onboarding.sessions
-            SET    idnumber       = COALESCE(@IdNumber, idnumber),
-                   jobtitle       = COALESCE(@JobTitle, jobtitle),
-                   department     = COALESCE(@Department, department),
-                   resumeurl      = COALESCE(@ResumeUrl, resumeurl),
+            SET    idnumber       = COALESCE(@IdNumber,       idnumber),
+                   jobtitle       = COALESCE(@JobTitle,       jobtitle),
+                   department     = COALESCE(@Department,     department),
+                   resumeurl      = COALESCE(@ResumeUrl,      resumeurl),
                    resumefilename = COALESCE(@ResumeFileName, resumefilename),
-                   photourl       = COALESCE(@PhotoUrl, photourl),
+                   photourl       = COALESCE(@PhotoUrl,       photourl),
                    updatedat      = CURRENT_TIMESTAMP
             WHERE  employeeid = @EmployeeId";
 
@@ -179,9 +176,10 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                    gpa, filename, fileurl, description, createdat, updatedat
             FROM   onboarding.education
             WHERE  onboardingid = @OnboardingId
-            ORDER BY createdat";
+            ORDER  BY createdat";
 
-        var results = await QueryAsync<OnboardingEducation>(sql, new { OnboardingId = onboardingId });
+        var results = await QueryAsync<OnboardingEducation>(
+            sql, new { OnboardingId = onboardingId });
         return results.ToList();
     }
 
@@ -191,7 +189,8 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             INSERT INTO onboarding.education
                 (onboardingid, degree, institution, field, gpa, filename, fileurl, description)
             VALUES
-                (@OnboardingId, @Degree, @Institution, @Field, @Gpa, @FileName, @FileUrl, @Description)
+                (@OnboardingId, @Degree, @Institution, @Field, @Gpa,
+                 @FileName, @FileUrl, @Description)
             RETURNING educationid";
 
         var id = await ExecuteScalarAsync<Guid>(sql, new
@@ -219,7 +218,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                    field       = @Field,
                    gpa         = @Gpa,
                    filename    = COALESCE(@FileName, filename),
-                   fileurl     = COALESCE(@FileUrl, fileurl),
+                   fileurl     = COALESCE(@FileUrl,  fileurl),
                    description = @Description,
                    updatedat   = CURRENT_TIMESTAMP
             WHERE  educationid  = @EducationId
@@ -248,13 +247,15 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             WHERE  educationid  = @EducationId
               AND  onboardingid = @OnboardingId";
 
-        var affected = await ExecuteAsync(sql, new { EducationId = educationId, OnboardingId = onboardingId });
+        var affected = await ExecuteAsync(
+            sql, new { EducationId = educationId, OnboardingId = onboardingId });
         return affected > 0;
     }
 
     // ── WORK EXPERIENCE ───────────────────────────────────────────────────────
 
-    public async Task<List<OnboardingWorkExperience>> GetWorkExperienceBySessionAsync(Guid onboardingId)
+    public async Task<List<OnboardingWorkExperience>> GetWorkExperienceBySessionAsync(
+        Guid onboardingId)
     {
         const string sql = @"
             SELECT experienceid, onboardingid, jobtitle, company, employmenttype,
@@ -262,13 +263,15 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                    filename, fileurl, createdat, updatedat
             FROM   onboarding.work_experience
             WHERE  onboardingid = @OnboardingId
-            ORDER BY createdat";
+            ORDER  BY createdat";
 
-        var results = await QueryAsync<OnboardingWorkExperience>(sql, new { OnboardingId = onboardingId });
+        var results = await QueryAsync<OnboardingWorkExperience>(
+            sql, new { OnboardingId = onboardingId });
         return results.ToList();
     }
 
-    public async Task<OnboardingWorkExperience> AddWorkExperienceAsync(OnboardingWorkExperience record)
+    public async Task<OnboardingWorkExperience> AddWorkExperienceAsync(
+        OnboardingWorkExperience record)
     {
         const string sql = @"
             INSERT INTO onboarding.work_experience
@@ -276,7 +279,8 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                  startdate, enddate, currentlyworking, responsibilities, filename, fileurl)
             VALUES
                 (@OnboardingId, @JobTitle, @Company, @EmploymentType, @Location,
-                 @StartDate, @EndDate, @CurrentlyWorking, @Responsibilities, @FileName, @FileUrl)
+                 @StartDate, @EndDate, @CurrentlyWorking, @Responsibilities,
+                 @FileName, @FileUrl)
             RETURNING experienceid";
 
         var id = await ExecuteScalarAsync<Guid>(sql, new
@@ -311,7 +315,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                    currentlyworking = @CurrentlyWorking,
                    responsibilities = @Responsibilities,
                    filename         = COALESCE(@FileName, filename),
-                   fileurl          = COALESCE(@FileUrl, fileurl),
+                   fileurl          = COALESCE(@FileUrl,  fileurl),
                    updatedat        = CURRENT_TIMESTAMP
             WHERE  experienceid = @ExperienceId
               AND  onboardingid = @OnboardingId";
@@ -342,19 +346,86 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             WHERE  experienceid = @ExperienceId
               AND  onboardingid = @OnboardingId";
 
-        var affected = await ExecuteAsync(sql, new { ExperienceId = experienceId, OnboardingId = onboardingId });
+        var affected = await ExecuteAsync(
+            sql, new { ExperienceId = experienceId, OnboardingId = onboardingId });
         return affected > 0;
     }
 
-    // ── FULL STATUS (GET /my-status) ──────────────────────────────────────────
+    // ── BANK DETAILS ──────────────────────────────────────────────────────────
 
-    public async Task<OnboardingStatusResponse?> GetFullStatusAsync(Guid employeeId, Guid organizationId)
+    public async Task<OnboardingBankDetails?> GetBankDetailsByOnboardingIdAsync(
+        Guid onboardingId)
     {
-        // 1. Load session
+        const string sql = @"
+            SELECT bankdetailsid, onboardingid, nobankaccount,
+                   accountholdername, accountnumber, bankname,
+                   paymentmethod, iban, branchname, branchcode,
+                   createdat, updatedat
+            FROM   onboarding.bank_details
+            WHERE  onboardingid = @OnboardingId
+            LIMIT  1";
+
+        return await QuerySingleOrDefaultAsync<OnboardingBankDetails>(
+            sql, new { OnboardingId = onboardingId });
+    }
+
+    public async Task<OnboardingBankDetails> UpsertBankDetailsAsync(
+        OnboardingBankDetails record)
+    {
+        const string sql = @"
+            INSERT INTO onboarding.bank_details
+                (onboardingid, nobankaccount, accountholdername, accountnumber,
+                 bankname, paymentmethod, iban, branchname, branchcode)
+            VALUES
+                (@OnboardingId, @NoBankAccount, @AccountHolderName, @AccountNumber,
+                 @BankName, @PaymentMethod, @Iban, @BranchName, @BranchCode)
+            ON CONFLICT (onboardingid) DO UPDATE SET
+                nobankaccount     = EXCLUDED.nobankaccount,
+                accountholdername = EXCLUDED.accountholdername,
+                accountnumber     = EXCLUDED.accountnumber,
+                bankname          = EXCLUDED.bankname,
+                paymentmethod     = EXCLUDED.paymentmethod,
+                iban              = EXCLUDED.iban,
+                branchname        = EXCLUDED.branchname,
+                branchcode        = EXCLUDED.branchcode,
+                updatedat         = CURRENT_TIMESTAMP
+            RETURNING bankdetailsid";
+
+        var id = await ExecuteScalarAsync<Guid>(sql, new
+        {
+            record.OnboardingId,
+            record.NoBankAccount,
+            record.AccountHolderName,
+            record.AccountNumber,
+            record.BankName,
+            record.PaymentMethod,
+            record.Iban,
+            record.BranchName,
+            record.BranchCode
+        });
+
+        record.BankDetailsId = id;
+        return record;
+    }
+
+    public async Task<bool> DeleteBankDetailsAsync(Guid onboardingId)
+    {
+        const string sql = @"
+            DELETE FROM onboarding.bank_details
+            WHERE  onboardingid = @OnboardingId";
+
+        var affected = await ExecuteAsync(sql, new { OnboardingId = onboardingId });
+        return affected > 0;
+    }
+
+    // ── FULL STATUS ───────────────────────────────────────────────────────────
+
+    public async Task<OnboardingStatusResponse?> GetFullStatusAsync(
+        Guid employeeId, Guid organizationId)
+    {
         var session = await GetSessionByEmployeeIdAsync(employeeId);
         if (session is null) return null;
 
-        // 2. Load employee personal data from employee.employees
         const string empSql = @"
             SELECT e.employeeid, e.firstname, e.lastname, e.email, e.phone,
                    e.gender, e.nationality, e.profilepictureurl,
@@ -365,14 +436,14 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             WHERE  e.employeeid = @EmployeeId
             LIMIT  1";
 
-        var raw = await QuerySingleOrDefaultAsync<dynamic>(empSql, new { EmployeeId = employeeId });
+        var raw = await QuerySingleOrDefaultAsync<dynamic>(
+            empSql, new { EmployeeId = employeeId });
         if (raw is null) return null;
 
-        // 3. Education + experience
         var education = await GetEducationBySessionAsync(session.OnboardingId);
         var experience = await GetWorkExperienceBySessionAsync(session.OnboardingId);
+        var bankDetails = await GetBankDetailsByOnboardingIdAsync(session.OnboardingId);
 
-        // 4. Build response
         string firstName = raw.firstname ?? string.Empty;
         string lastName = raw.lastname ?? string.Empty;
 
@@ -428,66 +499,26 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                 Responsibilities = w.Responsibilities,
                 FileName = w.FileName,
                 FileUrl = w.FileUrl
-            }).ToList()
+            }).ToList(),
+            // Bank details now included in my-status response
+            BankDetails = bankDetails is null ? null : new OnboardingBankDetailsDto
+            {
+                BankDetailsId = bankDetails.BankDetailsId,
+                OnboardingId = bankDetails.OnboardingId,
+                NoBankAccount = bankDetails.NoBankAccount,
+                AccountHolderName = bankDetails.AccountHolderName,
+                AccountNumber = bankDetails.AccountNumber,
+                BankName = bankDetails.BankName,
+                PaymentMethod = bankDetails.PaymentMethod,
+                Iban = bankDetails.Iban,
+                BranchName = bankDetails.BranchName,
+                BranchCode = bankDetails.BranchCode
+            }
         };
     }
-    // ── BANK DETAILS ──────────────────────────────────────────────────────────────
-
-    public async Task<OnboardingBankDetails?> GetBankDetailsByOnboardingIdAsync(Guid onboardingId)
-    {
-        const string sql = @"
-        SELECT bankdetailsid, onboardingid, nobankaccount,
-               accountholdername, accountnumber, bankname,
-               paymentmethod, iban, branchname, branchcode,
-               createdat, updatedat
-        FROM   onboarding.bank_details
-        WHERE  onboardingid = @OnboardingId
-        LIMIT  1";
-
-        return await QuerySingleOrDefaultAsync<OnboardingBankDetails>(
-            sql, new { OnboardingId = onboardingId });
-    }
-
-    public async Task<OnboardingBankDetails> UpsertBankDetailsAsync(OnboardingBankDetails record)
-    {
-        // Single statement — safe to call repeatedly; never creates duplicates.
-        const string sql = @"
-        INSERT INTO onboarding.bank_details
-            (onboardingid, nobankaccount, accountholdername, accountnumber,
-             bankname, paymentmethod, iban, branchname, branchcode)
-        VALUES
-            (@OnboardingId, @NoBankAccount, @AccountHolderName, @AccountNumber,
-             @BankName, @PaymentMethod, @Iban, @BranchName, @BranchCode)
-        ON CONFLICT (onboardingid) DO UPDATE SET
-            nobankaccount     = EXCLUDED.nobankaccount,
-            accountholdername = EXCLUDED.accountholdername,
-            accountnumber     = EXCLUDED.accountnumber,
-            bankname          = EXCLUDED.bankname,
-            paymentmethod     = EXCLUDED.paymentmethod,
-            iban              = EXCLUDED.iban,
-            branchname        = EXCLUDED.branchname,
-            branchcode        = EXCLUDED.branchcode,
-            updatedat         = CURRENT_TIMESTAMP
-        RETURNING bankdetailsid";
-
-        var id = await ExecuteScalarAsync<Guid>(sql, new
-        {
-            record.OnboardingId,
-            record.NoBankAccount,
-            record.AccountHolderName,
-            record.AccountNumber,
-            record.BankName,
-            record.PaymentMethod,
-            record.Iban,
-            record.BranchName,
-            record.BranchCode
-        });
-
-        record.BankDetailsId = id;
-        return record;
-    }
-    // PolicyRepository.cs
-    public class PolicyRepository : BaseRepository, IPolicyRepository
+}
+// PolicyRepository.cs
+public class PolicyRepository : BaseRepository, IPolicyRepository
     {
         public PolicyRepository(IDatabaseConnectionFactory connectionFactory)
             : base(connectionFactory) { }
@@ -616,4 +647,3 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             return affected > 0;
         }
     }
-}

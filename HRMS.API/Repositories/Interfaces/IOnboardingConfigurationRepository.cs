@@ -4,7 +4,7 @@ namespace HRMS.API.Repositories.Interfaces
 {
     public interface IOnboardingConfigRepository
     {
-        Task<List<FieldConfigRecord>> GetByOrganizationAsync(Guid organizationId);
+        Task<List<FieldConfigRecord>> GetOnBoadingConfigurations(Guid organizationId);
         Task<bool> UpsertConfigAsync(Guid organizationId, string section, string fieldKey, bool enabled, bool required);
         Task<bool> BulkUpsertAsync(Guid organizationId, List<FieldConfigRecord> records);
     }

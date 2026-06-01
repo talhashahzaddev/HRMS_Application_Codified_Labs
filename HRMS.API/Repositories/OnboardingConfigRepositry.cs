@@ -10,7 +10,7 @@ namespace HRMS.API.Repositories
         public OnboardingConfigRepository(IDatabaseConnectionFactory connectionFactory)
             : base(connectionFactory) { }
 
-        public async Task<List<FieldConfigRecord>> GetByOrganizationAsync(Guid organizationId)
+        public async Task<List<FieldConfigRecord>> GetOnBoadingConfigurations(Guid organizationId)
         {
             const string sql = @"
             SELECT organizationid, section, fieldkey, enabled, required

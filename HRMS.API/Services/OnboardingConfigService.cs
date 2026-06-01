@@ -39,47 +39,48 @@ namespace HRMS.API.Services
             _repo = repo;
         }
 
-        public async Task<OnboardingFieldConfigResponse> GetConfigAsync(Guid organizationId)
+        public async Task<List<FieldConfigRecord>> GetConfigAsync(Guid organizationId)
         {
-            var records = await _repo.GetByOrganizationAsync(organizationId);
-            var lookup  = records.ToDictionary(r => $"{r.Section}:{r.FieldKey}", r => r);
+            var records = await _repo.GetOnBoadingConfigurations(organizationId);
+            return records;
+            //var lookup  = records.ToDictionary(r => $"{r.Section}:{r.FieldKey}", r => r);
 
-            var sections = new Dictionary<string, Dictionary<string, FieldConfigDto>>();
+            //var sections = new Dictionary<string, Dictionary<string, FieldConfigDto>>();
 
-            foreach (var (section, fields) in AllFields)
-            {
-                sections[section] = new Dictionary<string, FieldConfigDto>();
-                foreach (var field in fields)
-                {
-                    var key = $"{section}:{field}";
-                    if (lookup.TryGetValue(key, out var saved))
-                    {
-                        // Use saved config exactly as Super Admin stored it —
-                        // no AlwaysRequired override.
-                        sections[section][field] = new FieldConfigDto
-                        {
-                            Enabled  = saved.Enabled,
-                            Required = saved.Required
-                        };
-                    }
-                    else
-                    {
-                        // No saved config → sensible default: visible but NOT required.
-                        // Super Admin must explicitly mark a field required.
-                        sections[section][field] = new FieldConfigDto
-                        {
-                            Enabled  = true,
-                            Required = false
-                        };
-                    }
-                }
-            }
+            //foreach (var (section, fields) in AllFields)
+            //{
+            //    sections[section] = new Dictionary<string, FieldConfigDto>();
+            //    foreach (var field in fields)
+            //    {
+            //        var key = $"{section}:{field}";
+            //        if (lookup.TryGetValue(key, out var saved))
+            //        {
+            //            // Use saved config exactly as Super Admin stored it —
+            //            // no AlwaysRequired override.
+            //            sections[section][field] = new FieldConfigDto
+            //            {
+            //                Enabled  = saved.Enabled,
+            //                Required = saved.Required
+            //            };
+            //        }
+            //        else
+            //        {
+            //            // No saved config → sensible default: visible but NOT required.
+            //            // Super Admin must explicitly mark a field required.
+            //            sections[section][field] = new FieldConfigDto
+            //            {
+            //                Enabled  = true,
+            //                Required = false
+            //            };
+            //        }
+            //    }
+            //}
 
-            return new OnboardingFieldConfigResponse
-            {
-                OrganizationId = organizationId,
-                Sections       = sections
-            };
+            //return new FieldConfigRecord
+            //{
+            //    OrganizationId = organizationId,
+            //    Sections       = sections
+            //};
         }
 
         public async Task<bool> SaveConfigAsync(Guid organizationId, OnboardingFieldConfigRequest request)

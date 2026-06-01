@@ -46,45 +46,45 @@ public class OnboardingConfigController : ControllerBase
     }
 
     /// <summary>
-    /// Super Admin views config for any org.
-    /// </summary>
-    [HttpGet("org/{orgId:guid}")]
-    [Authorize(Roles = "Super Admin")]
-    public async Task<IActionResult> GetOrgConfig(Guid orgId)
+    ///Getting organization configurations all 
+    /// </summary
+    [HttpGet("Get/onBoardingConfigurations")]
+
+    public async Task<IActionResult> GetOnBoardingConfiguration()
     {
         try
         {
+            var orgId = GetCurrentOrganizationId();
             var config = await _service.GetConfigAsync(orgId);
             return Ok(new { success = true, data = config });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching org config for {OrgId}", orgId);
             return StatusCode(500, new { success = false, message = "Failed to fetch configuration." });
         }
     }
 
     /// <summary>
     /// Super Admin saves/updates config for any org.
-    /// </summary>
-    [HttpPut("org/{orgId:guid}")]
-    [Authorize(Roles = "Super Admin")]
-    public async Task<IActionResult> SaveOrgConfig(Guid orgId, [FromBody] OnboardingFieldConfigRequest request)
-    {
-        try
-        {
-            if (request?.Sections == null || request.Sections.Count == 0)
-                return BadRequest(new { success = false, message = "No configuration sections provided." });
+    ///// </summary>
+    //[HttpPut("org")]
+    //[Authorize(Roles = "Super Admin")]
+    //public async Task<IActionResult> SaveOrgConfig(Guid orgId, [FromBody] OnboardingFieldConfigRequest request)
+    //{
+    //    try
+    //    {
+    //        if (request?.Sections == null || request.Sections.Count == 0)
+    //            return BadRequest(new { success = false, message = "No configuration sections provided." });
 
-            var success = await _service.SaveConfigAsync(orgId, request);
-            return Ok(new { success, message = "Onboarding configuration saved successfully." });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error saving org config for {OrgId}", orgId);
-            return StatusCode(500, new { success = false, message = "Failed to save configuration." });
-        }
-    }
+    //        var success = await _service.SaveConfigAsync(orgId, request);
+    //        return Ok(new { success, message = "Onboarding configuration saved successfully." });
+    //    }
+    //    catch (Exception ex)
+    //    {
+    //        _logger.LogError(ex, "Error saving org config for {OrgId}", orgId);
+    //        return StatusCode(500, new { success = false, message = "Failed to save configuration." });
+    //    }
+    //}
 
     private Guid GetCurrentOrganizationId()
     {

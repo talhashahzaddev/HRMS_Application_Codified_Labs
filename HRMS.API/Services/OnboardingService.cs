@@ -1,4 +1,7 @@
-﻿using HRMS.API.Models.DTOs;
+﻿// ============================================================
+// FILE: Services/OnboardingService.cs
+// ============================================================
+using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
@@ -25,14 +28,17 @@ public class OnboardingService : IOnboardingService
         _logger = logger;
     }
 
-    // ── helpers ───────────────────────────────────────────────────────────────
+    // ── Private helpers ───────────────────────────────────────────────────────
 
-    /// <summary>Resolves employee ID from userId, then gets-or-creates onboarding session.</summary>
-    private async Task<(Guid employeeId, OnboardingSession session)> GetOrCreateSessionAsync(
-        Guid userId, Guid organizationId)
+    /// <summary>
+    /// Resolves employee ID from userId, then gets-or-creates the onboarding session.
+    /// </summary>
+    private async Task<(Guid employeeId, OnboardingSession session)>
+        GetOrCreateSessionAsync(Guid userId, Guid organizationId)
     {
         var employeeId = await _employeeRepo.getemployeeid(userId)
-            ?? throw new KeyNotFoundException("Employee record not found for this user.");
+            ?? throw new KeyNotFoundException(
+                "Employee record not found for this user.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId);
         if (session is null)
@@ -49,33 +55,37 @@ public class OnboardingService : IOnboardingService
         return (employeeId, session);
     }
 
-    private static decimal CalculateCompletion(OnboardingSession s,
-        bool hasEducation, bool hasExperience)
+    private static decimal CalculateCompletion(
+        OnboardingSession session,
+        bool hasEducation,
+        bool hasExperience)
     {
         int done = 0, total = 7;
-        // personal
-        if (!string.IsNullOrEmpty(s.IdNumber)) done++;
-        if (!string.IsNullOrEmpty(s.JobTitle)) done++;
-        if (!string.IsNullOrEmpty(s.PhotoUrl)) done++;
-        if (!string.IsNullOrEmpty(s.ResumeUrl)) done++;
+        if (!string.IsNullOrEmpty(session.IdNumber)) done++;
+        if (!string.IsNullOrEmpty(session.JobTitle)) done++;
+        if (!string.IsNullOrEmpty(session.PhotoUrl)) done++;
+        if (!string.IsNullOrEmpty(session.ResumeUrl)) done++;
         if (hasEducation) done++;
         if (hasExperience) done++;
-        if (s.IsPolicyAccepted) done++;
+        if (session.IsPolicyAccepted) done++;
         return Math.Round((decimal)done / total * 100, 0);
     }
 
-    // ── Step 1 – personal info ────────────────────────────────────────────────
+    // ── Step 1 – Personal Info ────────────────────────────────────────────────
 
-    public async Task<(bool success, string onboardingId, string message)> SavePersonalInfoAsync(
-        Guid userId, Guid organizationId,
-        OnboardingPersonalInfoRequest request,
-        IFormFile? photo, IFormFile? resume)
+    public async Task<(bool success, string onboardingId, string message)>
+        SavePersonalInfoAsync(
+            Guid userId,
+            Guid organizationId,
+            OnboardingPersonalInfoRequest request,
+            IFormFile? photo,
+            IFormFile? resume)
     {
         try
         {
-            var (employeeId, session) = await GetOrCreateSessionAsync(userId, organizationId);
+            var (employeeId, session) =
+                await GetOrCreateSessionAsync(userId, organizationId);
 
-            // Upload files if provided
             string? photoUrl = null;
             string? resumeUrl = null;
             string? resumeFileName = null;
@@ -102,22 +112,26 @@ public class OnboardingService : IOnboardingService
                 request.JobTitle,
                 request.Department);
 
-            // Update session step
             session.CurrentStep = Math.Max(session.CurrentStep, 2);
             session.JobTitle = request.JobTitle;
             session.Department = request.Department;
             session.IdNumber = request.IdNumber;
             if (photoUrl != null) session.PhotoUrl = photoUrl;
-            if (resumeUrl != null) { session.ResumeUrl = resumeUrl; session.ResumeFileName = resumeFileName; }
+            if (resumeUrl != null)
+            {
+                session.ResumeUrl = resumeUrl;
+                session.ResumeFileName = resumeFileName;
+            }
 
             var education = await _repo.GetEducationBySessionAsync(session.OnboardingId);
             var experience = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
-            session.CompletionRate = CalculateCompletion(session,
-                education.Count > 0, experience.Count > 0);
+            session.CompletionRate = CalculateCompletion(
+                session, education.Count > 0, experience.Count > 0);
 
             await _repo.UpdateSessionAsync(session);
 
-            return (true, session.OnboardingId.ToString(), "Personal information saved successfully.");
+            return (true, session.OnboardingId.ToString(),
+                "Personal information saved successfully.");
         }
         catch (Exception ex)
         {
@@ -126,23 +140,27 @@ public class OnboardingService : IOnboardingService
         }
     }
 
-    // ── Step 2 – education ────────────────────────────────────────────────────
+    // ── Step 2 – Education ────────────────────────────────────────────────────
 
     public async Task<OnboardingEducationDto> AddEducationAsync(
-        Guid userId, OnboardingEducationRequest request, IFormFile? file)
+        Guid userId,
+        OnboardingEducationRequest request,
+        string? fileUrl)
     {
         var employeeId = await _employeeRepo.getemployeeid(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
-            ?? throw new InvalidOperationException("Onboarding session not started. Save personal info first.");
+            ?? throw new InvalidOperationException(
+                "Onboarding session not started. Save personal info first.");
 
-        string? fileUrl = null;
         string? fileName = request.FileName;
-        if (file is { Length: > 0 })
+
+        // If a pre-uploaded URL was provided use it directly; no re-upload needed.
+        // (The original code tried to re-upload the URL string which is incorrect.)
+        if (!string.IsNullOrWhiteSpace(fileUrl))
         {
-            fileUrl = await _fileStorage.UploadFileAsync(file, "Uploads/Education");
-            fileName = file.FileName;
+            fileName = request.FileName ?? fileUrl;
         }
 
         var record = await _repo.AddEducationAsync(new OnboardingEducation
@@ -157,7 +175,6 @@ public class OnboardingService : IOnboardingService
             Description = request.Description
         });
 
-        // Update completion
         var experience = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
         session.CompletionRate = CalculateCompletion(session, true, experience.Count > 0);
         session.CurrentStep = Math.Max(session.CurrentStep, 2);
@@ -178,7 +195,10 @@ public class OnboardingService : IOnboardingService
     }
 
     public async Task<bool> UpdateEducationAsync(
-        Guid userId, Guid educationId, OnboardingEducationRequest request, IFormFile? file)
+        Guid userId,
+        Guid educationId,
+        OnboardingEducationRequest request,
+        IFormFile? file)
     {
         var employeeId = await _employeeRepo.getemployeeid(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
@@ -188,6 +208,7 @@ public class OnboardingService : IOnboardingService
 
         string? fileUrl = null;
         string? fileName = request.FileName;
+
         if (file is { Length: > 0 })
         {
             fileUrl = await _fileStorage.UploadFileAsync(file, "Uploads/Education");
@@ -219,10 +240,12 @@ public class OnboardingService : IOnboardingService
         return await _repo.DeleteEducationAsync(educationId, session.OnboardingId);
     }
 
-    // ── Step 3 – work experience ──────────────────────────────────────────────
+    // ── Step 3 – Work Experience ──────────────────────────────────────────────
 
     public async Task<OnboardingWorkExperienceDto> AddWorkExperienceAsync(
-        Guid userId, OnboardingWorkExperienceRequest request, IFormFile? file)
+        Guid userId,
+        OnboardingWorkExperienceRequest request,
+        IFormFile? file)
     {
         var employeeId = await _employeeRepo.getemployeeid(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
@@ -232,6 +255,7 @@ public class OnboardingService : IOnboardingService
 
         string? fileUrl = null;
         string? fileName = request.FileName;
+
         if (file is { Length: > 0 })
         {
             fileUrl = await _fileStorage.UploadFileAsync(file, "Uploads/WorkExperience");
@@ -253,7 +277,6 @@ public class OnboardingService : IOnboardingService
             FileUrl = fileUrl
         });
 
-        // Update completion
         var education = await _repo.GetEducationBySessionAsync(session.OnboardingId);
         session.CompletionRate = CalculateCompletion(session, education.Count > 0, true);
         session.CurrentStep = Math.Max(session.CurrentStep, 3);
@@ -277,7 +300,10 @@ public class OnboardingService : IOnboardingService
     }
 
     public async Task<bool> UpdateWorkExperienceAsync(
-        Guid userId, Guid experienceId, OnboardingWorkExperienceRequest request, IFormFile? file)
+        Guid userId,
+        Guid experienceId,
+        OnboardingWorkExperienceRequest request,
+        IFormFile? file)
     {
         var employeeId = await _employeeRepo.getemployeeid(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
@@ -287,6 +313,7 @@ public class OnboardingService : IOnboardingService
 
         string? fileUrl = null;
         string? fileName = request.FileName;
+
         if (file is { Length: > 0 })
         {
             fileUrl = await _fileStorage.UploadFileAsync(file, "Uploads/WorkExperience");
@@ -321,126 +348,9 @@ public class OnboardingService : IOnboardingService
         return await _repo.DeleteWorkExperienceAsync(experienceId, session.OnboardingId);
     }
 
-    // ── Step 5 – policy acceptance ────────────────────────────────────────────
+    // ── Step 4 – Bank Details ─────────────────────────────────────────────────
 
-    public async Task<bool> AcceptPoliciesAsync(Guid userId, bool accepted, string? documentNotes)
-    {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
-            ?? throw new KeyNotFoundException("Employee not found.");
-
-        var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
-            ?? throw new InvalidOperationException("No active onboarding session.");
-
-        session.IsPolicyAccepted = accepted;
-        session.DocumentNotes = documentNotes;
-        session.CurrentStep = Math.Max(session.CurrentStep, 5);
-
-        var education = await _repo.GetEducationBySessionAsync(session.OnboardingId);
-        var experience = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
-        session.CompletionRate = CalculateCompletion(session, education.Count > 0, experience.Count > 0);
-
-        return await _repo.UpdateSessionAsync(session);
-    }
-
-    // ── Step 6 – final submit ─────────────────────────────────────────────────
-
-    public async Task<bool> FinalSubmitAsync(
-        Guid userId, Guid organizationId,
-        OnboardingSubmitRequest request,
-        IFormFile? photo, IFormFile? resume)
-    {
-        var (employeeId, session) = await GetOrCreateSessionAsync(userId, organizationId);
-
-        // Upload files
-        string? photoUrl = null;
-        string? resumeUrl = null;
-        string? resumeFileName = null;
-
-        if (photo is { Length: > 0 }) photoUrl = await _fileStorage.UploadFileAsync(photo, "Uploads/Photos");
-        if (resume is { Length: > 0 })
-        {
-            resumeUrl = await _fileStorage.UploadFileAsync(resume, "Uploads/Resumes");
-            resumeFileName = resume.FileName;
-        }
-
-        // Upsert personal info
-        var fullName = $"{request.FirstName} {request.LastName}".Trim();
-        await _repo.UpsertPersonalInfoAsync(employeeId, fullName, request.Phone,
-            request.Gender, request.Nationality, request.IdNumber,
-            photoUrl, resumeUrl, resumeFileName ?? request.ResumeFileName,
-            request.JobTitle, request.Department);
-
-        // Education: add any new entries that don't have an id
-        foreach (var edu in request.Education.Where(e => e.EducationId is null))
-            await _repo.AddEducationAsync(new OnboardingEducation
-            {
-                OnboardingId = session.OnboardingId,
-                Degree = edu.Degree,
-                Institution = edu.Institution,
-                Field = edu.Field,
-                Gpa = edu.Gpa,
-                FileName = edu.FileName,
-                Description = edu.Description
-            });
-
-        // Work experience: add new entries
-        foreach (var exp in request.WorkExperience.Where(e => e.ExperienceId is null))
-            await _repo.AddWorkExperienceAsync(new OnboardingWorkExperience
-            {
-                OnboardingId = session.OnboardingId,
-                JobTitle = exp.JobTitle,
-                Company = exp.Company,
-                EmploymentType = exp.EmploymentType,
-                Location = exp.Location,
-                StartDate = exp.StartDate,
-                EndDate = exp.EndDate,
-                CurrentlyWorking = exp.CurrentlyWorking,
-                Responsibilities = exp.Responsibilities,
-                FileName = exp.FileName
-            });
-
-        // Mark as completed
-        session.Status = "completed";
-        session.CurrentStep = 7;
-        session.IsPolicyAccepted = request.PolicyAccepted;
-        session.DocumentNotes = request.DocumentNotes;
-        if (photoUrl != null) session.PhotoUrl = photoUrl;
-        if (resumeUrl != null) { session.ResumeUrl = resumeUrl; session.ResumeFileName = resumeFileName; }
-
-        var eduList = await _repo.GetEducationBySessionAsync(session.OnboardingId);
-        var expList = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
-        session.CompletionRate = CalculateCompletion(session, eduList.Count > 0, expList.Count > 0);
-
-        return await _repo.UpdateSessionAsync(session);
-    }
-
-    // ── Step tracker ──────────────────────────────────────────────────────────
-
-    public async Task<bool> UpdateCurrentStepAsync(Guid userId, int step)
-    {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
-            ?? throw new KeyNotFoundException("Employee not found.");
-
-        var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
-            ?? throw new InvalidOperationException("No active onboarding session.");
-
-        session.CurrentStep = Math.Max(session.CurrentStep, step);
-        return await _repo.UpdateSessionAsync(session);
-    }
-
-    // ── GET my-status ─────────────────────────────────────────────────────────
-
-    public async Task<OnboardingStatusResponse?> GetMyStatusAsync(Guid userId, Guid organizationId)
-    {
-        var employeeId = await _employeeRepo.getemployeeid(userId);
-        if (employeeId is null) return null;
-
-        return await _repo.GetFullStatusAsync(employeeId.Value, organizationId);
-    }
-
-// ── Step 4 – bank details ─────────────────────────────────────────────────────
-
-public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
+    public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
     {
         var employeeId = await _employeeRepo.getemployeeid(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
@@ -473,7 +383,8 @@ public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
         try
         {
             var employeeId = await _employeeRepo.getemployeeid(userId)
-                ?? throw new KeyNotFoundException("Employee record not found for this user.");
+                ?? throw new KeyNotFoundException(
+                    "Employee record not found for this user.");
 
             var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
                 ?? throw new InvalidOperationException(
@@ -494,18 +405,17 @@ public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
 
             await _repo.UpsertBankDetailsAsync(record);
 
-            // Advance step tracker and recalculate completion
             session.CurrentStep = Math.Max(session.CurrentStep, 4);
             var education = await _repo.GetEducationBySessionAsync(session.OnboardingId);
             var experience = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
-            session.CompletionRate = CalculateCompletion(session,
-                education.Count > 0, experience.Count > 0);
+            session.CompletionRate = CalculateCompletion(
+                session, education.Count > 0, experience.Count > 0);
             await _repo.UpdateSessionAsync(session);
 
             return (true, "Bank details saved successfully.");
         }
-        catch (KeyNotFoundException ex) { throw; }
-        catch (InvalidOperationException ex) { throw; }
+        catch (KeyNotFoundException) { throw; }
+        catch (InvalidOperationException) { throw; }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error saving bank details for user {UserId}", userId);
@@ -513,13 +423,154 @@ public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
         }
     }
 
+    public async Task<bool> DeleteBankDetailsAsync(Guid userId, string? bankDetailsId)
+    {
+        var employeeId = await _employeeRepo.getemployeeid(userId)
+            ?? throw new KeyNotFoundException("Employee not found.");
+
+        var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
+            ?? throw new InvalidOperationException("No active onboarding session.");
+
+        return await _repo.DeleteBankDetailsAsync(session.OnboardingId);
+    }
+
+    // ── Step 5 – Policy Acceptance ────────────────────────────────────────────
+
+    public async Task<bool> AcceptPoliciesAsync(
+        Guid userId, bool accepted, string? documentNotes)
+    {
+        var employeeId = await _employeeRepo.getemployeeid(userId)
+            ?? throw new KeyNotFoundException("Employee not found.");
+
+        var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
+            ?? throw new InvalidOperationException("No active onboarding session.");
+
+        session.IsPolicyAccepted = accepted;
+        session.DocumentNotes = documentNotes;
+        session.CurrentStep = Math.Max(session.CurrentStep, 5);
+
+        var education = await _repo.GetEducationBySessionAsync(session.OnboardingId);
+        var experience = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
+        session.CompletionRate = CalculateCompletion(
+            session, education.Count > 0, experience.Count > 0);
+
+        return await _repo.UpdateSessionAsync(session);
+    }
+
+    // ── Step 6 – Final Submit ─────────────────────────────────────────────────
+
+    public async Task<bool> FinalSubmitAsync(
+        Guid userId,
+        Guid organizationId,
+        OnboardingSubmitRequest request,
+        IFormFile? photo,
+        IFormFile? resume)
+    {
+        var (employeeId, session) =
+            await GetOrCreateSessionAsync(userId, organizationId);
+
+        string? photoUrl = null;
+        string? resumeUrl = null;
+        string? resumeFileName = null;
+
+        if (photo is { Length: > 0 })
+            photoUrl = await _fileStorage.UploadFileAsync(photo, "Uploads/Photos");
+
+        if (resume is { Length: > 0 })
+        {
+            resumeUrl = await _fileStorage.UploadFileAsync(resume, "Uploads/Resumes");
+            resumeFileName = resume.FileName;
+        }
+
+        var fullName = $"{request.FirstName} {request.LastName}".Trim();
+        await _repo.UpsertPersonalInfoAsync(
+            employeeId, fullName, request.Phone,
+            request.Gender, request.Nationality, request.IdNumber,
+            photoUrl, resumeUrl, resumeFileName ?? request.ResumeFileName,
+            request.JobTitle, request.Department);
+
+        // Add new education entries (those without an existing ID)
+        foreach (var edu in request.Education.Where(e => e.EducationId is null))
+        {
+            await _repo.AddEducationAsync(new OnboardingEducation
+            {
+                OnboardingId = session.OnboardingId,
+                Degree = edu.Degree,
+                Institution = edu.Institution,
+                Field = edu.Field,
+                Gpa = edu.Gpa,
+                FileName = edu.FileName,
+                Description = edu.Description
+            });
+        }
+
+        // Add new work experience entries
+        foreach (var exp in request.WorkExperience.Where(e => e.ExperienceId is null))
+        {
+            await _repo.AddWorkExperienceAsync(new OnboardingWorkExperience
+            {
+                OnboardingId = session.OnboardingId,
+                JobTitle = exp.JobTitle,
+                Company = exp.Company,
+                EmploymentType = exp.EmploymentType,
+                Location = exp.Location,
+                StartDate = exp.StartDate,
+                EndDate = exp.EndDate,
+                CurrentlyWorking = exp.CurrentlyWorking,
+                Responsibilities = exp.Responsibilities,
+                FileName = exp.FileName
+            });
+        }
+
+        session.Status = "completed";
+        session.CurrentStep = 7;
+        session.IsPolicyAccepted = request.PolicyAccepted;
+        session.DocumentNotes = request.DocumentNotes;
+        if (photoUrl != null) session.PhotoUrl = photoUrl;
+        if (resumeUrl != null)
+        {
+            session.ResumeUrl = resumeUrl;
+            session.ResumeFileName = resumeFileName;
+        }
+
+        var eduList = await _repo.GetEducationBySessionAsync(session.OnboardingId);
+        var expList = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
+        session.CompletionRate = CalculateCompletion(
+            session, eduList.Count > 0, expList.Count > 0);
+
+        return await _repo.UpdateSessionAsync(session);
+    }
+
+    // ── Step Tracker ──────────────────────────────────────────────────────────
+
+    public async Task<bool> UpdateCurrentStepAsync(Guid userId, int step)
+    {
+        var employeeId = await _employeeRepo.getemployeeid(userId)
+            ?? throw new KeyNotFoundException("Employee not found.");
+
+        var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
+            ?? throw new InvalidOperationException("No active onboarding session.");
+
+        session.CurrentStep = Math.Max(session.CurrentStep, step);
+        return await _repo.UpdateSessionAsync(session);
+    }
+
+    // ── GET my-status ─────────────────────────────────────────────────────────
+
+    public async Task<OnboardingStatusResponse?> GetMyStatusAsync(
+        Guid userId, Guid organizationId)
+    {
+        var employeeId = await _employeeRepo.getemployeeid(userId);
+        if (employeeId is null) return null;
+        return await _repo.GetFullStatusAsync(employeeId.Value, organizationId);
+    }
 }
 // PolicyService.cs
 
 
-    // ============================================================
-    // FILE: Services/PolicyService.cs
-    // ============================================================
+// ============================================================
+// FILE: Services/PolicyService.cs
+// ============================================================
 
 public class PolicyService : IPolicyService
 {
