@@ -249,6 +249,12 @@ public class AuthService : IAuthService
 
         var organizationId = orgResponse.Data.OrganizationId;
         _logger.LogInformation("Organization {OrganizationId} created successfully", organizationId);
+        var onboarding=await _authRepository.OnboardingConfigurationAsync(organizationId);
+        if (onboarding == false)
+        {
+            throw new InvalidOperationException("Failed onbaording");
+        }
+
 
         // Create default job application stages for the new organization
         var defaultStages = new[] { ("Initial", 1), ("Short List", 2), ("Interviewed", 3), ("Selected", 4), ("Rejected", 5) };

@@ -27,10 +27,16 @@
 
             return filePath;
         }
+
+        public Task<string> UploadFileAsync(string fileUrl, string v)
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public interface IFileStorageService
     {
         Task<string> UploadFileAsync(IFormFile file, string folder);
+        Task<string> UploadFileAsync(string fileUrl, string v);
     }
 }

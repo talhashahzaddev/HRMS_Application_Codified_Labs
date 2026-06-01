@@ -926,7 +926,7 @@ WHERE token = @token;
 
 
             if (result == null)
-            throw new Exception("Failed to create role");
+                throw new Exception("Failed to create role");
 
             return new Role
             {
@@ -950,6 +950,23 @@ WHERE token = @token;
             throw;
         }
     }
+
+    public async Task<bool> OnboardingConfigurationAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"SELECT auth.fn_create_onboarding(@organizationId);";
+            var result = await ExecuteScalarAsync<bool>(sql, new { organizationId });
+            return result;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Onboarding configuration failed", ex);
+        }
+    }
+
+
+
 
     public async Task<bool> UpdateUserRoleAsync(Guid? userId, Guid? roleId)
     {
@@ -997,5 +1014,9 @@ WHERE token = @token;
             throw new Exception("Cannot map to the result", ex.InnerException);
         }
     }
+
+
+
+  
 
 }
