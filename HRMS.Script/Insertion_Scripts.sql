@@ -314,6 +314,12 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Component Rule', 'tax_component_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Component Rule', 'tax_component_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
+-- Tax Ledger / Transactions
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'View Tax Ledger', 'get_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Add Tax Ledger', 'add_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Edit Tax Ledger', 'edit_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Delete Tax Ledger', 'delete_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
 -- Gratuity Rules
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Gratuity Rules', 'gratuity_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Gratuity Rule', 'gratuity_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

@@ -2174,6 +2174,7 @@ public class PayRollController : ControllerBase
 
     // Tax Transactions
     [HttpGet("tax-transactions")]
+    [PermissionAuthorize("get_transaction_ledger")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxTransactionDto>>>> GetAllTaxTransactions()
     {
         try
@@ -2191,6 +2192,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-transactions/active")]
+    [PermissionAuthorize("get_transaction_ledger")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<TaxTransactionDto>>>> GetActiveTaxTransactions()
     {
         try
@@ -2208,6 +2210,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("tax-transactions/{id}")]
+    [PermissionAuthorize("get_transaction_ledger")]
     public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> GetTaxTransactionById(Guid id)
     {
         try
@@ -2225,6 +2228,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("tax-transactions")]
+    [PermissionAuthorize("add_transaction_ledger")]
     public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> CreateTaxTransaction([FromBody] CreateTaxTransactionDto dto)
     {
         try
@@ -2242,6 +2246,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("tax-transactions/{id}")]
+    [PermissionAuthorize("edit_transaction_ledger")]
     public async Task<ActionResult<ServiceResponse<TaxTransactionDto>>> UpdateTaxTransaction(Guid id, [FromBody] UpdateTaxTransactionDto dto)
     {
         try
@@ -2259,6 +2264,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("tax-transactions/{id}")]
+    [PermissionAuthorize("delete_transaction_ledger")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteTaxTransaction(Guid id)
     {
         try
