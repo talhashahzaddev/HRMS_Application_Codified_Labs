@@ -217,7 +217,8 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('70173e77-ddc5-45cf-8eba-58b53eb6ac5e', 'Delete IP', 'manage_ip_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Career Management
-('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'Career Mangment Page Edit', 'career_management_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'View Career Management', 'career_management_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'Edit Career Management', 'career_management_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Role Management
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Add New Role', 'add_new_role', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -313,6 +314,12 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Component Rule', 'tax_component_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Component Rule', 'tax_component_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Component Rule', 'tax_component_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Ledger / Transactions
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'View Tax Ledger', 'get_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Add Tax Ledger', 'add_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Edit Tax Ledger', 'edit_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Delete Tax Ledger', 'delete_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Gratuity Rules
 ('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Gratuity Rules', 'gratuity_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

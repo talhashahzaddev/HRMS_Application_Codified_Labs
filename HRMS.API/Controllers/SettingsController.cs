@@ -109,6 +109,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("career-page")]
+    [PermissionAuthorize("career_management_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateCareerPage([FromBody] UpdateCareerPageRequest request)
     {
         try
@@ -135,6 +136,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("career-page")]
+    [PermissionAuthorize("career_management_view")]
     public async Task<ActionResult<ServiceResponse<CareerPageDto>>> GetCareerPage()
     {
         try
