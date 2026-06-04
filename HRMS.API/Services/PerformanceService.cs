@@ -41,7 +41,6 @@ public class PerformanceService : IPerformanceService
 
     public async Task<AppraisalCycleDto> CreateAppraisalCycleAsync(CreateAppraisalCycleRequest request, Guid organizationId, Guid currentEmployeeId)
     {
-        _logger.LogInformation("Creating appraisal cycle: {CycleName}", request.CycleName);
 
         // 🔹 Basic validations
         if (organizationId == Guid.Empty)
@@ -705,9 +704,9 @@ public class PerformanceService : IPerformanceService
         if (request == null)
             throw new ArgumentNullException(nameof(request), "Request cannot be null");
         var appraisalCycle = await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
-        if (appraisalCycle.StartDate <= DateTime.UtcNow)
+        if (string.Equals(appraisalCycle.Status, "start", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Cannot Update appraisal cycle because it has already started.");
+            throw new InvalidOperationException("Cannot delete appraisal cycle because it has already started.");
         }
 
         return await _performanceRepository.UpdateAppraisalCycleAsync(cycleId, request);
@@ -719,7 +718,7 @@ public class PerformanceService : IPerformanceService
         if (cycleId == Guid.Empty)
             throw new ArgumentException("Cycle ID cannot be empty", nameof(cycleId));
         var appraisalCycle = await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
-        if (appraisalCycle.StartDate <= DateTime.UtcNow)
+        if (string.Equals(appraisalCycle.Status, "start", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Cannot delete appraisal cycle because it has already started.");
         }
