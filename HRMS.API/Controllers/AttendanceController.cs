@@ -26,7 +26,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-in")]
-    [PermissionAuthorize("Clock In Button")]
+    [PermissionAuthorize("CLOCK_IN_BUTTON")]
 
     public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockIn([FromBody] ClockInOutRequest request)
     {
@@ -166,7 +166,7 @@ public class AttendanceController : ControllerBase
         {
             var empId = employeeId ?? await GetCurrentEmployeeId();
             var attendance = await _attendanceService.GetTodayAttendanceAsync(empId);
-            
+
             return Ok(new ServiceResponse<AttendanceDto>
             {
                 Success = true,
@@ -201,7 +201,7 @@ public class AttendanceController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var currentEmployeeId = await GetCurrentEmployeeId();
             var attendance = await _attendanceService.GetAttendanceAsync(searchModel, organizationId, currentEmployeeId);
-            
+
             return Ok(new ServiceResponse<PagedResult<AttendanceDto>>
             {
                 Success = true,
@@ -227,7 +227,7 @@ public class AttendanceController : ControllerBase
             });
         }
     }
-    
+
     [HttpGet("summary")]
     public async Task<ActionResult<ServiceResponse<AttendanceSummaryDto>>> GetAttendanceSummary([FromQuery] Guid? employeeId, [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
@@ -235,7 +235,7 @@ public class AttendanceController : ControllerBase
         {
             var empId = employeeId ?? await GetCurrentEmployeeId();
             var summary = await _attendanceService.GetAttendanceSummaryAsync(empId, startDate, endDate);
-            
+
             return Ok(new ServiceResponse<AttendanceSummaryDto>
             {
                 Success = true,
@@ -269,7 +269,7 @@ public class AttendanceController : ControllerBase
         {
             var attendanceDate = date ?? DateTime.Today;
             var attendance = await _attendanceService.GetDepartmentAttendanceAsync(departmentId, attendanceDate);
-            
+
             return Ok(new ServiceResponse<List<AttendanceDto>>
             {
                 Success = true,
@@ -369,7 +369,7 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("employeeSession/{id}")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByid(Guid id, [FromQuery] DateTime? date = null)
-     {
+    {
         try
         {
             //var employeeId = await GetCurrentEmployeeId();
@@ -495,7 +495,7 @@ public class AttendanceController : ControllerBase
                 });
             }
             var attendance = await _attendanceService.CreateManualAttendanceAsync(request);
-            
+
             return CreatedAtAction(nameof(GetAttendance), new { id = attendance.AttendanceId }, new ServiceResponse<AttendanceDto>
             {
                 Success = true,
@@ -556,7 +556,7 @@ public class AttendanceController : ControllerBase
                 });
             }
             var attendance = await _attendanceService.UpdateAttendanceAsync(id, request);
-            
+
             return Ok(new ServiceResponse<AttendanceDto>
             {
                 Success = true,
@@ -616,7 +616,7 @@ public class AttendanceController : ControllerBase
         try
         {
             var result = await _attendanceService.DeleteAttendanceAsync(id);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -659,7 +659,7 @@ public class AttendanceController : ControllerBase
         {
             var employeeId = await GetCurrentEmployeeId();
             var attendance = await _attendanceService.GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
-            
+
             return Ok(new ServiceResponse<List<AttendanceDto>>
             {
                 Success = true,
@@ -771,7 +771,7 @@ public class AttendanceController : ControllerBase
         {
             var empid = await GetCurrentEmployeeId();
             var attendance = await _attendanceService.GetEmployeeAttendanceAsync(empid, startDate, endDate);
-            
+
             return Ok(new ServiceResponse<List<AttendanceDto>>
             {
                 Success = true,
@@ -834,7 +834,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPost("shift")]
-    [PermissionAuthorize("Create Shift Button")]
+    [PermissionAuthorize("CREATE_SHIFT_BUTTON")]
 
     public async Task<ActionResult<ServiceResponse<bool>>> CreateShift([FromBody] CreateShiftDto request)
     {
@@ -978,7 +978,7 @@ public class AttendanceController : ControllerBase
     {
         try
         {
-            
+
             var organizationId = GetCurrentOrganizationId();
             var managerId = await GetCurrentEmployeeId();
 
@@ -1110,7 +1110,7 @@ public class AttendanceController : ControllerBase
                 });
             }
 
-         
+
             var result = await _attendanceService.RespondToAssignedOvertimeRequestAsync(
                 requestId,
                 employeeId,
@@ -1350,7 +1350,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPost("assign-shift")]
-    [PermissionAuthorize(" ASSIGN_SHIFT_BUTTON")]   
+    [PermissionAuthorize("ASSIGN_SHIFT_BUTTON")]
     public async Task<ActionResult<ServiceResponse<bool>>> AssignShift([FromBody] AssignShiftDto request)
     {
         try
@@ -1422,7 +1422,7 @@ public class AttendanceController : ControllerBase
         {
             var organizationId = GetCurrentOrganizationId();
             var CurrentEmployee = await GetCurrentEmployeeId();
-           
+
             var employees = await _attendanceService.GetEmployeesByShiftAsync(organizationId, shiftId,CurrentEmployee);
 
             return Ok(new ServiceResponse<List<EmployeeShiftDto>>
@@ -1525,7 +1525,7 @@ public class AttendanceController : ControllerBase
 
     [HttpPost("shiftswap/approve")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveShiftSwapRequest([FromBody] ApproveShiftSwapRequestDto dto)
-    {  
+    {
         try
         {
             if (!ModelState.IsValid)
@@ -1910,7 +1910,7 @@ public class AttendanceController : ControllerBase
         {
             var employeeId = await GetCurrentEmployeeId();
             var calendar = await _attendanceService.GetAttendanceCalendarAsync(employeeId, year, month);
-            
+
             return Ok(new ServiceResponse<List<AttendanceCalendarDto>>
             {
                 Success = true,
@@ -1946,7 +1946,7 @@ public class AttendanceController : ControllerBase
             var employeeId = await GetCurrentEmployeeId();
             var organizationId = GetCurrentOrganizationId();
             var stats = await _attendanceService.GetDailyAttendanceStatsAsync(employeeId,organizationId, date ?? DateTime.Today);
-            
+
             return Ok(new ServiceResponse<DailyAttendanceStatsDto>
             {
                 Success = true,
@@ -2054,11 +2054,11 @@ public class AttendanceController : ControllerBase
             }
             var organizationId = GetCurrentOrganizationId();
             var currentEmployeeId = await GetCurrentEmployeeId();
-            var fileBytes = await _attendanceService.ExportAttendanceReportAsync(organizationId, startDate, endDate, format, employeeId, currentEmployeeId,departmentId, status);
-            
+            var fileBytes = await _attendanceService.ExportAttendanceReportAsync(organizationId, startDate, endDate, format, employeeId, currentEmployeeId, departmentId, status);
+
             var contentType = format.ToLower() == "csv" ? "text/csv" : "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
             var fileName = $"attendance-report-{startDate:yyyy-MM-dd}-to-{endDate:yyyy-MM-dd}.{format}";
-            
+
             return File(fileBytes, contentType, fileName);
         }
         catch (ArgumentException ex)
@@ -2097,7 +2097,7 @@ public class AttendanceController : ControllerBase
                 });
             }
             var result = await _attendanceService.BulkApproveAttendanceAsync(request.AttendanceIds);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -2135,7 +2135,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPatch("bulk/reject")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> BulkRejectAttendance([FromBody] BulkAttendanceRejectRequest request)
     {
         try
@@ -2150,7 +2149,7 @@ public class AttendanceController : ControllerBase
                 });
             }
             var result = await _attendanceService.BulkRejectAttendanceAsync(request.AttendanceIds, request.Reason);
-            
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -2260,7 +2259,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("timesheet")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<List<MonthlyTimesheetSummary>>>> GetCreatedTimesheets(
     [FromQuery] DateTime? startDate = null,
     [FromQuery] DateTime? endDate = null)
@@ -2299,7 +2297,7 @@ public class AttendanceController : ControllerBase
             var currentUserRole = User.FindFirstValue(ClaimTypes.Role);
 
             var result = await _attendanceService.GetManualAttendanceAsync(searchDto, currentEmployeeId, currentUserRole, organizationId);
-            
+
             if (!result.Success)
             {
                 return BadRequest(result);
@@ -2340,8 +2338,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("timesheet/submit-approvals")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
-    public async Task<IActionResult> SubmitApprovals([FromBody] FinalizeBatchRequestDto request) 
+    public async Task<IActionResult> SubmitApprovals([FromBody] FinalizeBatchRequestDto request)
     {
         var orgId = GetCurrentOrganizationId();
         var empId = request.EmployeeId != Guid.Empty
@@ -2372,8 +2369,8 @@ public class AttendanceController : ControllerBase
     //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard(
     [FromQuery] Guid timesheetId,
-    [FromQuery] Guid? employeeId = null) 
-     {
+    [FromQuery] Guid? employeeId = null)
+    {
         if (timesheetId == Guid.Empty)
             return BadRequest(new { Message = "A valid Timesheet ID is required." });
 
@@ -2390,7 +2387,6 @@ public class AttendanceController : ControllerBase
 
     /// <summary>List finalized timesheets the payroll module can attach to a payroll run.</summary>
     [HttpGet("timesheet/finalized-links")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<IActionResult> GetFinalizedTimesheetLinks()
     {
         var orgId = GetCurrentOrganizationId();
@@ -2412,7 +2408,6 @@ public class AttendanceController : ControllerBase
 
     /// <summary>Locks a finalized timesheet — called by payroll when it consumes the period.</summary>
     [HttpPost("timesheet/lock")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<IActionResult> LockTimesheet([FromBody] LockTimesheetRequestDto dto)
     {
         if (dto?.TimesheetId == Guid.Empty)
@@ -2534,19 +2529,19 @@ public class AttendanceController : ControllerBase
     private Guid GetCurrentOrganizationId()
     {
         var orgIdClaim = User.FindFirstValue("organizationId");
-        
+
         if (string.IsNullOrEmpty(orgIdClaim))
         {
             _logger.LogError("Organization ID claim not found in JWT token");
             throw new UnauthorizedAccessException("Organization ID not found in token");
         }
-        
+
         if (!Guid.TryParse(orgIdClaim, out var organizationId))
         {
             _logger.LogError("Invalid organization ID format in JWT token: {OrganizationId}", orgIdClaim);
             throw new UnauthorizedAccessException("Invalid organization ID format");
         }
-        
+
         return organizationId;
     }
 
