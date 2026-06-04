@@ -217,7 +217,8 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('70173e77-ddc5-45cf-8eba-58b53eb6ac5e', 'Delete IP', 'manage_ip_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Career Management
-('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'Career Mangment Page Edit', 'career_management_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'View Career Management', 'career_management_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'Edit Career Management', 'career_management_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Role Management
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Add New Role', 'add_new_role', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
