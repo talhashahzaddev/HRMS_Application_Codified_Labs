@@ -2014,7 +2014,6 @@ ORDER BY ed.employeename, ed.workdate ASC";
          ON o.requestedby = e.employeeid
      WHERE o.employeeid = @EmployeeId
        AND o.overtimedate::date = @Today::date
-       AND LOWER(o.status) = 'approved'
      LIMIT 1;
      ";
 
