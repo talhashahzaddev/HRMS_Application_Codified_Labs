@@ -47,6 +47,10 @@ builder.Services.AddControllers()
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        // Emit every DateTime as UTC ISO-8601 with 'Z' so the frontend reliably
+        // converts timestamps into the company-configured timezone.
+        options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonNullableDateTimeConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -342,3 +346,7 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Exposes the implicit Program class (top-level statements) to the test project
+// so WebApplicationFactory<Program> can boot the real app in integration tests.
+public partial class Program { }
