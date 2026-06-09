@@ -1843,6 +1843,7 @@ public class AddLoanPaymentDto
 public class CalculatePayrollDto
 {
     public Guid PeriodId { get; set; }
+    public Guid? DepartmentId { get; set; }
     public Guid? CycleId { get; set; }
     public Guid? BonusRuleId { get; set; }
     public Guid? AttendanceRuleId { get; set; }
