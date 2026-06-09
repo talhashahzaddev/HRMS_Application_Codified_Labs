@@ -340,7 +340,7 @@ public class EmployeeService : IEmployeeService
     }
 
     //
-    public async Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequestDTo request, IFormFile? profileFile)
+    public async Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequestDTo request,Guid orgId, IFormFile? profileFile)
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
@@ -351,11 +351,12 @@ public class EmployeeService : IEmployeeService
         //Update user table first
         // get employee userId to update employe in user 
         var userId = await _employeeRepository.GetEmpUserIdAsync(employeeId);
-
         var UpdateUserTable = await _employeeRepository.editEmployeeUserAsync(userId, request);
 
         // 1️⃣ Get employee from database
         var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        if (employee.OrganizationId != orgId)
+            throw new ArgumentException("Employee in this organization does not exists", nameof(employeeId));
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
 

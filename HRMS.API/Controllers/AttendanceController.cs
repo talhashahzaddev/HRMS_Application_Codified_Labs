@@ -227,6 +227,41 @@ public class AttendanceController : ControllerBase
             });
         }
     }
+    //news
+    [HttpGet("team-attendance")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<AttendanceDto>>>> GetTeamAttendance([FromQuery] AttendanceSearchViewModel searchModel)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            var attendance = await _attendanceService.GetTeamAttendanceAsync(searchModel, organizationId, currentEmployeeId);
+
+            return Ok(new ServiceResponse<PagedResult<AttendanceDto>>
+            {
+                Success = true,
+                Data = attendance
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument for retrieving attendance records");
+            return BadRequest(new ServiceResponse<PagedResult<AttendanceDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving attendance records");
+            return StatusCode(500, new ServiceResponse<PagedResult<AttendanceDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving attendance records"
+            });
+        }
+    }
 
     [HttpGet("summary")]
     public async Task<ActionResult<ServiceResponse<AttendanceSummaryDto>>> GetAttendanceSummary([FromQuery] Guid? employeeId, [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)

@@ -897,9 +897,9 @@ public class EmployeeController : ControllerBase
 
             if (Request.Form.ContainsKey("EmergencyContact"))
                 request.EmergencyContact = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["EmergencyContact"]);
-
+            var orgId = GetCurrentOrganizationId();
             // Call service to update employee
-            await _employeeService.UpdateEmployeeAsync(request.EmployeeId, request, profileurl);
+            await _employeeService.UpdateEmployeeAsync(request.EmployeeId, request, orgId, profileurl);
 
             return Ok(new ServiceResponse<bool>
             {
@@ -953,6 +953,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            var orgId = GetCurrentOrganizationId();
             var employee = await _employeeService.ActivateEmployeeAsync(id);
             return Ok(new ServiceResponse<EmployeeDto>
             {
@@ -995,6 +996,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            var orgId = GetCurrentOrganizationId();
             var employee = await _employeeService.DeactivateEmployeeAsync(id);
             return Ok(new ServiceResponse<EmployeeDto>
             {
@@ -1170,6 +1172,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            var orgId=GetCurrentOrganizationId();
             var result = await _employeeService.BulkActivateEmployeesAsync(request.EmployeeIds);
             return Ok(new ServiceResponse<bool>
             {

@@ -30,6 +30,7 @@ public interface IAttendanceService
     Task<ClockInOutResponse> ClockOutAsync(Guid employeeId, ClockInOutRequest request, string ipAddress);
     Task<AttendanceDto?> GetTodayAttendanceAsync(Guid employeeId);
     Task<PagedResult<AttendanceDto>> GetAttendanceAsync(AttendanceSearchViewModel searchModel, Guid organizationId, Guid currentEmployeeId);
+    Task<PagedResult<AttendanceDto>> GetTeamAttendanceAsync(AttendanceSearchViewModel searchModel,Guid organizationId,Guid currentEmployeeId);
     Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<bool> UpdateAttendanceAsync(Guid attendanceId, CreateAttendanceRequest request);
     Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date);
