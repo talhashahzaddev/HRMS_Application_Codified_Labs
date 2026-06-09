@@ -405,9 +405,6 @@ public class AttendanceService : IAttendanceService
             await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
 
         PagedResult<AttendanceDto> result;
-
-        if (isAdminOrHR)
-        {
             // ✅ Admin / HR
             result = await _attendanceRepository.GetAttendanceAsync(
                 searchModel.SearchTerm,
@@ -419,8 +416,51 @@ public class AttendanceService : IAttendanceService
                 searchModel.PageSize,
                 searchModel?.departmentid,
                 searchModel?.Status);
+        var allowedIps = await _ipAddressRepository.GetAllAsync();
+        var allowedIpStrings = allowedIps
+            .Select(ip => ip.IpAddressValue)
+            .ToHashSet();
+
+        foreach (var attendance in result.Data)
+        {
+            attendance.checkinLocationType =
+                attendance.checkinip != null &&
+                allowedIpStrings.Contains(attendance.checkinip)
+                    ? "Office"
+                    : "Outside";
+
+            attendance.checkoutLocationType =
+                attendance.checkoutip != null &&
+                allowedIpStrings.Contains(attendance.checkoutip)
+                    ? "Office"
+                    : "Outside";
         }
-        else
+
+        return result;
+    }
+
+    //Getting team attendacne
+    public async Task<PagedResult<AttendanceDto>> GetTeamAttendanceAsync(
+    AttendanceSearchViewModel searchModel,
+    Guid organizationId,
+    Guid currentEmployeeId)
+    {
+        if (searchModel == null)
+            throw new ArgumentNullException(nameof(searchModel));
+
+        if (searchModel.Page <= 0)
+            throw new ArgumentException("Page must be greater than zero");
+
+        if (searchModel.PageSize <= 0)
+            throw new ArgumentException("Page size must be greater than zero");
+
+        if (searchModel.EndDate < searchModel.StartDate)
+            throw new ArgumentException("End date cannot be earlier than start date");
+
+        //var isAdminOrHR =
+        //    await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
+
+        PagedResult<AttendanceDto> result;
         {
             // ✅ Manager
             var teamEmployeeIds =
