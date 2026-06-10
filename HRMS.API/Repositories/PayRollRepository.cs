@@ -5993,16 +5993,22 @@ ORDER BY l.createdat DESC;";
                     e.categoryid AS CategoryId
                 FROM employee.employees e
                 LEFT JOIN LATERAL (
-                    SELECT ed2.basicsalary
+                    SELECT ed2.basicsalary, ed2.departmentid
                     FROM employee.employmentdetails ed2
                     WHERE ed2.employeeid = e.employeeid
                     ORDER BY ed2.iscurrent DESC, ed2.effectivedate DESC, ed2.createdat DESC
                     LIMIT 1
                 ) ed ON true
                 WHERE e.organizationid = @organizationId
-                  AND LOWER(COALESCE(e.status, '')) = 'active';";
+                  AND LOWER(COALESCE(e.status, '')) = 'active'";
 
-            var activeEmployeesList = (await connection.QueryAsync<dynamic>(activeEmployeesSql, new { organizationId }, transaction)).ToList();
+            if (dto.DepartmentId.HasValue && dto.DepartmentId.Value != Guid.Empty)
+            {
+                activeEmployeesSql += " AND ed.departmentid = @DepartmentId";
+            }
+            activeEmployeesSql += ";";
+
+            var activeEmployeesList = (await connection.QueryAsync<dynamic>(activeEmployeesSql, new { organizationId, DepartmentId = dto.DepartmentId }, transaction)).ToList();
             // One row per employee — duplicate rows (bad joins / legacy data) would run the whole payroll block twice
             // and duplicate JSON line items (e.g. overtimeDetails, generalBonuses) while corrupting totals.
             activeEmployeesList = activeEmployeesList
