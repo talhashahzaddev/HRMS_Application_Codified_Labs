@@ -71,7 +71,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
@@ -257,10 +258,10 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var sql = @"
             INSERT INTO jobs.jobopenings (organizationid, jobcode, jobrolename, departmentid, experiencemin, experiencemax,
                 ctcmin, ctcmax, currency, vacancies, location, workmode, employmenttype, jobintroduction,
-                responsibilities, skillset, lastdate, postedas, externallink, status, createdby)
+                responsibilities, skillset, lastdate, postedas, externallink, status, createdby, mandatoryskills)
             VALUES (@OrganizationId, @JobCode, @JobRoleName, @DepartmentId, @ExperienceMin, @ExperienceMax,
                 @CtcMin, @CtcMax, @Currency, @Vacancies, @Location, @WorkMode, @EmploymentType, @JobIntroduction,
-                @Responsibilities, @Skillset, @LastDate, @PostedAs, @ExternalLink, @Status, @CreatedBy)
+                @Responsibilities, @Skillset, @LastDate, @PostedAs, @ExternalLink, @Status, @CreatedBy, CAST(@MandatorySkills AS jsonb))
             RETURNING jobid";
         return await ExecuteScalarAsync<Guid>(sql, new
         {
@@ -284,7 +285,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
             entity.PostedAs,
             entity.ExternalLink,
             entity.Status,
-            entity.CreatedBy
+            entity.CreatedBy,
+            entity.MandatorySkills
         });
     }
 
@@ -297,6 +299,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
                 vacancies = @Vacancies, location = @Location, workmode = @WorkMode, employmenttype = @EmploymentType,
                 jobintroduction = @JobIntroduction, responsibilities = @Responsibilities, skillset = @Skillset,
                 lastdate = @LastDate, postedas = @PostedAs, externallink = @ExternalLink, status = @Status,
+                mandatoryskills = CAST(@MandatorySkills AS jsonb),
                 updatedat = CURRENT_TIMESTAMP
             WHERE jobid = @JobId";
         var rows = await ExecuteAsync(sql, new
@@ -320,7 +323,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
             entity.LastDate,
             entity.PostedAs,
             entity.ExternalLink,
-            entity.Status
+            entity.Status,
+            entity.MandatorySkills
         });
         return rows > 0;
     }
@@ -329,6 +333,16 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = "DELETE FROM jobs.jobopenings WHERE jobid = @jobId";
         var rows = await ExecuteAsync(sql, new { jobId });
+        return rows > 0;
+    }
+
+    public async Task<bool> UpdatePassedKnockoutAsync(Guid jobApplyId, bool passed)
+    {
+        var sql = @"
+            UPDATE jobs.jobapplications
+            SET passedknockout = @passed, updateddate = CURRENT_TIMESTAMP
+            WHERE jobapplyid = @jobApplyId";
+        var rows = await ExecuteAsync(sql, new { jobApplyId, passed });
         return rows > 0;
     }
 
@@ -358,7 +372,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    a.linkedinurl AS LinkedInUrl, a.resumeurl AS ResumeUrl, a.phone AS Phone,
                    a.coverletter AS CoverLetter, a.currentstageid AS CurrentStageId, s.stagename AS CurrentStageName,
                    a.applicationsource AS ApplicationSource, a.status AS Status,
-                   a.createddate AS CreatedDate, a.updateddate AS UpdatedDate
+                   a.createddate AS CreatedDate, a.updateddate AS UpdatedDate,
+                   a.passedknockout AS PassedKnockout
             FROM jobs.jobapplications a
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             LEFT JOIN employee.employees emp ON a.employeeid = emp.employeeid

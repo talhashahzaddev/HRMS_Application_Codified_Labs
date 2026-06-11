@@ -57,4 +57,7 @@ public class JobApplication
     
     [Column("isexternal")]
     public bool? IsExternal { get; set; }
+
+    [Column("passedknockout")]
+    public bool? PassedKnockout { get; set; }
 }

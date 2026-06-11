@@ -2,6 +2,7 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using Hangfire;
 
 namespace HRMS.API.Services;
 
@@ -9,12 +10,27 @@ public class JobsService : IJobsService
 {
     private readonly IJobsRepository _jobsRepository;
     private readonly IEmployeeService _employeeService;
+    private readonly IQuestionBankRepository _questionBankRepository;
+    private readonly IQuestionBankService _questionBankService;
+    private readonly Hangfire.IBackgroundJobClient _backgroundJobClient;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
     private readonly ILogger<JobsService> _logger;
 
-    public JobsService(IJobsRepository jobsRepository, IEmployeeService employeeService, ILogger<JobsService> logger)
+    public JobsService(
+        IJobsRepository jobsRepository, 
+        IEmployeeService employeeService, 
+        IQuestionBankRepository questionBankRepository, 
+        IQuestionBankService questionBankService,
+        Hangfire.IBackgroundJobClient backgroundJobClient,
+        Microsoft.Extensions.Configuration.IConfiguration configuration,
+        ILogger<JobsService> logger)
     {
         _jobsRepository = jobsRepository;
         _employeeService = employeeService;
+        _questionBankRepository = questionBankRepository;
+        _questionBankService = questionBankService;
+        _backgroundJobClient = backgroundJobClient;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -129,7 +145,8 @@ public class JobsService : IJobsService
             PostedAs = request.PostedAs.Trim(),
             ExternalLink = request.ExternalLink?.Trim(),
             Status = string.IsNullOrWhiteSpace(request.Status) ? "Open" : request.Status.Trim(),
-            CreatedBy = createdBy
+            CreatedBy = createdBy,
+            MandatorySkills = request.MandatorySkills
         };
 
         var jobId = await _jobsRepository.CreateJobOpeningAsync(entity);
@@ -177,7 +194,8 @@ public class JobsService : IJobsService
             LastDate = request.LastDate ?? existing.LastDate,
             PostedAs = request.PostedAs ?? existing.PostedAs,
             ExternalLink = request.ExternalLink ?? existing.ExternalLink,
-            Status = request.Status ?? existing.Status
+            Status = request.Status ?? existing.Status,
+            MandatorySkills = request.MandatorySkills ?? existing.MandatorySkills
         };
 
         var updated = await _jobsRepository.UpdateJobOpeningAsync(entity);
@@ -194,42 +212,58 @@ public class JobsService : IJobsService
     // ==================== JobApplications ====================
     public async Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId)
     {
-        return await _jobsRepository.GetAllJobApplicationsAsync(organizationId);
+        var apps = await _jobsRepository.GetAllJobApplicationsAsync(organizationId);
+        await CalculateMatchScoresAsync(apps);
+        return apps;
     }
 
     public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize)
     {
-        return await _jobsRepository.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, jobIds, pageNumber, pageSize);
+        var result = await _jobsRepository.GetJobApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, stageId, jobIds, pageNumber, pageSize);
+        await CalculateMatchScoresAsync(result.Data);
+        return result;
     }
 
     public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize)
     {
-        return await _jobsRepository.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, jobIds, pageNumber, pageSize);
+        var result = await _jobsRepository.GetJobApplicationsPostedByMePagedAsync(employeeId, search, applyDateFrom, applyDateTo, stageId, jobIds, pageNumber, pageSize);
+        await CalculateMatchScoresAsync(result.Data);
+        return result;
     }
 
     public async Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId)
     {
-        return await _jobsRepository.GetJobApplicationByIdAsync(jobApplyId);
+        var app = await _jobsRepository.GetJobApplicationByIdAsync(jobApplyId);
+        if (app != null) await CalculateMatchScoresAsync(new[] { app });
+        return app;
     }
 
     public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId)
     {
-        return await _jobsRepository.GetJobApplicationsByEmployeeIdAsync(employeeId);
+        var apps = await _jobsRepository.GetJobApplicationsByEmployeeIdAsync(employeeId);
+        await CalculateMatchScoresAsync(apps);
+        return apps;
     }
 
     public async Task<PagedResult<JobApplicationDto>> GetMyJobApplicationsPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize)
     {
-        return await _jobsRepository.GetJobApplicationsByEmployeeIdPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
+        var result = await _jobsRepository.GetJobApplicationsByEmployeeIdPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
+        await CalculateMatchScoresAsync(result.Data);
+        return result;
     }
 
     public async Task<PagedResult<JobApplicationDto>> GetMySelfJobApplicationsPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize)
     {
-        return await _jobsRepository.GetMySelfJobApplicationsByEmployeeIdPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
+        var result = await _jobsRepository.GetMySelfJobApplicationsByEmployeeIdPagedAsync(employeeId, search, stageId, status, pageNumber, pageSize);
+        await CalculateMatchScoresAsync(result.Data);
+        return result;
     }
 
     public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
     {
-        return await _jobsRepository.GetJobApplicationsByJobIdAsync(jobId);
+        var apps = await _jobsRepository.GetJobApplicationsByJobIdAsync(jobId);
+        await CalculateMatchScoresAsync(apps);
+        return apps;
     }
 
     public async Task<JobApplicationDto> CreateJobApplicationAsync(Guid organizationId, Guid employeeId, CreateJobApplicationRequest request)
@@ -259,6 +293,29 @@ public class JobsService : IJobsService
         };
 
         var jobApplyId = await _jobsRepository.CreateJobApplicationAsync(entity);
+        
+        // Save answers and evaluate knockouts
+        if (request.Answers != null && request.Answers.Any())
+        {
+            await _questionBankService.SaveCandidateAnswersAsync(jobApplyId, request.Answers);
+            await _questionBankService.EvaluateKnockoutAsync(jobApplyId);
+        }
+        else
+        {
+            // Auto pass if no knockouts
+            await _jobsRepository.UpdatePassedKnockoutAsync(jobApplyId, true);
+        }
+
+        // Queue CV parsing background job if resume URL exists
+        if (!string.IsNullOrWhiteSpace(request.ResumeUrl))
+        {
+            var apiKey = _configuration["GoogleGemini:ApiKey"];
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                _backgroundJobClient.Enqueue<IResumeParserService>(x => x.ParseResumeAsync(jobApplyId, request.ResumeUrl, apiKey));
+            }
+        }
+
         var created = await _jobsRepository.GetJobApplicationByIdAsync(jobApplyId);
         if (created == null)
             throw new InvalidOperationException("Failed to retrieve created job application");
@@ -294,6 +351,7 @@ public class JobsService : IJobsService
             ApplicationSource = request.ApplicationSource?.Trim() ?? "Internal",
             Status = "Applied",
             IsSelf =true,
+            Answers = request.Answers
         };
 
         return await CreateJobApplicationAsync(organizationId, employeeId, createRequest);
@@ -417,5 +475,77 @@ public class JobsService : IJobsService
     public async Task<bool> DeleteApplicationStageAsync(Guid applicationStageId)
     {
         return await _jobsRepository.DeleteApplicationStageAsync(applicationStageId);
+    }
+
+    private async Task CalculateMatchScoresAsync(IEnumerable<JobApplicationDto> apps)
+    {
+        if (apps == null || !apps.Any()) return;
+
+        var jobApplyIds = apps.Select(a => a.JobApplyId).ToList();
+        var parsedResumes = await _questionBankRepository.GetParsedResumesAsync(jobApplyIds);
+        var parsedDict = parsedResumes.ToDictionary(pr => pr.JobApplyId);
+
+        // Fetch unique jobs to get MandatorySkills and Skillset
+        var uniqueJobIds = apps.Select(a => a.JobId).Distinct().ToList();
+        var jobs = new Dictionary<Guid, JobOpeningDto>();
+        foreach (var jid in uniqueJobIds)
+        {
+            var job = await _jobsRepository.GetJobOpeningByIdAsync(jid);
+            if (job != null) jobs[jid] = job;
+        }
+
+        foreach (var app in apps)
+        {
+            if (!parsedDict.TryGetValue(app.JobApplyId, out var pr) || !jobs.TryGetValue(app.JobId, out var job))
+            {
+                app.MatchScore = 0;
+                continue;
+            }
+
+            var parsedSkills = pr.Skills ?? "";
+            var mandatorySkills = job.MandatorySkills ?? "";
+            var jobSkills = job.Skillset ?? "";
+
+            // A very simple dynamic logic for calculating score:
+            // Combines checking if job skillset exists in parsed skills.
+            // If we have parsed skills in JSON string, let's just do simple text matching
+            // In a real world scenario, this would use a semantic comparison or NLP,
+            // but for now, we'll do word intersection.
+
+            var prTokens = parsedSkills.ToLower().Split(new[] { ',', ' ', '\"', '[', ']', '{', '}' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
+            var mandatoryTokens = mandatorySkills.ToLower().Split(new[] { ',', ' ', '\"', '[', ']', '{', '}' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
+            var optionalTokens = jobSkills.ToLower().Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
+
+            if (!prTokens.Any())
+            {
+                app.MatchScore = 0;
+                continue;
+            }
+
+            decimal score = 0;
+            int matchedMandatory = 0;
+
+            if (mandatoryTokens.Any())
+            {
+                matchedMandatory = mandatoryTokens.Count(mt => prTokens.Contains(mt));
+                score += ((decimal)matchedMandatory / mandatoryTokens.Count) * 70m; // 70% weight for mandatory
+            }
+            else
+            {
+                score += 70m; // If no mandatory skills, default 70%
+            }
+
+            if (optionalTokens.Any())
+            {
+                int matchedOptional = optionalTokens.Count(ot => prTokens.Contains(ot));
+                score += ((decimal)matchedOptional / optionalTokens.Count) * 30m; // 30% weight for optional
+            }
+            else
+            {
+                score += 30m;
+            }
+
+            app.MatchScore = Math.Round(score, 2);
+        }
     }
 }
