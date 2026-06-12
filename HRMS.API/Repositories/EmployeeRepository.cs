@@ -92,25 +92,47 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             return false;
         }
     }
-
-
-    //Add this function so that i return data in my response of creating employee and return data 
     public async Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId)
     {
-
         var sql = @"
-        SELECT e.employeeid, e.organizationid, e.userid, e.employeecode, e.firstname, e.lastname,
-               e.email, e.phone, e.address, e.dateofbirth, e.gender, e.nationality,
-               e.maritalstatus, e.hiredate, e.status,
-               d.departmentname, p.positiontitle, ed.basicsalary
-        FROM employee.employees e
-        LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-        LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
-        LEFT JOIN employee.positions p ON ed.positionid = p.positionid
-        WHERE e.employeeid = @employeeId";
+    SELECT 
+        e.employeeid            AS EmployeeId,
+        e.organizationid        AS OrganizationId,
+        e.userid                AS UserId,
+        e.employeecode          AS EmployeeCode,
+        e.firstname             AS FirstName,
+        e.lastname              AS LastName,
+        e.email                 AS Email,
+        e.phone                 AS Phone,
+        e.address               AS Address,
+        e.dateofbirth           AS DateOfBirth,
+        e.gender                AS Gender,
+        e.nationality           AS Nationality,
+        e.maritalstatus         AS MaritalStatus,
+        e.hiredate              AS HireDate,
+        e.status                AS Status,
+
+        d.departmentname        AS DepartmentName,
+        p.positiontitle         AS PositionTitle,
+
+        ed.basicsalary          AS BasicSalary,
+        ed.reportingmanagerid   AS ReportingManagerId
+
+    FROM employee.employees e
+    LEFT JOIN employee.employmentdetails ed
+        ON e.employeeid = ed.employeeid
+        AND ed.iscurrent = TRUE
+    LEFT JOIN employee.departments d
+        ON ed.departmentid = d.departmentid
+    LEFT JOIN employee.positions p
+        ON ed.positionid = p.positionid
+    WHERE e.employeeid = @employeeId";
 
         return await QuerySingleOrDefaultAsync<EmployeeDto>(sql, new { employeeId });
     }
+
+
+
     //Getting employees under reporting manager
     //    public async Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId)
     //    {
