@@ -164,9 +164,11 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
         var sql = @"
             SELECT jq.jobquestionid AS JobQuestionId, jq.jobid AS JobId, jq.questionid AS QuestionId,
                    q.questiontext AS QuestionText, q.questiontype AS QuestionType, q.options::text AS Options,
-                   q.isknockout AS IsKnockout, q.expectedanswer AS ExpectedAnswer, jq.isrequired AS IsRequired
+                   q.isknockout AS IsKnockout, q.expectedanswer AS ExpectedAnswer, jq.isrequired AS IsRequired,
+                   q.categoryid AS CategoryId, c.name AS CategoryName
             FROM jobs.jobquestions jq
             INNER JOIN jobs.questions q ON jq.questionid = q.questionid
+            LEFT JOIN jobs.questioncategories c ON q.categoryid = c.categoryid
             WHERE jq.jobid = @jobId AND q.isdeleted = false
             ORDER BY q.createdat ASC";
         return await QueryAsync<JobQuestionDto>(sql, new { jobId });

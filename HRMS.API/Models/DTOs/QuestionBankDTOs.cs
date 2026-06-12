@@ -85,6 +85,8 @@ public class JobQuestionDto
     public bool IsKnockout { get; set; }
     public string? ExpectedAnswer { get; set; }
     public bool IsRequired { get; set; }
+    public Guid? CategoryId { get; set; }
+    public string? CategoryName { get; set; }
 }
 
 public class AttachQuestionsToJobRequest

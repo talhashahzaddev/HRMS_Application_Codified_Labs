@@ -136,7 +136,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills::text AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
@@ -179,6 +180,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             WHERE j.organizationid = @organizationId
               AND j.postedas = 'External'
+              AND j.status = 'Open'
               AND (@employmentType IS NULL OR j.employmenttype = @employmentType)
               AND (@searchPattern IS NULL OR (
                   j.jobrolename ILIKE @searchPattern OR
@@ -203,12 +205,14 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills::text AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
             WHERE j.organizationid = @organizationId
               AND j.postedas = 'External'
+              AND j.status = 'Open'
               AND (@employmentType IS NULL OR j.employmenttype = @employmentType)
               AND (@searchPattern IS NULL OR (
                   j.jobrolename ILIKE @searchPattern OR
@@ -245,7 +249,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills::text AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
