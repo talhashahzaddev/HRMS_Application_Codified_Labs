@@ -206,6 +206,10 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
     // ==================== Candidate Answers ====================
     public async Task SaveCandidateAnswersAsync(Guid jobApplyId, List<SubmitCandidateAnswerRequest> answers)
     {
+        // Delete existing answers to prevent duplicates on edit
+        var deleteSql = "DELETE FROM jobs.candidateanswers WHERE jobapplyid = @jobApplyId";
+        await ExecuteAsync(deleteSql, new { jobApplyId });
+
         foreach (var answer in answers)
         {
             var sql = @"

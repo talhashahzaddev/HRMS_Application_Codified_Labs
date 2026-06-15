@@ -335,4 +335,6 @@ public class UpdateJobApplicationRequest
 
     [MaxLength(50)]
     public string? Status { get; set; }
+
+    public List<SubmitCandidateAnswerRequest>? Answers { get; set; }
 }

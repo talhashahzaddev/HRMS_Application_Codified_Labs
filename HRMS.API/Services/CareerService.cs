@@ -66,10 +66,11 @@ public class CareerService : ICareerService
         var jobApplyId = await _careerRepository.ApplyJobByExternalCandidateAsync(entity);
         
         // Save answers and evaluate knockouts
+        bool passedKnockout = true;
         if (request.Answers != null && request.Answers.Any())
         {
             await _questionBankService.SaveCandidateAnswersAsync(jobApplyId, request.Answers);
-            await _questionBankService.EvaluateKnockoutAsync(jobApplyId);
+            passedKnockout = await _questionBankService.EvaluateKnockoutAsync(jobApplyId);
         }
         else
         {
@@ -77,8 +78,8 @@ public class CareerService : ICareerService
             await _jobsRepository.UpdatePassedKnockoutAsync(jobApplyId, true);
         }
 
-        // Queue CV parsing background job if resume URL exists
-        if (!string.IsNullOrWhiteSpace(request.ResumeUrl))
+        // Queue CV parsing background job ONLY if candidate passed knockouts
+        if (passedKnockout && !string.IsNullOrWhiteSpace(request.ResumeUrl))
         {
             var apiKey = _configuration["GoogleGemini:ApiKey"];
             if (!string.IsNullOrWhiteSpace(apiKey))

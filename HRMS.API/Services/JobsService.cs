@@ -295,10 +295,11 @@ public class JobsService : IJobsService
         var jobApplyId = await _jobsRepository.CreateJobApplicationAsync(entity);
         
         // Save answers and evaluate knockouts
+        bool passedKnockout = true;
         if (request.Answers != null && request.Answers.Any())
         {
             await _questionBankService.SaveCandidateAnswersAsync(jobApplyId, request.Answers);
-            await _questionBankService.EvaluateKnockoutAsync(jobApplyId);
+            passedKnockout = await _questionBankService.EvaluateKnockoutAsync(jobApplyId);
         }
         else
         {
@@ -306,8 +307,8 @@ public class JobsService : IJobsService
             await _jobsRepository.UpdatePassedKnockoutAsync(jobApplyId, true);
         }
 
-        // Queue CV parsing background job if resume URL exists
-        if (!string.IsNullOrWhiteSpace(request.ResumeUrl))
+        // Queue CV parsing background job ONLY if candidate passed knockouts
+        if (passedKnockout && !string.IsNullOrWhiteSpace(request.ResumeUrl))
         {
             var apiKey = _configuration["GoogleGemini:ApiKey"];
             if (!string.IsNullOrWhiteSpace(apiKey))
@@ -383,6 +384,38 @@ public class JobsService : IJobsService
         var updated = await _jobsRepository.UpdateJobApplicationAsync(entity);
         if (!updated)
             return null;
+            
+        // Process Answers and Knockout
+        bool previousKnockout = existing.PassedKnockout ?? false;
+        bool newKnockout = previousKnockout;
+        
+        if (request.Answers != null && request.Answers.Any())
+        {
+            await _questionBankService.SaveCandidateAnswersAsync(jobApplyId, request.Answers);
+            newKnockout = await _questionBankService.EvaluateKnockoutAsync(jobApplyId);
+        }
+
+        // Determine if CV should be parsed
+        bool shouldParse = false;
+        if (newKnockout)
+        {
+            // If they just passed it but they had failed it before (so it was never parsed)
+            if (!previousKnockout) shouldParse = true;
+            
+            // Or if the resume changed explicitly
+            if (!string.IsNullOrWhiteSpace(request.ResumeUrl) && request.ResumeUrl != existing.ResumeUrl) shouldParse = true;
+        }
+
+        var finalResumeUrl = request.ResumeUrl ?? existing.ResumeUrl;
+        if (shouldParse && !string.IsNullOrWhiteSpace(finalResumeUrl))
+        {
+            var apiKey = _configuration["GoogleGemini:ApiKey"];
+            if (!string.IsNullOrWhiteSpace(apiKey))
+            {
+                _backgroundJobClient.Enqueue<IResumeParserService>(x => x.ParseResumeAsync(jobApplyId, finalResumeUrl, apiKey));
+            }
+        }
+
         return await _jobsRepository.GetJobApplicationByIdAsync(jobApplyId);
     }
 
@@ -496,27 +529,45 @@ public class JobsService : IJobsService
 
         foreach (var app in apps)
         {
+            if (app.PassedKnockout == false)
+            {
+                app.MatchScore = 0;
+                continue;
+            }
+
             if (!parsedDict.TryGetValue(app.JobApplyId, out var pr) || !jobs.TryGetValue(app.JobId, out var job))
             {
                 app.MatchScore = 0;
                 continue;
             }
 
-            var parsedSkills = pr.Skills ?? "";
-            var mandatorySkills = job.MandatorySkills ?? "";
-            var jobSkills = job.Skillset ?? "";
+            var parsedSkills = pr.Skills ?? "[]";
+            var mandatorySkills = job.MandatorySkills ?? "[]";
+            var jobSkills = job.Skillset ?? "[]";
 
-            // A very simple dynamic logic for calculating score:
-            // Combines checking if job skillset exists in parsed skills.
-            // If we have parsed skills in JSON string, let's just do simple text matching
-            // In a real world scenario, this would use a semantic comparison or NLP,
-            // but for now, we'll do word intersection.
+            // Helper to extract skills cleanly (tries JSON first, falls back to comma separation)
+            List<string> ExtractTokens(string input)
+            {
+                try 
+                {
+                    var list = System.Text.Json.JsonSerializer.Deserialize<List<string>>(input);
+                    if (list != null && list.Any()) 
+                        return list.Select(s => s.Trim().ToLower()).Distinct().ToList();
+                } 
+                catch { }
 
-            var prTokens = parsedSkills.ToLower().Split(new[] { ',', ' ', '\"', '[', ']', '{', '}' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
-            var mandatoryTokens = mandatorySkills.ToLower().Split(new[] { ',', ' ', '\"', '[', ']', '{', '}' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
-            var optionalTokens = jobSkills.ToLower().Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).Distinct().ToList();
+                return input.ToLower().Split(new[] { ',', '\"', '[', ']', '{', '}' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim())
+                            .Where(s => !string.IsNullOrWhiteSpace(s))
+                            .Distinct()
+                            .ToList();
+            }
 
-            if (!prTokens.Any())
+            var prTokens = ExtractTokens(parsedSkills);
+            var mandatoryTokens = ExtractTokens(mandatorySkills);
+            var optionalTokens = ExtractTokens(jobSkills);
+
+            if (!prTokens.Any() && (mandatoryTokens.Any() || optionalTokens.Any()))
             {
                 app.MatchScore = 0;
                 continue;
@@ -527,18 +578,33 @@ public class JobsService : IJobsService
 
             if (mandatoryTokens.Any())
             {
-                matchedMandatory = mandatoryTokens.Count(mt => prTokens.Contains(mt));
-                score += ((decimal)matchedMandatory / mandatoryTokens.Count) * 70m; // 70% weight for mandatory
+                // Substring match: if the required skill is contained within the parsed skill (or vice versa)
+                matchedMandatory = mandatoryTokens.Count(mt => prTokens.Any(pt => pt.Contains(mt) || mt.Contains(pt)));
+                score += ((decimal)matchedMandatory / mandatoryTokens.Count) * 70m; 
             }
             else
             {
-                score += 70m; // If no mandatory skills, default 70%
+                score += 70m; 
             }
 
             if (optionalTokens.Any())
             {
-                int matchedOptional = optionalTokens.Count(ot => prTokens.Contains(ot));
-                score += ((decimal)matchedOptional / optionalTokens.Count) * 30m; // 30% weight for optional
+                // Check how many of the parsed skills appear in the job's optional skillset text
+                // Since optional skillset might be a huge HTML paragraph instead of a comma list
+                var rawJobSkills = System.Text.RegularExpressions.Regex.Replace(jobSkills, "<.*?>", String.Empty).Replace("&nbsp;", " ").ToLower();
+                int matchedOptional = prTokens.Count(pt => rawJobSkills.Contains(pt));
+                
+                // If the user pasted a paragraph, optionalTokens.Count is meaningless.
+                // We'll calculate optional score based on finding at least SOME relevant skills.
+                // Cap it at 100% of the optional weight (30m)
+                decimal optionalScore = 0;
+                if (matchedOptional > 0)
+                {
+                    // If they matched at least 3 skills from the description, give them full 30 points.
+                    // Otherwise give proportional points.
+                    optionalScore = Math.Min(30m, (matchedOptional / 3m) * 30m);
+                }
+                score += optionalScore;
             }
             else
             {

@@ -66,10 +66,10 @@ public class ResumeParserService : IResumeParserService
             }
 
             // 3. Call Gemini AI
-            var parsedData = await CallGeminiApiAsync(rawText, aiApiKey);
+            var (parsedData, errorMsg) = await CallGeminiApiAsync(rawText, aiApiKey);
             if (parsedData == null)
             {
-                await _repository.UpdateParsedResumeAsync(parsedResumeId, null, null, null, null, rawText, "Failed", "Failed to get valid JSON from Gemini API.");
+                await _repository.UpdateParsedResumeAsync(parsedResumeId, null, null, null, null, rawText, "Failed", "Gemini API Error: " + (errorMsg ?? "Unknown"));
                 await NotifyClientAsync(jobApplyId, "Failed");
                 return;
             }
@@ -135,7 +135,7 @@ public class ResumeParserService : IResumeParserService
         return text.ToString();
     }
 
-    private async Task<ParsedResumeData?> CallGeminiApiAsync(string resumeText, string aiApiKey)
+    private async Task<(ParsedResumeData? Data, string? Error)> CallGeminiApiAsync(string resumeText, string aiApiKey)
     {
         var prompt = @"
 You are an expert ATS (Applicant Tracking System) parser. Extract the following information from the provided resume text.
@@ -181,17 +181,21 @@ Resume Text:
             generationConfig = new { response_mime_type = "application/json" }
         };
 
-        var url = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={aiApiKey}";
+        var url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent";
         
         var requestContent = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-        var response = await _httpClient.PostAsync(url, requestContent);
+        var request = new HttpRequestMessage(HttpMethod.Post, url);
+        request.Content = requestContent;
+        request.Headers.Add("x-goog-api-key", aiApiKey);
+        
+        var response = await _httpClient.SendAsync(request);
         
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogError("Gemini API call failed: {StatusCode} {Reason}", response.StatusCode, response.ReasonPhrase);
             var err = await response.Content.ReadAsStringAsync();
             _logger.LogError("Gemini API Error: {Error}", err);
-            return null;
+            return (null, $"HTTP {response.StatusCode}: {err}");
         }
 
         var responseJson = await response.Content.ReadAsStringAsync();
@@ -206,35 +210,58 @@ Resume Text:
                 .GetProperty("parts")[0]
                 .GetProperty("text").GetString();
 
-            if (string.IsNullOrWhiteSpace(textResult)) return null;
+            if (string.IsNullOrWhiteSpace(textResult)) return (null, "AI returned empty text content.");
 
-            // Strip markdown backticks if Gemini still includes them despite the prompt
-            if (textResult.StartsWith("```json"))
-            {
-                textResult = textResult.Substring(7);
-                if (textResult.EndsWith("```")) textResult = textResult.Substring(0, textResult.Length - 3);
-            }
-            else if (textResult.StartsWith("```"))
-            {
-                textResult = textResult.Substring(3);
-                if (textResult.EndsWith("```")) textResult = textResult.Substring(0, textResult.Length - 3);
-            }
-
-            // Extract to DTO strings
-            using var resultDoc = JsonDocument.Parse(textResult);
+            textResult = textResult.Trim();
             
-            return new ParsedResumeData
+            // Robust extraction: find the first { and last } to ignore any markdown or conversational text
+            int firstBrace = textResult.IndexOf('{');
+            int lastBrace = textResult.LastIndexOf('}');
+            
+            JsonDocument? resultDoc = null;
+            bool parsed = false;
+
+            while (!parsed && lastBrace > firstBrace)
             {
-                ContactDetails = resultDoc.RootElement.GetProperty("contactDetails").GetRawText(),
-                Skills = resultDoc.RootElement.GetProperty("skills").GetRawText(),
-                WorkExperience = resultDoc.RootElement.GetProperty("workExperience").GetRawText(),
-                Education = resultDoc.RootElement.GetProperty("education").GetRawText()
-            };
+                try
+                {
+                    string candidate = textResult.Substring(firstBrace, lastBrace - firstBrace + 1);
+                    resultDoc = JsonDocument.Parse(candidate);
+                    parsed = true;
+                    textResult = candidate;
+                }
+                catch (JsonException)
+                {
+                    // If parsing fails (e.g. extra trailing '}' from LLM), try the previous '}'
+                    lastBrace = textResult.LastIndexOf('}', lastBrace - 1);
+                }
+            }
+
+            if (!parsed || resultDoc == null)
+            {
+                return (null, "AI returned malformed JSON that could not be repaired.");
+            }
+            
+            var contactDetails = resultDoc.RootElement.TryGetProperty("contactDetails", out var cd) ? cd.GetRawText() : "{}";
+            var skills = resultDoc.RootElement.TryGetProperty("skills", out var sk) ? sk.GetRawText() : "[]";
+            var workExperience = resultDoc.RootElement.TryGetProperty("workExperience", out var we) ? we.GetRawText() : "[]";
+            var education = resultDoc.RootElement.TryGetProperty("education", out var ed) ? ed.GetRawText() : "[]";
+
+            // Ensure resultDoc is disposed after we extract RawText, since GetRawText() creates a string copy
+            resultDoc.Dispose();
+
+            return (new ParsedResumeData
+            {
+                ContactDetails = contactDetails,
+                Skills = skills,
+                WorkExperience = workExperience,
+                Education = education
+            }, null);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to parse JSON from Gemini API response. Response: {Response}", responseJson);
-            return null;
+            return (null, $"Parse Exception: {ex.Message}. Raw API Response: {responseJson}");
         }
     }
 
