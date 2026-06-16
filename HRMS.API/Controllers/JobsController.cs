@@ -591,12 +591,13 @@ public class JobsController : ControllerBase
         [FromQuery] string? search = null,
         [FromQuery] DateTime? applyDateFrom = null,
         [FromQuery] DateTime? applyDateTo = null,
-        [FromQuery] List<Guid>? jobIds = null)
+        [FromQuery] List<Guid>? jobIds = null,
+        [FromQuery] bool? passedKnockout = null)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var result = await _jobsService.GetAtsApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, jobIds, pageNumber, pageSize);
+            var result = await _jobsService.GetAtsApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, jobIds, passedKnockout, pageNumber, pageSize);
             return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
             {
                 Success = true,

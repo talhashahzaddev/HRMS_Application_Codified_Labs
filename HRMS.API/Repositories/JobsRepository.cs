@@ -496,7 +496,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     }
 
     /// <summary>Gets all unreviewed applications (enteredtostage = false) for the ATS inbox with filters.</summary>
-    public async Task<IEnumerable<JobApplicationDto>> GetAtsApplicationsAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds)
+    public async Task<IEnumerable<JobApplicationDto>> GetAtsApplicationsAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, bool? passedKnockout)
     {
         var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
         var fromDate = applyDateFrom ?? new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
@@ -514,8 +514,9 @@ public class JobsRepository : BaseRepository, IJobsRepository
               AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
               AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
               AND (@hasJobIds = false OR a.jobid = ANY(@jobIdArray))
+              AND (@passedKnockout IS NULL OR a.passedknockout = @passedKnockout)
             ORDER BY a.createddate DESC NULLS LAST";
-        return await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>() });
+        return await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>(), passedKnockout });
     }
 
     public async Task<bool> UpdateEnteredToStageAsync(Guid jobApplyId)

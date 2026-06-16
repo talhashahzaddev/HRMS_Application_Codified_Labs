@@ -259,10 +259,10 @@ public class JobsService : IJobsService
         return result;
     }
 
-    public async Task<PagedResult<JobApplicationDto>> GetAtsApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, int pageNumber, int pageSize)
+    public async Task<PagedResult<JobApplicationDto>> GetAtsApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, bool? passedKnockout, int pageNumber, int pageSize)
     {
         // Fetch ALL matching applications without paging so we can sort by score
-        var allApps = (await _jobsRepository.GetAtsApplicationsAsync(organizationId, search, applyDateFrom, applyDateTo, jobIds)).ToList();
+        var allApps = (await _jobsRepository.GetAtsApplicationsAsync(organizationId, search, applyDateFrom, applyDateTo, jobIds, passedKnockout)).ToList();
         // Calculate ATS scores for all of them
         await CalculateMatchScoresAsync(allApps);
         // Sort descending by score
