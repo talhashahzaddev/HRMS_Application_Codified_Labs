@@ -189,8 +189,10 @@ public class JobApplicationDto
     public DateTime? CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
     public bool? PassedKnockout { get; set; }
+    public bool EnteredToStage { get; set; } = false;
     /// <summary>Dynamically calculated match score (0-100). Not stored in DB.</summary>
     public decimal? MatchScore { get; set; }
+    public string? MandatorySkills { get; set; }
 }
 
 public class CreateJobApplicationRequest

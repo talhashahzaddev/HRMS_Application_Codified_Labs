@@ -259,6 +259,34 @@ public class JobsService : IJobsService
         return result;
     }
 
+    public async Task<PagedResult<JobApplicationDto>> GetAtsApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, int pageNumber, int pageSize)
+    {
+        // Fetch ALL matching applications without paging so we can sort by score
+        var allApps = (await _jobsRepository.GetAtsApplicationsAsync(organizationId, search, applyDateFrom, applyDateTo, jobIds)).ToList();
+        // Calculate ATS scores for all of them
+        await CalculateMatchScoresAsync(allApps);
+        // Sort descending by score
+        var sorted = allApps.OrderByDescending(a => a.MatchScore ?? -1).ToList();
+        // Apply paging in memory
+        var totalCount = sorted.Count;
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+        if (pageSize > 200) pageSize = 200;
+        var data = sorted.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+        return new PagedResult<JobApplicationDto>
+        {
+            Data = data,
+            TotalCount = totalCount,
+            Page = pageNumber,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<bool> EnterToStageAsync(Guid jobApplyId)
+    {
+        return await _jobsRepository.UpdateEnteredToStageAsync(jobApplyId);
+    }
+
     public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
     {
         var apps = await _jobsRepository.GetJobApplicationsByJobIdAsync(jobId);

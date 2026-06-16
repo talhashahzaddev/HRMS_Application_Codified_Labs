@@ -60,4 +60,7 @@ public class JobApplication
 
     [Column("passedknockout")]
     public bool? PassedKnockout { get; set; }
+
+    [Column("enteredtostage")]
+    public bool EnteredToStage { get; set; } = false;
 }

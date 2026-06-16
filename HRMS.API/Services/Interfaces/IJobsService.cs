@@ -34,6 +34,8 @@ public interface IJobsService
     Task<JobApplicationDto> ApplyForMySelfAsync(Guid organizationId, Guid employeeId, ApplyForMySelfRequest request);
     Task<JobApplicationDto?> UpdateJobApplicationAsync(Guid jobApplyId, UpdateJobApplicationRequest request);
     Task<bool> DeleteJobApplicationAsync(Guid jobApplyId);
+    Task<PagedResult<JobApplicationDto>> GetAtsApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, int pageNumber, int pageSize);
+    Task<bool> EnterToStageAsync(Guid jobApplyId);
 
     // ApplicationStages
     Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId);

@@ -378,7 +378,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    a.coverletter AS CoverLetter, a.currentstageid AS CurrentStageId, s.stagename AS CurrentStageName,
                    a.applicationsource AS ApplicationSource, a.status AS Status,
                    a.createddate AS CreatedDate, a.updateddate AS UpdatedDate,
-                   a.passedknockout AS PassedKnockout
+                   a.passedknockout AS PassedKnockout, a.enteredtostage AS EnteredToStage,
+                   j.mandatoryskills AS MandatorySkills
             FROM jobs.jobapplications a
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             LEFT JOIN employee.employees emp ON a.employeeid = emp.employeeid
@@ -409,6 +410,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             FROM jobs.jobapplications a
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             WHERE a.organizationid = @organizationId
+              AND a.enteredtostage = true
               AND (@searchPattern IS NULL OR (
                   a.candidatename ILIKE @searchPattern OR
                   a.candidateemail ILIKE @searchPattern OR
@@ -421,6 +423,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.organizationid = @organizationId
+              AND a.enteredtostage = true
               AND (@searchPattern IS NULL OR (
                   a.candidatename ILIKE @searchPattern OR
                   a.candidateemail ILIKE @searchPattern OR
@@ -458,6 +461,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             FROM jobs.jobapplications a
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             WHERE a.jobid IN (SELECT jobid FROM jobs.jobopenings WHERE createdby = @employeeId)
+              AND a.enteredtostage = true
               AND (@searchPattern IS NULL OR (
                   a.candidatename ILIKE @searchPattern OR
                   a.candidateemail ILIKE @searchPattern OR
@@ -470,6 +474,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.jobid IN (SELECT jobid FROM jobs.jobopenings WHERE createdby = @employeeId)
+              AND a.enteredtostage = true
               AND (@searchPattern IS NULL OR (
                   a.candidatename ILIKE @searchPattern OR
                   a.candidateemail ILIKE @searchPattern OR
@@ -488,6 +493,39 @@ public class JobsRepository : BaseRepository, IJobsRepository
             Page = pageNumber,
             PageSize = pageSize
         };
+    }
+
+    /// <summary>Gets all unreviewed applications (enteredtostage = false) for the ATS inbox with filters.</summary>
+    public async Task<IEnumerable<JobApplicationDto>> GetAtsApplicationsAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds)
+    {
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
+        var fromDate = applyDateFrom ?? new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var toDate = applyDateTo ?? new DateTime(9999, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+        var jobIdArray = jobIds?.Where(id => id != Guid.Empty).ToArray();
+        var hasJobIds = jobIdArray != null && jobIdArray.Length > 0;
+
+        var dataSql = JobApplicationSelectSql + @"
+            WHERE a.organizationid = @organizationId
+              AND a.enteredtostage = false
+              AND (@searchPattern IS NULL OR (
+                  a.candidatename ILIKE @searchPattern OR
+                  a.candidateemail ILIKE @searchPattern OR
+                  j.jobrolename ILIKE @searchPattern))
+              AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
+              AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
+              AND (@hasJobIds = false OR a.jobid = ANY(@jobIdArray))
+            ORDER BY a.createddate DESC NULLS LAST";
+        return await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>() });
+    }
+
+    public async Task<bool> UpdateEnteredToStageAsync(Guid jobApplyId)
+    {
+        var sql = @"
+            UPDATE jobs.jobapplications
+            SET enteredtostage = true, updateddate = CURRENT_TIMESTAMP
+            WHERE jobapplyid = @jobApplyId";
+        var rows = await ExecuteAsync(sql, new { jobApplyId });
+        return rows > 0;
     }
 
     public async Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId)

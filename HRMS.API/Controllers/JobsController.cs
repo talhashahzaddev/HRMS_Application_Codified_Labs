@@ -584,6 +584,78 @@ public class JobsController : ControllerBase
         }
     }
 
+    [HttpGet("applications/ats-inbox")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetAtsApplications(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] DateTime? applyDateFrom = null,
+        [FromQuery] DateTime? applyDateTo = null,
+        [FromQuery] List<Guid>? jobIds = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _jobsService.GetAtsApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, jobIds, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting ATS applications");
+            return Unauthorized(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving ATS applications");
+            return StatusCode(500, new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving ATS applications"
+            });
+        }
+    }
+
+    [HttpPut("applications/{id}/enter-stage")]
+    public async Task<ActionResult<ServiceResponse<bool>>> EnterApplicationToStage(Guid id)
+    {
+        try
+        {
+            var result = await _jobsService.EnterToStageAsync(id);
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Data = false,
+                    Message = "Application not found"
+                });
+            }
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Application entered into hiring stage"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error entering application {ApplicationId} to stage", id);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred"
+            });
+        }
+    }
+
     [HttpGet("applications/by-job/{jobId}")]
     public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
     {
