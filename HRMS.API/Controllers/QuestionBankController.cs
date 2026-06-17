@@ -23,6 +23,7 @@ public class QuestionBankController : ControllerBase
 
     // ==================== Categories ====================
     [HttpGet("categories")]
+    [PermissionAuthorize("question_bank_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<QuestionCategoryDto>>>> GetCategories()
     {
         try
@@ -39,6 +40,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpPost("categories")]
+    [PermissionAuthorize("add_question_category")]
     public async Task<ActionResult<ServiceResponse<QuestionCategoryDto>>> CreateCategory([FromBody] CreateQuestionCategoryRequest request)
     {
         try
@@ -55,6 +57,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpPut("categories/{id}")]
+    [PermissionAuthorize("edit_question_category")]
     public async Task<ActionResult<ServiceResponse<QuestionCategoryDto>>> UpdateCategory(Guid id, [FromBody] UpdateQuestionCategoryRequest request)
     {
         try
@@ -71,6 +74,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpDelete("categories/{id}")]
+    [PermissionAuthorize("delete_question_category")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteCategory(Guid id)
     {
         try
@@ -87,6 +91,7 @@ public class QuestionBankController : ControllerBase
 
     // ==================== Questions ====================
     [HttpGet("questions")]
+    [PermissionAuthorize("question_bank_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<QuestionDto>>>> GetQuestionsByOrg()
     {
         try
@@ -103,6 +108,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpGet("categories/{categoryId}/questions")]
+    [PermissionAuthorize("question_bank_view")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<QuestionDto>>>> GetQuestionsByCategory(Guid categoryId)
     {
         try
@@ -118,6 +124,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpPost("questions")]
+    [PermissionAuthorize("add_question")]
     public async Task<ActionResult<ServiceResponse<QuestionDto>>> CreateQuestion([FromBody] CreateQuestionRequest request)
     {
         try
@@ -134,6 +141,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpPut("questions/{id}")]
+    [PermissionAuthorize("edit_question")]
     public async Task<ActionResult<ServiceResponse<QuestionDto>>> UpdateQuestion(Guid id, [FromBody] UpdateQuestionRequest request)
     {
         try
@@ -150,6 +158,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpDelete("questions/{id}")]
+    [PermissionAuthorize("delete_question")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteQuestion(Guid id)
     {
         try
@@ -182,6 +191,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpPost("jobs/attach-questions")]
+    [PermissionAuthorize("opnongs_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> AttachQuestionsToJob([FromBody] AttachQuestionsToJobRequest request)
     {
         try
@@ -197,6 +207,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpPost("jobs/attach-category")]
+    [PermissionAuthorize("opnongs_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> AttachCategoryToJob([FromBody] AttachCategoryToJobRequest request)
     {
         try
@@ -212,6 +223,7 @@ public class QuestionBankController : ControllerBase
     }
 
     [HttpDelete("jobs/{jobId}/questions/{questionId}")]
+    [PermissionAuthorize("opnongs_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> DetachQuestionFromJob(Guid jobId, Guid questionId)
     {
         try
