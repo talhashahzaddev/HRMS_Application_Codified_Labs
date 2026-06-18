@@ -2250,6 +2250,36 @@ create table if not exists payroll.payslips
                     check (mailsentstatus in ('pending','sent', 'failed', 'bounced'))
 ); // payslipemaillog
 
+-- Payslip template configuration (one active template per organization)
+CREATE TABLE IF NOT EXISTS payroll.payslipTemplates (
+    templateId                 uuid PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+    organizationId             uuid NOT NULL REFERENCES auth.organizations(organizationid) ON DELETE CASCADE,
+    name                       varchar(100) NOT NULL DEFAULT 'Default',
+    isActive                   boolean NOT NULL DEFAULT true,
+    logoUrl                    varchar(500),
+    headerTitle                varchar(150) DEFAULT 'SALARY SLIP',
+    headerSubtitle             varchar(255),
+    companyAddress             text,
+    footerText                 text,
+    primaryColor               varchar(7) DEFAULT '#1E3A5F',
+    accentColor                varchar(7) DEFAULT '#DBEAFE',
+    sectionTitleColor          varchar(7) DEFAULT '#E2E8F0',
+    showGeneratedAt            boolean DEFAULT true,
+    showPayrollCalculatedAt    boolean DEFAULT true,
+    fieldConfig                jsonb NOT NULL DEFAULT '{}'::jsonb,
+    createdAt                  timestamptz DEFAULT CURRENT_TIMESTAMP,
+    updatedAt                  timestamptz DEFAULT CURRENT_TIMESTAMP,
+    createdBy                  uuid,
+    updatedBy                  uuid
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payslipTemplatesOrgActive
+    ON payroll.payslipTemplates (organizationId)
+    WHERE isActive = true;
+
+CREATE INDEX IF NOT EXISTS idx_payslipTemplatesOrg
+    ON payroll.payslipTemplates (organizationId);
+
     // Social security
 
 

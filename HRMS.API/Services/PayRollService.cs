@@ -10,6 +10,7 @@ public class PayRollService : IPayRollService
     private readonly IPayRollRepository _payRollRepository;
     private readonly IAttendanceRepository _attendanceRepository;
     private readonly ISettingsRepository _settingsRepository;
+    private readonly IPayslipTemplateService _payslipTemplateService;
     private readonly ILogger<PayRollService> _logger;
     private readonly IWebHostEnvironment _hostEnvironment;
 
@@ -17,12 +18,14 @@ public class PayRollService : IPayRollService
         IPayRollRepository payRollRepository,
         IAttendanceRepository attendanceRepository,
         ISettingsRepository settingsRepository,
+        IPayslipTemplateService payslipTemplateService,
         ILogger<PayRollService> logger,
         IWebHostEnvironment hostEnvironment)
     {
         _payRollRepository = payRollRepository;
         _attendanceRepository = attendanceRepository;
         _settingsRepository = settingsRepository;
+        _payslipTemplateService = payslipTemplateService;
         _logger = logger;
         _hostEnvironment = hostEnvironment;
     }
@@ -4181,6 +4184,8 @@ public class PayRollService : IPayRollService
             Directory.CreateDirectory(orgFolder);
 
             var currencyLabel = await ResolvePayslipCurrencyDisplayPrefixAsync(organizationId);
+            var templateResponse = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
+            var template = templateResponse.Data;
 
             foreach (var employeeId in dto.EmployeeIds.Distinct())
             {
@@ -4200,7 +4205,7 @@ public class PayRollService : IPayRollService
                 }
 
                 var periodLabel = string.IsNullOrWhiteSpace(row.PeriodName) ? dto.PayrollPeriodId.ToString() : row.PeriodName;
-                var pdf = PayslipPdfBuilder.Build(row, periodLabel, currencyLabel);
+                var pdf = PayslipPdfBuilder.Build(row, periodLabel, currencyLabel, template);
                 var relativeUrl = $"/payslips/{organizationId:D}/{row.ResultId:D}.pdf";
                 var physical = Path.Combine(orgFolder, $"{row.ResultId:D}.pdf");
                 await File.WriteAllBytesAsync(physical, pdf);
@@ -4235,8 +4240,10 @@ public class PayRollService : IPayRollService
         }
 
         var currencyLabel = await ResolvePayslipCurrencyDisplayPrefixAsync(organizationId);
+        var templateResponse = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
+        var template = templateResponse.Data;
         var periodLabel = string.IsNullOrWhiteSpace(row.PeriodName) ? row.PeriodId.ToString("D") : row.PeriodName;
-        return PayslipPdfBuilder.Build(row, periodLabel, currencyLabel);
+        return PayslipPdfBuilder.Build(row, periodLabel, currencyLabel, template);
     }
 
     private async Task<string> ResolvePayslipCurrencyDisplayPrefixAsync(Guid organizationId)
