@@ -239,6 +239,11 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IJobsService, JobsService>();
 builder.Services.AddScoped<ICareerService, CareerService>();
+builder.Services.AddScoped<IQuestionBankService, QuestionBankService>();
+builder.Services.AddHttpClient<IResumeParserService, ResumeParserService>(client => 
+{
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IHolidayService, HolidayService>();
 builder.Services.AddScoped<IPayRollService, PayRollService>();
@@ -277,6 +282,7 @@ builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
 builder.Services.AddScoped<IJobsRepository, JobsRepository>();
 builder.Services.AddScoped<ICareerRepository, CareerRepository>();
+builder.Services.AddScoped<IQuestionBankRepository, QuestionBankRepository>();
 builder.Services.AddScoped<INewsRepository, NewsRepository>();
 builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 builder.Services.AddScoped<IPayRollRepository, PayRollRepository>();
@@ -331,6 +337,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapHub<PayslipBulkHub>("/hubs/payslip-bulk");
+app.MapHub<HRMS.API.Hubs.CvParsingHub>("/hub/cvparsing");
 app.MapControllers();
 
 try

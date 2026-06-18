@@ -194,6 +194,9 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('ae4a8ee3-158c-4815-a771-e443923a7593', 'Refer a Candidate', 'opnongs_refer', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ae4a8ee3-158c-4815-a771-e443923a7593', 'Edit Job', 'opnongs_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ae4a8ee3-158c-4815-a771-e443923a7593', 'Close Job', 'opnongs_close', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ae4a8ee3-158c-4815-a771-e443923a7593', 'View All Job Openings', 'opnings_view_all', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ae4a8ee3-158c-4815-a771-e443923a7593', 'View Job Opening Overall Details', 'opnings_view_overall_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ae4a8ee3-158c-4815-a771-e443923a7593', 'Delete Job Opening', 'opnings_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
 
 -- Job Applications
 ('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'My Referenced Application', 'my_referenced_application', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -202,11 +205,34 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View Refered Job Details', 'job_application_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Edit Refered Job', 'job_application_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Delete Refered Job', 'job_application_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View ATS Inbox', 'ats_inbox_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Enter Application To Stage', 'job_application_enter_stage', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View Job Applications By Job', 'job_application_view_by_job', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'My Self Applications', 'my_self_application', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Create Job Application', 'job_application_create', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Apply For Myself', 'apply_for_myself', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View All Application Stages', 'app_stage_view_all', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View Application Stages By Application', 'app_stage_view_by_application', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View Application Stage Details', 'app_stage_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Create Application Stage', 'app_stage_create', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Edit Application Stage', 'app_stage_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Delete Application Stage', 'app_stage_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+
+-- Question Bank
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'View Question Bank', 'question_bank_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Add Question Category', 'add_question_category', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Edit Question Category', 'edit_question_category', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Delete Question Category', 'delete_question_category', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Add Question', 'add_question', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Edit Question', 'edit_question', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Delete Question', 'delete_question', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
 
 -- Stages
 ('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'Add Stage', 'add_stage', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'Edit Stage', 'stage_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'Delete Stage', 'stage_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'View All Stages', 'stage_view_all', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'View Stage Details', 'stage_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
 
 -- Company Settings
 ('9154a702-1fa5-4f83-936c-b9ba18360511', 'Localization Settings', 'company_settings_save_changes', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

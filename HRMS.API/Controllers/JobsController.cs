@@ -28,6 +28,7 @@ public class JobsController : ControllerBase
 
     // ==================== Stage Master ====================
     [HttpGet("stages")]
+    [PermissionAuthorize("stage_view_all")]
     public async Task<ActionResult<ServiceResponse<List<StageMasterDto>>>> GetAllStages()
     {
         try
@@ -61,6 +62,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("stages/{id}")]
+    [PermissionAuthorize("stage_view_details")]
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> GetStageById(Guid id)
     {
         try
@@ -231,6 +233,7 @@ public class JobsController : ControllerBase
 
     // ==================== Job Openings ====================
     [HttpGet("openings")]
+    [PermissionAuthorize("opnings_view_all")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobOpeningDto>>>> GetAllJobOpenings(
         [FromQuery] string? search,
         [FromQuery] string? status,
@@ -275,6 +278,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("OpeningOverallDetails")]
+    [PermissionAuthorize("opnings_view_overall_details")]
     public async Task<ActionResult<ServiceResponse<JobOpeningStatsDto>>> GetOpeningOverallDetails()
     {
         try
@@ -308,6 +312,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("openings/{id}")]
+    [PermissionAuthorize("opnings_view_details")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> GetJobOpeningById(Guid id)
     {
         try
@@ -438,7 +443,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("openings/{id}")]
-
+    [PermissionAuthorize("opnings_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobOpening(Guid id)
     {
         try
@@ -472,6 +477,7 @@ public class JobsController : ControllerBase
 
     // ==================== Job Applications ====================
     [HttpGet("applications")]
+    [PermissionAuthorize("all_job_application")]
     public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetAllJobApplications()
     {
         try
@@ -505,6 +511,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/posted-by-me")]
+    [PermissionAuthorize("received_application_by_my_job_post")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetJobApplicationsPostedByMe(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -545,6 +552,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/received")]
+    [PermissionAuthorize("all_job_application")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetReceivedJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -584,7 +592,83 @@ public class JobsController : ControllerBase
         }
     }
 
+    [HttpGet("applications/ats-inbox")]
+    [PermissionAuthorize("ats_inbox_view")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetAtsApplications(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] DateTime? applyDateFrom = null,
+        [FromQuery] DateTime? applyDateTo = null,
+        [FromQuery] List<Guid>? jobIds = null,
+        [FromQuery] bool? passedKnockout = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _jobsService.GetAtsApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, jobIds, passedKnockout, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting ATS applications");
+            return Unauthorized(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving ATS applications");
+            return StatusCode(500, new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving ATS applications"
+            });
+        }
+    }
+
+    [HttpPut("applications/{id}/enter-stage")]
+    [PermissionAuthorize("job_application_enter_stage")]
+    public async Task<ActionResult<ServiceResponse<bool>>> EnterApplicationToStage(Guid id)
+    {
+        try
+        {
+            var result = await _jobsService.EnterToStageAsync(id);
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Data = false,
+                    Message = "Application not found"
+                });
+            }
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Application entered into hiring stage"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error entering application {ApplicationId} to stage", id);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred"
+            });
+        }
+    }
+
     [HttpGet("applications/by-job/{jobId}")]
+    [PermissionAuthorize("job_application_view_by_job")]
     public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
     {
         try
@@ -617,6 +701,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/me")]
+    [PermissionAuthorize("my_referenced_application")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMyJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -655,6 +740,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/me/self")]
+    [PermissionAuthorize("my_self_application")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMySelfJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -693,6 +779,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/{id}")]
+    [PermissionAuthorize("job_application_view_details")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> GetJobApplicationById(Guid id)
     {
         try
@@ -724,6 +811,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("applications")]
+    [PermissionAuthorize("job_application_create")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> CreateJobApplication([FromBody] CreateJobApplicationRequest request)
     {
         try
@@ -775,7 +863,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("applications/apply-for-myself")]
-
+    [PermissionAuthorize("apply_for_myself")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> ApplyForMySelf([FromBody] ApplyForMySelfRequest request)
     {
         try
@@ -908,6 +996,7 @@ public class JobsController : ControllerBase
 
     // ==================== Application Stages ====================
     [HttpGet("application-stages")]
+    [PermissionAuthorize("app_stage_view_all")]
     public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetAllApplicationStages()
     {
         try
@@ -941,6 +1030,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("application-stages/by-application/{jobApplyId}")]
+    [PermissionAuthorize("app_stage_view_by_application")]
     public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
     {
         try
@@ -973,6 +1063,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("application-stages/{id}")]
+    [PermissionAuthorize("app_stage_view_details")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> GetApplicationStageById(Guid id)
     {
         try
@@ -1004,6 +1095,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("application-stages")]
+    [PermissionAuthorize("app_stage_create")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> CreateApplicationStage([FromBody] CreateApplicationStageRequest request)
     {
         try
@@ -1058,6 +1150,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("application-stages/{id}")]
+    [PermissionAuthorize("app_stage_edit")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> UpdateApplicationStage(Guid id, [FromBody] UpdateApplicationStageRequest request)
     {
         try
@@ -1105,6 +1198,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("application-stages/{id}")]
+    [PermissionAuthorize("app_stage_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteApplicationStage(Guid id)
     {
         try
