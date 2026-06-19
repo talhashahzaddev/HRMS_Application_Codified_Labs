@@ -1,5 +1,22 @@
 namespace HRMS.API.Models.DTOs;
 
+public static class PayslipLayoutKeys
+{
+    public const string ClassicStacked = "classic_stacked";
+    public const string SplitColumns = "split_columns";
+    public const string CompactCorporate = "compact_corporate";
+}
+
+public class PayslipLayoutCatalogDto
+{
+    public string LayoutKey { get; set; } = PayslipLayoutKeys.ClassicStacked;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string? PreviewImageUrl { get; set; }
+    public string RendererKey { get; set; } = string.Empty;
+    public int SortOrder { get; set; }
+}
+
 public class PayslipTemplateSectionConfigDto
 {
     public bool Visible { get; set; } = true;
@@ -44,6 +61,8 @@ public class PayslipTemplateDto
     public string SectionTitleColor { get; set; } = "#E2E8F0";
     public bool ShowGeneratedAt { get; set; } = true;
     public bool ShowPayrollCalculatedAt { get; set; } = true;
+    public string LayoutKey { get; set; } = PayslipLayoutKeys.ClassicStacked;
+    public Dictionary<string, object>? LayoutConfig { get; set; }
     public PayslipTemplateFieldConfigDto FieldConfig { get; set; } = PayslipTemplateDefaults.CreateDefaultFieldConfig();
     public bool IsCustom { get; set; }
 }
@@ -61,6 +80,8 @@ public class UpsertPayslipTemplateRequest
     public string SectionTitleColor { get; set; } = "#E2E8F0";
     public bool ShowGeneratedAt { get; set; } = true;
     public bool ShowPayrollCalculatedAt { get; set; } = true;
+    public string LayoutKey { get; set; } = PayslipLayoutKeys.ClassicStacked;
+    public Dictionary<string, object>? LayoutConfig { get; set; }
     public PayslipTemplateFieldConfigDto? FieldConfig { get; set; }
 }
 
@@ -121,6 +142,7 @@ public static class PayslipTemplateDefaults
     {
         OrganizationId = organizationId,
         LogoUrl = fallbackLogoUrl,
+        LayoutKey = PayslipLayoutKeys.ClassicStacked,
         FieldConfig = CreateDefaultFieldConfig(),
         IsCustom = false
     };

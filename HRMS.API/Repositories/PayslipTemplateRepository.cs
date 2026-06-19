@@ -25,6 +25,8 @@ public class PayslipTemplateRepository : BaseRepository, IPayslipTemplateReposit
                    organizationid      AS OrganizationId,
                    name                AS Name,
                    isactive            AS IsActive,
+                   layoutkey           AS LayoutKey,
+                   layoutconfig::text  AS LayoutConfigJson,
                    logourl             AS LogoUrl,
                    headertitle         AS HeaderTitle,
                    headersubtitle      AS HeaderSubtitle,
@@ -77,6 +79,8 @@ public class PayslipTemplateRepository : BaseRepository, IPayslipTemplateReposit
             const string updateSql = @"
                 UPDATE payroll.paysliptemplates
                 SET name = @name,
+                    layoutkey = @layoutKey,
+                    layoutconfig = @layoutConfigJson::jsonb,
                     logourl = @logoUrl,
                     headertitle = @headerTitle,
                     headersubtitle = @headerSubtitle,
@@ -96,6 +100,8 @@ public class PayslipTemplateRepository : BaseRepository, IPayslipTemplateReposit
             {
                 templateId = existingId.Value,
                 name = request.Name,
+                layoutKey = request.LayoutKey,
+                layoutConfigJson = SerializeLayoutConfig(request.LayoutConfig),
                 logoUrl = request.LogoUrl,
                 headerTitle = request.HeaderTitle,
                 headerSubtitle = request.HeaderSubtitle,
@@ -115,12 +121,12 @@ public class PayslipTemplateRepository : BaseRepository, IPayslipTemplateReposit
 
         const string insertSql = @"
             INSERT INTO payroll.paysliptemplates (
-                organizationid, name, isactive, logourl, headertitle, headersubtitle,
+                organizationid, name, isactive, layoutkey, layoutconfig, logourl, headertitle, headersubtitle,
                 companyaddress, footertext, primarycolor, accentcolor, sectiontitlecolor,
                 showgeneratedat, showpayrollcalculatedat, fieldconfig, createdby, updatedby
             )
             VALUES (
-                @organizationId, @name, true, @logoUrl, @headerTitle, @headerSubtitle,
+                @organizationId, @name, true, @layoutKey, @layoutConfigJson::jsonb, @logoUrl, @headerTitle, @headerSubtitle,
                 @companyAddress, @footerText, @primaryColor, @accentColor, @sectionTitleColor,
                 @showGeneratedAt, @showPayrollCalculatedAt, @fieldConfigJson::jsonb, @updatedBy, @updatedBy
             )
@@ -130,6 +136,8 @@ public class PayslipTemplateRepository : BaseRepository, IPayslipTemplateReposit
         {
             organizationId,
             name = request.Name,
+            layoutKey = request.LayoutKey,
+            layoutConfigJson = SerializeLayoutConfig(request.LayoutConfig),
             logoUrl = request.LogoUrl,
             headerTitle = request.HeaderTitle,
             headerSubtitle = request.HeaderSubtitle,
@@ -166,6 +174,8 @@ public class PayslipTemplateRepository : BaseRepository, IPayslipTemplateReposit
             OrganizationId = row.OrganizationId,
             Name = row.Name,
             IsActive = row.IsActive,
+            LayoutKey = string.IsNullOrWhiteSpace(row.LayoutKey) ? PayslipLayoutKeys.ClassicStacked : row.LayoutKey,
+            LayoutConfig = DeserializeLayoutConfig(row.LayoutConfigJson),
             LogoUrl = row.LogoUrl,
             HeaderTitle = row.HeaderTitle ?? "SALARY SLIP",
             HeaderSubtitle = row.HeaderSubtitle,
@@ -181,12 +191,34 @@ public class PayslipTemplateRepository : BaseRepository, IPayslipTemplateReposit
         };
     }
 
+    private static string SerializeLayoutConfig(Dictionary<string, object>? layoutConfig) =>
+        JsonSerializer.Serialize(layoutConfig ?? new Dictionary<string, object>(), JsonOptions);
+
+    private static Dictionary<string, object>? DeserializeLayoutConfig(string? json)
+    {
+        if (string.IsNullOrWhiteSpace(json) || json.Trim() is "{}" or "null")
+        {
+            return null;
+        }
+
+        try
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, object>>(json, JsonOptions);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private sealed class PayslipTemplateRow
     {
         public Guid TemplateId { get; set; }
         public Guid OrganizationId { get; set; }
         public string Name { get; set; } = "Default";
         public bool IsActive { get; set; }
+        public string? LayoutKey { get; set; }
+        public string? LayoutConfigJson { get; set; }
         public string? LogoUrl { get; set; }
         public string? HeaderTitle { get; set; }
         public string? HeaderSubtitle { get; set; }

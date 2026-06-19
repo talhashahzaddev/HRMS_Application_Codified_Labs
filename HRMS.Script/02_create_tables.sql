@@ -2250,12 +2250,37 @@ create table if not exists payroll.payslips
                     check (mailsentstatus in ('pending','sent', 'failed', 'bounced'))
 ); // payslipemaillog
 
+-- Payslip layout catalog (master list of available PDF layout styles)
+CREATE TABLE IF NOT EXISTS payroll.payslipLayoutCatalog (
+    layoutKey         varchar(50) PRIMARY KEY,
+    displayName       varchar(100) NOT NULL,
+    description       text,
+    previewImageUrl   varchar(500),
+    configSchema      jsonb NOT NULL DEFAULT '{}'::jsonb,
+    defaultConfig     jsonb NOT NULL DEFAULT '{}'::jsonb,
+    rendererKey       varchar(100) NOT NULL,
+    isActive          boolean NOT NULL DEFAULT true,
+    sortOrder         int NOT NULL DEFAULT 0,
+    createdAt         timestamptz DEFAULT CURRENT_TIMESTAMP,
+    updatedAt         timestamptz DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO payroll.paysliplayoutcatalog (layoutkey, displayname, description, rendererkey, sortorder)
+VALUES
+    ('classic_stacked', 'Classic stacked', 'Traditional payslip with stacked sections: employee details, earnings, deductions, and net pay.', 'classic_stacked', 1),
+    ('split_columns', 'Split columns', 'Side-by-side earnings and deductions columns for easier comparison.', 'split_columns', 2),
+    ('compact_corporate', 'Compact corporate', 'Summary strip with gross, deductions, and net pay plus compact line items.', 'compact_corporate', 3)
+ON CONFLICT (layoutkey) DO NOTHING;
+
 -- Payslip template configuration (one active template per organization)
 CREATE TABLE IF NOT EXISTS payroll.payslipTemplates (
     templateId                 uuid PRIMARY KEY DEFAULT public.uuid_generate_v4(),
     organizationId             uuid NOT NULL REFERENCES auth.organizations(organizationid) ON DELETE CASCADE,
     name                       varchar(100) NOT NULL DEFAULT 'Default',
     isActive                   boolean NOT NULL DEFAULT true,
+    layoutKey                  varchar(50) NOT NULL DEFAULT 'classic_stacked'
+                               REFERENCES payroll.paysliplayoutcatalog(layoutkey),
+    layoutConfig               jsonb NOT NULL DEFAULT '{}'::jsonb,
     logoUrl                    varchar(500),
     headerTitle                varchar(150) DEFAULT 'SALARY SLIP',
     headerSubtitle             varchar(255),

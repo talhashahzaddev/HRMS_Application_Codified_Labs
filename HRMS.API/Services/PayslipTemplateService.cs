@@ -10,15 +10,21 @@ public class PayslipTemplateService : IPayslipTemplateService
     private static readonly Regex HexColorRegex = new(@"^#[0-9A-Fa-f]{6}$", RegexOptions.Compiled);
 
     private readonly IPayslipTemplateRepository _repository;
+    private readonly IPayslipLayoutCatalogRepository _layoutCatalogRepository;
+    private readonly IPayslipPdfBuilder _pdfBuilder;
     private readonly ISettingsRepository _settingsRepository;
     private readonly ILogger<PayslipTemplateService> _logger;
 
     public PayslipTemplateService(
         IPayslipTemplateRepository repository,
+        IPayslipLayoutCatalogRepository layoutCatalogRepository,
+        IPayslipPdfBuilder pdfBuilder,
         ISettingsRepository settingsRepository,
         ILogger<PayslipTemplateService> logger)
     {
         _repository = repository;
+        _layoutCatalogRepository = layoutCatalogRepository;
+        _pdfBuilder = pdfBuilder;
         _settingsRepository = settingsRepository;
         _logger = logger;
     }
@@ -55,7 +61,7 @@ public class PayslipTemplateService : IPayslipTemplateService
         UpsertPayslipTemplateRequest request,
         Guid? updatedBy)
     {
-        var validation = ValidateRequest(request);
+        var validation = await ValidateRequestAsync(request);
         if (!validation.Success)
         {
             return validation;
@@ -86,6 +92,28 @@ public class PayslipTemplateService : IPayslipTemplateService
         }
     }
 
+    public async Task<ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>> GetActiveLayoutsAsync()
+    {
+        try
+        {
+            var layouts = await _layoutCatalogRepository.GetActiveLayoutsAsync();
+            return new ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>
+            {
+                Success = true,
+                Data = layouts
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading payslip layout catalog");
+            return new ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>
+            {
+                Success = false,
+                Message = "An error occurred while loading payslip layout options."
+            };
+        }
+    }
+
     public async Task<byte[]> BuildPreviewPdfAsync(
         Guid organizationId,
         UpsertPayslipTemplateRequest? draftTemplate,
@@ -94,7 +122,7 @@ public class PayslipTemplateService : IPayslipTemplateService
         PayslipTemplateDto template;
         if (draftTemplate != null)
         {
-            var validation = ValidateRequest(draftTemplate);
+            var validation = await ValidateRequestAsync(draftTemplate);
             if (!validation.Success)
             {
                 throw new InvalidOperationException(validation.Message ?? "Invalid template configuration.");
@@ -109,10 +137,10 @@ public class PayslipTemplateService : IPayslipTemplateService
         }
 
         var sampleRow = PayslipTemplateDefaults.CreateSamplePayrollRow(organizationId);
-        return PayslipPdfBuilder.Build(sampleRow, sampleRow.PeriodName, currencyLabel, template);
+        return await _pdfBuilder.BuildAsync(sampleRow, sampleRow.PeriodName, currencyLabel, template);
     }
 
-    private static ServiceResponse<PayslipTemplateDto> ValidateRequest(UpsertPayslipTemplateRequest request)
+    private async Task<ServiceResponse<PayslipTemplateDto>> ValidateRequestAsync(UpsertPayslipTemplateRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.HeaderTitle))
         {
@@ -156,6 +184,19 @@ public class PayslipTemplateService : IPayslipTemplateService
             };
         }
 
+        var layoutKey = string.IsNullOrWhiteSpace(request.LayoutKey)
+            ? PayslipLayoutKeys.ClassicStacked
+            : request.LayoutKey.Trim();
+        if (!await _layoutCatalogRepository.IsActiveLayoutKeyAsync(layoutKey))
+        {
+            return new ServiceResponse<PayslipTemplateDto>
+            {
+                Success = false,
+                Message = "Selected payslip layout is not available."
+            };
+        }
+
+        request.LayoutKey = layoutKey;
         return new ServiceResponse<PayslipTemplateDto> { Success = true };
     }
 
@@ -173,6 +214,8 @@ public class PayslipTemplateService : IPayslipTemplateService
         SectionTitleColor = request.SectionTitleColor,
         ShowGeneratedAt = request.ShowGeneratedAt,
         ShowPayrollCalculatedAt = request.ShowPayrollCalculatedAt,
+        LayoutKey = string.IsNullOrWhiteSpace(request.LayoutKey) ? PayslipLayoutKeys.ClassicStacked : request.LayoutKey.Trim(),
+        LayoutConfig = request.LayoutConfig,
         FieldConfig = request.FieldConfig ?? PayslipTemplateDefaults.CreateDefaultFieldConfig(),
         IsCustom = true
     };

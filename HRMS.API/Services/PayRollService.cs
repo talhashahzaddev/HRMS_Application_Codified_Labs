@@ -11,6 +11,7 @@ public class PayRollService : IPayRollService
     private readonly IAttendanceRepository _attendanceRepository;
     private readonly ISettingsRepository _settingsRepository;
     private readonly IPayslipTemplateService _payslipTemplateService;
+    private readonly IPayslipPdfBuilder _payslipPdfBuilder;
     private readonly ILogger<PayRollService> _logger;
     private readonly IWebHostEnvironment _hostEnvironment;
 
@@ -19,6 +20,7 @@ public class PayRollService : IPayRollService
         IAttendanceRepository attendanceRepository,
         ISettingsRepository settingsRepository,
         IPayslipTemplateService payslipTemplateService,
+        IPayslipPdfBuilder payslipPdfBuilder,
         ILogger<PayRollService> logger,
         IWebHostEnvironment hostEnvironment)
     {
@@ -26,6 +28,7 @@ public class PayRollService : IPayRollService
         _attendanceRepository = attendanceRepository;
         _settingsRepository = settingsRepository;
         _payslipTemplateService = payslipTemplateService;
+        _payslipPdfBuilder = payslipPdfBuilder;
         _logger = logger;
         _hostEnvironment = hostEnvironment;
     }
@@ -4205,7 +4208,7 @@ public class PayRollService : IPayRollService
                 }
 
                 var periodLabel = string.IsNullOrWhiteSpace(row.PeriodName) ? dto.PayrollPeriodId.ToString() : row.PeriodName;
-                var pdf = PayslipPdfBuilder.Build(row, periodLabel, currencyLabel, template);
+                var pdf = await _payslipPdfBuilder.BuildAsync(row, periodLabel, currencyLabel, template);
                 var relativeUrl = $"/payslips/{organizationId:D}/{row.ResultId:D}.pdf";
                 var physical = Path.Combine(orgFolder, $"{row.ResultId:D}.pdf");
                 await File.WriteAllBytesAsync(physical, pdf);
@@ -4243,7 +4246,7 @@ public class PayRollService : IPayRollService
         var templateResponse = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
         var template = templateResponse.Data;
         var periodLabel = string.IsNullOrWhiteSpace(row.PeriodName) ? row.PeriodId.ToString("D") : row.PeriodName;
-        return PayslipPdfBuilder.Build(row, periodLabel, currencyLabel, template);
+        return await _payslipPdfBuilder.BuildAsync(row, periodLabel, currencyLabel, template);
     }
 
     private async Task<string> ResolvePayslipCurrencyDisplayPrefixAsync(Guid organizationId)

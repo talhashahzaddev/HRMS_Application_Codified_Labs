@@ -296,6 +296,31 @@ public class SettingsController : ControllerBase
         }
     }
 
+    [HttpGet("payslip-template/layouts")]
+    [PermissionAuthorize("payslip_template_view")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>>> GetPayslipLayoutOptions()
+    {
+        try
+        {
+            var result = await _payslipTemplateService.GetActiveLayoutsAsync();
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payslip layout options");
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving payslip layout options"
+            });
+        }
+    }
+
     [HttpGet("payslip-template")]
     [PermissionAuthorize("payslip_template_view")]
     public async Task<ActionResult<ServiceResponse<PayslipTemplateDto>>> GetPayslipTemplate()
