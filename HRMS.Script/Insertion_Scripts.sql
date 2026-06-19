@@ -246,6 +246,10 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'View Career Management', 'career_management_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'Edit Career Management', 'career_management_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
+-- Payslip Template
+('33e1b9bf-488e-4832-8226-a298bb200c80', 'View Payslip Template', 'payslip_template_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('33e1b9bf-488e-4832-8226-a298bb200c80', 'Edit Payslip Template', 'payslip_template_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+
 -- Role Management
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Add New Role', 'add_new_role', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'View Role Details', 'role_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

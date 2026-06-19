@@ -1,5 +1,6 @@
 using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
+using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +14,16 @@ namespace HRMS.API.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly ISettingsService _settingsService;
+    private readonly IPayslipTemplateService _payslipTemplateService;
     private readonly ILogger<SettingsController> _logger;
 
-    public SettingsController(ISettingsService settingsService, ILogger<SettingsController> logger)
+    public SettingsController(
+        ISettingsService settingsService,
+        IPayslipTemplateService payslipTemplateService,
+        ILogger<SettingsController> logger)
     {
         _settingsService = settingsService;
+        _payslipTemplateService = payslipTemplateService;
         _logger = logger;
     }
 
@@ -288,6 +294,123 @@ public class SettingsController : ControllerBase
                 Message = "An error occurred while deleting company policy"
             });
         }
+    }
+
+    [HttpGet("payslip-template/layouts")]
+    [PermissionAuthorize("payslip_template_view")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>>> GetPayslipLayoutOptions()
+    {
+        try
+        {
+            var result = await _payslipTemplateService.GetActiveLayoutsAsync();
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payslip layout options");
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving payslip layout options"
+            });
+        }
+    }
+
+    [HttpGet("payslip-template")]
+    [PermissionAuthorize("payslip_template_view")]
+    public async Task<ActionResult<ServiceResponse<PayslipTemplateDto>>> GetPayslipTemplate()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payslip template");
+            return StatusCode(500, new ServiceResponse<PayslipTemplateDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the payslip template"
+            });
+        }
+    }
+
+    [HttpPut("payslip-template")]
+    [PermissionAuthorize("payslip_template_edit")]
+    public async Task<ActionResult<ServiceResponse<PayslipTemplateDto>>> UpsertPayslipTemplate([FromBody] UpsertPayslipTemplateRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var updatedBy = GetCurrentUserId();
+            var result = await _payslipTemplateService.UpsertActiveTemplateAsync(organizationId, request, updatedBy);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving payslip template");
+            return StatusCode(500, new ServiceResponse<PayslipTemplateDto>
+            {
+                Success = false,
+                Message = "An error occurred while saving the payslip template"
+            });
+        }
+    }
+
+    [HttpPost("payslip-template/preview")]
+    [PermissionAuthorize("payslip_template_view")]
+    public async Task<IActionResult> PreviewPayslipTemplate([FromBody] PayslipTemplatePreviewRequest? request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currencyCode = await _settingsService.GetOrganizationSettingsAsync(organizationId);
+            var currencyLabel = PayslipCurrencyDisplay.GetPdfHelveticaSafePrefix(currencyCode.Data?.Currency);
+            var pdfBytes = await _payslipTemplateService.BuildPreviewPdfAsync(
+                organizationId,
+                request?.Template,
+                currencyLabel);
+
+            return File(pdfBytes, "application/pdf", "payslip-preview.pdf");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating payslip template preview");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while generating the payslip preview"
+            });
+        }
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
     }
 
     private Guid GetCurrentOrganizationId()
