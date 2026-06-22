@@ -148,49 +148,36 @@ CREATE FUNCTION auth.fn_create_organization(p_name character varying, p_domain c
     AS $$
 DECLARE
     newOrgId UUID;
-    superAdminRoleId UUID;
-    permissionsCount INTEGER;
+    insertedRolesCount INTEGER;
 BEGIN
     -- Insert new organization
     INSERT INTO auth.organizations (name, domain, subscriptionType, currency)
     VALUES (p_name, p_domain, p_subscription_type, p_currency)
     RETURNING organizationId INTO newOrgId;
-    
-    -- Create ONLY Super Admin role for the organization
-    INSERT INTO auth.roles (organizationId, roleName, description, isSystemRole)
-    VALUES (
-        newOrgId, 
-        'Super Admin', 
-        'System administrator with full access to all features', 
-        false
+
+	-- Global Roles Insertion
+    INSERT INTO auth.roles
+    (
+        roleid,
+        organizationid,
+        rolename,
+        description,
+        issystemrole,
+        role_version,
+        createdat
     )
-    RETURNING roleId INTO superAdminRoleId;
-    
-    -- Bulk insert all permissions for Super Admin (NO LOOP
-    INSERT INTO auth.permissions (
-        roleId, 
-        actionId, 
-        organizationId, 
-        has_permission,
-        created_date,
-        updated_date
-    )
-    SELECT 
-        superAdminRoleId,
-        a.actionId,
+    SELECT
+        gr.roleid,
         newOrgId,
-        true,  -- Super Admin gets all permissions
-        CURRENT_TIMESTAMP,
+        gr.rolename,
+        gr.description,
+        true,
+        gr.version,
         CURRENT_TIMESTAMP
-    FROM auth.actions a
-	WHERE a.actionname != 'Employee Dashboard';
-	
-    -- Get count of inserted permissions for logging
-    GET DIAGNOSTICS permissionsCount = ROW_COUNT;
-    
-    -- Log the creation
-    RAISE NOTICE 'Organization created with ID: %, Super Admin role created with % permissions', 
-        newOrgId, permissionsCount;
+    FROM auth.global_roles gr
+    WHERE gr.isactive = true;
+
+    GET DIAGNOSTICS insertedRolesCount = ROW_COUNT;
 
 	INSERT INTO payment.companysubscriptions (
 		companyid,
@@ -208,6 +195,10 @@ BEGIN
 		now(),
 		now() + interval '1 month'
 	);
+
+	-- Log the creation
+    RAISE NOTICE
+    'Organization created successfully. Roles: %', insertedRolesCount;
 	
     RETURN newOrgId;
 END;
@@ -402,7 +393,7 @@ BEGIN
         description = p_description,
         issystemrole = p_issystemrole
     WHERE roleid = p_roleid 
-      AND (organizationid = p_organizationid OR (organizationid IS NULL AND p_organizationid IS NULL));
+      AND organizationid = p_organizationid;
 
     -- Check if role was updated
     IF NOT FOUND THEN
@@ -411,7 +402,8 @@ BEGIN
 
     -- Delete existing permissions for this role
     DELETE FROM auth.permissions
-    WHERE roleid = p_roleid;
+    WHERE roleid = p_roleid
+	AND organizationid = p_organizationid;
 
     -- Insert new permissions from the menu structure
     FOR menu_record IN SELECT * FROM jsonb_array_elements(p_menus)

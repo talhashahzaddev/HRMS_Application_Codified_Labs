@@ -9,15 +9,18 @@ public class SuperAdminService : ISuperAdminService
     private readonly ISuperAdminRepository _superAdminRepository;
     private readonly IPaymentRepository _paymentRepository;
     private readonly ILogger<SuperAdminService> _logger;
+    private readonly IAuthRepository _authRepository;
 
     public SuperAdminService(
         ISuperAdminRepository superAdminRepository,
         IPaymentRepository paymentRepository,
-        ILogger<SuperAdminService> logger)
+        ILogger<SuperAdminService> logger,
+        IAuthRepository authRepository)
     {
         _superAdminRepository = superAdminRepository;
         _paymentRepository = paymentRepository;
         _logger = logger;
+        _authRepository = authRepository;
     }
 
     public async Task<ServiceResponse<PlatformDashboardDto>> GetPlatformDashboardAsync()
@@ -248,5 +251,173 @@ public class SuperAdminService : ISuperAdminService
                 Message = "Failed to manage subscription"
             };
         }
+    }
+
+    public async Task<List<GlobalRoleDetailResponse>> GetGlobalRolesAsync()
+    {
+        var result = await _superAdminRepository.GetGlobalRolesAsync();
+
+        if (result == null || !result.Any())
+            return new List<GlobalRoleDetailResponse>();
+
+        var roles = result
+            .GroupBy(x => new
+            {
+                x.RoleId,
+                x.RoleName,
+                x.Description,
+                x.Version,
+                x.IsActive,
+                x.CreatedAt,
+                x.UpdatedAt
+            })
+            .Select(g => new GlobalRoleDetailResponse
+            {
+                RoleId = g.Key.RoleId,
+                RoleName = g.Key.RoleName,
+                Description = g.Key.Description,
+                Version = g.Key.Version,
+                IsActive = g.Key.IsActive,
+                CreatedAt = g.Key.CreatedAt,
+                UpdatedAt = g.Key.UpdatedAt,
+
+                PermissionsCount = g
+                    .Where(x => x.ActionId != Guid.Empty)
+                    .Select(x => x.ActionId)
+                    .Distinct()
+                    .Count(),
+
+                Menus = g
+                    .Where(x => x.MenuId != Guid.Empty)
+                    .GroupBy(x => new
+                    {
+                        x.MenuId,
+                        x.MenuName
+                    })
+                    .Select(mg => new RoleMenuPermission
+                    {
+                        MenuId = mg.Key.MenuId,
+                        MenuName = mg.Key.MenuName,
+
+                        SubMenus = mg
+                            .Where(x => x.SubMenuId != Guid.Empty)
+                            .GroupBy(x => new
+                            {
+                                x.SubMenuId,
+                                x.SubMenuName
+                            })
+                            .Select(sg => new RoleSubMenuPermission
+                            {
+                                SubMenuId = sg.Key.SubMenuId,
+                                SubMenuName = sg.Key.SubMenuName,
+
+                                Actions = sg
+                                    .Where(a => a.ActionId != Guid.Empty)
+                                    .Select(a => new RoleActionPermission
+                                    {
+                                        ActionId = a.ActionId,
+                                        ActionName = a.ActionName,
+                                        ActionKey = a.ActionKey,
+                                        HasPermission = a.HasPermission
+                                    })
+                                    .DistinctBy(a => a.ActionId)
+                                    .ToList()
+
+                            }).ToList()
+
+                    }).ToList()
+            }).ToList();
+
+        return roles;
+    }
+
+    public async Task<GlobalRoleActionResponse> CreateGlobalRoleAsync(CreateGlobalRoleRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RoleName))
+            throw new ArgumentException("Role name is required");
+
+        var existingRole = await _superAdminRepository.GetGlobalRoleByNameAsync(request.RoleName);
+
+        if (existingRole != null)
+            throw new InvalidOperationException("Global role already exists");
+
+        foreach (var menu in request.Menus)
+        {
+            var menuExists = await _authRepository.MenuExistsAsync(menu.MenuId);
+
+            if (!menuExists)
+                throw new ArgumentException($"Menu does not exist: {menu.MenuId}");
+        }
+
+        var roleId = await _superAdminRepository.CreateGlobalRoleAsync(request);
+
+        return new GlobalRoleActionResponse
+        {
+            RoleId = roleId
+        };
+    }
+    public async Task<GlobalRoleActionResponse> UpdateGlobalRoleAsync(UpdateGlobalRoleRequest request)
+    {
+        var existingRole = await _superAdminRepository.GetGlobalRoleByIdAsync(request.RoleId);
+
+        if (existingRole == null)
+            throw new KeyNotFoundException("Global role not found");
+
+        var response = await _superAdminRepository.UpdateGlobalRoleAsync(request);
+        if (!response)
+            throw new Exception("Failed to update global role");
+        return new GlobalRoleActionResponse
+        {
+            RoleId = request.RoleId
+        };
+    }
+    public async Task<bool> DeleteGlobalRoleAsync(Guid roleId)
+    {
+        var existingRole = await _superAdminRepository.GetGlobalRoleByIdAsync(roleId);
+
+        if (existingRole == null)
+            throw new KeyNotFoundException("Global role not found");
+
+        return await _superAdminRepository.DeleteGlobalRoleAsync(roleId);
+    }
+
+    public async Task<List<MenuDto>> GetMenusAsync()
+    {
+        var result = await _authRepository.GetMenusAsync();
+
+        if (result == null || !result.Any())
+            throw new InvalidOperationException("No menus found");
+
+        var menus = result
+         .Where(x => x.menuid != null)
+         .GroupBy(x => new { x.menuid, x.menuname, x.menuicon })
+         .Select(g => new MenuDto
+         {
+             MenuId = g.Key.menuid,
+             MenuName = g.Key.menuname,
+             Icon = g.Key.menuicon,
+             SubMenus = g
+                 .Where(x => x.submenuid != null)
+                 .GroupBy(x => new { x.submenuid, x.submenuname, x.submenuicon })
+                 .Select(sg => new SubMenuDto
+                 {
+                     SubMenuId = sg.Key.submenuid,
+                     SubMenuName = sg.Key.submenuname,
+                     Icon = sg.Key.submenuicon,
+                     Actions = sg
+                         .Where(x => x.actionid != null)
+                         .Select(x => new ActionDto
+                         {
+                             ActionId = x.actionid,
+                             ActionName = x.actionname,
+                             ActionKey = x.actionkey
+                         })
+                         .DistinctBy(a => a.ActionId) // Remove duplicate actions if any
+                         .ToList()
+                 }).ToList()
+         })
+         .ToList();
+
+        return menus;
     }
 }

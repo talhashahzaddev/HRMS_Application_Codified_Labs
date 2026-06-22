@@ -315,6 +315,157 @@ public class SuperAdminController : ControllerBase
         }
     }
 
+    //GLOBAL ROLES API
+
+    [HttpGet("global-roles")]
+    public async Task<ActionResult<ServiceResponse<List<GlobalRoleDetailResponse>>>> GetGlobalRoles()
+    {
+        try
+        {
+            var result = await _superAdminService.GetGlobalRolesAsync();
+
+            return Ok(new ServiceResponse<List<GlobalRoleDetailResponse>>
+            {
+                Success = true,
+                Message = "Global roles retrieved successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving global roles");
+
+            return StatusCode(500, new ServiceResponse<List<RoleDetailResponse>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving global roles"
+            });
+        }
+    }
+
+    [HttpPost("create-global-role")]
+    public async Task<ActionResult<ServiceResponse<GlobalRoleActionResponse>>> CreateGlobalRole([FromBody] CreateGlobalRoleRequest request)
+    {
+        try
+        {
+            var result = await _superAdminService.CreateGlobalRoleAsync(request);
+
+            return Ok(new ServiceResponse<GlobalRoleActionResponse>
+            {
+                Success = true,
+                Message = "Global role created successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating global role");
+
+            return StatusCode(500, new ServiceResponse<GlobalRoleActionResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    [HttpPut("update-global-role")]
+    public async Task<ActionResult<ServiceResponse<GlobalRoleActionResponse>>> UpdateGlobalRole(
+    [FromBody] UpdateGlobalRoleRequest request)
+    {
+        try
+        {
+            var result = await _superAdminService.UpdateGlobalRoleAsync(request);
+
+            return Ok(new ServiceResponse<GlobalRoleActionResponse>
+            {
+                Success = true,
+                Message = "Global role updated successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating global role");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    [HttpDelete("delete-global-role/{roleId}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteGlobalRole(Guid roleId)
+    {
+        try
+        {
+            var result = await _superAdminService.DeleteGlobalRoleAsync(roleId);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Global role deleted successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting global role");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+    [HttpGet("menus")]
+    public async Task<ActionResult<ServiceResponse<List<MenuDto>>>> GetMenus()
+    {
+        try
+        {
+            var menus = await _superAdminService.GetMenusAsync();
+
+            return Ok(new ServiceResponse<List<MenuDto>>
+            {
+                Success = true,
+                Data = menus,
+                Message = "Menus retrieved successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while retrieving menus");
+
+            return BadRequest(new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business logic error while retrieving menus");
+
+            return BadRequest(new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving menus");
+
+            return StatusCode(500, new ServiceResponse<List<MenuDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving menus"
+            });
+        }
+    }
     private Guid GetCurrentAdminId()
     {
         var adminIdClaim = User.FindFirstValue("adminId");
