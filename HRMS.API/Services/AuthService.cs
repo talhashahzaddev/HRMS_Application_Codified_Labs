@@ -15,6 +15,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.SignalR;
+using HRMS.API.Hubs;
+using static HRMS.API.Models.DTOs.NotificationDto;
+// No-op placeholder: keep HRMS.API.Hubs using for potential future hub registrations
 
 namespace HRMS.API.Services;
 
@@ -29,6 +33,8 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
     private readonly ICloudinaryService _cloudinaryService;
     private readonly IJobsRepository _jobsRepository;
+    private readonly IHubContext<PermissionHub> _hubContext;
+    private readonly INotificationRepository _notificationRepository;
 
     public AuthService(
         IAuthRepository authRepository,
@@ -39,7 +45,9 @@ public class AuthService : IAuthService
         ICloudinaryService cloudinaryService,
         IEmployeeRepository employeeRepository,
         IEmailService emailService,
-        IJobsRepository jobsRepository)
+        IJobsRepository jobsRepository,
+        INotificationRepository notificationRepository,
+        IHubContext<PermissionHub> hubContext)
     {
         _authRepository = authRepository;
         _organizationService = organizationService;
@@ -50,6 +58,8 @@ public class AuthService : IAuthService
         _emailService = emailService;
         _cloudinaryService = cloudinaryService;
         _jobsRepository = jobsRepository;
+        _notificationRepository = notificationRepository;
+        _hubContext = hubContext;
     }
 
     public async Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request)
@@ -890,6 +900,63 @@ public class AuthService : IAuthService
         await _authRepository.UpdateRoleAsync(request, organizationId);
 
         _logger.LogInformation("Role updated successfully with ID: {RoleId}", request.RoleId);
+
+        // Notify only affected users: get user IDs for this role in the organization and send per-user notification
+        try
+        {
+            var userIds = await _authRepository.GetUserIdsByRoleIdAsync(request.RoleId, organizationId);
+
+            if (userIds != null && userIds.Any())
+            {
+                var roleGroup = PermissionHub.GetRoleGroupName(
+                    organizationId.ToString(),
+                    request.RoleId.ToString()
+                );
+
+                await _hubContext.Clients.Group(roleGroup).SendAsync(
+                    PermissionHub.RoleUpdatedEvent,
+                    new
+                    {
+                        RoleId = request.RoleId,
+                        RoleName = request.RoleName,
+                        OrganizationId = organizationId,
+                        Message = $"Role '{request.RoleName}' permissions have been updated successfully."
+                    }
+                );
+
+                // Additionally create an in-app notification for affected users
+                try
+                {
+                    var receivers = userIds.ToList();
+                    var notification = new NotificationCreateDto
+                    {
+                        Receiveruserid = receivers,
+                        Senderuserid = Guid.Empty, // system
+                        Title = "Role Permissions Updated",
+                        Message = $"Permissions for role '{request.RoleName}' have been updated.",
+                        Notificationtype = "Message",
+                        Createdby = Guid.Empty,
+                        moduletype = "Permission",
+                        Redirecturl = "/settings/roles",
+                        organizationId = organizationId
+                    };
+
+                    await _notificationRepository.CreateNotificationAsync(organizationId.Value, notification);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to create in-app notifications for RoleId: {RoleId}", request.RoleId);
+                }
+            }
+            else
+            {
+                _logger.LogInformation("No users found for RoleId {RoleId} in Organization {OrganizationId}", request.RoleId, organizationId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send RoleUpdated notification for RoleId: {RoleId}", request.RoleId);
+        }
 
         return new UpdateRoleResponse
         {

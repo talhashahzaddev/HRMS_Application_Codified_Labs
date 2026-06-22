@@ -346,6 +346,7 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 });
 
 app.MapHub<PayslipBulkHub>("/hubs/payslip-bulk");
+app.MapHub<PermissionHub>("/hubs/permissionHub");
 app.MapHub<HRMS.API.Hubs.CvParsingHub>("/hub/cvparsing");
 app.MapControllers();
 

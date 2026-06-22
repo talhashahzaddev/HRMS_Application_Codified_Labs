@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Org.BouncyCastle.Asn1.Ocsp;
 using System.Data;
 using System.Text.Json;
+using System.Linq;
 
 namespace HRMS.API.Repositories;
 
@@ -722,6 +723,25 @@ WHERE token = @token;
         parameters.Add("OrganizationId", organizationId, DbType.Guid);
 
         return await ExecuteScalarAsync<int>(sql, parameters);
+    }
+
+    // Get user ids by role id
+    public async Task<List<Guid>> GetUserIdsByRoleIdAsync(Guid roleId, Guid? organizationId)
+    {
+        const string sql = @"
+    SELECT e.employeeid
+    FROM auth.users u
+    INNER JOIN employee.employees e 
+        ON e.userid = u.userid
+    WHERE u.roleid = @RoleId
+      AND (u.organizationid = @OrganizationId OR @OrganizationId IS NULL)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("RoleId", roleId, DbType.Guid);
+        parameters.Add("OrganizationId", organizationId, DbType.Guid);
+
+        var results = await QueryAsync<Guid>(sql, parameters);
+        return results.ToList();
     }
 
     // Delete role
