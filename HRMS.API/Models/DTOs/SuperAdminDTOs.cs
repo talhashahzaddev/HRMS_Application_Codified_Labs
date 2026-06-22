@@ -118,3 +118,64 @@ public class OrganizationFilterRequest
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
+
+// ============ Global Role Requests ==========
+
+public class CreateGlobalRoleRequest
+{
+    public string RoleName { get; set; }
+    public string Description { get; set; }
+    public List<MenuPermissionDto> Menus { get; set; } = new();
+}
+public class UpdateGlobalRoleRequest
+{
+    public Guid RoleId { get; set; }
+    public string RoleName { get; set; }
+    public string Description { get; set; }
+    public List<MenuPermissionDto> Menus { get; set; } = new();
+}
+
+public class GlobalRoleDetailResponse
+{
+    public Guid RoleId { get; set; }
+    public string RoleName { get; set; }
+    public string Description { get; set; }
+    public int Version { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int PermissionsCount { get; set; }
+    public List<RoleMenuPermission> Menus { get; set; } = new();
+}
+public class GlobalRolePermissionFlatDto
+{
+    public Guid RoleId { get; set; }
+    public string RoleName { get; set; }
+    public string Description { get; set; }
+    public int Version { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public Guid MenuId { get; set; }
+    public string MenuName { get; set; }
+    public Guid SubMenuId { get; set; }
+    public string SubMenuName { get; set; }
+    public Guid ActionId { get; set; }
+    public string ActionName { get; set; }
+    public string ActionKey { get; set; }
+    public bool HasPermission { get; set; }
+}
+public class GlobalRoleActionResponse
+{
+    public Guid RoleId { get; set; }
+}
+public class GlobalRole
+{
+    public Guid RoleId { get; set; }
+    public string RoleName { get; set; }
+    public string Description { get; set; }
+    public int Version { get; set; }
+    public bool IsActive { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+}

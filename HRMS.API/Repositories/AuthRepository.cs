@@ -821,23 +821,46 @@ WHERE token = @token;
 
     public async Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId)
     {
-        const string sql = @"
-    SELECT 
-        m.menuid,
-        m.menuname as MenuName,
-        sm.submenuid,
-        sm.submenuname as SubMenuName,
-        a.actionid,
-        a.actionname as ActionName,
-        a.actionkey as ActionKey,
-        COALESCE(p.has_permission, false) as HasPermission
-    FROM auth.menus m
-    INNER JOIN auth.submenus sm ON sm.menuid = m.menuid
-    INNER JOIN auth.actions a ON a.submenuid = sm.submenuid
-    LEFT JOIN auth.permissions p ON p.actionid = a.actionid AND p.roleid = @roleid
-    ORDER BY m.menuname, sm.submenuname, a.actionname";
+        try
+        {
+            const string sql = @"
+            SELECT
+                m.menuid,
+                m.menuname AS MenuName,
+                sm.submenuid,
+                sm.submenuname AS SubMenuName,
+                a.actionid,
+                a.actionname AS ActionName,
+                a.actionkey AS ActionKey,
+                CASE
+                    WHEN r.issystemrole = true
+                        THEN COALESCE(grp.has_permission, false)
 
-        return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
+                    ELSE COALESCE(p.has_permission, false)
+                END AS HasPermission
+            FROM auth.roles r
+            INNER JOIN auth.menus m
+                ON 1 = 1
+            INNER JOIN auth.submenus sm
+                ON sm.menuid = m.menuid
+            INNER JOIN auth.actions a
+                ON a.submenuid = sm.submenuid
+            LEFT JOIN auth.global_role_permissions grp
+                ON grp.actionid = a.actionid
+                AND grp.roleid = r.roleid
+            LEFT JOIN auth.permissions p
+                ON p.actionid = a.actionid
+                AND p.roleid = r.roleid
+                AND p.organizationid = r.organizationid
+            WHERE r.roleid = @roleid
+            ORDER BY m.menuname, sm.submenuname, a.actionname;";
+
+            return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
+        }
+        catch(Exception ex)
+        {
+            throw ex;
+        }
     }
     public async Task<Role> GetRoleByIdAsync(Guid roleId)
     {

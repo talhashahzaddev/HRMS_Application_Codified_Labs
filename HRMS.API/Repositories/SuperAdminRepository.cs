@@ -2,6 +2,8 @@ using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
+using Newtonsoft.Json;
+using System.Data;
 
 namespace HRMS.API.Repositories;
 
@@ -314,5 +316,261 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
             performedBy,
             notes
         });
+    }
+
+    public async Task<Guid> CreateGlobalRoleAsync(CreateGlobalRoleRequest request)
+    {
+        var connection = CreateConnection();
+        connection.Open();
+        var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var roleId = Guid.NewGuid();
+            const string insertGlobalRoleSql = @"
+            INSERT INTO auth.global_roles (roleid, rolename, description, version)
+            VALUES (@RoleId, @RoleName, @Description, 1);";
+
+            await connection.ExecuteAsync(insertGlobalRoleSql,
+            new
+            {
+                RoleId = roleId,
+                request.RoleName,
+                request.Description
+            },transaction);
+
+            foreach (var menu in request.Menus)
+            {
+                foreach (var submenu in menu.SubMenus)
+                {
+                    foreach (var action in submenu.Actions)
+                    {
+                        const string insertPermissionSql = @"
+                        INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission)
+                        VALUES(uuid_generate_v4(), @RoleId, @ActionId, @HasPermission);";
+
+                        await connection.ExecuteAsync(insertPermissionSql,
+                        new
+                        {
+                            RoleId = roleId,
+                            action.ActionId,
+                            action.HasPermission
+                        },transaction);
+                    }
+                }
+            }
+
+            const string insertRolesSql = @"
+            INSERT INTO auth.roles (roleid, organizationid, rolename, description, issystemrole, createdat)
+            SELECT
+                @RoleId,
+                o.organizationid,
+                @RoleName,
+                @Description,
+                true,
+                CURRENT_TIMESTAMP
+            FROM auth.organizations o
+            ON CONFLICT (organizationid, rolename)
+            DO NOTHING;";
+
+            await ExecuteAsyncWithTimeout(insertRolesSql,
+            new
+            {
+                RoleId = roleId,
+                RoleName = request.RoleName,
+                Description = request.Description
+            },transaction);
+
+            transaction.Commit();
+
+            return roleId;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<List<GlobalRolePermissionFlatDto>> GetGlobalRolesAsync()
+    {
+        const string sql = @"
+            SELECT
+                gr.roleid AS RoleId,
+                gr.rolename AS RoleName,
+                gr.description AS Description,
+                gr.version AS Version,
+                gr.isactive AS IsActive,
+                gr.createdat AS CreatedAt,
+                gr.updatedat AS UpdatedAt,
+                m.menuid AS MenuId,
+                m.menuname AS MenuName,
+                sm.submenuid AS SubMenuId,
+                sm.submenuname AS SubMenuName,
+                a.actionid AS ActionId,
+                a.actionname AS ActionName,
+                a.actionkey AS ActionKey,
+                grp.has_permission AS HasPermission
+            FROM auth.global_roles gr
+            LEFT JOIN auth.global_role_permissions grp
+                ON gr.roleid = grp.roleid
+            LEFT JOIN auth.actions a
+                ON grp.actionid = a.actionid
+            LEFT JOIN auth.submenus sm
+                ON a.submenuid = sm.submenuid
+            LEFT JOIN auth.menus m
+                ON sm.menuid = m.menuid
+            ORDER BY gr.rolename;";
+
+        var result = await QueryAsync<GlobalRolePermissionFlatDto>(sql);
+
+        return result.ToList();
+    }
+    public async Task<bool> UpdateGlobalRoleAsync(UpdateGlobalRoleRequest request)
+    {
+        var connection = CreateConnection();
+        connection.Open();
+        var transaction = connection.BeginTransaction();
+
+        try
+        {
+            const string updateGlobalRoleSql = @"
+            UPDATE auth.global_roles
+            SET
+                rolename = @RoleName,
+                description = @Description,
+                version = version + 1,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE roleid = @RoleId;";
+
+            await connection.ExecuteAsync(updateGlobalRoleSql,
+            new
+            {
+                request.RoleId,
+                request.RoleName,
+                request.Description
+            },transaction);
+
+            const string deletePermissionsSql = @"
+            DELETE FROM auth.global_role_permissions
+            WHERE roleid = @RoleId;";
+
+            await connection.ExecuteAsync(deletePermissionsSql, new { request.RoleId }, transaction);
+
+            foreach (var menu in request.Menus)
+            {
+                foreach (var submenu in menu.SubMenus)
+                {
+                    foreach (var action in submenu.Actions)
+                    {
+                        const string insertPermissionSql = @"
+                        INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission)
+                        VALUES (uuid_generate_v4(), @RoleId, @ActionId, @HasPermission);";
+
+                        await connection.ExecuteAsync(insertPermissionSql,
+                        new
+                        {
+                            request.RoleId,
+                            action.ActionId,
+                            action.HasPermission
+                        },transaction);
+                    }
+                }
+            }
+
+            const string updateRolesSql = @"
+            UPDATE auth.roles
+            SET
+                rolename = @RoleName,
+                description = @Description
+            WHERE roleid = @RoleId
+            AND issystemrole = true;";
+
+            await connection.ExecuteAsync(updateRolesSql,
+            new
+            {
+                request.RoleId,
+                request.RoleName,
+                request.Description
+            },transaction);
+
+            transaction.Commit();
+
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteGlobalRoleAsync(Guid roleId)
+    {
+        using var connection = CreateConnection();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            await connection.ExecuteAsync(@"
+                DELETE FROM auth.global_role_permissions
+                WHERE roleid = @RoleId;",
+            new { RoleId = roleId }, transaction);
+
+            var rows = await connection.ExecuteAsync(@"
+                DELETE FROM auth.global_roles
+                WHERE roleid = @RoleId;",
+            new { RoleId = roleId }, transaction);
+
+            transaction.Commit();
+
+            return rows > 0;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+    public async Task<GlobalRole?> GetGlobalRoleByNameAsync(string roleName)
+    {
+        using var connection = CreateConnection();
+
+        const string sql = @"
+        SELECT *
+        FROM auth.global_roles
+        WHERE LOWER(rolename) = LOWER(@RoleName)
+        LIMIT 1;";
+
+        return await connection.QueryFirstOrDefaultAsync<GlobalRole>(
+            sql,
+            new
+            {
+                RoleName = roleName
+            });
+    }
+
+    public async Task<GlobalRole?> GetGlobalRoleByIdAsync(Guid roleId)
+    {
+        using var connection = CreateConnection();
+
+        const string sql = @"
+        SELECT *
+        FROM auth.global_roles
+        WHERE roleid = @RoleId
+        LIMIT 1;";
+
+        return await connection.QueryFirstOrDefaultAsync<GlobalRole>(
+            sql,
+            new
+            {
+                RoleId = roleId
+            });
+    }
+
+    private async Task<int> ExecuteAsyncWithTimeout(string sql, object? parameters = null, IDbTransaction? transaction = null, int commandTimeoutSeconds = 500)
+    {
+        var connection = CreateConnection();
+        return await connection.ExecuteAsync(sql, parameters, transaction, commandTimeout: commandTimeoutSeconds);
     }
 }

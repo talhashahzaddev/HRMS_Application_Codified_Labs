@@ -110,6 +110,73 @@ ALTER TABLE ONLY admin.system_jobs
 -- SCHEMA: AUTH
 -- ============================================================
 
+
+ALTER TABLE auth.roles
+DROP CONSTRAINT roles_pkey;
+
+
+ALTER TABLE auth.roles
+ADD CONSTRAINT roles_pkey
+PRIMARY KEY (roleid, organizationid);
+
+
+ALTER TABLE auth.permissions
+ADD CONSTRAINT uq_permissions
+UNIQUE(roleid, actionid, organizationid);
+
+
+ALTER TABLE auth.permissions
+ADD CONSTRAINT uq_permissions_role_action_org
+UNIQUE (roleid, actionid, organizationid);
+
+
+ALTER TABLE auth.permissions
+ADD CONSTRAINT fk_permissions_role
+FOREIGN KEY (roleid, organizationid)
+REFERENCES auth.roles(roleid, organizationid);
+
+
+CREATE TABLE IF NOT EXISTS auth.global_roles
+(
+    roleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    rolename varchar(100) NOT NULL,
+    description text,
+    version integer NOT NULL DEFAULT 1,
+    isactive boolean DEFAULT true,
+    createdat timestamptz DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamptz DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT global_roles_pkey PRIMARY KEY (roleid),
+    CONSTRAINT uq_global_roles UNIQUE (rolename)
+);
+
+
+
+CREATE TABLE IF NOT EXISTS auth.global_role_permissions
+(
+    permissionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    roleid uuid NOT NULL,
+    actionid uuid NOT NULL,
+    has_permission boolean DEFAULT false,
+    createdat timestamptz DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamptz DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT global_role_permissions_pkey
+        PRIMARY KEY (permissionid),
+
+    CONSTRAINT fk_grp_role
+        FOREIGN KEY (roleid)
+        REFERENCES auth.global_roles(roleid),
+
+    CONSTRAINT fk_grp_action
+        FOREIGN KEY (actionid)
+        REFERENCES auth.actions(actionid),
+
+    CONSTRAINT uq_global_role_action
+        UNIQUE (roleid, actionid)
+);
+
+
 -- Table: auth.actions
 CREATE TABLE auth.actions (
     actionid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
