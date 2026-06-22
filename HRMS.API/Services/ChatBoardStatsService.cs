@@ -9,6 +9,8 @@ using NPOI.HSSF.Record.Aggregates;
 using System;
 using System.Linq;
 using System.Reflection.Metadata.Ecma335;
+using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -99,12 +101,7 @@ namespace HRMS.API.Services
                 case ChatIntent.ApplyForLeave:
                     return await HandleApplyForLeave(employeeId, organizationId);
                 case ChatIntent.GetPayslip:
-                    return new ChatResponseDto
-                    {
-                        Intent = ChatIntent.Unknown,
-                        ResponseText = "I am an HR assistant and can only help with HR-related queries.\r\nPlease ask about attendance, leave, holidays, timesheets, payroll, expenses, jobs, assets, subscription, performance, or HR policies.",
-                        Module = module
-                    };
+                    return await HandleGetPayslip(employeeId, organizationId, userMessage, baseUrl);
                 case ChatIntent.EmployeeInfo:
                     return await HandleGetEmployeeInfo(employeeId, organizationId);
                 case ChatIntent.GetMySkills:
@@ -942,50 +939,475 @@ namespace HRMS.API.Services
             };
         }
 
-        //private Task<ChatResponseDto> HandleGetPayslip(Guid employeeId, Guid organizationId, string userMessage, string baseUrl)
-        //{
-        //    return HandleGetPayslipInternal(employeeId, userMessage, baseUrl);
-        //}
+        private async Task<ChatResponseDto> HandleGetPayslip(
+            Guid employeeId,
+            Guid organizationId,
+            string userMessage,
+            string baseUrl)
+        {
+            try
+            {
+                var verifyUrl = BuildVerifyLink(baseUrl, "/payroll/my-payslips");
 
-        //private async Task<ChatResponseDto> HandleGetPayslipInternal(Guid employeeId, string userMessage, string baseUrl)
-        //{
-        //    try
-        //    {
-        //        var verifyUrl = BuildVerifyLink(baseUrl, "/payroll/payslip");
-        //        var result = await _payrollRepository.GetPayrollEntriesByEmployeeAsync(employeeId, 1, 1);
-        //        var latest = result.Data?.FirstOrDefault();
-        //        if (latest == null)
-        //        {
-        //            return new ChatResponseDto
-        //            {
-        //                Intent = ChatIntent.GetPayslip,
-        //                ResponseText = $"No, no payroll entry or payslip data is available for your profile yet. Verify here: {verifyUrl}",
-        //                Module = "Payroll"
-        //            };
-        //        }
+                if (IsBasicSalaryQuestion(userMessage))
+                {
+                    return await BuildBasicSalaryResponse(employeeId, verifyUrl);
+                }
 
-        //        var message = IsYesNoQuestion(userMessage)
-        //            ? $"Yes, your latest payslip is available for {latest.PeriodName}. Status: {latest.Status}. Verify here: {verifyUrl}"
-        //            : $"Latest payslip: {latest.PeriodName}. Net Salary: {latest.NetSalary:0.##} {latest.Currency}. Gross: {latest.GrossSalary:0.##}, Tax: {latest.TaxAmount:0.##}. Status: {latest.Status}.\nVerify here: {verifyUrl}";
+                if (IsPayslipQuestion(userMessage))
+                {
+                    return await BuildPayslipResponse(employeeId, organizationId, userMessage, verifyUrl);
+                }
 
-        //        return new ChatResponseDto
-        //        {
-        //            Intent = ChatIntent.GetPayslip,
-        //            ResponseText = message,
-        //            Module = "Payroll"
-        //        };
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        _logger.LogError(ex, "Failed to fetch payslip for employee {EmployeeId}", employeeId);
-        //        return new ChatResponseDto
-        //        {
-        //            Intent = ChatIntent.GetPayslip,
-        //            ResponseText = "Error fetching payslip details.",
-        //            Module = "Payroll"
-        //        };
-        //    }
-        //}
+                var periodName = TryExtractPeriodName(userMessage);
+                if (!string.IsNullOrWhiteSpace(periodName))
+                {
+                    return await BuildPayrollForPeriod(employeeId, organizationId, periodName, verifyUrl);
+                }
+
+                if (IsDeductionBreakdownQuestion(userMessage))
+                {
+                    return await BuildPayrollBreakdown(employeeId, organizationId, verifyUrl);
+                }
+
+                if (IsPayrollHistoryQuestion(userMessage))
+                {
+                    return await BuildPayrollHistory(employeeId, organizationId, userMessage, verifyUrl);
+                }
+
+                return await BuildLatestPayrollSummary(employeeId, organizationId, userMessage, verifyUrl);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch payroll details for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetPayslip,
+                    ResponseText = "Error fetching payroll details.",
+                    Module = "Payroll"
+                };
+            }
+        }
+
+        private static bool IsBasicSalaryQuestion(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return false;
+            var text = message.Trim().ToLowerInvariant();
+            if (text.Contains("payslip") || text.Contains("salary slip")) return false;
+            if (text.Contains("deduction") || text.Contains("breakdown") || text.Contains("history")) return false;
+            if (text.Contains("last payroll") || text.Contains("latest payroll") || text.Contains("recent payroll")) return false;
+            if (text.Contains("net salary") && !text.Contains("basic")) return false;
+            return text.Contains("basic salary")
+                || text.Contains("my salary")
+                || (text.Contains("salary") && text.Contains("what"));
+        }
+
+        private static bool IsPayslipQuestion(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return false;
+            var text = message.Trim().ToLowerInvariant();
+            return text.Contains("payslip")
+                || text.Contains("salary slip")
+                || (text.Contains("download") && text.Contains("salary"));
+        }
+
+        private static bool IsDeductionBreakdownQuestion(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return false;
+            var text = message.Trim().ToLowerInvariant();
+            return text.Contains("deduction")
+                || text.Contains("breakdown")
+                || (text.Contains("details") && (text.Contains("payroll") || text.Contains("salary")));
+        }
+
+        private static bool IsPayrollHistoryQuestion(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return false;
+            var text = message.Trim().ToLowerInvariant();
+            return text.Contains("history")
+                || text.Contains("previous payroll")
+                || text.Contains("recent payroll")
+                || text.Contains("last 3")
+                || text.Contains("last three")
+                || (text.Contains("last") && text.Contains("payrolls"));
+        }
+
+        private static string? TryExtractPeriodName(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return null;
+
+            var text = message.Trim();
+            var monthMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["january"] = "January", ["jan"] = "January",
+                ["february"] = "February", ["feb"] = "February",
+                ["march"] = "March", ["mar"] = "March",
+                ["april"] = "April", ["apr"] = "April",
+                ["may"] = "May",
+                ["june"] = "June", ["jun"] = "June",
+                ["july"] = "July", ["jul"] = "July",
+                ["august"] = "August", ["aug"] = "August",
+                ["september"] = "September", ["sep"] = "September", ["sept"] = "September",
+                ["october"] = "October", ["oct"] = "October",
+                ["november"] = "November", ["nov"] = "November",
+                ["december"] = "December", ["dec"] = "December"
+            };
+
+            var lower = text.ToLowerInvariant();
+            foreach (var month in monthMap.Keys.OrderByDescending(k => k.Length))
+            {
+                var idx = lower.IndexOf(month, StringComparison.Ordinal);
+                if (idx < 0) continue;
+
+                var yearMatch = System.Text.RegularExpressions.Regex.Match(
+                    text.Substring(idx),
+                    @"(20\d{2})");
+                if (yearMatch.Success)
+                {
+                    return monthMap[month] + " " + yearMatch.Groups[1].Value;
+                }
+            }
+
+            return null;
+        }
+
+        private static int ExtractHistoryCount(string? message)
+        {
+            if (string.IsNullOrWhiteSpace(message)) return 3;
+            var match = System.Text.RegularExpressions.Regex.Match(
+                message,
+                @"last\s+(\d+)",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success && int.TryParse(match.Groups[1].Value, out var count) && count > 0 && count <= 12)
+            {
+                return count;
+            }
+
+            if (message.Contains("last three", StringComparison.OrdinalIgnoreCase)) return 3;
+            return 3;
+        }
+
+        private async Task<ChatResponseDto> BuildBasicSalaryResponse(Guid employeeId, string verifyUrl)
+        {
+            var employee = await _employeeRepository.GetEmployeedetailsAsync(employeeId);
+            if (employee == null || !employee.BasicSalary.HasValue)
+            {
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetPayslip,
+                    ResponseText = $"No basic salary is recorded for your profile yet. Verify here: {verifyUrl}",
+                    Module = "Payroll"
+                };
+            }
+
+            var currency = string.IsNullOrWhiteSpace(employee.Currency) ? "USD" : employee.Currency;
+            var effectiveText = employee.SalaryEffectiveDate.HasValue
+                ? $" (effective from {employee.SalaryEffectiveDate.Value:dd MMM yyyy})"
+                : string.Empty;
+
+            return new ChatResponseDto
+            {
+                Intent = ChatIntent.GetPayslip,
+                ResponseText =
+                    $"Your current basic salary is {FormatMoney(employee.BasicSalary.Value, currency)}{effectiveText}.\nVerify here: {verifyUrl}",
+                Module = "Payroll"
+            };
+        }
+
+        private async Task<ChatResponseDto> BuildLatestPayrollSummary(
+            Guid employeeId,
+            Guid organizationId,
+            string userMessage,
+            string verifyUrl)
+        {
+            var result = await _payrollRepository.GetMyPayrollResultsAsync(
+                organizationId,
+                employeeId,
+                new MyPayrollResultsFilterDto { Page = 1, PageSize = 1 });
+
+            var latest = result.Data?.FirstOrDefault();
+            if (latest == null)
+            {
+                return await BuildNoPayrollWithBasicSalary(employeeId, verifyUrl);
+            }
+
+            var message = IsYesNoQuestion(userMessage)
+                ? $"Yes, your latest payroll is available for {latest.PeriodName}. Net salary: {FormatMoney(latest.NetSalary)}. Verify here: {verifyUrl}"
+                : $"Latest payroll — {latest.PeriodName}:\n"
+                  + $"• Basic salary: {FormatMoney(latest.BasicSalary)}\n"
+                  + $"• Bonuses: {FormatMoney(latest.TotalBonuses)}\n"
+                  + $"• Deductions: {FormatMoney(latest.TotalDeductions)}\n"
+                  + $"• Net salary: {FormatMoney(latest.NetSalary)}\n"
+                  + $"Calculated on: {latest.CalculatedAt:dd MMM yyyy}\n"
+                  + $"Verify here: {verifyUrl}";
+
+            return new ChatResponseDto
+            {
+                Intent = ChatIntent.GetPayslip,
+                ResponseText = message,
+                Module = "Payroll"
+            };
+        }
+
+        private async Task<ChatResponseDto> BuildPayrollHistory(
+            Guid employeeId,
+            Guid organizationId,
+            string userMessage,
+            string verifyUrl)
+        {
+            var count = ExtractHistoryCount(userMessage);
+            var result = await _payrollRepository.GetMyPayrollResultsAsync(
+                organizationId,
+                employeeId,
+                new MyPayrollResultsFilterDto { Page = 1, PageSize = count });
+
+            var items = result.Data?.ToList() ?? new List<PayrollResultItemDto>();
+            if (!items.Any())
+            {
+                return await BuildNoPayrollWithBasicSalary(employeeId, verifyUrl);
+            }
+
+            var lines = items.Select((x, i) =>
+                $"{i + 1}. {x.PeriodName} — Net: {FormatMoney(x.NetSalary)} (Basic: {FormatMoney(x.BasicSalary)}, Deductions: {FormatMoney(x.TotalDeductions)})");
+
+            return new ChatResponseDto
+            {
+                Intent = ChatIntent.GetPayslip,
+                ResponseText = "Your recent payroll history:\n" + string.Join("\n", lines) + $"\nVerify here: {verifyUrl}",
+                Module = "Payroll"
+            };
+        }
+
+        private async Task<ChatResponseDto> BuildPayrollBreakdown(
+            Guid employeeId,
+            Guid organizationId,
+            string verifyUrl)
+        {
+            var result = await _payrollRepository.GetMyPayrollResultsAsync(
+                organizationId,
+                employeeId,
+                new MyPayrollResultsFilterDto { Page = 1, PageSize = 1 });
+
+            var latest = result.Data?.FirstOrDefault();
+            if (latest == null)
+            {
+                return await BuildNoPayrollWithBasicSalary(employeeId, verifyUrl);
+            }
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"Payroll breakdown — {latest.PeriodName}:");
+            sb.AppendLine($"• Basic salary: {FormatMoney(latest.BasicSalary)}");
+            sb.AppendLine($"• Total bonuses: {FormatMoney(latest.TotalBonuses)}");
+            sb.AppendLine($"• Total deductions: {FormatMoney(latest.TotalDeductions)}");
+            sb.AppendLine($"• Net salary: {FormatMoney(latest.NetSalary)}");
+
+            AppendJsonSection(sb, "Loan deductions", latest.LoanDeductions);
+            AppendJsonSection(sb, "Salary advance deductions", latest.SalaryAdvanceDeductions);
+            AppendJsonSection(sb, "Provident fund", latest.PfDeductions);
+            AppendJsonSection(sb, "Tax", latest.TaxDeductions);
+            AppendJsonSection(sb, "Social security", latest.SocialSecurityDeductions);
+            AppendJsonSection(sb, "Attendance deductions", latest.AttendanceDeductions);
+            AppendJsonSection(sb, "Late attendance", latest.LateAttendanceDeductions);
+            AppendJsonSection(sb, "Leave deductions", latest.LeaveDeductions);
+            AppendJsonSection(sb, "Performance bonuses", latest.PerformanceBonuses);
+            AppendJsonSection(sb, "General bonuses", latest.GeneralBonuses);
+            AppendJsonSection(sb, "Gratuity", latest.Gratuity);
+            AppendJsonSection(sb, "Overtime", latest.OvertimeDetails);
+
+            sb.AppendLine($"Verify here: {verifyUrl}");
+
+            return new ChatResponseDto
+            {
+                Intent = ChatIntent.GetPayslip,
+                ResponseText = sb.ToString().TrimEnd(),
+                Module = "Payroll"
+            };
+        }
+
+        private async Task<ChatResponseDto> BuildPayrollForPeriod(
+            Guid employeeId,
+            Guid organizationId,
+            string periodName,
+            string verifyUrl)
+        {
+            var period = await _payrollRepository.GetPayrollPeriodByNameAsync(organizationId, periodName);
+            if (period == null)
+            {
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetPayslip,
+                    ResponseText = $"No payroll period named \"{periodName}\" was found. Verify here: {verifyUrl}",
+                    Module = "Payroll"
+                };
+            }
+
+            var payroll = await _payrollRepository.GetPayrollResultForEmployeePeriodAsync(
+                organizationId,
+                period.PeriodId,
+                employeeId);
+
+            if (payroll == null)
+            {
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetPayslip,
+                    ResponseText = $"No processed payroll was found for {period.PeriodName}. Verify here: {verifyUrl}",
+                    Module = "Payroll"
+                };
+            }
+
+            var message =
+                $"Payroll for {payroll.PeriodName}:\n"
+                + $"• Basic salary: {FormatMoney(payroll.BasicSalary)}\n"
+                + $"• Bonuses: {FormatMoney(payroll.TotalBonuses)}\n"
+                + $"• Deductions: {FormatMoney(payroll.TotalDeductions)}\n"
+                + $"• Net salary: {FormatMoney(payroll.NetSalary)}\n"
+                + $"Calculated on: {payroll.CalculatedAt:dd MMM yyyy}\n"
+                + $"Verify here: {verifyUrl}";
+
+            return new ChatResponseDto
+            {
+                Intent = ChatIntent.GetPayslip,
+                ResponseText = message,
+                Module = "Payroll"
+            };
+        }
+
+        private async Task<ChatResponseDto> BuildPayslipResponse(
+            Guid employeeId,
+            Guid organizationId,
+            string userMessage,
+            string verifyUrl)
+        {
+            var payslips = await _payrollRepository.GetMyPayslipsAsync(
+                organizationId,
+                employeeId,
+                new MyPayslipFilterDto { Page = 1, PageSize = 1 });
+
+            var latest = payslips.Data?.FirstOrDefault();
+            if (latest == null)
+            {
+                var payrollResult = await _payrollRepository.GetMyPayrollResultsAsync(
+                    organizationId,
+                    employeeId,
+                    new MyPayrollResultsFilterDto { Page = 1, PageSize = 1 });
+
+                var latestPayroll = payrollResult.Data?.FirstOrDefault();
+                if (latestPayroll == null)
+                {
+                    return await BuildNoPayrollWithBasicSalary(employeeId, verifyUrl);
+                }
+
+                var fallback = IsYesNoQuestion(userMessage)
+                    ? $"No, a downloadable payslip is not available yet for {latestPayroll.PeriodName}, but payroll has been calculated. Net salary: {FormatMoney(latestPayroll.NetSalary)}. Verify here: {verifyUrl}"
+                    : $"Payroll for {latestPayroll.PeriodName} is calculated (Net: {FormatMoney(latestPayroll.NetSalary)}), but a payslip PDF is not uploaded yet. Verify here: {verifyUrl}";
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetPayslip,
+                    ResponseText = fallback,
+                    Module = "Payroll"
+                };
+            }
+
+            var linkText = !string.IsNullOrWhiteSpace(latest.PayslipUploadUrl)
+                ? latest.PayslipUploadUrl
+                : verifyUrl;
+
+            var message = IsYesNoQuestion(userMessage)
+                ? $"Yes, your latest payslip is available for {latest.PeriodName}. Net salary: {FormatMoney(latest.NetSalary)}. View here: {linkText}"
+                : $"Latest payslip: {latest.PeriodName}. Basic: {FormatMoney(latest.BasicSalary)}, Net: {FormatMoney(latest.NetSalary)}.\nView here: {linkText}\nVerify here: {verifyUrl}";
+
+            return new ChatResponseDto
+            {
+                Intent = ChatIntent.GetPayslip,
+                ResponseText = message,
+                Module = "Payroll"
+            };
+        }
+
+        private async Task<ChatResponseDto> BuildNoPayrollWithBasicSalary(Guid employeeId, string verifyUrl)
+        {
+            var employee = await _employeeRepository.GetEmployeedetailsAsync(employeeId);
+            if (employee?.BasicSalary.HasValue == true)
+            {
+                var currency = string.IsNullOrWhiteSpace(employee.Currency) ? "USD" : employee.Currency;
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetPayslip,
+                    ResponseText =
+                        $"No processed payroll was found for your profile yet. Your current basic salary is {FormatMoney(employee.BasicSalary.Value, currency)}.\nVerify here: {verifyUrl}",
+                    Module = "Payroll"
+                };
+            }
+
+            return new ChatResponseDto
+            {
+                Intent = ChatIntent.GetPayslip,
+                ResponseText = $"No payroll data is available for your profile yet. Verify here: {verifyUrl}",
+                Module = "Payroll"
+            };
+        }
+
+        private static string FormatMoney(decimal amount, string currency = "USD") =>
+            $"{currency} {amount.ToString("N2", CultureInfo.InvariantCulture)}";
+
+        private static void AppendJsonSection(StringBuilder sb, string label, string? json)
+        {
+            var summary = SummarizeJsonDeductions(json);
+            if (string.IsNullOrWhiteSpace(summary)) return;
+            sb.AppendLine($"• {label}: {summary}");
+        }
+
+        private static string SummarizeJsonDeductions(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return string.Empty;
+            var trimmed = json.Trim();
+            if (trimmed is "[]" or "{}" or "null") return string.Empty;
+
+            try
+            {
+                using var doc = JsonDocument.Parse(trimmed);
+                if (doc.RootElement.ValueKind != JsonValueKind.Array || doc.RootElement.GetArrayLength() == 0)
+                {
+                    return string.Empty;
+                }
+
+                decimal total = 0m;
+                var itemCount = 0;
+                foreach (var el in doc.RootElement.EnumerateArray())
+                {
+                    if (el.ValueKind != JsonValueKind.Object) continue;
+                    itemCount++;
+                    foreach (var prop in el.EnumerateObject())
+                    {
+                        if (prop.Value.ValueKind != JsonValueKind.Number) continue;
+                        var name = prop.Name;
+                        if (name.Contains("Amount", StringComparison.OrdinalIgnoreCase)
+                            || name.Contains("Deduction", StringComparison.OrdinalIgnoreCase)
+                            || name.Contains("Tax", StringComparison.OrdinalIgnoreCase)
+                            || name.Contains("Bonus", StringComparison.OrdinalIgnoreCase)
+                            || name.Contains("Installment", StringComparison.OrdinalIgnoreCase)
+                            || name.Contains("Net", StringComparison.OrdinalIgnoreCase))
+                        {
+                            if (prop.Value.TryGetDecimal(out var d))
+                            {
+                                total += d;
+                            }
+                        }
+                    }
+                }
+
+                if (itemCount == 0) return string.Empty;
+                return itemCount == 1
+                    ? FormatMoney(total)
+                    : $"{FormatMoney(total)} ({itemCount} items)";
+            }
+            catch
+            {
+                return string.Empty;
+            }
+        }
 
         private async Task<ChatResponseDto> HandleGetMySkills(Guid employeeId, Guid organizationId)
         {

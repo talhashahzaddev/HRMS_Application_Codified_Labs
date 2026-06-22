@@ -191,7 +191,11 @@ namespace HRMS.API.Controllers
 
             var text = message.Trim().ToLowerInvariant();
 
-            if (text.Contains("payslip") || text.Contains("salary slip"))
+            if (text.Contains("payslip") || text.Contains("salary slip")
+                || text.Contains("basic salary") || text.Contains("my salary")
+                || text.Contains("net salary") || text.Contains("last payroll")
+                || text.Contains("payroll history") || text.Contains("salary deduction")
+                || (text.Contains("payroll") && (text.Contains("history") || text.Contains("deduction") || text.Contains("breakdown"))))
                 return (ChatIntent.GetPayslip, "Payroll");
 
             if (text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))

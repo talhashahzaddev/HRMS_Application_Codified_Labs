@@ -46,8 +46,9 @@ namespace HRMS.AI.Services
 
             // not implemented yet
             //-GetPayslip:
-            //     User wants to view or download payslip details including monthly salary,
-            //     deductions, allowances, payroll summary, or salary slip.
+            //     User wants their own salary or payroll information: basic salary, net salary,
+            //     last/latest payroll, payroll history, deduction breakdown, or payslip/salary slip.
+            //     NOT for admin payroll processing questions (those are Guidance / Payroll module).
             var prompt =
      $@"You are classifying HRMS user messages.
         Labels:
@@ -121,6 +122,11 @@ namespace HRMS.AI.Services
              - ApplyForLeave:
                User wants to apply for leave, submit a leave request, select leave type,
                choose leave dates, or check leave eligibility.
+
+             - GetPayslip:
+               User wants their own salary or payroll information: basic salary, net salary,
+               last/latest payroll, payroll history, deduction breakdown, or payslip/salary slip.
+               NOT for admin payroll processing questions (those are Guidance).
 
              - LeaveApplicationDetails:
                User provides leave application details such as leave type,
@@ -256,7 +262,11 @@ If the label is Guidance, Greeting, also determine the affected module, and if r
           var text = message.Trim().ToLowerInvariant();
 
           // Direct status/data queries should bypass Guidance.
-          if (text.Contains("payslip") || text.Contains("salary slip"))
+          if (text.Contains("payslip") || text.Contains("salary slip")
+              || text.Contains("basic salary") || text.Contains("my salary")
+              || text.Contains("net salary") || text.Contains("last payroll")
+              || text.Contains("payroll history") || text.Contains("salary deduction")
+              || (text.Contains("payroll") && (text.Contains("history") || text.Contains("deduction") || text.Contains("breakdown"))))
             return new IntentDetectionResult { Intent = ChatIntent.GetPayslip };
 
           if (text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))

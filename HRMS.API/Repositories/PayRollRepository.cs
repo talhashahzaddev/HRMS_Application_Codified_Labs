@@ -11069,6 +11069,93 @@ ORDER BY l.createdat DESC;";
         });
     }
 
+    public async Task<PagedResult<PayrollResultItemDto>> GetMyPayrollResultsAsync(
+        Guid organizationId,
+        Guid employeeId,
+        MyPayrollResultsFilterDto filter)
+    {
+        filter ??= new MyPayrollResultsFilterDto();
+        if (filter.PageSize <= 0) filter.PageSize = 10;
+        if (filter.Page <= 0) filter.Page = 1;
+
+        const string countSql = @"
+            SELECT COUNT(1)
+            FROM payroll.payrollresults pr
+            WHERE pr.organizationid = @organizationId
+              AND pr.employeeid = @employeeId;";
+
+        const string sql = @"
+            SELECT 
+                pr.resultid AS ResultId, pr.organizationid, pr.employeeid, pr.periodid, pr.basicsalary, pr.totaldeductions, 
+                pr.totalbonuses, pr.netsalary, pr.loandeductions, pr.salaryadvancedeductions, pr.pfdeductions, 
+                pr.socialsecuritydeductions, pr.taxdeductions, pr.attendancedeductions, pr.lateattendancedeductions, pr.leavedeductions, 
+                pr.performancebonuses, pr.generalbonuses, pr.gratuity, pr.overtimedetails, pr.calculatedat,
+                COALESCE(pp.periodname, '') AS PeriodName,
+                e.firstname || ' ' || e.lastname AS EmployeeName,
+                e.employeecode AS EmployeeCode,
+                COALESCE(d.departmentname, '') AS DepartmentName,
+                d.departmentid AS DepartmentId,
+                0 AS TotalCount
+            FROM payroll.payrollresults pr
+            INNER JOIN payroll.payrollperiods pp ON pp.periodid = pr.periodid AND pp.organizationid = pr.organizationid
+            INNER JOIN employee.employees e ON e.employeeid = pr.employeeid
+            LEFT JOIN employee.employmentdetails ed ON ed.employeeid = e.employeeid AND ed.iscurrent = true
+            LEFT JOIN employee.departments d ON d.departmentid = ed.departmentid
+            WHERE pr.organizationid = @organizationId
+              AND pr.employeeid = @employeeId
+            ORDER BY pr.calculatedat DESC
+            LIMIT @PageSize OFFSET @Offset;";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("organizationId", organizationId);
+        parameters.Add("employeeId", employeeId);
+        parameters.Add("PageSize", filter.PageSize);
+        parameters.Add("Offset", (filter.Page - 1) * filter.PageSize);
+
+        var totalCount = await QuerySingleAsync<int>(countSql, parameters);
+        var data = (await QueryAsync<PayrollResultItemDto>(sql, parameters)).ToList();
+
+        return new PagedResult<PayrollResultItemDto>
+        {
+            Data = data,
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<PayrollPeriodDto?> GetPayrollPeriodByNameAsync(Guid organizationId, string periodName)
+    {
+        if (string.IsNullOrWhiteSpace(periodName))
+        {
+            return null;
+        }
+
+        const string sql = @"
+            SELECT 
+                p.periodid AS PeriodId,
+                p.organizationid AS OrganizationId,
+                p.periodname AS PeriodName,
+                p.startdate AS StartDate,
+                p.enddate AS EndDate,
+                p.paymentdate AS PaymentDate,
+                p.status AS Status,
+                p.description AS Description,
+                p.isactive AS IsActive,
+                p.createdby AS CreatedBy,
+                e.firstname || ' ' || e.lastname AS CreatedByEmployeeName,
+                p.createdat AS CreatedAt,
+                p.updatedat AS UpdatedAt
+            FROM payroll.payrollperiods p
+            LEFT JOIN employee.Employees e ON p.createdby = e.employeeid
+            WHERE p.organizationid = @organizationId
+              AND LOWER(TRIM(p.periodname)) = LOWER(TRIM(@periodName))
+              AND p.isdeleted = false
+            LIMIT 1;";
+
+        return await QuerySingleOrDefaultAsync<PayrollPeriodDto>(sql, new { organizationId, periodName });
+    }
+
     public async Task<PagedResult<MyPayslipDto>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter)
     {
         filter ??= new MyPayslipFilterDto();

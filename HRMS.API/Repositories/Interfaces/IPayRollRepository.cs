@@ -313,4 +313,6 @@ public interface IPayRollRepository
         DateTime? mailsentat,
         Guid mailsentby);
     Task<PagedResult<MyPayslipDto>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter);
+    Task<PagedResult<PayrollResultItemDto>> GetMyPayrollResultsAsync(Guid organizationId, Guid employeeId, MyPayrollResultsFilterDto filter);
+    Task<PayrollPeriodDto?> GetPayrollPeriodByNameAsync(Guid organizationId, string periodName);
 }
