@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Bibliography;
 using HRMS.AI.Models;
 using HRMS.AI.Models.Enums;
 using HRMS.API.Models.DTOs;
@@ -84,6 +84,12 @@ namespace HRMS.API.Services
                     return await HandleGetExpenseStatus(employeeId, organizationId, userMessage, baseUrl);
                 case ChatIntent.GetJobsStatus:
                     return await HandleGetJobsStatus(employeeId, organizationId, baseUrl);
+                case ChatIntent.GetMyJobApplications:
+                    return await HandleGetMyJobApplications(employeeId, organizationId, userMessage, baseUrl);
+                case ChatIntent.GetMyReferredApplications:
+                    return await HandleGetMyReferredApplications(employeeId, organizationId, userMessage, baseUrl);
+                case ChatIntent.GetJobApplicationDetail:
+                    return await HandleGetJobApplicationDetail(employeeId, organizationId, userMessage, baseUrl);
                 case ChatIntent.GetNewsUpdates:
                     return await HandleGetNewsUpdates(employeeId, organizationId, userMessage, baseUrl);
                 case ChatIntent.GetMyAssets:
@@ -200,19 +206,22 @@ namespace HRMS.API.Services
         {
             try
             {
-            var verifyUrl = BuildVerifyLink(baseUrl, "/jobs/applied");
+                var verifyUrl = BuildVerifyLink(baseUrl, "/jobs/applied");
+                var openingsUrl = BuildVerifyLink(baseUrl, "/jobs/openings");
                 var openings = (await _jobsRepository.GetAllJobOpeningsAsync(organizationId)).ToList();
                 var myApplications = (await _jobsRepository.GetJobApplicationsByEmployeeIdAsync(employeeId)).ToList();
 
                 var openPositions = openings.Count(x => string.Equals(x.Status, "open", StringComparison.OrdinalIgnoreCase));
-                var activeApplications = myApplications.Count(x =>
-                    !string.Equals(x.Status, "rejected", StringComparison.OrdinalIgnoreCase)
-                    && !string.Equals(x.Status, "closed", StringComparison.OrdinalIgnoreCase));
+                var closedPositions = openings.Count(x => string.Equals(x.Status, "closed", StringComparison.OrdinalIgnoreCase));
+                var selfApplied = myApplications.Count(x => x.EmployeeId == employeeId);
+                var referred = myApplications.Count(x => x.EmployeeId == employeeId && !(x.CandidateName == null));
 
                 var latestApplications = myApplications
                     .OrderByDescending(x => x.CreatedDate ?? x.UpdatedDate)
                     .Take(3)
-                    .Select((x, i) => $"{i + 1}. {x.JobRoleName ?? "Job"} - {x.Status}");
+                    .Select((x, i) => $"{i + 1}. {x.JobRoleName ?? "Job"} - Status: {x.Status}" +
+                        (x.CurrentStageName != null ? $", Stage: {x.CurrentStageName}" : "") +
+                        (x.PassedKnockout.HasValue ? $", Knockout: {(x.PassedKnockout.Value ? "Passed ✓" : "Failed ✗")}" : ""));
 
                 var applicationsSection = latestApplications.Any()
                     ? "\nRecent applications:\n" + string.Join("\n", latestApplications)
@@ -222,7 +231,11 @@ namespace HRMS.API.Services
                 {
                     Intent = ChatIntent.GetJobsStatus,
                     ResponseText =
-                        $"Jobs summary: {openPositions} open positions in your organization. You have {myApplications.Count} application(s), with {activeApplications} active." + applicationsSection + $"\nVerify here: {verifyUrl}",
+                        $"Jobs overview: {openPositions} open position(s), {closedPositions} closed in your organization. " +
+                        $"You have {myApplications.Count} application(s)." +
+                        applicationsSection +
+                        $"\nView applications: {verifyUrl}" +
+                        $"\nView openings: {openingsUrl}",
                     Module = "JobsManagement"
                 };
             }
@@ -233,6 +246,245 @@ namespace HRMS.API.Services
                 {
                     Intent = ChatIntent.GetJobsStatus,
                     ResponseText = "Error fetching jobs status.",
+                    Module = "JobsManagement"
+                };
+            }
+        }
+
+        private async Task<ChatResponseDto> HandleGetMyJobApplications(Guid employeeId, Guid organizationId, string userMessage, string baseUrl)
+        {
+            try
+            {
+                var verifyUrl = BuildVerifyLink(baseUrl, "/jobs/applied");
+                // Fetch self-applied applications (isSelf = true)
+                var pagedResult = await _jobsRepository.GetMySelfJobApplicationsByEmployeeIdPagedAsync(employeeId, null, null, null, 1, 10);
+                var applications = pagedResult?.Data?.ToList() ?? new List<JobApplicationDto>();
+
+                if (!applications.Any())
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetMyJobApplications,
+                        ResponseText = $"You have not applied for any jobs yet. Browse open positions here: {BuildVerifyLink(baseUrl, "/jobs/openings")}",
+                        Module = "JobsManagement"
+                    };
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"You have {pagedResult!.TotalCount} self-applied job application(s). Here are your most recent:");
+                sb.AppendLine();
+
+                foreach (var (app, idx) in applications.Take(5).Select((a, i) => (a, i + 1)))
+                {
+                    sb.AppendLine($"{idx}. {app.JobRoleName ?? "Job"} ({app.JobCode ?? "N/A"})");
+                    sb.AppendLine($"   Status       : {app.Status}");
+
+                    if (app.CurrentStageName != null)
+                        sb.AppendLine($"   Current Stage: {app.CurrentStageName}");
+
+                    if (app.PassedKnockout.HasValue)
+                        sb.AppendLine($"   Knockout     : {(app.PassedKnockout.Value ? "Passed ✓" : "Failed ✗")}");
+
+                    if (app.MatchScore.HasValue)
+                        sb.AppendLine($"   ATS Score    : {app.MatchScore.Value:0.#}/100");
+
+                    if (app.CreatedDate.HasValue)
+                        sb.AppendLine($"   Applied On   : {app.CreatedDate.Value:dd MMM yyyy}");
+
+                    sb.AppendLine();
+                }
+
+                if (pagedResult.TotalCount > 5)
+                    sb.AppendLine($"Showing 5 of {pagedResult.TotalCount} applications.");
+
+                sb.AppendLine($"View all: {verifyUrl}");
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMyJobApplications,
+                    ResponseText = sb.ToString().Trim(),
+                    Module = "JobsManagement"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch self-applied job applications for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMyJobApplications,
+                    ResponseText = "Error fetching your job applications.",
+                    Module = "JobsManagement"
+                };
+            }
+        }
+
+        private async Task<ChatResponseDto> HandleGetMyReferredApplications(Guid employeeId, Guid organizationId, string userMessage, string baseUrl)
+        {
+            try
+            {
+                var verifyUrl = BuildVerifyLink(baseUrl, "/jobs/applied");
+                // Fetch applications referred by this employee (isself=false, employeeId linked)
+                var pagedResult = await _jobsRepository.GetJobApplicationsByEmployeeIdPagedAsync(employeeId, null, null, null, 1, 10);
+                var applications = pagedResult?.Data?.ToList() ?? new List<JobApplicationDto>();
+
+                if (!applications.Any())
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetMyReferredApplications,
+                        ResponseText = "You have not referred any candidates yet.",
+                        Module = "JobsManagement"
+                    };
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"You have referred {pagedResult!.TotalCount} candidate(s). Here are the most recent:");
+                sb.AppendLine();
+
+                foreach (var (app, idx) in applications.Take(5).Select((a, i) => (a, i + 1)))
+                {
+                    sb.AppendLine($"{idx}. Candidate: {app.CandidateName ?? "N/A"} → Role: {app.JobRoleName ?? "Job"} ({app.JobCode ?? "N/A"})");
+                    sb.AppendLine($"   Application Status: {app.Status}");
+
+                    if (app.CurrentStageName != null)
+                        sb.AppendLine($"   Current Stage     : {app.CurrentStageName}");
+
+                    if (app.PassedKnockout.HasValue)
+                        sb.AppendLine($"   Knockout          : {(app.PassedKnockout.Value ? "Passed ✓" : "Failed ✗")}");
+
+                    if (app.MatchScore.HasValue)
+                        sb.AppendLine($"   ATS Score         : {app.MatchScore.Value:0.#}/100");
+
+                    if (app.CreatedDate.HasValue)
+                        sb.AppendLine($"   Referred On       : {app.CreatedDate.Value:dd MMM yyyy}");
+
+                    sb.AppendLine();
+                }
+
+                if (pagedResult.TotalCount > 5)
+                    sb.AppendLine($"Showing 5 of {pagedResult.TotalCount} referrals.");
+
+                sb.AppendLine($"View all referred applications: {verifyUrl}");
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMyReferredApplications,
+                    ResponseText = sb.ToString().Trim(),
+                    Module = "JobsManagement"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch referred applications for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMyReferredApplications,
+                    ResponseText = "Error fetching your referred applications.",
+                    Module = "JobsManagement"
+                };
+            }
+        }
+
+        private async Task<ChatResponseDto> HandleGetJobApplicationDetail(Guid employeeId, Guid organizationId, string userMessage, string baseUrl)
+        {
+            try
+            {
+                var verifyUrl = BuildVerifyLink(baseUrl, "/jobs/applied");
+                // Fetch the most recent application (self or referred) to show detail
+                var allApplications = (await _jobsRepository.GetJobApplicationsByEmployeeIdAsync(employeeId)).ToList();
+
+                if (!allApplications.Any())
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetJobApplicationDetail,
+                        ResponseText = $"You do not have any job applications yet. Browse open jobs here: {BuildVerifyLink(baseUrl, "/jobs/openings")}",
+                        Module = "JobsManagement"
+                    };
+                }
+
+                // Find the most recent application
+                var app = allApplications
+                    .OrderByDescending(x => x.UpdatedDate ?? x.CreatedDate)
+                    .First();
+
+                // Try to get application stages
+                IEnumerable<ApplicationStageDto>? stages = null;
+                try
+                {
+                    stages = await _jobsRepository.GetApplicationStagesByJobApplyIdAsync(app.JobApplyId);
+                }
+                catch
+                {
+                    // stages not critical
+                }
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"Most Recent Application Detail");
+                sb.AppendLine($"━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                sb.AppendLine($"Role        : {app.JobRoleName ?? "N/A"} ({app.JobCode ?? "N/A"})");
+                sb.AppendLine($"Status      : {app.Status}");
+
+                if (app.CurrentStageName != null)
+                    sb.AppendLine($"Stage       : {app.CurrentStageName}");
+                else
+                    sb.AppendLine($"Stage       : Not yet in hiring pipeline");
+
+                // Knockout status
+                if (app.PassedKnockout.HasValue)
+                    sb.AppendLine($"Knockout    : {(app.PassedKnockout.Value ? "Passed ✓ — you cleared the screening questions" : "Failed ✗ — did not pass the screening questions")}");
+                else
+                    sb.AppendLine($"Knockout    : Not evaluated yet");
+
+                // ATS / Match Score
+                if (app.MatchScore.HasValue)
+                    sb.AppendLine($"ATS Score   : {app.MatchScore.Value:0.#}/100 (resume-to-job match)");
+                else
+                    sb.AppendLine($"ATS Score   : Not scored yet");
+
+                // Entered to stage
+                sb.AppendLine($"In Pipeline : {(app.EnteredToStage ? "Yes — entered hiring pipeline" : "Not yet moved to hiring pipeline")}");
+
+                if (app.ApplicationSource != null)
+                    sb.AppendLine($"Source      : {app.ApplicationSource}");
+
+                if (app.CreatedDate.HasValue)
+                    sb.AppendLine($"Applied On  : {app.CreatedDate.Value:dd MMM yyyy}");
+
+                if (app.UpdatedDate.HasValue)
+                    sb.AppendLine($"Last Update : {app.UpdatedDate.Value:dd MMM yyyy}");
+
+                // Hiring stage history
+                var stageList = stages?.OrderBy(s => s.UpdatedOn).ToList();
+                if (stageList != null && stageList.Any())
+                {
+                    sb.AppendLine();
+                    sb.AppendLine($"Hiring Stage History ({stageList.Count} stage(s)):");
+                    foreach (var (st, i) in stageList.Select((s, i) => (s, i + 1)))
+                    {
+                        sb.AppendLine($"  {i}. {st.StageName ?? "Stage"}"
+                            + (st.InterviewDate.HasValue ? $" — Interview: {st.InterviewDate.Value:dd MMM yyyy}" : "")
+                            + (st.InterviewPlace != null ? $" at {st.InterviewPlace}" : ""));
+                    }
+                }
+
+                sb.AppendLine();
+                sb.AppendLine($"View full details: {verifyUrl}");
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetJobApplicationDetail,
+                    ResponseText = sb.ToString().Trim(),
+                    Module = "JobsManagement"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch job application detail for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetJobApplicationDetail,
+                    ResponseText = "Error fetching application details.",
                     Module = "JobsManagement"
                 };
             }

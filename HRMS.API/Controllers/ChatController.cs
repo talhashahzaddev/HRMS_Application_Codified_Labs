@@ -1,4 +1,4 @@
-﻿using HRMS.AI.Models;
+using HRMS.AI.Models;
 using HRMS.AI.Models.Enums;
 using HRMS.AI.Services.Interface;
 using HRMS.API.Models.DTOs;
@@ -218,6 +218,30 @@ namespace HRMS.API.Controllers
 
             if (text.Contains("restricted") && text.Contains("holiday") && (text.Contains("how") || text.Contains("select")))
                 return (ChatIntent.Guidance, "HolidayManagement");
+
+            // ---- Job intents (most specific first) ----
+
+            // ATS score / knockout / stage detail
+            if (text.Contains("ats score") || text.Contains("match score")
+                || text.Contains("knockout")
+                || (text.Contains("application") && text.Contains("stage") && (text.Contains("my") || text.Contains("what") || text.Contains("current")))
+                || (text.Contains("application") && text.Contains("detail") && text.Contains("my")))
+                return (ChatIntent.GetJobApplicationDetail, "JobsManagement");
+
+            // Referred applications
+            if (text.Contains("my refer") || text.Contains("i referred") || text.Contains("my referral")
+                || (text.Contains("refer") && (text.Contains("application") || text.Contains("candidate") || text.Contains("status"))))
+                return (ChatIntent.GetMyReferredApplications, "JobsManagement");
+
+            // Self-applied applications
+            if ((text.Contains("my job application") || text.Contains("my self application") || text.Contains("jobs i applied"))
+                || (text.Contains("my recent job") && (text.Contains("application") || text.Contains("applied")))
+                || (text.Contains("show me my") && text.Contains("application") && !text.Contains("refer")))
+                return (ChatIntent.GetMyJobApplications, "JobsManagement");
+
+            // General jobs summary fallback
+            if ((text.Contains("job application") || text.Contains("job")) && text.Contains("status"))
+                return (ChatIntent.GetJobsStatus, "JobsManagement");
 
             return null;
         }

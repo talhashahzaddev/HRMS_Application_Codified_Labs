@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -15,6 +15,9 @@ namespace HRMS.AI.Models.Enums
         GetTimesheetStatus,
         GetExpenseStatus,
         GetJobsStatus,
+        GetMyJobApplications,
+        GetMyReferredApplications,
+        GetJobApplicationDetail,
         GetNewsUpdates,
         GetMyAssets,
         GetSubscriptionStatus,
