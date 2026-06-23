@@ -14,7 +14,7 @@ namespace HRMS.API.Controllers;
 /// Employee Onboarding API
 ///
 /// All endpoints derive the current user from the JWT token (ClaimTypes.NameIdentifier).
-/// The userId is resolved to an employeeId via EmployeeRepository.getemployeeid().
+/// The userId is resolved to an employeeId via EmployeeRepository.GetEmployeeIdAsync().
 ///
 /// Flow:
 ///   GET  /api/onboarding/my-status           → Pre-fill UI with existing data

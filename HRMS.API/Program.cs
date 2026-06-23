@@ -52,6 +52,8 @@ builder.Services.AddControllers()
         // converts timestamps into the company-configured timezone.
         options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonDateTimeConverter());
         options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonNullableDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonDateTimeOffsetConverter());
+        options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonNullableDateTimeOffsetConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -277,6 +279,10 @@ builder.Services.AddScoped<IDomainRepository, DomainRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IIpAddressRepository, IpAddressRepository>();
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
+builder.Services.AddScoped<ITimesheetRepository, TimesheetRepository>();
+builder.Services.AddScoped<ITimesheetConfigRepository, TimesheetConfigRepository>();
+builder.Services.AddScoped<ITimesheetService, TimesheetService>();
+builder.Services.AddScoped<ITimesheetWorkflowRepository, TimesheetWorkflowRepository>();
 builder.Services.AddScoped<ILeaveRepository, LeaveRepository>();
 builder.Services.AddScoped<IPerformanceRepository, PerformanceRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();

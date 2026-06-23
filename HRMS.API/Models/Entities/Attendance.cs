@@ -14,16 +14,16 @@ public class Attendance : BaseEntity
     public Guid EmployeeId { get; set; }
     
     [Column("work_date")]
-    public DateTime WorkDate { get; set; }
-    
+    public DateTimeOffset WorkDate { get; set; }
+
     [NotMapped]
-    public DateTime Date { get; set; }
-    
+    public DateTimeOffset Date { get; set; }
+
     [Column("check_in_time")]
-    public DateTime? CheckInTime { get; set; }
-    
+    public DateTimeOffset? CheckInTime { get; set; }
+
     [Column("check_out_time")]
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     
     [NotMapped]
     public string? CheckInLocation { get; set; }
@@ -32,10 +32,10 @@ public class Attendance : BaseEntity
     public string? CheckOutLocation { get; set; }
     
     [Column("break_start_time")]
-    public DateTime? BreakStartTime { get; set; }
-    
+    public DateTimeOffset? BreakStartTime { get; set; }
+
     [Column("break_end_time")]
-    public DateTime? BreakEndTime { get; set; }
+    public DateTimeOffset? BreakEndTime { get; set; }
     
     [Column("total_hours")]
     public decimal TotalHours { get; set; } = 0;
@@ -54,6 +54,9 @@ public class Attendance : BaseEntity
     
     [Column("notes")]
     public string? Notes { get; set; }
+
+    [Column("attendance_state")]
+    public string AttendanceState { get; set; } = "not_started";
     
     [NotMapped]
     public bool IsManualEntry { get; set; }
@@ -62,7 +65,7 @@ public class Attendance : BaseEntity
     public Guid? ApprovedBy { get; set; }
     
     [Column("approved_at")]
-    public DateTime? ApprovedAt { get; set; }
+    public DateTimeOffset? ApprovedAt { get; set; }
 
     // Navigation properties
     [NotMapped]

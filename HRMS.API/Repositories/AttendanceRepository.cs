@@ -1316,11 +1316,30 @@ ORDER BY ed.employeename, ed.workdate ASC";
     {
         try
         {
+            // Shift-aware overtime: compute expected shift hours from the employee's
+            // assigned shift, handling overnight shifts and subtracting break duration.
             var sql = @"
+        WITH emp_shift AS (
+            SELECT s.starttime, s.endtime, s.breakduration
+            FROM employee.employmentdetails ed
+            JOIN attendance.shifts s ON ed.shiftid = s.shiftid
+            WHERE ed.employeeid = @employeeId AND ed.iscurrent = true
+        ),
+        shift_hours AS (
+            SELECT CASE
+                WHEN es.endtime < es.starttime THEN
+                    EXTRACT(EPOCH FROM (es.endtime + interval '24 hours' - es.starttime)) / 3600
+                ELSE
+                    EXTRACT(EPOCH FROM (es.endtime - es.starttime)) / 3600
+            END - COALESCE(es.breakduration, 0) / 60.0 AS expected_hours
+            FROM emp_shift es
+        )
         UPDATE attendance.attendance
-        SET 
+        SET
             overtimehours = CASE
-                                WHEN totalhours > 8 THEN totalhours - 8
+                                WHEN (SELECT expected_hours FROM shift_hours) > 0
+                                     AND totalhours > (SELECT expected_hours FROM shift_hours)
+                                THEN totalhours - (SELECT expected_hours FROM shift_hours)
                                 ELSE 0
                             END,
             updatedat = NOW() AT TIME ZONE 'UTC'
@@ -2457,11 +2476,11 @@ ORDER BY ed.employeename, ed.workdate ASC";
         INSERT INTO attendance.shifts
         (organizationid, shiftname, starttime, endtime, applymarginhours, marginhours, grace_minutes,
          breakduration, breakstarttime, breakendtime,
-         overtimestarttime, maxovertimeinminutes, daysofweek, timezone, createdat)
+         overtimestarttime, maxovertimeinminutes, daysofweek, timezone, is_overnight, createdat)
         VALUES
         (@OrganizationId, @ShiftName, @StartTime, @EndTime, @ApplyMarginhours, @marginHours, @GraceMinutes,
          @BreakDuration, @BreakStartTime, @BreakEndTime,
-         @OvertimeStartTime, @MaxOvertimeInMinutes, @DaysofWeek, @Timezone, @CreatedAt);
+         @OvertimeStartTime, @MaxOvertimeInMinutes, @DaysofWeek, @Timezone, @IsOvernight, @CreatedAt);
     ";
 
             var parameters = new
@@ -2483,6 +2502,9 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
                 DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
                 Timezone = request.Timezone ?? "UTC",
+                IsOvernight = request.StartTime.HasValue && request.EndTime.HasValue
+                    ? request.EndTime.Value < request.StartTime.Value
+                    : false,
 
                 CreatedAt = createdAt
             };
@@ -2850,7 +2872,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
         try
         {
             var sql = @"
-       SELECT 
+       SELECT
     s.shiftid AS ""ShiftId"",
     s.organizationid AS ""OrganizationId"",
     s.shiftname AS ""ShiftName"",
@@ -2859,7 +2881,8 @@ ORDER BY ed.employeename, ed.workdate ASC";
     s.applymarginhours AS ""ApplyMarginhours"",
     s.marginhours AS ""marginHours"",
     s.breakduration AS ""BreakDuration"",
-    s.daysofweek AS ""DaysOfWeek""
+    s.daysofweek AS ""DaysOfWeek"",
+    s.is_overnight AS ""IsOvernight""
 FROM employee.employmentdetails ed
 INNER JOIN attendance.shifts s
     ON ed.shiftid = s.shiftid
@@ -2926,7 +2949,7 @@ WHERE ed.employeeid = @EmployeeId
         try
         {
             var sql = @"
-        SELECT 
+        SELECT
             shiftid AS ShiftId,
             organizationid AS OrganizationId,
             shiftname AS ShiftName,
@@ -2943,6 +2966,7 @@ WHERE ed.employeeid = @EmployeeId
             daysofweek AS DaysOfWeek,
             timezone AS Timezone,
             isactive AS IsActive,
+            is_overnight AS IsOvernight,
             createdat AS CreatedAt
         FROM attendance.shifts
         WHERE organizationid = @OrganizationId
@@ -3031,7 +3055,8 @@ WHERE ed.employeeid = @EmployeeId
             maxovertimeinminutes = @MaxOvertimeInMinutes,
             breakduration = @BreakDuration,
             daysofweek = @DaysofWeek,
-            timezone = @Timezone
+            timezone = @Timezone,
+            is_overnight = @IsOvernight
         WHERE
             organizationid = @OrganizationId AND shiftid = @ShiftId;
         ";
@@ -3052,7 +3077,10 @@ WHERE ed.employeeid = @EmployeeId
                 MaxOvertimeInMinutes = request.MaxOvertimeInMinutes,
                 BreakDuration = request.BreakDuration ?? 0,
                 DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
-                Timezone = request.Timezone ?? "UTC"
+                Timezone = request.Timezone ?? "UTC",
+                IsOvernight = request.StartTime.HasValue && request.EndTime.HasValue
+                    ? request.EndTime.Value < request.StartTime.Value
+                    : false
             };
 
             var rowsAffected = await ExecuteAsync(sql, parameters);

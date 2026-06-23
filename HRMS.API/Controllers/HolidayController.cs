@@ -127,7 +127,7 @@ public class HolidayController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var result = await _holidayService.CreateCompanyHolidayAsync(dto, organizationId, employeeId);
 
             if (!result.Success)
@@ -203,7 +203,7 @@ public class HolidayController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var result = await _holidayService.ImportFromCatalogAsync(dto, organizationId, employeeId);
 
             if (!result.Success)
@@ -281,7 +281,7 @@ public class HolidayController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var result = await _holidayService.GetHolidaysInRangeForEmployeeAsync(
                 organizationId, employeeId, null, null, start, end);
             return Ok(result);
@@ -369,7 +369,7 @@ public class HolidayController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var organizationId = GetCurrentOrganizationId();
             var targetYear = year ?? DateTime.UtcNow.Year;
             var result = await _holidayService.GetAvailableRestrictedHolidaysForEmployeeAsync(
@@ -392,7 +392,7 @@ public class HolidayController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var organizationId = GetCurrentOrganizationId();
             var targetYear = year ?? DateTime.UtcNow.Year;
             var result = await _holidayService.GetEmployeeRestrictedHolidaysAsync(employeeId, organizationId, targetYear);
@@ -414,7 +414,7 @@ public class HolidayController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var organizationId = GetCurrentOrganizationId();
             var result = await _holidayService.SelectRestrictedHolidayAsync(employeeId, organizationId, dto);
 
@@ -439,7 +439,7 @@ public class HolidayController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var result = await _holidayService.CancelRestrictedHolidayAsync(id, employeeId);
 
             if (!result.Success)
@@ -462,7 +462,7 @@ public class HolidayController : ControllerBase
     // Helper Methods
     // ========================
 
-    private Guid GetCurrentEmployeeId()
+    private async Task<Guid> GetCurrentEmployeeIdAsync()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -478,7 +478,7 @@ public class HolidayController : ControllerBase
             throw new UnauthorizedAccessException("Invalid user ID format");
         }
 
-        var employeeId = _employeeRepository.getemployeeid(userId).GetAwaiter().GetResult();
+        var employeeId = await _employeeRepository.GetEmployeeIdAsync(userId);
         if (employeeId == null)
         {
             _logger.LogError("Employee not found for User ID: {UserId}", userId);
