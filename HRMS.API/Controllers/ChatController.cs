@@ -219,7 +219,23 @@ namespace HRMS.API.Controllers
             if (text.Contains("restricted") && text.Contains("holiday") && (text.Contains("how") || text.Contains("select")))
                 return (ChatIntent.Guidance, "HolidayManagement");
 
-            // ---- Job intents (most specific first) ----
+            // ---- Expense intents (recurring FIRST to avoid false claims match) ----
+
+            // Recurring expenses — must check before claims
+            if (text.Contains("recurring expense") || text.Contains("recurring claim")
+                || (text.Contains("recurring") && (text.Contains("my") || text.Contains("show") || text.Contains("list") || text.Contains("expense"))))
+                return (ChatIntent.GetMyRecurringExpenses, "ExpensesManagement");
+
+            // My expense claims list — must NOT contain 'recurring'
+            if (!text.Contains("recurring")
+                && ((text.Contains("my expense") && (text.Contains("claim") || text.Contains("show") || text.Contains("list") || text.Contains("recent")))
+                    || text.Contains("show my claim") || text.Contains("my claims") || text.Contains("list my expense")))
+                return (ChatIntent.GetMyExpenseClaims, "ExpensesManagement");
+
+            // General expense status fallback
+            if (!text.Contains("recurring")
+                && text.Contains("expense") && (text.Contains("status") || text.Contains("reimb")))
+                return (ChatIntent.GetExpenseStatus, "ExpensesManagement");
 
             // ATS score / knockout / stage detail
             if (text.Contains("ats score") || text.Contains("match score")

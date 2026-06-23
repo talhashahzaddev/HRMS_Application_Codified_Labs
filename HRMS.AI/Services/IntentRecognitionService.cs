@@ -88,8 +88,18 @@ namespace HRMS.AI.Services
                pending review status, or monthly timesheet progress.
 
              - GetExpenseStatus:
-               User wants to check expense claims, claim status,
-               pending/approved/rejected expenses, or expense summary.
+               User wants a quick yes/no or summary of expense claims status.
+               Example: 'any pending expenses?', 'do I have expense claims?'.
+
+             - GetMyExpenseClaims:
+               User wants to list or view their expense claims (one-time expenses).
+               Example: 'show my expense claims', 'my recent expenses', 'show my claims',
+               'list my expense requests', 'what expenses did I submit'.
+
+             - GetMyRecurringExpenses:
+               User wants to see their recurring expense entries.
+               Example: 'show my recurring expenses', 'my recurring claims',
+               'do I have recurring expenses', 'list my recurring expense records'.
 
              - GetJobsStatus:
                User wants a general overview or summary of job openings and applications.
@@ -168,7 +178,7 @@ namespace HRMS.AI.Services
 If the label is Guidance, Greeting, also determine the affected module, and if related department of positions then also return EmployeeManagement. If label is Greeting then module is also Greeting. Possible modules: Greeting, Dashboard, EmployeeManagement, Attendance, Leave, HolidayManagement, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings, HRPolicies, AssetsManagement, AccountCreation, GlobalCalendar, NewsManagement, JobsManagement, ExpensesManagement, Subscription, Other.
 
         Return EXACT output in this format (no extra text):
-        Label: <Greeting|Guidance|GetHolidaySummary|GetMyRestrictedHolidays|GetTimesheetStatus|GetExpenseStatus|GetJobsStatus|GetMyJobApplications|GetMyReferredApplications|GetJobApplicationDetail|GetNewsUpdates|GetMyAssets|GetSubscriptionStatus|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
+        Label: <Greeting|Guidance|GetHolidaySummary|GetMyRestrictedHolidays|GetTimesheetStatus|GetExpenseStatus|GetMyExpenseClaims|GetMyRecurringExpenses|GetJobsStatus|GetMyJobApplications|GetMyReferredApplications|GetJobApplicationDetail|GetNewsUpdates|GetMyAssets|GetSubscriptionStatus|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
 
         User message:
         ""{message}"".
@@ -235,6 +245,8 @@ If the label is Guidance, Greeting, also determine the affected module, and if r
                   "GetMyRestrictedHolidays" => ChatIntent.GetMyRestrictedHolidays,
                   "GetTimesheetStatus" => ChatIntent.GetTimesheetStatus,
                     "GetExpenseStatus" => ChatIntent.GetExpenseStatus,
+                    "GetMyExpenseClaims" => ChatIntent.GetMyExpenseClaims,
+                    "GetMyRecurringExpenses" => ChatIntent.GetMyRecurringExpenses,
                     "GetJobsStatus" => ChatIntent.GetJobsStatus,
                     "GetMyJobApplications" => ChatIntent.GetMyJobApplications,
                     "GetMyReferredApplications" => ChatIntent.GetMyReferredApplications,
@@ -288,7 +300,23 @@ If the label is Guidance, Greeting, also determine the affected module, and if r
               || (text.Contains("payroll") && (text.Contains("history") || text.Contains("deduction") || text.Contains("breakdown"))))
             return new IntentDetectionResult { Intent = ChatIntent.GetPayslip };
 
-          if (text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))
+          // --- Expense intent rules (most specific first: recurring before claims) ---
+
+          // GetMyRecurringExpenses: check FIRST — user wants their recurring expenses
+          if (text.Contains("recurring expense") || text.Contains("recurring claim")
+              || (text.Contains("recurring") && (text.Contains("my") || text.Contains("show") || text.Contains("list") || text.Contains("expense"))))
+            return new IntentDetectionResult { Intent = ChatIntent.GetMyRecurringExpenses };
+
+          // GetMyExpenseClaims: check AFTER recurring — must NOT contain 'recurring'
+          if (!text.Contains("recurring")
+              && ((text.Contains("my expense") && (text.Contains("claim") || text.Contains("show") || text.Contains("list") || text.Contains("recent")))
+                  || text.Contains("show my claim") || text.Contains("my claims") || text.Contains("list my expense")
+                  || (text.Contains("expense") && text.Contains("submitted") && text.Contains("my"))))
+            return new IntentDetectionResult { Intent = ChatIntent.GetMyExpenseClaims };
+
+          // GetExpenseStatus: general/yes-no expense query (fallback)
+          if (!text.Contains("recurring")
+              && text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))
             return new IntentDetectionResult { Intent = ChatIntent.GetExpenseStatus };
 
           // --- Granular job intent rules ---

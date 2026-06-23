@@ -14,6 +14,8 @@ namespace HRMS.AI.Models.Enums
         GetMyRestrictedHolidays,
         GetTimesheetStatus,
         GetExpenseStatus,
+        GetMyExpenseClaims,
+        GetMyRecurringExpenses,
         GetJobsStatus,
         GetMyJobApplications,
         GetMyReferredApplications,

@@ -82,6 +82,10 @@ namespace HRMS.API.Services
                     return await HandleGetTimesheetStatus(employeeId, organizationId, userMessage, baseUrl);
                 case ChatIntent.GetExpenseStatus:
                     return await HandleGetExpenseStatus(employeeId, organizationId, userMessage, baseUrl);
+                case ChatIntent.GetMyExpenseClaims:
+                    return await HandleGetMyExpenseClaims(employeeId, organizationId, userMessage, baseUrl);
+                case ChatIntent.GetMyRecurringExpenses:
+                    return await HandleGetMyRecurringExpenses(employeeId, organizationId, userMessage, baseUrl);
                 case ChatIntent.GetJobsStatus:
                     return await HandleGetJobsStatus(employeeId, organizationId, baseUrl);
                 case ChatIntent.GetMyJobApplications:
@@ -174,14 +178,10 @@ namespace HRMS.API.Services
                 var pending = expenses.Count(x => string.Equals(x.Status, "pending", StringComparison.OrdinalIgnoreCase));
                 var approved = expenses.Count(x => string.Equals(x.Status, "approved", StringComparison.OrdinalIgnoreCase));
                 var rejected = expenses.Count(x => string.Equals(x.Status, "rejected", StringComparison.OrdinalIgnoreCase));
-                var latest = expenses
-                    .OrderByDescending(x => x.CreatedAt ?? x.UpdatedAt ?? x.BillDate)
-                    .Take(3)
-                    .Select((x, i) => $"{i + 1}. {x.Title} - {x.Status} ({x.Amount:0.##})");
 
                 var message = IsYesNoQuestion(userMessage)
                     ? $"Yes, you have {expenses.Count} expense claim(s): Pending {pending}, Approved {approved}, Rejected {rejected}. Verify here: {verifyUrl}"
-                    : $"Your expense summary: Total {expenses.Count}, Pending {pending}, Approved {approved}, Rejected {rejected}.\nRecent claims:\n{string.Join("\n", latest)}\nVerify here: {verifyUrl}";
+                    : $"Expense summary: Total {expenses.Count}, Pending {pending}, Approved {approved}, Rejected {rejected}.\nVerify here: {verifyUrl}";
 
                 return new ChatResponseDto
                 {
@@ -197,6 +197,151 @@ namespace HRMS.API.Services
                 {
                     Intent = ChatIntent.GetExpenseStatus,
                     ResponseText = "Error fetching expense status.",
+                    Module = "ExpensesManagement"
+                };
+            }
+        }
+
+        private async Task<ChatResponseDto> HandleGetMyExpenseClaims(Guid employeeId, Guid organizationId, string userMessage, string baseUrl)
+        {
+            try
+            {
+                var verifyUrl = BuildVerifyLink(baseUrl, "/expense/claims");
+                // Fetch all to get accurate counts, take top 5 for display
+                var allExpenses = (await _expenseRepository.GetExpensesAsync(organizationId, employeeId)).ToList();
+
+                if (!allExpenses.Any())
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetMyExpenseClaims,
+                        ResponseText = $"You have not submitted any expense claims yet. Submit one here: {verifyUrl}",
+                        Module = "ExpensesManagement"
+                    };
+                }
+
+                var pending  = allExpenses.Count(x => string.Equals(x.Status, "pending",  StringComparison.OrdinalIgnoreCase));
+                var approved = allExpenses.Count(x => string.Equals(x.Status, "approved", StringComparison.OrdinalIgnoreCase));
+                var rejected = allExpenses.Count(x => string.Equals(x.Status, "rejected", StringComparison.OrdinalIgnoreCase));
+
+                var recent = allExpenses
+                    .OrderByDescending(x => x.CreatedAt ?? x.UpdatedAt ?? x.BillDate)
+                    .Take(5)
+                    .ToList();
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"You have {allExpenses.Count} expense claim(s) \u2014 Pending: {pending}, Approved: {approved}, Rejected: {rejected}.");
+                sb.AppendLine("Here are your most recent:");
+                sb.AppendLine();
+
+                foreach (var (exp, idx) in recent.Select((e, i) => (e, i + 1)))
+                {
+                    sb.AppendLine($"{idx}. {exp.Title} \u2014 {exp.Amount:0.##}{(exp.CategoryName != null ? $" [{exp.CategoryName}]" : "")}");
+                    sb.AppendLine($"   Status     : {exp.Status}");
+
+                    if (exp.BillDate != default)
+                        sb.AppendLine($"   Bill Date  : {exp.BillDate:dd MMM yyyy}");
+
+                    if (exp.Merchant != null)
+                        sb.AppendLine($"   Merchant   : {exp.Merchant}");
+
+                    if (exp.PaymentMethod != null)
+                        sb.AppendLine($"   Payment    : {exp.PaymentMethod}");
+
+                    if (exp.ApprovedName != null)
+                        sb.AppendLine($"   Approved By: {exp.ApprovedName}");
+
+                    sb.AppendLine();
+                }
+
+                if (allExpenses.Count > 5)
+                    sb.AppendLine($"Showing 5 of {allExpenses.Count} claims.");
+
+                sb.AppendLine($"View all claims: {verifyUrl}");
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMyExpenseClaims,
+                    ResponseText = sb.ToString().Trim(),
+                    Module = "ExpensesManagement"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch expense claims for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMyExpenseClaims,
+                    ResponseText = "Error fetching your expense claims.",
+                    Module = "ExpensesManagement"
+                };
+            }
+        }
+
+        private async Task<ChatResponseDto> HandleGetMyRecurringExpenses(Guid employeeId, Guid organizationId, string userMessage, string baseUrl)
+        {
+            try
+            {
+                var verifyUrl = BuildVerifyLink(baseUrl, "/expense/recurring");
+                var pagedResult = await _expenseRepository.GetRecurringExpensesPagedAsync(organizationId, employeeId, null, 1, 10);
+                var items = pagedResult?.Data?.ToList() ?? new List<RecurringExpenseDto>();
+
+                if (!items.Any())
+                {
+                    return new ChatResponseDto
+                    {
+                        Intent = ChatIntent.GetMyRecurringExpenses,
+                        ResponseText = $"You do not have any recurring expenses set up. Add one here: {verifyUrl}",
+                        Module = "ExpensesManagement"
+                    };
+                }
+
+                var pending  = items.Count(x => string.Equals(x.Status, "pending",  StringComparison.OrdinalIgnoreCase));
+                var approved = items.Count(x => string.Equals(x.Status, "approved", StringComparison.OrdinalIgnoreCase));
+                var rejected = items.Count(x => string.Equals(x.Status, "rejected", StringComparison.OrdinalIgnoreCase));
+
+                var sb = new StringBuilder();
+                sb.AppendLine($"You have {pagedResult!.TotalCount} recurring expense(s) — Pending: {pending}, Approved: {approved}, Rejected: {rejected}.");
+                sb.AppendLine($"Here are your most recent:");
+                sb.AppendLine();
+
+                foreach (var (item, idx) in items.Take(5).Select((r, i) => (r, i + 1)))
+                {
+                    sb.AppendLine($"{idx}. {item.Title} — {item.Amount:0.##} {(item.CategoryName != null ? $"[{item.CategoryName}]" : "")}");
+                    sb.AppendLine($"   Status    : {item.Status}");
+                    sb.AppendLine($"   Rotation  : {item.Rotation}" + (item.DayOfMonth != null ? $" (Day: {item.DayOfMonth})" : ""));
+
+                    if (item.Merchant != null)
+                        sb.AppendLine($"   Merchant  : {item.Merchant}");
+
+                    if (item.PaymentMethod != null)
+                        sb.AppendLine($"   Payment   : {item.PaymentMethod}");
+
+                    if (item.ApprovedByName != null)
+                        sb.AppendLine($"   Approved By: {item.ApprovedByName}");
+
+                    sb.AppendLine();
+                }
+
+                if (pagedResult.TotalCount > 5)
+                    sb.AppendLine($"Showing 5 of {pagedResult.TotalCount} recurring expenses.");
+
+                sb.AppendLine($"View all recurring expenses: {verifyUrl}");
+
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMyRecurringExpenses,
+                    ResponseText = sb.ToString().Trim(),
+                    Module = "ExpensesManagement"
+                };
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to fetch recurring expenses for employee {EmployeeId}", employeeId);
+                return new ChatResponseDto
+                {
+                    Intent = ChatIntent.GetMyRecurringExpenses,
+                    ResponseText = "Error fetching your recurring expenses.",
                     Module = "ExpensesManagement"
                 };
             }
