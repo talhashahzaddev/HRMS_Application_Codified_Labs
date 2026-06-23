@@ -207,8 +207,8 @@ ORDER BY e.firstname, e.lastname;
 
 
 
-    //Get Empolyee ID
-    public async Task<Guid?> getemployeeid(Guid userId)
+    //Get Employee ID
+    public async Task<Guid?> GetEmployeeIdAsync(Guid userId)
     {
         var sql = @"select employeeid from  employee.employees where
              userid=@userId";

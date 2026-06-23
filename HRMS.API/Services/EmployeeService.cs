@@ -171,7 +171,7 @@ public class EmployeeService : IEmployeeService
         if (userId == Guid.Empty)
             throw new ArgumentException("User ID cannot be empty", nameof(userId));
 
-        var empid = await _employeeRepository.getemployeeid(userId);
+        var empid = await _employeeRepository.GetEmployeeIdAsync(userId);
 
         var employee = await _employeeRepository.GetEmployeeByIdAsync(empid);
 
@@ -183,7 +183,7 @@ public class EmployeeService : IEmployeeService
         if (userId == Guid.Empty)
             throw new ArgumentException("User ID cannot be empty", nameof(userId));
 
-        var reportingmanagerid = await _employeeRepository.getemployeeid(userId);
+        var reportingmanagerid = await _employeeRepository.GetEmployeeIdAsync(userId);
         var getuserrole = await _employeeRepository.GetUserRoleAsync(userId);
         if (getuserrole == "Super Admin")
         {

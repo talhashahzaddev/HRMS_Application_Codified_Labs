@@ -8,8 +8,7 @@ public interface IEmployeeRepository
 {
     Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId);
     Task<List<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId);
-    //adding this now
-    Task<Guid?> getemployeeid(Guid userId);
+    Task<Guid?> GetEmployeeIdAsync(Guid userId);
     Task<bool> EditEmployeeDetailsAsync(Guid employeeId, UpdateEmployeeRequestDTo request);
     Task<bool> EditEmployeeTableAsync(Guid employeeId, UpdateEmployeeRequestDTo request, string? profileUrl);
     Task<bool> editEmployeeUserAsync(Guid? userId, UpdateEmployeeRequestDTo request);

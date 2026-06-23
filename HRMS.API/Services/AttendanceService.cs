@@ -306,7 +306,7 @@ public class AttendanceService : IAttendanceService
             return false;
 
         decimal shiftHours = (decimal)(shift.EndTime - shift.StartTime).TotalHours;
-        if (shiftHours < 0)
+        if (shift.IsOvernight)
             shiftHours += 24;
 
         decimal totalWorked = attendance.TotalHours;

@@ -1,4 +1,4 @@
-﻿namespace HRMS.API.Models.DTOs;
+namespace HRMS.API.Models.DTOs;
 
 public class AttendanceDto
 {
@@ -9,8 +9,8 @@ public class AttendanceDto
     public string DepartmentName { get; set; }
     public DateTime WorkDate { get; set; }
     public DateTime Date { get; set; }
-    public DateTime? CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset? CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     public string? CheckInLocation { get; set; }
     public string? CheckOutLocation { get; set; }
     public decimal TotalHours { get; set; }
@@ -31,8 +31,8 @@ public class AttendanceDto
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }
     public bool HasApprovedRequest { get; set; }
-    public DateTime? RequestedCheckIn { get; set; }
-    public DateTime? RequestedCheckOut { get; set; }
+    public DateTimeOffset? RequestedCheckIn { get; set; }
+    public DateTimeOffset? RequestedCheckOut { get; set; }
     public string? RequestedStatus { get; set; }
     /// <summary>Latest pending/draft/approved request's leavetype id.</summary>
     public Guid? RequestedLeaveTypeId { get; set; }
@@ -67,8 +67,8 @@ public class CreateAttendanceRequest
 {
     public Guid EmployeeId { get; set; }
     public DateTime WorkDate { get; set; }
-    public DateTime? CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset? CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     public string? Notes { get; set; }
 }
 
@@ -106,8 +106,8 @@ public class AttendanceSessionWithInfoDto
 {
     public Guid SessionId { get; set; }
     public Guid AttendanceId { get; set; }
-    public DateTime CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     public string? Location { get; set; }
     public string ipAddress { get; set; }
     public string? checkinip { get; set; }
@@ -122,8 +122,8 @@ public class TimeTrackingSessionDto
 {
     public Guid? SessionId { get; set; }
     public Guid EmployeeId { get; set; }
-    public DateTime? CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset? CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     public bool IsActive { get; set; }
     public decimal ElapsedHours { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -135,8 +135,8 @@ public class AttendanceSessionDto
 {
     public Guid SessionId { get; set; }
     public Guid AttendanceId { get; set; }
-    public DateTime CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
 
 }
 
@@ -166,6 +166,8 @@ public class CreateShiftDto
         = new int[] { 1, 2, 3, 4, 5 };                    // Days of week
 
     public string? Timezone { get; set; } = "UTC";        // Timezone
+    /// <summary>Auto-computed: true when EndTime < StartTime (night shift crossing midnight).</summary>
+    public bool IsOvernight { get; set; }
 }
 
 
@@ -238,6 +240,7 @@ public class ShiftDto
     public int[] DaysOfWeek { get; set; }
     public string Timezone { get; set; }
     public bool IsActive { get; set; }
+    public bool IsOvernight { get; set; }
     public DateTime CreatedAt { get; set; }
 }
 
@@ -332,8 +335,8 @@ public class FinalizedTimesheetRecordDto
     public Guid TimesheetId { get; set; }
     public Guid EmployeeId { get; set; }
     public DateTime WorkDate { get; set; }
-    public DateTime? FinalCheckIn { get; set; }
-    public DateTime? FinalCheckOut { get; set; }
+    public DateTimeOffset? FinalCheckIn { get; set; }
+    public DateTimeOffset? FinalCheckOut { get; set; }
     public decimal FinalTotalHours { get; set; }
     public decimal FinalRegularHours { get; set; }
     public decimal FinalOvertimeHours { get; set; }
@@ -496,11 +499,11 @@ public class PendingAttendanceRequest
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeCode { get; set; } = string.Empty;
     public DateTime WorkDate { get; set; }
-    public DateTime? OriginalCheckIn { get; set; }
-    public DateTime? OriginalCheckOut { get; set; }
+    public DateTimeOffset? OriginalCheckIn { get; set; }
+    public DateTimeOffset? OriginalCheckOut { get; set; }
     public string OriginalStatus { get; set; } = string.Empty;
-    public DateTime? RequestedCheckIn { get; set; }
-    public DateTime? RequestedCheckOut { get; set; }
+    public DateTimeOffset? RequestedCheckIn { get; set; }
+    public DateTimeOffset? RequestedCheckOut { get; set; }
     public string RequestedStatus { get; set; } = string.Empty;
     public string ReasonForEdit { get; set; } = string.Empty;
     public string? RequestedNotes { get; set; }
@@ -547,12 +550,12 @@ public class EmployeeReviewPackage
 public class ReviewAttendanceRecord : DailyAttendanceRecord
 {
     public Guid? RequestId { get; set; }
-    public DateTime? OriginalCheckIn => CheckInTime;
-    public DateTime? OriginalCheckOut => CheckOutTime;
+    public DateTimeOffset? OriginalCheckIn => CheckInTime;
+    public DateTimeOffset? OriginalCheckOut => CheckOutTime;
     public string OriginalStatus => Status;
     public decimal OriginalTotalHours => TotalHours;
-    public DateTime? RequestedCheckIn { get; set; }
-    public DateTime? RequestedCheckOut { get; set; }
+    public DateTimeOffset? RequestedCheckIn { get; set; }
+    public DateTimeOffset? RequestedCheckOut { get; set; }
     public string? RequestedStatus { get; set; }
     public string? ReasonForEdit { get; set; }
     public string RequestStatus { get; set; } = "none";
@@ -562,8 +565,8 @@ public class ManualAttendanceRequest
     public Guid EmployeeId { get; set; }
     public DateTime WorkDate { get; set; }
     public DateTime Date { get; set; }
-    public DateTime CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     public string? CheckInLocation { get; set; }
     public string? CheckOutLocation { get; set; }
     public string? Status { get; set; }
@@ -575,8 +578,8 @@ public class AttendanceCalendarDto
 {
     public DateTime Date { get; set; }
     public string Status { get; set; } = string.Empty;
-    public DateTime? CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset? CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     public decimal TotalHours { get; set; }
     public bool IsWorkingDay { get; set; }
     public bool IsHoliday { get; set; }
@@ -599,10 +602,12 @@ public class DailyAttendanceStatsDto
 
 public class DailyAttendanceRecord
 {
+    public Guid EmployeeId { get; set; }
+    public string? EmployeeName { get; set; }
     public Guid? AttendanceId { get; set; }
     public DateTime Date { get; set; }
-    public DateTime? CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset? CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     public string Status { get; set; }
     public decimal TotalHours { get; set; }
     public decimal OvertimeHours { get; set; }
@@ -617,8 +622,8 @@ public class DailyAttendanceRecord
     public bool HasPendingRequest { get; set; }
     public bool HasDraftRequest { get; set; }
     public bool HasApprovedRequest { get; set; }
-    public DateTime? RequestedCheckIn { get; set; }
-    public DateTime? RequestedCheckOut { get; set; }
+    public DateTimeOffset? RequestedCheckIn { get; set; }
+    public DateTimeOffset? RequestedCheckOut { get; set; }
     public string? RequestedStatus { get; set; }
     /// <summary>Draft/pending request: leavetype the employee asked for.</summary>
     public Guid? RequestedLeaveTypeId { get; set; }
@@ -628,6 +633,8 @@ public class DailyAttendanceRecord
     public decimal? RequestedOvertimeHours { get; set; }
     public string? RequestedOvertimeType { get; set; }
     public int? RequestedLateMinutes { get; set; }
+    /// <summary>If a previous correction was rejected, the manager's reason — shown to the employee on resubmission.</summary>
+    public string? RejectionReason { get; set; }
 }
 public class AttendanceReportDto
 {
@@ -669,8 +676,8 @@ public class ManualAttendanceUpdateDto
 {
     public Guid? AttendanceId { get; set; }
     public Guid TimesheetId { get; set; }
-    public DateTime? CheckInTime { get; set; }
-    public DateTime? CheckOutTime { get; set; }
+    public DateTimeOffset? CheckInTime { get; set; }
+    public DateTimeOffset? CheckOutTime { get; set; }
     public DateTime WorkDate { get; set; }
     public string Status { get; set; }
     public string? Notes { get; set; }

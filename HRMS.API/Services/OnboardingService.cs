@@ -31,7 +31,7 @@ public class OnboardingService : IOnboardingService
     private async Task<(Guid employeeId, OnboardingSession session)> GetOrCreateSessionAsync(
         Guid userId, Guid organizationId)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee record not found for this user.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId);
@@ -131,7 +131,7 @@ public class OnboardingService : IOnboardingService
     public async Task<OnboardingEducationDto> AddEducationAsync(
         Guid userId, OnboardingEducationRequest request, IFormFile? file)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
@@ -180,7 +180,7 @@ public class OnboardingService : IOnboardingService
     public async Task<bool> UpdateEducationAsync(
         Guid userId, Guid educationId, OnboardingEducationRequest request, IFormFile? file)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
@@ -210,7 +210,7 @@ public class OnboardingService : IOnboardingService
 
     public async Task<bool> DeleteEducationAsync(Guid userId, Guid educationId)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
@@ -224,7 +224,7 @@ public class OnboardingService : IOnboardingService
     public async Task<OnboardingWorkExperienceDto> AddWorkExperienceAsync(
         Guid userId, OnboardingWorkExperienceRequest request, IFormFile? file)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
@@ -279,7 +279,7 @@ public class OnboardingService : IOnboardingService
     public async Task<bool> UpdateWorkExperienceAsync(
         Guid userId, Guid experienceId, OnboardingWorkExperienceRequest request, IFormFile? file)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
@@ -312,7 +312,7 @@ public class OnboardingService : IOnboardingService
 
     public async Task<bool> DeleteWorkExperienceAsync(Guid userId, Guid experienceId)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
@@ -325,7 +325,7 @@ public class OnboardingService : IOnboardingService
 
     public async Task<bool> AcceptPoliciesAsync(Guid userId, bool accepted, string? documentNotes)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
@@ -418,7 +418,7 @@ public class OnboardingService : IOnboardingService
 
     public async Task<bool> UpdateCurrentStepAsync(Guid userId, int step)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
@@ -432,7 +432,7 @@ public class OnboardingService : IOnboardingService
 
     public async Task<OnboardingStatusResponse?> GetMyStatusAsync(Guid userId, Guid organizationId)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId);
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId);
         if (employeeId is null) return null;
 
         return await _repo.GetFullStatusAsync(employeeId.Value, organizationId);
@@ -442,7 +442,7 @@ public class OnboardingService : IOnboardingService
 
 public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
+        var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
 
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId);
@@ -472,7 +472,7 @@ public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
     {
         try
         {
-            var employeeId = await _employeeRepo.getemployeeid(userId)
+            var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
                 ?? throw new KeyNotFoundException("Employee record not found for this user.");
 
             var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
