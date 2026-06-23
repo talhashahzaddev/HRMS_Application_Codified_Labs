@@ -2374,3 +2374,9 @@ public class MyPayslipFilterDto
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
 }
+
+public class MyPayrollResultsFilterDto
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}

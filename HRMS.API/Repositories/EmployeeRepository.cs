@@ -116,6 +116,8 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
         p.positiontitle         AS PositionTitle,
 
         ed.basicsalary          AS BasicSalary,
+        ed.currency             AS Currency,
+        ed.effectivedate        AS SalaryEffectiveDate,
         ed.reportingmanagerid   AS ReportingManagerId
 
     FROM employee.employees e

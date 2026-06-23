@@ -1388,93 +1388,298 @@ ALTER TABLE ONLY helpdesk.tickets
 -- SCHEMA: JOBS
 -- ============================================================
 
--- Table: jobs.applicationstages
-CREATE TABLE jobs.applicationstages (
-    applicationstageid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    jobapplyid uuid NOT NULL,
-    stageid uuid NOT NULL,
-    notes text,
-    interviewers text,
-    type character varying(50),
-    updatedon timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedby uuid,
-    interviewdate timestamp with time zone,
-    interviewplace character varying(200)
-);
-
-ALTER TABLE ONLY jobs.applicationstages
-    ADD CONSTRAINT applicationstages_pkey PRIMARY KEY (applicationstageid);
-
--- Table: jobs.jobapplications
-CREATE TABLE jobs.jobapplications (
-    jobapplyid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    jobid uuid NOT NULL,
+CREATE TABLE IF NOT EXISTS jobs.stagemaster
+(
+    stageid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
-    employeeid uuid,
-    candidateid uuid DEFAULT public.uuid_generate_v4(),
-    candidatename character varying(200),
-    candidateemail character varying(200),
-    linkedinurl text,
-    resumeurl text,
-    phone character varying(50),
-    coverletter text,
-    currentstageid uuid,
-    applicationsource character varying(100),
-    status character varying(50) DEFAULT 'Applied'::character varying,
-    createddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updateddate timestamp with time zone,
-    isself boolean DEFAULT false,
-    isexternal boolean DEFAULT false
-);
+    stagename character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    stageorder integer,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    isinterviewstage boolean DEFAULT false,
+    CONSTRAINT stagemaster_pkey PRIMARY KEY (stageid)
+)
 
-ALTER TABLE ONLY jobs.jobapplications
-    ADD CONSTRAINT jobapplications_pkey PRIMARY KEY (jobapplyid);
 
--- Table: jobs.jobopenings
-CREATE TABLE jobs.jobopenings (
-    jobid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+
+CREATE TABLE IF NOT EXISTS jobs.jobopenings
+(
+    jobid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
-    jobrolename character varying(200) NOT NULL,
+    jobrolename character varying(200) COLLATE pg_catalog."default" NOT NULL,
     departmentid uuid,
     experiencemin integer,
     experiencemax integer,
     ctcmin numeric(12,2),
     ctcmax numeric(12,2),
-    currency character varying(10),
-    vacancies integer DEFAULT 1 NOT NULL,
-    location character varying(200),
-    workmode character varying(50),
-    employmenttype character varying(50),
-    jobintroduction text,
-    responsibilities text,
-    skillset text,
+    currency character varying(10) COLLATE pg_catalog."default",
+    vacancies integer NOT NULL DEFAULT 1,
+    location character varying(200) COLLATE pg_catalog."default",
+    workmode character varying(50) COLLATE pg_catalog."default",
+    employmenttype character varying(50) COLLATE pg_catalog."default",
+    jobintroduction text COLLATE pg_catalog."default",
+    responsibilities text COLLATE pg_catalog."default",
+    skillset text COLLATE pg_catalog."default",
     lastdate date,
     posteddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    postedas character varying(20) NOT NULL,
-    externallink text,
-    status character varying(50) DEFAULT 'Open'::character varying,
+    postedas character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    externallink text COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Open'::character varying,
     createdby uuid,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone,
-    jobcode character varying(100)
-);
+    jobcode character varying(100) COLLATE pg_catalog."default",
+    mandatoryskills jsonb,
+    CONSTRAINT jobopenings_pkey PRIMARY KEY (jobid)
+)
 
-ALTER TABLE ONLY jobs.jobopenings
-    ADD CONSTRAINT jobopenings_pkey PRIMARY KEY (jobid);
 
--- Table: jobs.stagemaster
-CREATE TABLE jobs.stagemaster (
-    stageid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+
+CREATE TABLE IF NOT EXISTS jobs.jobapplications
+(
+    jobapplyid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobid uuid NOT NULL,
     organizationid uuid NOT NULL,
-    stagename character varying(100) NOT NULL,
-    stageorder integer,
+    employeeid uuid,
+    candidateid uuid DEFAULT uuid_generate_v4(),
+    candidatename character varying(200) COLLATE pg_catalog."default",
+    candidateemail character varying(200) COLLATE pg_catalog."default",
+    linkedinurl text COLLATE pg_catalog."default",
+    resumeurl text COLLATE pg_catalog."default",
+    phone character varying(50) COLLATE pg_catalog."default",
+    coverletter text COLLATE pg_catalog."default",
+    currentstageid uuid,
+    applicationsource character varying(100) COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Applied'::character varying,
+    createddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updateddate timestamp with time zone,
+    isself boolean DEFAULT false,
+    isexternal boolean DEFAULT false,
+    passedknockout boolean,
+    enteredtostage boolean NOT NULL DEFAULT false,
+    CONSTRAINT jobapplications_pkey PRIMARY KEY (jobapplyid)
+)
+
+
+
+
+CREATE TABLE IF NOT EXISTS jobs.questioncategories
+(
+    categoryid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    name character varying(200) COLLATE pg_catalog."default" NOT NULL,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    isinterviewstage boolean DEFAULT false
-);
+    updatedat timestamp with time zone,
+    isdeleted boolean DEFAULT false,
+    CONSTRAINT questioncategories_pkey PRIMARY KEY (categoryid)
+)
 
-ALTER TABLE ONLY jobs.stagemaster
-    ADD CONSTRAINT stagemaster_pkey PRIMARY KEY (stageid);
 
+CREATE TABLE IF NOT EXISTS jobs.questions
+(
+    questionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    categoryid uuid NOT NULL,
+    organizationid uuid NOT NULL,
+    questiontext text COLLATE pg_catalog."default" NOT NULL,
+    questiontype character varying(50) COLLATE pg_catalog."default" NOT NULL DEFAULT 'Text'::character varying,
+    options jsonb,
+    isknockout boolean DEFAULT false,
+    expectedanswer text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone,
+    isdeleted boolean DEFAULT false,
+    CONSTRAINT questions_pkey PRIMARY KEY (questionid),
+    CONSTRAINT fk_questions_category FOREIGN KEY (categoryid)
+        REFERENCES jobs.questioncategories (categoryid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.questions
+    OWNER to postgres;
+-- Index: idx_questions_category
+
+-- DROP INDEX IF EXISTS jobs.idx_questions_category;
+
+CREATE INDEX IF NOT EXISTS idx_questions_category
+    ON jobs.questions USING btree
+    (categoryid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_questions_org
+
+-- DROP INDEX IF EXISTS jobs.idx_questions_org;
+
+CREATE INDEX IF NOT EXISTS idx_questions_org
+    ON jobs.questions USING btree
+    (organizationid ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+
+CREATE TABLE IF NOT EXISTS jobs.jobquestions
+(
+    jobquestionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobid uuid NOT NULL,
+    questionid uuid NOT NULL,
+    isrequired boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT jobquestions_pkey PRIMARY KEY (jobquestionid),
+    CONSTRAINT uq_jobquestions_job_question UNIQUE (jobid, questionid),
+    CONSTRAINT fk_jobquestions_job FOREIGN KEY (jobid)
+        REFERENCES jobs.jobopenings (jobid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT fk_jobquestions_question FOREIGN KEY (questionid)
+        REFERENCES jobs.questions (questionid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.jobquestions
+    OWNER to postgres;
+-- Index: idx_jobquestions_job
+
+-- DROP INDEX IF EXISTS jobs.idx_jobquestions_job;
+
+CREATE INDEX IF NOT EXISTS idx_jobquestions_job
+    ON jobs.jobquestions USING btree
+    (jobid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_jobquestions_question
+
+-- DROP INDEX IF EXISTS jobs.idx_jobquestions_question;
+
+CREATE INDEX IF NOT EXISTS idx_jobquestions_question
+    ON jobs.jobquestions USING btree
+    (questionid ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+
+    
+CREATE TABLE IF NOT EXISTS jobs.applicationstages
+(
+    applicationstageid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobapplyid uuid NOT NULL,
+    stageid uuid NOT NULL,
+    notes text COLLATE pg_catalog."default",
+    interviewers text COLLATE pg_catalog."default",
+    type character varying(50) COLLATE pg_catalog."default",
+    updatedon timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedby uuid,
+    interviewdate timestamp with time zone,
+    interviewplace character varying(200) COLLATE pg_catalog."default",
+    CONSTRAINT applicationstages_pkey PRIMARY KEY (applicationstageid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.applicationstages
+    OWNER to postgres;
+
+
+    
+CREATE TABLE IF NOT EXISTS jobs.candidateanswers
+(
+    answerid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobapplyid uuid NOT NULL,
+    questionid uuid NOT NULL,
+    answertext text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT candidateanswers_pkey PRIMARY KEY (answerid),
+    CONSTRAINT fk_candidateanswers_application FOREIGN KEY (jobapplyid)
+        REFERENCES jobs.jobapplications (jobapplyid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT fk_candidateanswers_question FOREIGN KEY (questionid)
+        REFERENCES jobs.questions (questionid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.candidateanswers
+    OWNER to postgres;
+-- Index: idx_candidateanswers_jobapply
+
+-- DROP INDEX IF EXISTS jobs.idx_candidateanswers_jobapply;
+
+CREATE INDEX IF NOT EXISTS idx_candidateanswers_jobapply
+    ON jobs.candidateanswers USING btree
+    (jobapplyid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_candidateanswers_question
+
+-- DROP INDEX IF EXISTS jobs.idx_candidateanswers_question;
+
+CREATE INDEX IF NOT EXISTS idx_candidateanswers_question
+    ON jobs.candidateanswers USING btree
+    (questionid ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+
+    
+CREATE TABLE IF NOT EXISTS jobs.parsedresumes
+(
+    parsedresumeid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobapplyid uuid NOT NULL,
+    contactdetails jsonb,
+    skills jsonb,
+    workexperience jsonb,
+    education jsonb,
+    rawtext text COLLATE pg_catalog."default",
+    parsestatus character varying(50) COLLATE pg_catalog."default" DEFAULT 'Pending'::character varying,
+    parseerror text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone,
+    CONSTRAINT parsedresumes_pkey PRIMARY KEY (parsedresumeid),
+    CONSTRAINT uq_parsedresumes_jobapply UNIQUE (jobapplyid),
+    CONSTRAINT fk_parsedresumes_application FOREIGN KEY (jobapplyid)
+        REFERENCES jobs.jobapplications (jobapplyid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.parsedresumes
+    OWNER to postgres;
+
+COMMENT ON COLUMN jobs.parsedresumes.contactdetails
+    IS 'AI-extracted contact info: {"name":"...","email":"...","phone":"...","linkedin":"..."}';
+
+COMMENT ON COLUMN jobs.parsedresumes.skills
+    IS 'AI-extracted skills as JSON array: ["Angular", "SQL", "Docker"]';
+
+COMMENT ON COLUMN jobs.parsedresumes.workexperience
+    IS 'AI-extracted work history as JSON array: [{"company":"...","title":"...","startDate":"...","endDate":"..."}]';
+
+COMMENT ON COLUMN jobs.parsedresumes.education
+    IS 'AI-extracted education as JSON array: [{"institution":"...","degree":"...","year":"..."}]';
+
+COMMENT ON COLUMN jobs.parsedresumes.rawtext
+    IS 'Raw text extracted from PDF/DOCX before AI processing';
+
+COMMENT ON COLUMN jobs.parsedresumes.parsestatus
+    IS 'Pending | Processing | Completed | Failed';
+-- Index: idx_parsedresumes_jobapply
+
+-- DROP INDEX IF EXISTS jobs.idx_parsedresumes_jobapply;
+
+CREATE INDEX IF NOT EXISTS idx_parsedresumes_jobapply
+    ON jobs.parsedresumes USING btree
+    (jobapplyid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_parsedresumes_status
+
+-- DROP INDEX IF EXISTS jobs.idx_parsedresumes_status;
+
+CREATE INDEX IF NOT EXISTS idx_parsedresumes_status
+    ON jobs.parsedresumes USING btree
+    (parsestatus COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
 
 -- ============================================================
 -- SCHEMA: NEWS
