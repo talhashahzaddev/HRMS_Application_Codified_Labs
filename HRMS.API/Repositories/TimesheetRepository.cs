@@ -278,9 +278,9 @@ public class TimesheetRepository : BaseRepository, ITimesheetRepository
                 {
                     EmployeeId = g.Key,
                     AttendanceId = (Guid?)x.attendanceid,
-                    Date = (DateTime)x.date,
-                    CheckInTime = (DateTime?)x.checkintime,
-                    CheckOutTime = (DateTime?)x.checkouttime,
+                    Date = (DateTimeOffset)x.date,
+                    CheckInTime = (DateTimeOffset?)x.checkintime,
+                    CheckOutTime = (DateTimeOffset?)x.checkouttime,
                     Status = (string)x.status ?? "no_record",
                     TotalHours = (decimal)(x.totalhours ?? 0m),
                     OvertimeHours = (decimal)(x.overtimehours ?? 0m),

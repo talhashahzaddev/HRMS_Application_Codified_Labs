@@ -7,8 +7,8 @@ public class AttendanceDto
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeCode { get; set; }
     public string DepartmentName { get; set; }
-    public DateTime WorkDate { get; set; }
-    public DateTime Date { get; set; }
+    public DateTimeOffset WorkDate { get; set; }
+    public DateTimeOffset Date { get; set; }
     public DateTimeOffset? CheckInTime { get; set; }
     public DateTimeOffset? CheckOutTime { get; set; }
     public string? CheckInLocation { get; set; }
@@ -605,7 +605,7 @@ public class DailyAttendanceRecord
     public Guid EmployeeId { get; set; }
     public string? EmployeeName { get; set; }
     public Guid? AttendanceId { get; set; }
-    public DateTime Date { get; set; }
+    public DateTimeOffset Date { get; set; }
     public DateTimeOffset? CheckInTime { get; set; }
     public DateTimeOffset? CheckOutTime { get; set; }
     public string Status { get; set; }
