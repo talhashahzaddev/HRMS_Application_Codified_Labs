@@ -62,5 +62,5 @@ public interface IOnboardingRepository
     /// </summary>
     Task<OnboardingBankDetails> UpsertBankDetailsAsync(OnboardingBankDetails record);
 
-    Task<bool> DeleteBankDetailsAsync(Guid bankDetailsId, Guid onboardingId);
+    Task<bool> DeleteBankDetailsAsync(Guid bankDetailsId);
 }

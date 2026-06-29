@@ -487,14 +487,13 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
         return record;
     }
 
-    public async Task<bool> DeleteBankDetailsAsync(Guid bankDetailsId, Guid onboardingId)
+    public async Task<bool> DeleteBankDetailsAsync(Guid bankDetailsId)
     {
         const string sql = @"
             DELETE FROM onboarding.bank_details
-            WHERE  bankdetailsid = @BankDetailsId
-              AND  onboardingid  = @OnboardingId";
+            WHERE  bankdetailsid = @BankDetailsId";
 
-        var affected = await ExecuteAsync(sql, new { BankDetailsId = bankDetailsId, OnboardingId = onboardingId });
+        var affected = await ExecuteAsync(sql, new { BankDetailsId = bankDetailsId});
         return affected > 0;
     }
     // PolicyRepository.cs

@@ -435,15 +435,7 @@ public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
 
     public async Task<bool> DeleteBankDetailsAsync(Guid userId, Guid bankDetailsId)
     {
-        var employeeId = await _employeeRepo.getemployeeid(userId)
-            ?? throw new KeyNotFoundException("Employee not found.");
-
-        var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
-            ?? throw new InvalidOperationException("No active onboarding session.");
-
-        // bankDetailsId comes from the frontend; onboardingId is used as a
-        // second safety guard so an employee can never delete another's record.
-        return await _repo.DeleteBankDetailsAsync(bankDetailsId, session.OnboardingId);
+        return await _repo.DeleteBankDetailsAsync(bankDetailsId);
     }
 }
 // PolicyService.cs
