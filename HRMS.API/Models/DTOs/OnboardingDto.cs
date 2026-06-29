@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // FILE: Models/DTOs/OnboardingDTOs.cs
 // ============================================================
 using Microsoft.AspNetCore.Http;
@@ -22,6 +22,9 @@ public class OnboardingPersonalInfoRequest
     public string Gender { get; set; } = string.Empty;
     public string Nationality { get; set; } = string.Empty;
     public string IdNumber { get; set; } = string.Empty;  // CNIC
+    public string? PhotoUrl { get; set; }
+    public string? ResumeUrl { get; set; }
+    public string? ResumeFileName { get; set; }
 }
 
 /// <summary>Step 2 – Education entry (add/update).</summary>
@@ -33,6 +36,7 @@ public class OnboardingEducationRequest
     public string Field { get; set; } = string.Empty;
     public string? Gpa { get; set; }
     public string? FileName { get; set; }
+    public string? FileUrl { get; set; }
     public string? Description { get; set; }
 }
 
@@ -49,6 +53,7 @@ public class OnboardingWorkExperienceRequest
     public bool CurrentlyWorking { get; set; }
     public string? Responsibilities { get; set; }
     public string? FileName { get; set; }
+    public string? FileUrl { get; set; }
 }
 
 /// <summary>Full onboarding submit payload (Step 6 final).</summary>
@@ -63,6 +68,8 @@ public class OnboardingSubmitRequest
     public string Gender { get; set; } = string.Empty;
     public string Nationality { get; set; } = string.Empty;
     public string IdNumber { get; set; } = string.Empty;
+    public string? PhotoUrl { get; set; }
+    public string? ResumeUrl { get; set; }
     public string? ResumeFileName { get; set; }
     public bool PolicyAccepted { get; set; }
     public string? DocumentNotes { get; set; }
@@ -201,6 +208,22 @@ public class OnboardingFieldConfigRequest
 {
     public Dictionary<string, Dictionary<string, FieldConfigDto>> Sections { get; set; } = new();
     // Shape: { "personalInformation": { "fullName": { enabled: true, required: true }, ... }, ... }
+}
+//public class UpdateOnBoardingConfigurationRequest
+//{
+//    public Dictionary<string, Dictionary<string, FieldConfigDto>> Sections { get; set; } = new();
+//    // Shape: { "personalInformation": { "fullName": { enabled: true, required: true }, ... }, ... }
+//}
+public class UpdateFieldConfigDto
+{
+    public string Section { get; set; } = string.Empty;
+    public string FieldKey { get; set; } = string.Empty;
+    public bool Enabled { get; set; }
+    public bool Required { get; set; }
+}
+public class UpdateOnBoardingConfigurationRequest
+{
+    public List<UpdateFieldConfigDto> Fields { get; set; } = new();
 }
 
 public class OnboardingFieldConfigResponse

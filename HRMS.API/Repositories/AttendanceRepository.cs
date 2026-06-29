@@ -1809,7 +1809,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
         WHERE o.organizationid = @OrganizationId
           AND o.employeeid = @EmployeeId
-          AND LOWER(o.status) = 'pending'
+      
 
         ORDER BY o.overtimedate DESC, o.createdat DESC;
     ";

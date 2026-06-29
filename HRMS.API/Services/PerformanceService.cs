@@ -42,7 +42,6 @@ public class PerformanceService : IPerformanceService
 
     public async Task<AppraisalCycleDto> CreateAppraisalCycleAsync(CreateAppraisalCycleRequest request, Guid organizationId, Guid currentEmployeeId)
     {
-
         // 🔹 Basic validations
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
@@ -62,8 +61,7 @@ public class PerformanceService : IPerformanceService
         var cycle = await _performanceRepository.CreateAppraisalCycleAsync(request, organizationId, currentEmployeeId);
 
         if (cycle == null)
-            throw new InvalidOperationException("Failed to create appraisal cycle");
-
+        throw new InvalidOperationException("Failed to create appraisal cycle");
         return _mapper.Map<AppraisalCycleDto>(cycle);
     }
 

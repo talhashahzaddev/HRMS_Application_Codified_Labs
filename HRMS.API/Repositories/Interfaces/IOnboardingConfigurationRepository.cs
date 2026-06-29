@@ -7,6 +7,7 @@ namespace HRMS.API.Repositories.Interfaces
         Task<List<FieldConfigRecord>> GetByOrganizationAsync(Guid organizationId);
         Task<bool> UpsertConfigAsync(Guid organizationId, string section, string fieldKey, bool enabled, bool required);
         Task<bool> BulkUpsertAsync(Guid organizationId, List<FieldConfigRecord> records);
+        Task<bool> UpdateConfigAsync(Guid organizationId, UpdateOnBoardingConfigurationRequest request);
     }
     public interface IPolicyRepository
     {
