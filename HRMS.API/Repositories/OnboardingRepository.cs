@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // FILE: Repositories/OnboardingRepository.cs
 // ============================================================
 using Dapper;
@@ -485,6 +485,17 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
 
         record.BankDetailsId = id;
         return record;
+    }
+
+    public async Task<bool> DeleteBankDetailsAsync(Guid bankDetailsId, Guid onboardingId)
+    {
+        const string sql = @"
+            DELETE FROM onboarding.bank_details
+            WHERE  bankdetailsid = @BankDetailsId
+              AND  onboardingid  = @OnboardingId";
+
+        var affected = await ExecuteAsync(sql, new { BankDetailsId = bankDetailsId, OnboardingId = onboardingId });
+        return affected > 0;
     }
     // PolicyRepository.cs
     public class PolicyRepository : BaseRepository, IPolicyRepository

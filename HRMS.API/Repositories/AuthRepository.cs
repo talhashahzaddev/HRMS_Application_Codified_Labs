@@ -993,6 +993,19 @@ WHERE token = @token;
             throw;
         }
     }
+    public async Task<bool> OnboardingConfigurationAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"SELECT auth.fn_create_onboarding(@organizationId);";
+            var result = await ExecuteScalarAsync<bool>(sql, new { organizationId });
+            return result;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Onboarding configuration failed", ex);
+        }
+    }
 
     public async Task<bool> UpdateUserRoleAsync(Guid? userId, Guid? roleId)
     {

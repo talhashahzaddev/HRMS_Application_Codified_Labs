@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // FILE: Repositories/Interfaces/IOnboardingRepository.cs
 // ============================================================
 using HRMS.API.Models.DTOs;
@@ -61,4 +61,6 @@ public interface IOnboardingRepository
     /// Guarantees one row per session — safe to call on every save.
     /// </summary>
     Task<OnboardingBankDetails> UpsertBankDetailsAsync(OnboardingBankDetails record);
+
+    Task<bool> DeleteBankDetailsAsync(Guid bankDetailsId, Guid onboardingId);
 }

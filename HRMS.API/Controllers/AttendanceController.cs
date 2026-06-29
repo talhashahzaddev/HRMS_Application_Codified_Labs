@@ -1385,7 +1385,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpPost("assign-shift")]
-    [PermissionAuthorize("ASSIGN_SHIFT_BUTTON")]
+    [PermissionAuthorize("ASSIGN_SHIFT_BUTTON")]   
     public async Task<ActionResult<ServiceResponse<bool>>> AssignShift([FromBody] AssignShiftDto request)
     {
         try
@@ -2373,7 +2373,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("timesheet/submit-approvals")]
-    public async Task<IActionResult> SubmitApprovals([FromBody] FinalizeBatchRequestDto request)
+    public async Task<IActionResult> SubmitApprovals([FromBody] FinalizeBatchRequestDto request) 
     {
         var orgId = GetCurrentOrganizationId();
         var empId = request.EmployeeId != Guid.Empty

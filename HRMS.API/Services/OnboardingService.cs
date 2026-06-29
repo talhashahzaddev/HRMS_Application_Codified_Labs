@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
@@ -68,26 +68,16 @@ public class OnboardingService : IOnboardingService
 
     public async Task<(bool success, string onboardingId, string message)> SavePersonalInfoAsync(
         Guid userId, Guid organizationId,
-        OnboardingPersonalInfoRequest request,
-        IFormFile? photo, IFormFile? resume)
+        OnboardingPersonalInfoRequest request)
     {
         try
         {
             var (employeeId, session) = await GetOrCreateSessionAsync(userId, organizationId);
 
-            // Upload files if provided
-            string? photoUrl = null;
-            string? resumeUrl = null;
-            string? resumeFileName = null;
-
-            if (photo is { Length: > 0 })
-                photoUrl = await _fileStorage.UploadFileAsync(photo, "Uploads/Photos");
-
-            if (resume is { Length: > 0 })
-            {
-                resumeUrl = await _fileStorage.UploadFileAsync(resume, "Uploads/Resumes");
-                resumeFileName = resume.FileName;
-            }
+            // Read file URLs from request
+            string? photoUrl = request.PhotoUrl;
+            string? resumeUrl = request.ResumeUrl;
+            string? resumeFileName = request.ResumeFileName;
 
             await _repo.UpsertPersonalInfoAsync(
                 employeeId,
@@ -129,7 +119,7 @@ public class OnboardingService : IOnboardingService
     // ── Step 2 – education ────────────────────────────────────────────────────
 
     public async Task<OnboardingEducationDto> AddEducationAsync(
-        Guid userId, OnboardingEducationRequest request, IFormFile? file)
+        Guid userId, OnboardingEducationRequest request)
     {
         var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
@@ -137,13 +127,8 @@ public class OnboardingService : IOnboardingService
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
             ?? throw new InvalidOperationException("Onboarding session not started. Save personal info first.");
 
-        string? fileUrl = null;
+        string? fileUrl = request.FileUrl;
         string? fileName = request.FileName;
-        if (file is { Length: > 0 })
-        {
-            fileUrl = await _fileStorage.UploadFileAsync(file, "Uploads/Education");
-            fileName = file.FileName;
-        }
 
         var record = await _repo.AddEducationAsync(new OnboardingEducation
         {
@@ -178,7 +163,7 @@ public class OnboardingService : IOnboardingService
     }
 
     public async Task<bool> UpdateEducationAsync(
-        Guid userId, Guid educationId, OnboardingEducationRequest request, IFormFile? file)
+        Guid userId, Guid educationId, OnboardingEducationRequest request)
     {
         var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
@@ -186,13 +171,8 @@ public class OnboardingService : IOnboardingService
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
             ?? throw new InvalidOperationException("No active onboarding session.");
 
-        string? fileUrl = null;
+        string? fileUrl = request.FileUrl;
         string? fileName = request.FileName;
-        if (file is { Length: > 0 })
-        {
-            fileUrl = await _fileStorage.UploadFileAsync(file, "Uploads/Education");
-            fileName = file.FileName;
-        }
 
         return await _repo.UpdateEducationAsync(new OnboardingEducation
         {
@@ -222,7 +202,7 @@ public class OnboardingService : IOnboardingService
     // ── Step 3 – work experience ──────────────────────────────────────────────
 
     public async Task<OnboardingWorkExperienceDto> AddWorkExperienceAsync(
-        Guid userId, OnboardingWorkExperienceRequest request, IFormFile? file)
+        Guid userId, OnboardingWorkExperienceRequest request)
     {
         var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
@@ -230,13 +210,8 @@ public class OnboardingService : IOnboardingService
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
             ?? throw new InvalidOperationException("Onboarding session not started.");
 
-        string? fileUrl = null;
+        string? fileUrl = request.FileUrl;
         string? fileName = request.FileName;
-        if (file is { Length: > 0 })
-        {
-            fileUrl = await _fileStorage.UploadFileAsync(file, "Uploads/WorkExperience");
-            fileName = file.FileName;
-        }
 
         var record = await _repo.AddWorkExperienceAsync(new OnboardingWorkExperience
         {
@@ -277,7 +252,7 @@ public class OnboardingService : IOnboardingService
     }
 
     public async Task<bool> UpdateWorkExperienceAsync(
-        Guid userId, Guid experienceId, OnboardingWorkExperienceRequest request, IFormFile? file)
+        Guid userId, Guid experienceId, OnboardingWorkExperienceRequest request)
     {
         var employeeId = await _employeeRepo.GetEmployeeIdAsync(userId)
             ?? throw new KeyNotFoundException("Employee not found.");
@@ -285,13 +260,8 @@ public class OnboardingService : IOnboardingService
         var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
             ?? throw new InvalidOperationException("No active onboarding session.");
 
-        string? fileUrl = null;
+        string? fileUrl = request.FileUrl;
         string? fileName = request.FileName;
-        if (file is { Length: > 0 })
-        {
-            fileUrl = await _fileStorage.UploadFileAsync(file, "Uploads/WorkExperience");
-            fileName = file.FileName;
-        }
 
         return await _repo.UpdateWorkExperienceAsync(new OnboardingWorkExperience
         {
@@ -346,66 +316,16 @@ public class OnboardingService : IOnboardingService
 
     public async Task<bool> FinalSubmitAsync(
         Guid userId, Guid organizationId,
-        OnboardingSubmitRequest request,
-        IFormFile? photo, IFormFile? resume)
+        OnboardingSubmitRequest request)
     {
         var (employeeId, session) = await GetOrCreateSessionAsync(userId, organizationId);
-
-        // Upload files
-        string? photoUrl = null;
-        string? resumeUrl = null;
-        string? resumeFileName = null;
-
-        if (photo is { Length: > 0 }) photoUrl = await _fileStorage.UploadFileAsync(photo, "Uploads/Photos");
-        if (resume is { Length: > 0 })
-        {
-            resumeUrl = await _fileStorage.UploadFileAsync(resume, "Uploads/Resumes");
-            resumeFileName = resume.FileName;
-        }
-
-        // Upsert personal info
-        var fullName = $"{request.FirstName} {request.LastName}".Trim();
-        await _repo.UpsertPersonalInfoAsync(employeeId, fullName, request.Phone,
-            request.Gender, request.Nationality, request.IdNumber,
-            photoUrl, resumeUrl, resumeFileName ?? request.ResumeFileName,
-            request.JobTitle, request.Department);
-
-        // Education: add any new entries that don't have an id
-        foreach (var edu in request.Education.Where(e => e.EducationId is null))
-            await _repo.AddEducationAsync(new OnboardingEducation
-            {
-                OnboardingId = session.OnboardingId,
-                Degree = edu.Degree,
-                Institution = edu.Institution,
-                Field = edu.Field,
-                Gpa = edu.Gpa,
-                FileName = edu.FileName,
-                Description = edu.Description
-            });
-
-        // Work experience: add new entries
-        foreach (var exp in request.WorkExperience.Where(e => e.ExperienceId is null))
-            await _repo.AddWorkExperienceAsync(new OnboardingWorkExperience
-            {
-                OnboardingId = session.OnboardingId,
-                JobTitle = exp.JobTitle,
-                Company = exp.Company,
-                EmploymentType = exp.EmploymentType,
-                Location = exp.Location,
-                StartDate = exp.StartDate,
-                EndDate = exp.EndDate,
-                CurrentlyWorking = exp.CurrentlyWorking,
-                Responsibilities = exp.Responsibilities,
-                FileName = exp.FileName
-            });
-
         // Mark as completed
         session.Status = "completed";
         session.CurrentStep = 7;
         session.IsPolicyAccepted = request.PolicyAccepted;
         session.DocumentNotes = request.DocumentNotes;
-        if (photoUrl != null) session.PhotoUrl = photoUrl;
-        if (resumeUrl != null) { session.ResumeUrl = resumeUrl; session.ResumeFileName = resumeFileName; }
+        //if (photoUrl != null) session.PhotoUrl = photoUrl;
+        //if (resumeUrl != null) { session.ResumeUrl = resumeUrl; session.ResumeFileName = resumeFileName; }
 
         var eduList = await _repo.GetEducationBySessionAsync(session.OnboardingId);
         var expList = await _repo.GetWorkExperienceBySessionAsync(session.OnboardingId);
@@ -513,6 +433,18 @@ public async Task<OnboardingBankDetailsDto?> GetBankDetailsAsync(Guid userId)
         }
     }
 
+    public async Task<bool> DeleteBankDetailsAsync(Guid userId, Guid bankDetailsId)
+    {
+        var employeeId = await _employeeRepo.getemployeeid(userId)
+            ?? throw new KeyNotFoundException("Employee not found.");
+
+        var session = await _repo.GetSessionByEmployeeIdAsync(employeeId)
+            ?? throw new InvalidOperationException("No active onboarding session.");
+
+        // bankDetailsId comes from the frontend; onboardingId is used as a
+        // second safety guard so an employee can never delete another's record.
+        return await _repo.DeleteBankDetailsAsync(bankDetailsId, session.OnboardingId);
+    }
 }
 // PolicyService.cs
 

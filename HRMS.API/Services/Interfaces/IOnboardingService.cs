@@ -1,4 +1,4 @@
-﻿// ============================================================
+// ============================================================
 // FILE: Services/Interfaces/IOnboardingService.cs
 // ============================================================
 using HRMS.API.Models.DTOs;
@@ -10,22 +10,21 @@ public interface IOnboardingService
     // Step 1 – personal info (PUT /onboarding/personal-info)
     Task<(bool success, string onboardingId, string message)> SavePersonalInfoAsync(
         Guid userId, Guid organizationId,
-        OnboardingPersonalInfoRequest request,
-        IFormFile? photo, IFormFile? resume);
+        OnboardingPersonalInfoRequest request);
 
     // Step 2 – education
-    Task<OnboardingEducationDto> AddEducationAsync(Guid userId, OnboardingEducationRequest request, IFormFile? file);
-    Task<bool> UpdateEducationAsync(Guid userId, Guid educationId, OnboardingEducationRequest request, IFormFile? file);
+    Task<OnboardingEducationDto> AddEducationAsync(Guid userId, OnboardingEducationRequest request);
+    Task<bool> UpdateEducationAsync(Guid userId, Guid educationId, OnboardingEducationRequest request);
     Task<bool> DeleteEducationAsync(Guid userId, Guid educationId);
 
     // Step 3 – work experience
-    Task<OnboardingWorkExperienceDto> AddWorkExperienceAsync(Guid userId, OnboardingWorkExperienceRequest request, IFormFile? file);
-    Task<bool> UpdateWorkExperienceAsync(Guid userId, Guid experienceId, OnboardingWorkExperienceRequest request, IFormFile? file);
+    Task<OnboardingWorkExperienceDto> AddWorkExperienceAsync(Guid userId, OnboardingWorkExperienceRequest request);
+    Task<bool> UpdateWorkExperienceAsync(Guid userId, Guid experienceId, OnboardingWorkExperienceRequest request);
     Task<bool> DeleteWorkExperienceAsync(Guid userId, Guid experienceId);
 
     // Step 4/5/6 – verification + policies + final submit
     Task<bool> AcceptPoliciesAsync(Guid userId, bool accepted, string? documentNotes);
-    Task<bool> FinalSubmitAsync(Guid userId, Guid organizationId, OnboardingSubmitRequest request, IFormFile? photo, IFormFile? resume);
+    Task<bool> FinalSubmitAsync(Guid userId, Guid organizationId, OnboardingSubmitRequest request);
     Task<bool> UpdateCurrentStepAsync(Guid userId, int step);
 
     // GET /onboarding/my-status
@@ -38,6 +37,8 @@ public interface IOnboardingService
     Task<(bool success, string message)> SaveBankDetailsAsync(
         Guid userId,
         OnboardingBankDetailsRequest request);
+
+    Task<bool> DeleteBankDetailsAsync(Guid userId, Guid bankDetailsId);
 }
 // IPolicyService.cs
 // ============================================================

@@ -1,4 +1,6 @@
-﻿using HRMS.API.Configuration;
+using Dapper;
+using HRMS.API.Configuration;
+using System.Text.Json;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 
@@ -46,6 +48,30 @@ namespace HRMS.API.Repositories
                 });
             }
             return true;
+        }
+
+        public async Task<bool> UpdateConfigAsync(Guid organizationId,UpdateOnBoardingConfigurationRequest request)
+        {
+            // Convert list to JSON using camelCase naming policy to match the database function's keys
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+            };
+            var jsonData = JsonSerializer.Serialize(request.Fields, options);
+
+            const string sql = @"
+        SELECT onboarding.update_field_configurations(
+            @OrganizationId,
+            @JsonData::jsonb
+        );";
+
+            var parameters = new DynamicParameters();
+            parameters.Add("OrganizationId", organizationId);
+            parameters.Add("JsonData", jsonData);
+
+            var result = await ExecuteScalarAsync<bool>(sql, parameters);
+
+            return result;
         }
 
         public async Task<bool> UpsertConfigAsync(Guid organizationId, string section,

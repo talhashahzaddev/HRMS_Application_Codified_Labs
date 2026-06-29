@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 
@@ -12,22 +12,24 @@ namespace HRMS.API.Services
         // All known fields per section — this is the master list
         private static readonly Dictionary<string, List<string>> AllFields = new()
         {
-            ["personalInformation"] = new()
+            ["Personal Information"] = new()
             {
-                "fullName", "jobTitle", "email", "phone",
-                "department", "gender", "nationality", "idNumber",
-                "profilePhoto", "resume"
+                "Profile Photo", "Full Name", "Job Title", "Email Address", "Phone Number",
+                "Department", "Gender", "Nationality", "National ID/CNIC", "Resume/CV"
             },
-            ["educationDetails"] = new()
+            ["Qualification Details"] = new()
             {
-                "degreeLevel", "institutionName", "fieldOfStudy",
-                "gpa", "attachDocument", "description"
+                "Degree Level", "Institute Name", "Field of Study", "GPA", "ATTACH DOCOMENT", "Discription"
             },
-            ["workExperience"] = new()
+            ["Work Experience"] = new()
             {
-                "jobTitle", "company", "employmentType", "location",
-                "startDate", "endDate", "currentlyWorking",
-                "keyResponsibilities", "attachDocument"
+                "JOB TITTLE", "COMPANY", "EMPLOYMENT TYPE", "LOCATION", "SATRT DATE", "END DATE",
+                "Currently working here", "KEY RESPONSIBILTIES", "ATTACH DOCOMENT"
+            },
+            ["BANK DETAILS"] = new()
+            {
+                "ACCOUNT HOLDER NAME", "PAYMENT METHOD", "ACCOUNT NUMBER", "CONFIRM ACCOUNT NUMBER",
+                "BANK NAME", "IBN/SWIFT CODE", "BRANCH NAME", "BRANCH CODE", "BANK & BRANCH"
             }
         };
 
@@ -39,69 +41,58 @@ namespace HRMS.API.Services
             _repo = repo;
         }
 
-        public async Task<OnboardingFieldConfigResponse> GetConfigAsync(Guid organizationId)
+        public async Task<List<FieldConfigRecord>> GetConfigAsync(Guid organizationId)
         {
             var records = await _repo.GetByOrganizationAsync(organizationId);
-            var lookup  = records.ToDictionary(r => $"{r.Section}:{r.FieldKey}", r => r);
-
-            var sections = new Dictionary<string, Dictionary<string, FieldConfigDto>>();
-
-            foreach (var (section, fields) in AllFields)
-            {
-                sections[section] = new Dictionary<string, FieldConfigDto>();
-                foreach (var field in fields)
-                {
-                    var key = $"{section}:{field}";
-                    if (lookup.TryGetValue(key, out var saved))
-                    {
-                        // Use saved config exactly as Super Admin stored it —
-                        // no AlwaysRequired override.
-                        sections[section][field] = new FieldConfigDto
-                        {
-                            Enabled  = saved.Enabled,
-                            Required = saved.Required
-                        };
-                    }
-                    else
-                    {
-                        // No saved config → sensible default: visible but NOT required.
-                        // Super Admin must explicitly mark a field required.
-                        sections[section][field] = new FieldConfigDto
-                        {
-                            Enabled  = true,
-                            Required = false
-                        };
-                    }
-                }
-            }
-
-            return new OnboardingFieldConfigResponse
-            {
-                OrganizationId = organizationId,
-                Sections       = sections
-            };
+            return records;
         }
 
-        public async Task<bool> SaveConfigAsync(Guid organizationId, OnboardingFieldConfigRequest request)
+        //public async Task<bool> SaveConfigAsync(Guid organizationId, OnboardingFieldConfigRequest request)
+        //{
+        //    var records = new List<FieldConfigRecord>();
+
+        //    foreach (var (section, fields) in request.Sections)
+        //    {
+        //        foreach (var (fieldKey, config) in fields)
+        //        {
+        //            // No AlwaysRequired override — honour exactly what Super Admin sent.
+        //            // A disabled field cannot be required (enforce consistency here).
+        //            records.Add(new FieldConfigRecord
+        //            {
+        //                OrganizationId = organizationId,
+        //                Section        = section,
+        //                FieldKey       = fieldKey,
+        //                Enabled        = config.Enabled,
+        //                Required       = config.Enabled && config.Required
+        //                // If disabled, required is forced false to stay consistent.
+        //            });
+        //        }
+        //    }
+
+        //    return await _repo.BulkUpsertAsync(organizationId, records);
+        //}
+
+        public async Task<bool> UpdateConfigAsync(Guid organizationId,UpdateOnBoardingConfigurationRequest request)
+        {
+            return await _repo.UpdateConfigAsync(organizationId, request);
+        }
+
+        public async Task<bool> SaveConfigAsync(Guid organizationId,UpdateOnBoardingConfigurationRequest request)
         {
             var records = new List<FieldConfigRecord>();
 
-            foreach (var (section, fields) in request.Sections)
+            foreach (var field in request.Fields)
             {
-                foreach (var (fieldKey, config) in fields)
+                records.Add(new FieldConfigRecord
                 {
-                    // No AlwaysRequired override — honour exactly what Super Admin sent.
-                    // A disabled field cannot be required (enforce consistency here).
-                    records.Add(new FieldConfigRecord
-                    {
-                        OrganizationId = organizationId,
-                        Section        = section,
-                        FieldKey       = fieldKey,
-                        Enabled        = config.Enabled,
-                        Required       = config.Enabled && config.Required
-                        // If disabled, required is forced false to stay consistent.
-                    });
-                }
+                    OrganizationId = organizationId,
+                    Section = field.Section,
+                    FieldKey = field.FieldKey,
+
+                    // keep consistency rule
+                    Enabled = field.Enabled,
+                    Required = field.Enabled && field.Required
+                });
             }
 
             return await _repo.BulkUpsertAsync(organizationId, records);
