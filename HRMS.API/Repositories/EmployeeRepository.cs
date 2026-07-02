@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using DocumentFormat.OpenXml.InkML;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
@@ -381,7 +381,7 @@ ORDER BY e.firstname, e.lastname;
             e.updatedat,
 
             e.categoryid AS TaxCategoryId,
-
+            
             ed.worklocation, 
             ed.basicsalary AS BasicSalary, 
             ed.departmentid, 
@@ -390,6 +390,7 @@ ORDER BY e.firstname, e.lastname;
 
             CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
             p.positiontitle, 
+            p.roleid AS RoleId,
             d.departmentname,
 
             tc.categoryname AS TaxCategoryName
@@ -1242,6 +1243,17 @@ ORDER BY e.firstname, e.lastname;
 
         var results = await QueryAsync<Employee>(sql, new { organizationId });
         return results.ToList();
+    }
+
+    public async Task<Guid?> GetRoleIdByPositionIdAsync(Guid positionId)
+    {
+        const string query = @"
+            SELECT roleid
+            FROM employee.positions
+            WHERE positionid = @PositionId;
+        ";
+
+        return await QuerySingleOrDefaultAsync<Guid?>(query, new { PositionId = positionId });
     }
 
 

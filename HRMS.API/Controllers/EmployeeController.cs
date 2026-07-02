@@ -9,8 +9,11 @@ using Org.BouncyCastle.Asn1.Ocsp;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
+
 using System.Linq;
 using HRMS.API.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using HRMS.API.Hubs;
 
 namespace HRMS.API.Controllers;
 
@@ -21,11 +24,13 @@ public class EmployeeController : ControllerBase
 {
     private readonly IEmployeeService _employeeService;
     private readonly ILogger<EmployeeController> _logger;
+    private readonly IHubContext<PermissionHub> _hubContext;
 
-    public EmployeeController(IEmployeeService employeeService, ILogger<EmployeeController> logger)
+    public EmployeeController(IEmployeeService employeeService, ILogger<EmployeeController> logger, IHubContext<PermissionHub> hubContext)
     {
         _employeeService = employeeService;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     [HttpGet]
@@ -124,7 +129,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPost]
-    [PermissionAuthorize("add_employee")]
+    [PermissionAuthorize("Add_Employee_Button")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> CreateEmployee([FromBody] CreateEmployeeRequest request)
     {
         try
@@ -235,7 +240,21 @@ public class EmployeeController : ControllerBase
                 });
             }
             var result = await _employeeService.UpdateEmployeeAsync(id, request);
-            
+
+            if (result)
+            {
+                var organizationId = GetCurrentOrganizationId();
+                var payload = new EmployeeUpdatedPayload
+                {
+                    EmployeeId = id,
+                    OrganizationId = organizationId,
+                    Message = "Employee updated"
+                };
+                await _hubContext.Clients
+                    .Group(PermissionHub.GetEmployeeGroupName(organizationId.ToString(), id.ToString()))
+                    .SendAsync(PermissionHub.EmployeeUpdatedEvent, payload);
+            }
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
