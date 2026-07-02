@@ -346,7 +346,7 @@ public class AuthService : IAuthService
         await _authRepository.AdminIntoEmployeeDetailsAsync(superadminEmployeeid, position);
 
         await _emailService.SendVerificationEmailAsync(request.Email, request.FirstName, emailVerificationToken);
-
+        await _authRepository.OnboardingConfigurationAsync(organizationId);
         return new AuthResponse
         {
             Token = null,
