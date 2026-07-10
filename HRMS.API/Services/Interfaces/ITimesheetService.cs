@@ -43,6 +43,7 @@ public interface ITimesheetService
     Task<ServiceResponse<List<TimesheetProjectDto>>> GetProjectsAsync(Guid organizationId);
     Task<ServiceResponse<Guid>> CreateProjectAsync(TimesheetProjectDto dto);
     Task<ServiceResponse<List<TimesheetTaskDto>>> GetProjectTasksAsync(Guid projectId);
+    Task<ServiceResponse<TimesheetTaskDto>> CreateTaskAsync(Guid projectId, TimesheetTaskDto dto);
 
     // ── Time Allocations ──
     Task<ServiceResponse<List<TimeAllocationDto>>> GetTimeAllocationsAsync(Guid timesheetId, Guid employeeId);
