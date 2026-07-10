@@ -38,6 +38,7 @@ public interface ITimesheetRepository
     // ── Projects ──
     Task<List<TimesheetProjectDto>> GetProjectsAsync(Guid organizationId);
     Task<Guid> CreateProjectAsync(TimesheetProjectDto dto);
+    Task<bool> UpdateProjectAsync(Guid projectId, TimesheetProjectDto dto);
     Task<List<TimesheetTaskDto>> GetProjectTasksAsync(Guid projectId);
     Task<TimesheetTaskDto> CreateTaskAsync(Guid projectId, TimesheetTaskDto dto);
 

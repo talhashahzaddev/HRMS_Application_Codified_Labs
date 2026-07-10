@@ -898,6 +898,21 @@ public class TimesheetRepository : BaseRepository, ITimesheetRepository
         return result.ToList();
     }
 
+    public async Task<bool> UpdateProjectAsync(Guid projectId, TimesheetProjectDto dto)
+    {
+        var affected = await ExecuteAsync(
+            @"UPDATE attendance.timesheet_projects SET
+              project_name = @projectName, project_code = @projectCode,
+              client_name = @clientName, cost_center_code = @costCenterCode,
+              gl_account_code = @glAccountCode, is_active = @isActive,
+              start_date = @startDate, end_date = @endDate
+              WHERE project_id = @projectId",
+            new { projectId, dto.ProjectName, dto.ProjectCode, dto.ClientName,
+                  dto.CostCenterCode, dto.GlAccountCode, dto.IsActive,
+                  dto.StartDate, dto.EndDate });
+        return affected > 0;
+    }
+
     public async Task<Guid> CreateProjectAsync(TimesheetProjectDto dto)
     {
         return await ExecuteScalarAsync<Guid>(
