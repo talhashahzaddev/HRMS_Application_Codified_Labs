@@ -47,7 +47,28 @@ public class TimesheetService : ITimesheetService
     {
         var config = await _repo.GetConfigAsync(orgId);
         if (config == null)
-            return new ServiceResponse<TimesheetConfigDto> { Success = false, Message = "No timesheet config found for this organization." };
+        {
+            // Auto-create a default config so the config page always works
+            var defaults = new TimesheetConfigDto
+            {
+                RequiresManagerApproval = true,
+                RequiresHrApproval = false,
+                AllowEmployeeCorrections = true,
+                CorrectionDeadlineDays = 7,
+                WorkingDays = new[] { "Mon", "Tue", "Wed", "Thu", "Fri" },
+                HalfDayThresholdHours = 4,
+                FullDayThresholdHours = 8,
+                LateGraceMinutes = 15,
+                AutoFinalizeOnLock = true,
+                OvertimeMultiplierRegular = 1.5m,
+                OvertimeMultiplierWeekend = 2.0m,
+                OvertimeMultiplierHoliday = 2.0m,
+                Timezone = "UTC",
+                ShiftStartHour = 9,
+                ShiftStartMinute = 0
+            };
+            config = await _repo.UpsertConfigAsync(orgId, defaults);
+        }
         return new ServiceResponse<TimesheetConfigDto> { Success = true, Data = config };
     }
 

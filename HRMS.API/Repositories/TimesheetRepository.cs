@@ -221,49 +221,93 @@ public class TimesheetRepository : BaseRepository, ITimesheetRepository
             "SELECT scope_type FROM attendance.monthly_timesheets WHERE timesheet_id = @tsId",
             new { tsId = timesheetId }) ?? "all";
 
+        // Build employee × date matrix so employees with NO attendance still appear
         var rawData = await QueryAsync<dynamic>(@"
-        SELECT v.employeeid,
-               e.firstname || ' ' || e.lastname AS employeename,
-               e.employeecode,
-               v.attendanceid,
-               v.workdate as date,
-               v.checkintime,
-               v.checkouttime,
-               v.status,
-               COALESCE(v.totalhours, 0) as totalhours,
-               COALESCE(v.overtimehours, 0) as overtimehours,
-               v.overtimetype,
-               v.late_minutes as lateminutes,
-               v.is_finalized as isfinalized,
-               v.is_manager_override as ismanageroverride,
-               v.has_pending_request as haspendingrequest,
-               v.has_draft_request as hasdraftrequest,
-               v.has_approved_request as hasapprovedrequest,
-               v.requested_checkin as requestedcheckin,
-               v.requested_checkout as requestedcheckout,
-               v.requested_status as requestedstatus,
-               rej.rejection_reason as rejectionreason
-        FROM attendance.vw_employee_timesheet_details v
-        JOIN employee.employees e ON e.employeeid = v.employeeid
-        JOIN attendance.monthly_timesheets mt ON v.workdate BETWEEN mt.period_start AND mt.period_end
+        WITH scoped_employees AS (
+            SELECT e.employeeid, e.firstname || ' ' || e.lastname AS employeename, e.employeecode
+            FROM employee.employees e
+            WHERE e.organizationid = @orgId
+              AND e.status <> 'deleted'
+              AND (
+                  @scopeType = 'all'
+                  OR e.employeeid IN (
+                      SELECT tpa.employee_id
+                      FROM attendance.timesheet_period_assignments tpa
+                      WHERE tpa.timesheet_id = @timesheetId
+                  )
+              )
+        ),
+        period_dates AS (
+            SELECT gs::date AS workdate
+            FROM attendance.monthly_timesheets mt,
+                 generate_series(mt.period_start, mt.period_end, '1 day') gs
+            WHERE mt.timesheet_id = @timesheetId
+        )
+        SELECT
+            se.employeeid,
+            se.employeename,
+            se.employeecode,
+            a.attendanceid,
+            ed.workdate AS date,
+            a.checkintime,
+            a.checkouttime,
+            COALESCE(a.status, 'no_record') AS status,
+            COALESCE(a.totalhours, 0) AS totalhours,
+            COALESCE(a.overtimehours, 0) AS overtimehours,
+            a.overtimetype,
+            COALESCE(a.late_minutes, 0) AS lateminutes,
+            EXISTS (
+                SELECT 1 FROM attendance.finalized_timesheet_records f
+                WHERE (f.attendance_id = a.attendanceid
+                       OR (f.employee_id = se.employeeid AND f.work_date = ed.workdate AND f.attendance_id IS NULL))
+                  AND f.record_status IN ('finalized','overridden')
+            ) AS isfinalized,
+            EXISTS (
+                SELECT 1 FROM attendance.finalized_timesheet_records f_ov
+                WHERE (f_ov.attendance_id = a.attendanceid
+                       OR (f_ov.employee_id = se.employeeid AND f_ov.work_date = ed.workdate AND f_ov.attendance_id IS NULL))
+                  AND f_ov.record_status = 'overridden'
+            ) AS ismanageroverride,
+            EXISTS (
+                SELECT 1 FROM attendance.attendance_update_requests rp
+                WHERE rp.attendance_id = a.attendanceid AND rp.status = 'pending'
+            ) AS haspendingrequest,
+            EXISTS (
+                SELECT 1 FROM attendance.attendance_update_requests rd
+                WHERE rd.attendance_id = a.attendanceid AND rd.status = 'draft'
+            ) AS hasdraftrequest,
+            EXISTS (
+                SELECT 1 FROM attendance.attendance_update_requests ra
+                WHERE ra.attendance_id = a.attendanceid AND ra.status = 'approved'
+            ) AS hasapprovedrequest,
+            (SELECT rl.requested_checkin FROM attendance.attendance_update_requests rl
+             WHERE rl.attendance_id = a.attendanceid
+               AND rl.status IN ('pending','draft','approved')
+             ORDER BY rl.submitted_at DESC LIMIT 1) AS requestedcheckin,
+            (SELECT rl.requested_checkout FROM attendance.attendance_update_requests rl
+             WHERE rl.attendance_id = a.attendanceid
+               AND rl.status IN ('pending','draft','approved')
+             ORDER BY rl.submitted_at DESC LIMIT 1) AS requestedcheckout,
+            (SELECT rl.requested_status FROM attendance.attendance_update_requests rl
+             WHERE rl.attendance_id = a.attendanceid
+               AND rl.status IN ('pending','draft','approved')
+             ORDER BY rl.submitted_at DESC LIMIT 1) AS requestedstatus,
+            rej.rejection_reason AS rejectionreason
+        FROM scoped_employees se
+        CROSS JOIN period_dates ed
+        LEFT JOIN attendance.attendance a ON a.employeeid = se.employeeid AND a.workdate = ed.workdate
         LEFT JOIN LATERAL (
             SELECT r.rejection_reason
             FROM attendance.attendance_update_requests r
-            WHERE r.employee_id = v.employeeid
-              AND r.workdate = v.workdate
+            WHERE r.employee_id = se.employeeid
+              AND r.workdate = ed.workdate
               AND r.status = 'rejected'
               AND r.rejection_reason IS NOT NULL
             ORDER BY r.submitted_at DESC
             LIMIT 1
         ) rej ON TRUE
-        WHERE mt.timesheet_id = @timesheetId
-          AND e.organizationid = @orgId
-          AND (@employeeId IS NULL OR v.employeeid = @employeeId)
-          AND (@scopeType = 'all' OR v.employeeid IN (
-              SELECT tpa.employee_id FROM attendance.timesheet_period_assignments tpa
-              WHERE tpa.timesheet_id = @timesheetId
-          ))
-        ORDER BY employeename, v.workdate",
+        WHERE (@employeeId IS NULL OR se.employeeid = @employeeId)
+        ORDER BY se.employeename, ed.workdate",
             new { timesheetId, orgId, employeeId, scopeType });
 
         var grouped = rawData.GroupBy(r => (Guid)r.employeeid)
@@ -312,7 +356,7 @@ public class TimesheetRepository : BaseRepository, ITimesheetRepository
                a.checkintime AS originalcheckin,
                a.checkouttime AS originalcheckout,
                a.overtimehours AS originalovertimehours,
-               a.overtime_type AS originalovertimetype,
+               a.overtimetype AS originalovertimetype,
                a.late_minutes AS originallateminutes,
                lt_req.leavetypeid AS requestedleavetypeid,
                lt_req.typename AS requestedleavetypename,
@@ -745,13 +789,13 @@ public class TimesheetRepository : BaseRepository, ITimesheetRepository
             await conn.ExecuteAsync(@"
                 INSERT INTO attendance.attendance
                     (attendanceid, employeeid, workdate, status, checkintime, checkouttime,
-                     totalhours, overtimehours, overtime_type, late_minutes, leave_type_id, notes)
+                     totalhours, overtimehours, overtimetype, late_minutes, leave_type_id, notes)
                 VALUES (@id, @empId, @wd, @status, @ci::timestamptz, @co::timestamptz,
                         @hrs, @ot, @otType, @lm, @lt, @notes)
                 ON CONFLICT (employeeid, workdate) DO UPDATE SET
                     status = EXCLUDED.status, checkintime = EXCLUDED.checkintime,
                     checkouttime = EXCLUDED.checkouttime, totalhours = EXCLUDED.totalhours,
-                    overtimehours = EXCLUDED.overtimehours, overtime_type = EXCLUDED.overtime_type,
+                    overtimehours = EXCLUDED.overtimehours, overtimetype = EXCLUDED.overtimetype,
                     late_minutes = EXCLUDED.late_minutes, leave_type_id = EXCLUDED.leave_type_id,
                     notes = EXCLUDED.notes",
                 new { id, empId = dto.EmployeeId, wd = dto.WorkDate, status = dto.Status,
@@ -1061,7 +1105,7 @@ public class TimesheetRepository : BaseRepository, ITimesheetRepository
                   (SELECT organizationid FROM employee.employees WHERE employeeid = a.employeeid LIMIT 1),
                   a.workdate, a.status,
                   a.checkintime::text, a.checkouttime::text, a.overtimehours,
-                  a.overtime_type, a.late_minutes, a.leave_type_id,
+                  a.overtimetype, a.late_minutes, a.leave_type_id,
                   'Bulk copied', 'Bulk copy from previous period', 'draft'
               FROM attendance.attendance a
               JOIN attendance.monthly_timesheets mt ON a.workdate BETWEEN mt.period_start AND mt.period_end
