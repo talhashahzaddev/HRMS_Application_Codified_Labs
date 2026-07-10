@@ -484,6 +484,17 @@ public class TimesheetService : ITimesheetService
         return new ServiceResponse<List<TimesheetProjectDto>> { Success = true, Data = projects };
     }
 
+    public async Task<ServiceResponse<bool>> UpdateProjectAsync(Guid projectId, TimesheetProjectDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.ProjectName))
+            return new ServiceResponse<bool> { Success = false, Message = "Project name is required." };
+
+        var ok = await _repo.UpdateProjectAsync(projectId, dto);
+        return ok
+            ? new ServiceResponse<bool> { Success = true, Data = true }
+            : new ServiceResponse<bool> { Success = false, Message = "Project not found." };
+    }
+
     public async Task<ServiceResponse<Guid>> CreateProjectAsync(TimesheetProjectDto dto)
     {
         var id = await _repo.CreateProjectAsync(dto);

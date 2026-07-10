@@ -611,6 +611,18 @@ public class TimesheetController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ServiceResponse<Guid> { Success = false, Message = "An error occurred while creating project" }); }
     }
 
+    [HttpPut("projects/{projectId:guid}")]
+    [PermissionAuthorize("projects_edit")]
+    public async Task<ActionResult<ServiceResponse<bool>>> UpdateProject(Guid projectId, [FromBody] TimesheetProjectDto dto)
+    {
+        try
+        {
+            var result = await _service.UpdateProjectAsync(projectId, dto);
+            return result.Success ? Ok(result) : NotFound(result);
+        }
+        catch (Exception ex) { return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred while updating project" }); }
+    }
+
     [HttpGet("projects/{projectId:guid}/tasks")]
     [PermissionAuthorize("projects_view")]
     public async Task<ActionResult<ServiceResponse<List<TimesheetTaskDto>>>> GetProjectTasks(Guid projectId)
