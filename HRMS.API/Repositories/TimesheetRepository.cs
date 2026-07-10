@@ -923,6 +923,18 @@ public class TimesheetRepository : BaseRepository, ITimesheetRepository
         return result.ToList();
     }
 
+    public async Task<TimesheetTaskDto> CreateTaskAsync(Guid projectId, TimesheetTaskDto dto)
+    {
+        var result = await QueryAsync<TimesheetTaskDto>(
+            @"INSERT INTO attendance.timesheet_project_tasks
+              (project_id, task_name, is_billable_by_default, is_active, hourly_rate)
+              VALUES (@projectId, @taskName, @isBillable, true, @hourlyRate)
+              RETURNING task_id AS taskid, project_id AS projectid, task_name AS taskname,
+                        is_billable_by_default AS isbillabledefault, is_active AS isactive",
+            new { projectId, taskName = dto.TaskName, isBillable = dto.IsBillableDefault, hourlyRate = (object?)dto.HourlyRate ?? DBNull.Value });
+        return result.First();
+    }
+
     public async Task<List<TimeAllocationDto>> GetTimeAllocationsAsync(Guid timesheetId, Guid employeeId)
     {
         var result = await QueryAsync<TimeAllocationDto>(

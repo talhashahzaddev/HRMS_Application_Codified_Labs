@@ -623,6 +623,18 @@ public class TimesheetController : ControllerBase
         catch (Exception ex) { return StatusCode(500, new ServiceResponse<List<TimesheetTaskDto>> { Success = false, Message = "An error occurred while retrieving tasks" }); }
     }
 
+    [HttpPost("projects/{projectId:guid}/tasks")]
+    [PermissionAuthorize("projects_create")]
+    public async Task<ActionResult<ServiceResponse<TimesheetTaskDto>>> CreateTask(Guid projectId, [FromBody] TimesheetTaskDto dto)
+    {
+        try
+        {
+            var result = await _service.CreateTaskAsync(projectId, dto);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+        catch (Exception ex) { return StatusCode(500, new ServiceResponse<TimesheetTaskDto> { Success = false, Message = "An error occurred while creating the task" }); }
+    }
+
     [HttpGet("periods/{timesheetId:guid}/allocations")]
     [PermissionAuthorize("timesheet_allocations_view")]
     public async Task<ActionResult<ServiceResponse<List<TimeAllocationDto>>>> GetTimeAllocations(Guid timesheetId, [FromQuery] Guid employeeId)

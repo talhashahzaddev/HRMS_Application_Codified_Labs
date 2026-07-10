@@ -496,6 +496,14 @@ public class TimesheetService : ITimesheetService
         return new ServiceResponse<List<TimesheetTaskDto>> { Success = true, Data = tasks };
     }
 
+    public async Task<ServiceResponse<TimesheetTaskDto>> CreateTaskAsync(Guid projectId, TimesheetTaskDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.TaskName))
+            return new ServiceResponse<TimesheetTaskDto> { Success = false, Message = "Task name is required." };
+        var task = await _repo.CreateTaskAsync(projectId, dto);
+        return new ServiceResponse<TimesheetTaskDto> { Success = true, Data = task };
+    }
+
     // ═══ Phase 2: Time Allocations ══════════════════════════════
     public async Task<ServiceResponse<List<TimeAllocationDto>>> GetTimeAllocationsAsync(Guid timesheetId, Guid employeeId)
     {
