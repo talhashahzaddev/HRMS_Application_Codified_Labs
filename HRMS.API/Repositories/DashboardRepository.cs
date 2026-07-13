@@ -484,4 +484,83 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
             throw;
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HR/FINANCE OVERVIEW
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<PayrollRunStatusDto> GetLatestPayrollRunStatusAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                WITH LatestPeriod AS (
+                    SELECT periodid, periodname
+                    FROM payroll.payrollperiods
+                    WHERE organizationid = @OrganizationId
+                    ORDER BY startdate DESC
+                    LIMIT 1
+                )
+                SELECT 
+                    lp.periodname AS PeriodName,
+                    (SELECT COUNT(*) FROM payroll.payrollresults r WHERE r.periodid = lp.periodid) AS TotalEmployeesProcessed,
+                    (SELECT COUNT(*) FROM payroll.payslips p INNER JOIN payroll.payrollresults r ON p.resultid = r.resultid WHERE r.periodid = lp.periodid AND p.payslipurl IS NOT NULL) AS PayslipsGenerated,
+                    (SELECT COUNT(*) FROM payroll.payslips p INNER JOIN payroll.payrollresults r ON p.resultid = r.resultid WHERE r.periodid = lp.periodid AND p.payslipuploadurl IS NOT NULL) AS PayslipsUploaded,
+                    (SELECT COUNT(*) FROM payroll.payslips p INNER JOIN payroll.payrollresults r ON p.resultid = r.resultid WHERE r.periodid = lp.periodid AND p.mailsentstatus = 'sent') AS EmailsSent
+                FROM LatestPeriod lp;";
+
+            var parameters = new { OrganizationId = organizationId };
+            return await QuerySingleOrDefaultAsync<PayrollRunStatusDto>(sql, parameters) ?? new PayrollRunStatusDto();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching latest payroll run status for org {OrgId}", organizationId);
+            throw;
+        }
+    }
+
+    public async Task<decimal> GetLatestPayrollOutflowAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                WITH LatestPeriod AS (
+                    SELECT periodid
+                    FROM payroll.payrollperiods
+                    WHERE organizationid = @OrganizationId
+                    ORDER BY startdate DESC
+                    LIMIT 1
+                )
+                SELECT COALESCE(SUM(r.netsalary), 0)
+                FROM payroll.payrollresults r
+                INNER JOIN LatestPeriod lp ON r.periodid = lp.periodid
+                WHERE r.organizationid = @OrganizationId;";
+
+            var parameters = new { OrganizationId = organizationId };
+            return await QuerySingleOrDefaultAsync<decimal>(sql, parameters);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching latest payroll outflow for org {OrgId}", organizationId);
+            throw;
+        }
+    }
+
+    public async Task<WorkforceMetricsDto> GetWorkforceMetricsAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                SELECT
+                    (SELECT COUNT(*) FROM employee.employees WHERE organizationid = @OrganizationId AND LOWER(status) = 'active') AS TotalActiveEmployees,
+                    (SELECT COUNT(*) FROM jobs.jobopenings WHERE organizationid = @OrganizationId AND LOWER(status) = 'open') AS TotalOpenPositions;";
+
+            var parameters = new { OrganizationId = organizationId };
+            return await QuerySingleOrDefaultAsync<WorkforceMetricsDto>(sql, parameters) ?? new WorkforceMetricsDto();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching workforce metrics for org {OrgId}", organizationId);
+            throw;
+        }
+    }
 }

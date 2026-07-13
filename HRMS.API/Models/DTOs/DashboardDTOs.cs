@@ -112,3 +112,29 @@ public class PendingManagerActionsDto
     public int PendingTimesheetCorrections { get; set; }
     public int PendingShiftSwaps { get; set; }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 6. HR/Finance Overview Section
+// ─────────────────────────────────────────────────────────────────────────────
+public class HrOverviewDto
+{
+    public PayrollRunStatusDto LatestPayrollRun { get; set; } = new();
+    public decimal TotalPayrollOutflow { get; set; }
+    public WorkforceMetricsDto WorkforceMetrics { get; set; } = new();
+}
+
+public class PayrollRunStatusDto
+{
+    public string PeriodName { get; set; } = string.Empty;
+    public int TotalEmployeesProcessed { get; set; }
+    public int PayslipsGenerated { get; set; }
+    public int PayslipsUploaded { get; set; }
+    public int EmailsSent { get; set; }
+    public bool IsFullyCompleted => TotalEmployeesProcessed > 0 && EmailsSent == TotalEmployeesProcessed;
+}
+
+public class WorkforceMetricsDto
+{
+    public int TotalActiveEmployees { get; set; }
+    public int TotalOpenPositions { get; set; }
+}

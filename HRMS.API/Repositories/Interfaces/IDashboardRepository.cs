@@ -26,4 +26,9 @@ public interface IDashboardRepository
     Task<TeamAttendanceSnapshotDto> GetTeamAttendanceSnapshotAsync(Guid managerId, Guid organizationId, DateTime date);
     Task<int> GetTeamOvertimeCountTodayAsync(Guid managerId, Guid organizationId, DateTime date);
     Task<PendingManagerActionsDto> GetPendingManagerActionsAsync(Guid managerId, Guid organizationId);
+
+    // ── HR/Finance Overview ──────────────────────────────────────────────────
+    Task<PayrollRunStatusDto> GetLatestPayrollRunStatusAsync(Guid organizationId);
+    Task<decimal> GetLatestPayrollOutflowAsync(Guid organizationId);
+    Task<WorkforceMetricsDto> GetWorkforceMetricsAsync(Guid organizationId);
 }

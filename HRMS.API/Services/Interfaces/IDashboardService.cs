@@ -15,4 +15,9 @@ public interface IDashboardService
     /// Returns the manager overview: team attendance today, team overtime today, and pending approvals.
     /// </summary>
     Task<ManagerOverviewDto> GetManagerOverviewAsync(Guid managerId, Guid organizationId);
+
+    /// <summary>
+    /// Returns the HR and Finance overview: latest payroll run status, payroll outflow, and workforce metrics.
+    /// </summary>
+    Task<HrOverviewDto> GetHrOverviewAsync(Guid organizationId);
 }

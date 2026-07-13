@@ -127,4 +127,27 @@ public class DashboardService : IDashboardService
             throw;
         }
     }
+
+    public async Task<HrOverviewDto> GetHrOverviewAsync(Guid organizationId)
+    {
+        try
+        {
+            var payrollRunTask = _dashboardRepository.GetLatestPayrollRunStatusAsync(organizationId);
+            var outflowTask = _dashboardRepository.GetLatestPayrollOutflowAsync(organizationId);
+            var workforceTask = _dashboardRepository.GetWorkforceMetricsAsync(organizationId);
+
+            await Task.WhenAll(payrollRunTask, outflowTask, workforceTask);
+
+            return new HrOverviewDto
+            {
+                LatestPayrollRun = await payrollRunTask,
+                TotalPayrollOutflow = await outflowTask,
+                WorkforceMetrics = await workforceTask
+            };
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
 }
