@@ -228,6 +228,7 @@ builder.Services.AddScoped<IIpAddressService, IpAddressService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 builder.Services.AddScoped<IPerformanceService, PerformanceService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
 builder.Services.AddScoped<IPayslipTemplateService, PayslipTemplateService>();
@@ -286,6 +287,7 @@ builder.Services.AddScoped<ITimesheetWorkflowRepository, TimesheetWorkflowReposi
 builder.Services.AddScoped<ILeaveRepository, LeaveRepository>();
 builder.Services.AddScoped<IPerformanceRepository, PerformanceRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
 builder.Services.AddScoped<IPayslipTemplateRepository, PayslipTemplateRepository>();
 builder.Services.AddScoped<IPayslipLayoutCatalogRepository, PayslipLayoutCatalogRepository>();

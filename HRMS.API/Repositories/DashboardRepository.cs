@@ -1,8 +1,8 @@
-using System.Data;
 using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace HRMS.API.Repositories;
 
@@ -10,749 +10,360 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
 {
     private readonly ILogger<DashboardRepository> _logger;
 
-    public DashboardRepository(IDatabaseConnectionFactory connectionFactory, ILogger<DashboardRepository> logger) 
+    public DashboardRepository(IDatabaseConnectionFactory connectionFactory, ILogger<DashboardRepository> logger)
         : base(connectionFactory)
     {
         _logger = logger;
     }
 
-    public async Task<DashboardStatsDto> GetDashboardStatsAsync(Guid organizationId)
+    // ─────────────────────────────────────────────────────────────────────────
+    // LEAVE BALANCES
+    // Replicates the same join used in LeaveRepository.GetLeaveBalanceAsync
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<LeaveTypeBalanceSummaryDto>> GetLeaveBalancesAsync(Guid employeeId, int year)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            var result = await connection.QuerySingleOrDefaultAsync<dynamic>("SELECT * FROM admin.fn_get_dashboard_stats(@organizationId)",
-                new { organizationId });
+            const string sql = @"
+                SELECT
+                    lt.typename          AS LeaveTypeName,
+                    lt.color             AS Color,
+                    COALESCE(le.totaldays, 0)               AS TotalDays,
+                    COALESCE(le.useddays, 0)                AS UsedDays,
+                    COALESCE(le.remainingdays, 0)           AS RemainingDays,
+                    COALESCE(le.carryforwarddays, 0)        AS CarryForwardDays
+                FROM attendance.leavetypes lt
+                LEFT JOIN attendance.leaveentitlements le
+                    ON le.leavetypeid = lt.leavetypeid
+                   AND le.employeeid  = @EmployeeId
+                   AND le.year        = @Year
+                WHERE lt.isactive = true
+                ORDER BY lt.typename;";
 
-            if (result == null)
-            {
-                return new DashboardStatsDto();
-            }
-
-            return new DashboardStatsDto
-            {
-                TotalEmployees = result.totalemployees ?? 0,
-                ActiveEmployees = result.activeemployees ?? 0,
-                PendingLeaveRequests = result.pendingleaverequests ?? 0,
-                PresentToday = result.presenttoday ?? 0,
-                TotalDepartments = result.totaldepartments ?? 0
-            };
+            var result = await QueryAsync<LeaveTypeBalanceSummaryDto>(sql, new { EmployeeId = employeeId, Year = year });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting dashboard stats for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching leave balances for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-    public async Task<List<RecentActivityDto>> GetRecentActivitiesAsync(Guid organizationId, int count = 10)
+    // ─────────────────────────────────────────────────────────────────────────
+    // FINANCIAL SNAPSHOT – latest payslip with fallback to 2nd last
+    // Logic:
+    //   1. Find the latest payroll period (by createdat desc) that has a
+    //      payrollresult for this employee.
+    //   2. From that resultid, get the payslip row.
+    //   3. If payslipuploadurl IS NULL or empty, go one period back.
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<FinancialSnapshotDto?> GetLatestPayslipAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            // Get recent audit logs for the organization
-            var activities = await connection.QueryAsync<RecentActivityDto>(
-                @"SELECT 
-                    al.logId as Id,
-                    al.tableName as Type,
-                    CASE 
-                        WHEN al.action = 'INSERT' THEN 'New ' || al.tableName || ' Added'
-                        WHEN al.action = 'UPDATE' THEN al.tableName || ' Updated'
-                        WHEN al.action = 'DELETE' THEN al.tableName || ' Deleted'
-                        ELSE al.action || ' ' || al.tableName
-                    END as Title,
-                    COALESCE(al.newValues->>'description', al.newValues->>'name', 'Record modified') as Description,
-                    CASE 
-                        WHEN al.tableName = 'employees' THEN 'person_add'
-                        WHEN al.tableName = 'leave_requests' THEN 'event_available'
-                        WHEN al.tableName = 'payroll_periods' THEN 'account_balance_wallet'
-                        ELSE 'update'
-                    END as Icon,
-                    al.createdAt as Timestamp,
-                    COALESCE(u.firstName || ' ' || u.lastName, 'System') as UserName
-                FROM admin.auditLogs al
-                LEFT JOIN auth.users u ON al.userId = u.userId
-                LEFT JOIN employee.employees e ON al.recordId = e.employeeId
-                WHERE al.organizationId = @organizationId
-                ORDER BY al.createdAt DESC
-                LIMIT @count",
-                new { organizationId, count });
+            // Pull the two most recent payroll results for this employee
+            // (so we can fall back to the 2nd latest when url is missing)
+            const string sql = @"
+                SELECT
+                    pr.resultid,
+                    pr.netsalary        AS LastNetSalary,
+                    pp.periodname       AS LastPayPeriodName,
+                    ps.payslipuploadurl AS PayslipUploadUrl
+                FROM payroll.payrollresults pr
+                INNER JOIN payroll.payrollperiods pp
+                    ON pp.periodid = pr.periodid
+                LEFT JOIN payroll.payslips ps
+                    ON ps.resultid = pr.resultid
+                WHERE pr.employeeid     = @EmployeeId
+                  AND pr.organizationid = @OrganizationId
+                  AND pp.isdeleted      = false
+                ORDER BY pp.createdat DESC
+                LIMIT 2;";
 
-            return activities.ToList();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting recent activities for organization {OrganizationId}", organizationId);
-            return new List<RecentActivityDto>();
-        }
-    }
+            var rows = (await QueryAsync<dynamic>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId }))
+                       .ToList();
 
-    public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(Guid organizationId)
-    {
-        try
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var stats = await GetDashboardStatsAsync(organizationId);
-            
-            // Calculate employee growth
-            var employeeGrowth = await connection.QuerySingleOrDefaultAsync<dynamic>(
-                @"SELECT 
-                    ((COUNT(*) FILTER (WHERE hireDate >= CURRENT_DATE - INTERVAL '1 year')::float / 
-                     NULLIF(COUNT(*) FILTER (WHERE hireDate < CURRENT_DATE - INTERVAL '1 year'), 0)) - 1) * 100 as growthRate
-                    FROM employee.employees 
-                    WHERE organizationId = @organizationId",
-                new { organizationId });
+            if (rows.Count == 0)
+                return new FinancialSnapshotDto { IsPayslipAvailable = false };
 
-            return new DashboardSummaryDto
+            // Prefer first row if it has a valid url; otherwise fall back to second
+            dynamic chosen = rows[0];
+            if (string.IsNullOrWhiteSpace((string?)chosen.payslipuploadurl) && rows.Count > 1)
+                chosen = rows[1];
+
+            string? url = (string?)chosen.payslipuploadurl;
+
+            return new FinancialSnapshotDto
             {
-                TotalEmployees = stats.TotalEmployees,
-                PresentToday = stats.PresentToday,
-                OnLeaveToday = await GetOnLeaveTodayCountAsync(organizationId),
-                PendingApprovals = stats.PendingLeaveRequests,
-                EmployeeGrowth = employeeGrowth?.growthRate ?? 0m
+                LastNetSalary      = (decimal?)chosen.lastnetsalary,
+                LastPayPeriodName  = (string?)chosen.lastpayperiodname,
+                PayslipUploadUrl   = string.IsNullOrWhiteSpace(url) ? null : url,
+                IsPayslipAvailable = !string.IsNullOrWhiteSpace(url)
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting dashboard summary for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching latest payslip for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-    public async Task<AttendanceStatsDto> GetAttendanceStatsAsync(Guid organizationId, string period = "month")
+    // ─────────────────────────────────────────────────────────────────────────
+    // ACTIVE LOANS
+    // Disbursed loans where loan is still active (loanstatus = 'active')
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<ActiveLoanSummaryDto>> GetActiveLoansAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var daysInPeriod = period.ToLower() switch
-            {
-                "week" => 7,
-                "month" => 30,
-                "quarter" => 90,
-                "year" => 365,
-                _ => 30
-            };
+            const string sql = @"
+                SELECT
+                    l.loanid                                AS LoanId,
+                    l.referenceid                           AS ReferenceId,
+                    l.remainingamount                       AS RemainingAmount,
+                    l.totalamount                           AS TotalAmount,
+                    (l.totalinstallments - l.paidinstallments) AS RemainingInstallments,
+                    CASE
+                        WHEN l.totalinstallments = 0 THEN 0
+                        ELSE ROUND(
+                            (l.paidinstallments::numeric / l.totalinstallments::numeric) * 100, 2
+                        )
+                    END                                     AS CompletedPercentage
+                FROM payroll.loans l
+                WHERE l.employeeid     = @EmployeeId
+                  AND l.organizationid = @OrganizationId
+                  AND l.loanstatus     = 'active'
+                ORDER BY l.createdat DESC;";
 
-            var startDate = DateTime.UtcNow.AddDays(-daysInPeriod);
-            
-            var attendanceData = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    a.workDate as Date,
-                    COUNT(*) FILTER (WHERE a.status = 'present') as PresentCount,
-                    COUNT(*) FILTER (WHERE a.status = 'absent') as AbsentCount
-                FROM attendance.attendance a
-                INNER JOIN employee.employees e ON a.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId
-                    AND a.workDate >= @startDate
-                GROUP BY a.workDate
-                ORDER BY a.workDate",
-                new { organizationId, startDate });
-
-            var dates = new List<string>();
-            var presentCounts = new List<int>();
-            var absentCounts = new List<int>();
-
-            foreach (var item in attendanceData)
-            {
-                dates.Add(((DateTime)item.date).ToString("yyyy-MM-dd"));
-                presentCounts.Add((int)item.presentcount);
-                absentCounts.Add((int)item.absentcount);
-            }
-
-            return new AttendanceStatsDto
-            {
-                Dates = dates,
-                PresentCounts = presentCounts,
-                AbsentCounts = absentCounts,
-                AveragePresence = presentCounts.Count > 0 ? (decimal)presentCounts.Average() : 0m
-            };
+            var result = await QueryAsync<ActiveLoanSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting attendance stats for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching active loans for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-    public async Task<LeaveStatsDto> GetLeaveStatsAsync(Guid organizationId, string period = "month")
+    // ─────────────────────────────────────────────────────────────────────────
+    // DISBURSED SALARY ADVANCES (still outstanding – not yet fully deducted)
+    // advancestatus = 'disbursed' means money was given but not yet deducted
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<ActiveAdvanceSummaryDto>> GetDisbursedAdvancesAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var daysInPeriod = period.ToLower() switch
-            {
-                "week" => 7,
-                "month" => 30,
-                "quarter" => 90,
-                "year" => 365,
-                _ => 30
-            };
+            const string sql = @"
+                SELECT
+                    sa.advanceid      AS AdvanceId,
+                    sa.amount         AS Amount,
+                    sa.advancestatus  AS AdvanceStatus,
+                    sa.approvedat     AS ApprovedAt
+                FROM payroll.salaryadvance sa
+                WHERE sa.employeeid     = @EmployeeId
+                  AND sa.organizationid = @OrganizationId
+                  AND sa.advancestatus  = 'disbursed'
+                ORDER BY sa.createdat DESC;";
 
-            var startDate = DateTime.UtcNow.AddDays(-daysInPeriod);
-            
-            var leaveData = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    lt.typeName as LeaveType,
-                    COUNT(*) as Count,
-                    lr.status as Status
-                FROM attendance.leaveRequests lr
-                INNER JOIN attendance.leaveTypes lt ON lr.leaveTypeId = lt.leaveTypeId
-                INNER JOIN employee.employees e ON lr.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId
-                    AND lr.submittedAt >= @startDate
-                GROUP BY lt.typeName, lr.status",
-                new { organizationId, startDate });
-
-            var leaveTypes = new Dictionary<string, int>();
-            var totalRequests = 0;
-            var approvedRequests = 0;
-            var pendingRequests = 0;
-            var rejectedRequests = 0;
-
-            foreach (var item in leaveData)
-            {
-                var leaveType = (string)item.leavetype;
-                var count = (int)item.count;
-                var status = (string)item.status;
-
-                if (!leaveTypes.ContainsKey(leaveType))
-                    leaveTypes[leaveType] = 0;
-                
-                leaveTypes[leaveType] += count;
-                totalRequests += count;
-
-                switch (status.ToLower())
-                {
-                    case "approved":
-                        approvedRequests += count;
-                        break;
-                    case "pending":
-                        pendingRequests += count;
-                        break;
-                    case "rejected":
-                        rejectedRequests += count;
-                        break;
-                }
-            }
-
-            return new LeaveStatsDto
-            {
-                TotalRequests = totalRequests,
-                ApprovedRequests = approvedRequests,
-                PendingRequests = pendingRequests,
-                RejectedRequests = rejectedRequests,
-                LeaveTypes = leaveTypes
-            };
+            var result = await QueryAsync<ActiveAdvanceSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting leave stats for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching disbursed advances for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-    public async Task<PerformanceStatsDto> GetPerformanceStatsAsync(Guid organizationId)
+    // ─────────────────────────────────────────────────────────────────────────
+    // PENDING LEAVE REQUESTS
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<PendingRequestSummaryDto>> GetPendingLeaveRequestsAsync(Guid employeeId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var performanceData = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    e.employeeId,
-                    CONCAT(e.firstName, ' ', e.lastName) as EmployeeName,
-                    d.departmentName as Department,
-                    COALESCE(AVG(ea.overallRating), 0) as AverageRating
-                FROM performance.employeeAppraisals ea
-                INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
-                INNER JOIN employee.employmentDetails ed ON e.employeeId = ed.employeeId AND ed.isCurrent = true
-                INNER JOIN employee.departments d ON ed.departmentId = d.departmentId
-                WHERE e.organizationId = @organizationId
-                    AND ea.status = 'Submitted'
-                GROUP BY e.employeeId, e.firstName, e.lastName, d.departmentName
-                ORDER BY AverageRating DESC
-                LIMIT 10",
-                new { organizationId });
+            const string sql = @"
+                SELECT
+                    lr.requestid                                     AS RequestId,
+                    'Leave'                                          AS RequestType,
+                    COALESCE(lt.typename, 'Leave') || ' request - '
+                        || TO_CHAR(lr.startdate, 'DD Mon') || ' to '
+                        || TO_CHAR(lr.enddate,   'DD Mon')          AS Description,
+                    lr.createdat                                     AS SubmittedAt
+                FROM attendance.leaverequests lr
+                LEFT JOIN attendance.leavetypes lt ON lt.leavetypeid = lr.leavetypeid
+                WHERE lr.employeeid = @EmployeeId
+                  AND lr.status     = 'pending'
+                ORDER BY lr.createdat DESC;";
 
-            var completedReviews = await connection.ExecuteScalarAsync<int>(
-                @"SELECT COUNT(*) 
-                FROM performance.employeeAppraisals ea
-                INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId AND ea.status = 'Submitted'",
-                new { organizationId });
-
-            var pendingReviews = await connection.ExecuteScalarAsync<int>(
-                @"SELECT COUNT(*) 
-                FROM performance.employeeAppraisals ea
-                INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId AND ea.status = 'pending'",
-                new { organizationId });
-
-            var averageRating = await connection.ExecuteScalarAsync<decimal?>(
-                @"SELECT AVG(overallRating) 
-                FROM performance.employeeAppraisals ea
-                INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId AND ea.status = 'Submitted'",
-                new { organizationId }) ?? 0m;
-
-            var topPerformers = performanceData.Select(p => new TopPerformerDto
-            {
-                EmployeeName = (string)p.employeename,
-                Rating = (decimal)p.averagerating,
-                Department = (string)p.department
-            }).ToList();
-
-            return new PerformanceStatsDto
-            {
-                AverageRating = averageRating,
-                CompletedReviews = completedReviews,
-                PendingReviews = pendingReviews,
-                TopPerformers = topPerformers
-            };
+            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting performance stats for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching pending leave requests for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-    public async Task<EmployeeGrowthDto> GetEmployeeGrowthAsync(Guid organizationId, string period = "12m")
+    // ─────────────────────────────────────────────────────────────────────────
+    // PENDING SHIFT SWAP REQUESTS
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<PendingRequestSummaryDto>> GetPendingShiftSwapRequestsAsync(Guid employeeId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var monthsInPeriod = period.ToLower() switch
-            {
-                "6m" => 6,
-                "12m" => 12,
-                "24m" => 24,
-                _ => 12
-            };
+            const string sql = @"
+                SELECT
+                    ss.requestid                                              AS RequestId,
+                    'ShiftSwap'                                               AS RequestType,
+                    'Shift swap: '
+                        || COALESCE(cs.shiftname, 'Current')
+                        || ' -> '
+                        || COALESCE(rs.shiftname, 'Requested')               AS Description,
+                    ss.submittedat                                            AS SubmittedAt
+                FROM attendance.shiftswaprequests ss
+                LEFT JOIN attendance.shifts cs ON cs.shiftid = ss.currentshiftid
+                LEFT JOIN attendance.shifts rs ON rs.shiftid = ss.requestedshiftid
+                WHERE ss.employeeid = @EmployeeId
+                  AND ss.status     = 'pending'
+                ORDER BY ss.submittedat DESC;";
 
-            var growthData = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    DATE_TRUNC('month', hireDate) as Month,
-                    COUNT(*) as NewEmployees
-                FROM employee.employees
-                WHERE organizationId = @organizationId
-                    AND hireDate >= CURRENT_DATE - (@months * INTERVAL '1 month')
-                GROUP BY DATE_TRUNC('month', hireDate)
-                ORDER BY Month",
-                new { organizationId, months = monthsInPeriod });
-
-            var months = new List<string>();
-            var counts = new List<int>();
-            var cumulative = new List<int>();
-
-            int cumulativeCount = 0;
-            foreach (var item in growthData)
-            {
-                months.Add(((DateTime)item.month).ToString("MMM yyyy"));
-                counts.Add((int)item.newemployees);
-                cumulativeCount += (int)item.newemployees;
-                cumulative.Add(cumulativeCount);
-            }
-
-            return new EmployeeGrowthDto
-            {
-                Months = months,
-                Counts = counts,
-                GrowthRate = 0, // Calculate actual growth rate if needed
-                CumulativeEmployees = cumulative,
-                NewEmployees = counts
-            };
+            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting employee growth for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching pending shift swap requests for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-    public async Task<List<DepartmentStatsDto>> GetDepartmentStatsAsync(Guid organizationId)
+    // ─────────────────────────────────────────────────────────────────────────
+    // PENDING OVERTIME REQUESTS
+    // requesttype = 'employee' isolates employee-initiated requests
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<PendingRequestSummaryDto>> GetPendingOvertimeRequestsAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var departmentData = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    d.departmentName as DepartmentName,
-                    COUNT(e.employeeId) as EmployeeCount,
-                    AVG(ed.basicSalary) as AverageSalary,
-                    COUNT(e.employeeId) FILTER (WHERE e.status = 'active') as ActiveEmployees
-                FROM employee.departments d
-                LEFT JOIN employee.employmentDetails ed ON d.departmentId = ed.departmentId AND ed.isCurrent = true
-                LEFT JOIN employee.employees e ON ed.employeeId = e.employeeId
-                WHERE d.organizationId = @organizationId AND d.isActive = true
-                GROUP BY d.departmentId, d.departmentName
-                ORDER BY EmployeeCount DESC",
-                new { organizationId });
+            const string sql = @"
+                SELECT
+                    o.requestid                                          AS RequestId,
+                    'Overtime'                                           AS RequestType,
+                    'Overtime request for '
+                        || TO_CHAR(o.overtimedate, 'DD Mon YYYY')
+                        || ' ('
+                        || o.requestedhours::text
+                        || ' hrs)'                                       AS Description,
+                    o.createdat                                          AS SubmittedAt
+                FROM attendance.employee_overtime_requests o
+                WHERE o.employeeid     = @EmployeeId
+                  AND o.organizationid = @OrganizationId
+                  AND o.requesttype    = 'employee'
+                  AND o.status         = 'pending'
+                ORDER BY o.createdat DESC;";
 
-            return departmentData.Select(d => new DepartmentStatsDto
-            {
-                DepartmentName = (string)d.departmentname,
-                EmployeeCount = (int)d.employeecount,
-                AverageSalary = (decimal?)d.averagesalary,
-                ActiveEmployees = (int)d.activeemployees
-            }).ToList();
+            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting department stats for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching pending overtime requests for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-  
-
-    public async Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(Guid organizationId, int count = 5)
+    // ─────────────────────────────────────────────────────────────────────────
+    // PENDING SALARY ADVANCE REQUESTS
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<PendingRequestSummaryDto>> GetPendingSalaryAdvanceRequestsAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
+            const string sql = @"
+                SELECT
+                    sa.advanceid                              AS RequestId,
+                    'SalaryAdvance'                           AS RequestType,
+                    'Salary advance request - '
+                        || sa.amount::text                    AS Description,
+                    sa.createdat                              AS SubmittedAt
+                FROM payroll.salaryadvance sa
+                WHERE sa.employeeid     = @EmployeeId
+                  AND sa.organizationid = @OrganizationId
+                  AND sa.advancestatus  = 'pending'
+                ORDER BY sa.createdat DESC;";
 
-            var events = await connection.QueryAsync<UpcomingEventDto>(
-                @"SELECT 
-                'birthday' as Type,
-                CONCAT(e.firstName, ' ', e.lastName, '''s Birthday') as Title,
-                CONCAT('Birthday celebration for ', e.firstName, ' ', e.lastName) as Description,
-                TO_CHAR(e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)), 'YYYY-MM-DD') as Date,
-                '09:00' as Time
-            FROM employee.employees e
-            WHERE e.organizationId = @organizationId
-                AND e.status = 'active'
-                AND e.dateOfBirth IS NOT NULL
-                AND (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) >= 1
-                AND e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) >= CURRENT_DATE
-                AND e.dateOfBirth + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.dateOfBirth)) <= CURRENT_DATE + INTERVAL '30 days'
-
-            UNION ALL
-
-            SELECT 
-                'anniversary' as Type,
-                CONCAT(e.firstName, ' ', e.lastName, '''s Work Anniversary') as Title,
-                CONCAT('Work anniversary celebration for ', e.firstName, ' ', e.lastName) as Description,
-                TO_CHAR(e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)), 'YYYY-MM-DD') as Date,
-                '15:00' as Time
-            FROM employee.employees e
-            WHERE e.organizationId = @organizationId
-                AND e.status = 'active'
-                AND e.hireDate IS NOT NULL
-                AND (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) >= 1
-                AND e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) >= CURRENT_DATE
-                AND e.hireDate + INTERVAL '1 year' * (EXTRACT(YEAR FROM CURRENT_DATE) - EXTRACT(YEAR FROM e.hireDate)) <= CURRENT_DATE + INTERVAL '30 days'
-
-            ORDER BY Date ASC
-            LIMIT @count",
-                new { organizationId, count });
-
-            return events.ToList();
+            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting upcoming events for organization {OrganizationId}", organizationId);
-            return new List<UpcomingEventDto>();
-        }
-    }
-
-
-
-
-    public async Task<object> GetAttendanceTrendsAsync(Guid organizationId, string period = "30d")
-    {
-        try
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var daysInPeriod = period.ToLower() switch
-            {
-                "7d" => 7,
-                "30d" => 30,
-                "90d" => 90,
-                _ => 30
-            };
-
-            var startDate = DateTime.UtcNow.AddDays(-daysInPeriod);
-            
-            var trends = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    a.workDate as Date,
-                    COUNT(*) FILTER (WHERE a.status = 'present') as PresentCount,
-                    COUNT(*) FILTER (WHERE a.status = 'absent') as AbsentCount,
-                    COUNT(*) FILTER (WHERE a.status = 'late') as LateCount
-                FROM attendance.attendance a
-                INNER JOIN employee.employees e ON a.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId
-                    AND a.workDate >= @startDate
-                GROUP BY a.workDate
-                ORDER BY a.workDate",
-                new { organizationId, startDate });
-
-            var dates = trends.Select(t => ((DateTime)t.date).ToString("yyyy-MM-dd")).ToList();
-            var presentCounts = trends.Select(t => (int)t.presentcount).ToList();
-            var absentCounts = trends.Select(t => (int)t.absentcount).ToList();
-            var lateCounts = trends.Select(t => (int)t.latecount).ToList();
-
-            return new
-            {
-                Dates = dates,
-                PresentCounts = presentCounts,
-                AbsentCounts = absentCounts,
-                LateCounts = lateCounts
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting attendance trends for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching pending salary advance requests for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-    public async Task<object> GetLeaveTrendsAsync(Guid organizationId, string period = "12m")
+    // ─────────────────────────────────────────────────────────────────────────
+    // PENDING LOAN REQUESTS
+    // requeststatus = 'pending' means HR has not yet approved/rejected
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<PendingRequestSummaryDto>> GetPendingLoanRequestsAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var monthsInPeriod = period.ToLower() switch
-            {
-                "6m" => 6,
-                "12m" => 12,
-                "24m" => 24,
-                _ => 12
-            };
+            const string sql = @"
+                SELECT
+                    l.loanid                                  AS RequestId,
+                    'Loan'                                    AS RequestType,
+                    'Loan request - '
+                        || l.principalamount::text            AS Description,
+                    l.createdat                               AS SubmittedAt
+                FROM payroll.loans l
+                WHERE l.employeeid     = @EmployeeId
+                  AND l.organizationid = @OrganizationId
+                  AND l.requeststatus  = 'pending'
+                ORDER BY l.createdat DESC;";
 
-            var trends = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    DATE_TRUNC('month', lr.startDate) as Month,
-                    COUNT(*) as LeaveCount,
-                    SUM(lr.daysRequested) as TotalDays
-                FROM attendance.leaveRequests lr
-                INNER JOIN employee.employees e ON lr.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId
-                    AND lr.startDate >= CURRENT_DATE - INTERVAL '@months months'
-                    AND lr.status = 'approved'
-                GROUP BY DATE_TRUNC('month', lr.startDate)
-                ORDER BY Month",
-                new { organizationId, months = monthsInPeriod });
-
-            var months = trends.Select(t => ((DateTime)t.month).ToString("MMM yyyy")).ToList();
-            var leaveCounts = trends.Select(t => (int)t.leavecount).ToList();
-            var totalDays = trends.Select(t => (decimal)t.totaldays).ToList();
-
-            return new
-            {
-                Months = months,
-                LeaveCounts = leaveCounts,
-                TotalDays = totalDays
-            };
+            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting leave trends for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching pending loan requests for employee {EmployeeId}", employeeId);
             throw;
         }
     }
 
-    public async Task<List<object>> GetTopPerformersAsync(Guid organizationId, int limit = 5)
+    // ─────────────────────────────────────────────────────────────────────────
+    // PENDING PROVIDENT FUND REQUESTS
+    // status = 'pending' across all request types (enrollment, update, withdrawal)
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<List<PendingRequestSummaryDto>> GetPendingPfRequestsAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var performers = await connection.QueryAsync<dynamic>(
-                @"SELECT 
-                    e.employeeId,
-                    CONCAT(e.firstName, ' ', e.lastName) as EmployeeName,
-                    d.departmentName as Department,
-                    AVG(ea.overallRating) as AverageRating,
-                    COUNT(ea.appraisalId) as ReviewCount
-                FROM performance.employeeAppraisals ea
-                INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
-                INNER JOIN employee.employmentDetails ed ON e.employeeId = ed.employeeId AND ed.isCurrent = true
-                INNER JOIN employee.departments d ON ed.departmentId = d.departmentId
-                WHERE e.organizationId = @organizationId
-                    AND ea.status = 'completed'
-                GROUP BY e.employeeId, e.firstName, e.lastName, d.departmentName
-                ORDER BY AverageRating DESC, ReviewCount DESC
-                LIMIT @limit",
-                new { organizationId, limit });
+            const string sql = @"
+                SELECT
+                    pf.requestid                              AS RequestId,
+                    'PF'                                      AS RequestType,
+                    'PF '
+                        || INITCAP(pf.requesttype)
+                        || ' request'                         AS Description,
+                    pf.createdat                              AS SubmittedAt
+                FROM payroll.pfrequests pf
+                WHERE pf.employeeid     = @EmployeeId
+                  AND pf.organizationid = @OrganizationId
+                  AND pf.status         = 'pending'
+                ORDER BY pf.createdat DESC;";
 
-            return performers.Select(p => new
-            {
-                EmployeeId = (Guid)p.employeeid,
-                EmployeeName = (string)p.employeename,
-                Department = (string)p.department,
-                AverageRating = (decimal)p.averagerating,
-                ReviewCount = (int)p.reviewcount
-            }).Cast<object>().ToList();
+            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
+            return result.ToList();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting top performers for organization {OrganizationId}", organizationId);
-            return new List<object>();
-        }
-    }
-
-    public async Task<object> GetRemindersAsync(Guid organizationId)
-    {
-        try
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var upcomingBirthdays = await connection.QuerySingleOrDefaultAsync<int>(
-                @"SELECT COUNT(*) 
-                FROM employee.employees 
-                WHERE organizationId = @organizationId 
-                    AND status = 'active'
-                    AND EXTRACT(month FROM dateOfBirth) = EXTRACT(month FROM CURRENT_DATE)
-                    AND EXTRACT(day FROM dateOfBirth) >= EXTRACT(day FROM CURRENT_DATE)",
-                new { organizationId });
-
-            var pendingReviews = await connection.QuerySingleOrDefaultAsync<int>(
-                @"SELECT COUNT(*) 
-                FROM performance.employeeAppraisals ea
-                INNER JOIN employee.employees e ON ea.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId AND ea.status = 'pending'",
-                new { organizationId });
-
-            var pendingLeaves = await connection.QuerySingleOrDefaultAsync<int>(
-                @"SELECT COUNT(*) 
-                FROM attendance.leaveRequests lr
-                INNER JOIN employee.employees e ON lr.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId AND lr.status = 'pending'",
-                new { organizationId });
-
-            return new
-            {
-                UpcomingBirthdays = upcomingBirthdays,
-                PendingReviews = pendingReviews,
-                PendingLeaves = pendingLeaves
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting reminders for organization {OrganizationId}", organizationId);
-            return new { };
-        }
-    }
-
-    public async Task<object> GetQuickStatsAsync(Guid organizationId)
-    {
-        try
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            var stats = await GetDashboardStatsAsync(organizationId);
-
-            var thisMonthAttendance = await connection.QuerySingleOrDefaultAsync<dynamic>(
-                @"SELECT 
-                    COUNT(*) FILTER (WHERE a.status = 'present') as PresentCount,
-                    COUNT(*) as TotalDays
-                FROM attendance.attendance a
-                INNER JOIN employee.employees e ON a.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId
-                    AND EXTRACT(month FROM a.workDate) = EXTRACT(month FROM CURRENT_DATE)
-                    AND EXTRACT(year FROM a.workDate) = EXTRACT(year FROM CURRENT_DATE)",
-                new { organizationId });
-
-            return new
-            {
-                TotalEmployees = stats.TotalEmployees,
-                ActiveEmployees = stats.ActiveEmployees,
-                PresentToday = stats.PresentToday,
-                PendingApprovals = stats.PendingLeaveRequests,
-                ThisMonthAttendance = thisMonthAttendance?.presentcount ?? 0,
-                ThisMonthTotalDays = thisMonthAttendance?.totaldays ?? 0
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting quick stats for organization {OrganizationId}", organizationId);
-            return new { };
-        }
-    }
-
-    private async Task<int> GetOnLeaveTodayCountAsync(Guid organizationId)
-    {
-        try
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            return await connection.ExecuteScalarAsync<int>(
-                @"SELECT COUNT(DISTINCT lr.employeeId)
-                FROM attendance.leaveRequests lr
-                INNER JOIN employee.employees e ON lr.employeeId = e.employeeId
-                WHERE e.organizationId = @organizationId
-                    AND lr.status = 'approved'
-                    AND CURRENT_DATE BETWEEN lr.startDate AND lr.endDate",
-                new { organizationId });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting on leave today count for organization {OrganizationId}", organizationId);
-            return 0;
-        }
-    }
-
-    public async Task<OnboardingStatusDto> GetOnboardingStatusAsync(Guid organizationId)
-    {
-        try
-        {
-            using var connection = _connectionFactory.CreateConnection();
-            
-            // Step 2: Create Team - Check if Departments, Positions, or Employees exist
-            var createTeam = await connection.ExecuteScalarAsync<bool>(
-                @"SELECT EXISTS(
-                    SELECT 1 FROM employee.departments WHERE organizationid = @organizationId AND isactive = true
-                    UNION
-                    SELECT 1 FROM employee.positions WHERE organizationid = @organizationId AND isactive = true
-                    UNION
-                    SELECT 1 FROM employee.employees WHERE organizationid = @organizationId
-                    LIMIT 1
-                )",
-                new { organizationId });
-
-            // Step 3: Define Leave Types - Check if LeaveTypes exist
-            var defineLeaveTypes = await connection.ExecuteScalarAsync<bool>(
-                @"SELECT EXISTS(
-                    SELECT 1 FROM attendance.leavetypes 
-                    WHERE organizationid = @organizationId AND isactive = true
-                    LIMIT 1
-                )",
-                new { organizationId });
-
-            // Step 4: Mark Attendance - Check if any employee has marked attendance OR if shifts exist
-            var markAttendance = await connection.ExecuteScalarAsync<bool>(
-                @"SELECT EXISTS(
-                    SELECT 1 FROM attendance.attendance a
-                    INNER JOIN employee.employees e ON a.employeeid = e.employeeid
-                    WHERE e.organizationid = @organizationId
-                    UNION
-                    SELECT 1 FROM attendance.shifts 
-                    WHERE organizationid = @organizationId AND isactive = true
-                    LIMIT 1
-                )",
-                new { organizationId });
-
-            return new OnboardingStatusDto
-            {
-                SignUp = true, // Always true if user is on dashboard
-                CreateTeam = createTeam,
-                DefineLeaveTypes = defineLeaveTypes,
-                MarkAttendance = markAttendance
-            };
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting onboarding status for organization {OrganizationId}", organizationId);
+            _logger.LogError(ex, "DashboardRepo: Error fetching pending PF requests for employee {EmployeeId}", employeeId);
             throw;
         }
     }

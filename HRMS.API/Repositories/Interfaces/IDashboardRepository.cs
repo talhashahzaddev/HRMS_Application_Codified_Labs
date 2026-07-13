@@ -4,19 +4,21 @@ namespace HRMS.API.Repositories.Interfaces;
 
 public interface IDashboardRepository
 {
-    Task<DashboardStatsDto> GetDashboardStatsAsync(Guid organizationId);
-    Task<List<RecentActivityDto>> GetRecentActivitiesAsync(Guid organizationId, int count = 10);
-    Task<DashboardSummaryDto> GetDashboardSummaryAsync(Guid organizationId);
-    Task<AttendanceStatsDto> GetAttendanceStatsAsync(Guid organizationId, string period = "month");
-    Task<LeaveStatsDto> GetLeaveStatsAsync(Guid organizationId, string period = "month");
-    Task<PerformanceStatsDto> GetPerformanceStatsAsync(Guid organizationId);
-    Task<EmployeeGrowthDto> GetEmployeeGrowthAsync(Guid organizationId, string period = "12m");
-    Task<List<DepartmentStatsDto>> GetDepartmentStatsAsync(Guid organizationId);
-    Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(Guid organizationId, int count = 5);
-    Task<object> GetAttendanceTrendsAsync(Guid organizationId, string period = "30d");
-    Task<object> GetLeaveTrendsAsync(Guid organizationId, string period = "12m");
-    Task<List<object>> GetTopPerformersAsync(Guid organizationId, int limit = 5);
-    Task<object> GetRemindersAsync(Guid organizationId);
-    Task<object> GetQuickStatsAsync(Guid organizationId);
-    Task<OnboardingStatusDto> GetOnboardingStatusAsync(Guid organizationId);
+    // ── Leave ────────────────────────────────────────────────────────────────
+    Task<List<LeaveTypeBalanceSummaryDto>> GetLeaveBalancesAsync(Guid employeeId, int year);
+
+    // ── Financial Snapshot ───────────────────────────────────────────────────
+    Task<FinancialSnapshotDto?> GetLatestPayslipAsync(Guid employeeId, Guid organizationId);
+
+    // ── Active Loans & Advances ──────────────────────────────────────────────
+    Task<List<ActiveLoanSummaryDto>> GetActiveLoansAsync(Guid employeeId, Guid organizationId);
+    Task<List<ActiveAdvanceSummaryDto>> GetDisbursedAdvancesAsync(Guid employeeId, Guid organizationId);
+
+    // ── Pending Requests ─────────────────────────────────────────────────────
+    Task<List<PendingRequestSummaryDto>> GetPendingLeaveRequestsAsync(Guid employeeId);
+    Task<List<PendingRequestSummaryDto>> GetPendingShiftSwapRequestsAsync(Guid employeeId);
+    Task<List<PendingRequestSummaryDto>> GetPendingOvertimeRequestsAsync(Guid employeeId, Guid organizationId);
+    Task<List<PendingRequestSummaryDto>> GetPendingSalaryAdvanceRequestsAsync(Guid employeeId, Guid organizationId);
+    Task<List<PendingRequestSummaryDto>> GetPendingLoanRequestsAsync(Guid employeeId, Guid organizationId);
+    Task<List<PendingRequestSummaryDto>> GetPendingPfRequestsAsync(Guid employeeId, Guid organizationId);
 }
