@@ -100,4 +100,31 @@ public class DashboardService : IDashboardService
             throw;
         }
     }
+
+    public async Task<ManagerOverviewDto> GetManagerOverviewAsync(Guid userId, Guid organizationId)
+    {
+        try
+        {
+            var managerId = await _attendanceService.GetEmployeeFromTable(userId);
+            var today = DateTime.UtcNow.Date;
+
+            // Start all tasks concurrently
+            var snapshotTask = _dashboardRepository.GetTeamAttendanceSnapshotAsync(managerId, organizationId, today);
+            var overtimeTask = _dashboardRepository.GetTeamOvertimeCountTodayAsync(managerId, organizationId, today);
+            var actionsTask = _dashboardRepository.GetPendingManagerActionsAsync(managerId, organizationId);
+
+            await Task.WhenAll(snapshotTask, overtimeTask, actionsTask);
+
+            return new ManagerOverviewDto
+            {
+                TeamAttendanceSnapshot = await snapshotTask,
+                TeamOvertimeCountToday = await overtimeTask,
+                PendingActions = await actionsTask
+            };
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
 }

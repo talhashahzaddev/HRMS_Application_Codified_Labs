@@ -87,3 +87,28 @@ public class PendingRequestSummaryDto
     public string Description { get; set; } = string.Empty;
     public DateTime SubmittedAt { get; set; }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5. Manager Overview Section
+// ─────────────────────────────────────────────────────────────────────────────
+public class ManagerOverviewDto
+{
+    public TeamAttendanceSnapshotDto TeamAttendanceSnapshot { get; set; } = new();
+    public int TeamOvertimeCountToday { get; set; }
+    public PendingManagerActionsDto PendingActions { get; set; } = new();
+}
+
+public class TeamAttendanceSnapshotDto
+{
+    public int PresentCount { get; set; }
+    public int AbsentCount { get; set; }
+    public int LateCount { get; set; }
+    public int OnLeaveCount { get; set; }
+}
+
+public class PendingManagerActionsDto
+{
+    public int PendingLeaveRequests { get; set; }
+    public int PendingTimesheetCorrections { get; set; }
+    public int PendingShiftSwaps { get; set; }
+}

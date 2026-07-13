@@ -71,6 +71,46 @@ public class DashboardController : ControllerBase
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // MANAGER OVERVIEW
+    // ─────────────────────────────────────────────────────────────────────────
+    [HttpGet("manager-overview")]
+    public async Task<ActionResult<ServiceResponse<ManagerOverviewDto>>> GetManagerOverview()
+    {
+        try
+        {
+            var userId         = GetCurrentUserId();
+            var organizationId = GetCurrentOrganizationId();
+
+            var data = await _dashboardService.GetManagerOverviewAsync(userId, organizationId);
+
+            return Ok(new ServiceResponse<ManagerOverviewDto>
+            {
+                Success = true,
+                Data    = data,
+                Message = "Manager overview fetched successfully"
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access to manager overview");
+            return Unauthorized(new ServiceResponse<ManagerOverviewDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching manager overview");
+            return StatusCode(500, new ServiceResponse<ManagerOverviewDto>
+            {
+                Success = false,
+                Message = "An error occurred while fetching the manager overview"
+            });
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Private helpers (same pattern used across all other controllers)
     // ─────────────────────────────────────────────────────────────────────────
     private Guid GetCurrentUserId()

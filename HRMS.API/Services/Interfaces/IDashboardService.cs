@@ -10,4 +10,9 @@ public interface IDashboardService
     /// and all pending requests across every module.
     /// </summary>
     Task<EmployeeOverviewDto> GetEmployeeOverviewAsync(Guid userId, Guid organizationId);
+
+    /// <summary>
+    /// Returns the manager overview: team attendance today, team overtime today, and pending approvals.
+    /// </summary>
+    Task<ManagerOverviewDto> GetManagerOverviewAsync(Guid managerId, Guid organizationId);
 }

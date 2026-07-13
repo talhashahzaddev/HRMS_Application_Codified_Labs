@@ -21,4 +21,9 @@ public interface IDashboardRepository
     Task<List<PendingRequestSummaryDto>> GetPendingSalaryAdvanceRequestsAsync(Guid employeeId, Guid organizationId);
     Task<List<PendingRequestSummaryDto>> GetPendingLoanRequestsAsync(Guid employeeId, Guid organizationId);
     Task<List<PendingRequestSummaryDto>> GetPendingPfRequestsAsync(Guid employeeId, Guid organizationId);
+
+    // ── Manager Overview ─────────────────────────────────────────────────────
+    Task<TeamAttendanceSnapshotDto> GetTeamAttendanceSnapshotAsync(Guid managerId, Guid organizationId, DateTime date);
+    Task<int> GetTeamOvertimeCountTodayAsync(Guid managerId, Guid organizationId, DateTime date);
+    Task<PendingManagerActionsDto> GetPendingManagerActionsAsync(Guid managerId, Guid organizationId);
 }

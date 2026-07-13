@@ -367,4 +367,121 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
             throw;
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // MANAGER OVERVIEW 
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public async Task<TeamAttendanceSnapshotDto> GetTeamAttendanceSnapshotAsync(Guid managerId, Guid organizationId, DateTime date)
+    {
+        try
+        {
+            var sql = @"
+                WITH team AS (
+                    SELECT ed.employeeid 
+                    FROM employee.employmentdetails ed
+                    INNER JOIN employee.employees e ON e.employeeid = ed.employeeid
+                    WHERE ed.reportingmanagerid = @ManagerId 
+                      AND e.organizationid = @OrganizationId
+                      AND ed.iscurrent = true
+                ),
+                PresentEmployees AS (
+                    SELECT a.employeeid, a.late_minutes
+                    FROM attendance.attendance a
+                    INNER JOIN team t ON t.employeeid = a.employeeid
+                    WHERE a.workdate = @Date
+                      AND LOWER(TRIM(a.status)) = 'present'
+                ),
+                OnLeaveEmployees AS (
+                    SELECT DISTINCT lr.employeeid
+                    FROM attendance.leaverequests lr
+                    INNER JOIN team t ON t.employeeid = lr.employeeid
+                    WHERE LOWER(TRIM(lr.status)) = 'approved'
+                      AND @Date BETWEEN lr.startdate AND lr.enddate
+                )
+                SELECT 
+                    COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0) AS PresentCount,
+                    COALESCE((SELECT COUNT(*) FROM PresentEmployees WHERE late_minutes > 0), 0) AS LateCount,
+                    COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0) AS OnLeaveCount,
+                    GREATEST(
+                        COALESCE((SELECT COUNT(*) FROM team), 0) 
+                        - COALESCE((SELECT COUNT(*) FROM PresentEmployees), 0)
+                        - COALESCE((SELECT COUNT(*) FROM OnLeaveEmployees), 0),
+                        0
+                    ) AS AbsentCount;";
+
+            var parameters = new { ManagerId = managerId, OrganizationId = organizationId, Date = date.Date };
+            return await QuerySingleOrDefaultAsync<TeamAttendanceSnapshotDto>(sql, parameters) ?? new TeamAttendanceSnapshotDto();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching team attendance snapshot for manager {ManagerId}", managerId);
+            throw;
+        }
+    }
+
+    public async Task<int> GetTeamOvertimeCountTodayAsync(Guid managerId, Guid organizationId, DateTime date)
+    {
+        try
+        {
+            var sql = @"
+                SELECT COUNT(DISTINCT o.employeeid)
+                FROM attendance.overtime_requests o
+                INNER JOIN employee.employmentdetails ed ON ed.employeeid = o.employeeid
+                INNER JOIN employee.employees e ON e.employeeid = o.employeeid
+                WHERE ed.reportingmanagerid = @ManagerId
+                  AND e.organizationid = @OrganizationId
+                  AND ed.iscurrent = true
+                  AND o.overtimedate::date = @Date::date
+                  AND o.status IN ('pending', 'approved');";
+
+            var parameters = new { ManagerId = managerId, OrganizationId = organizationId, Date = date.Date };
+            var result = await QueryAsync<int>(sql, parameters);
+            return result.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching team overtime count for manager {ManagerId}", managerId);
+            throw;
+        }
+    }
+
+    public async Task<PendingManagerActionsDto> GetPendingManagerActionsAsync(Guid managerId, Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                WITH team AS (
+                    SELECT ed.employeeid 
+                    FROM employee.employmentdetails ed
+                    INNER JOIN employee.employees e ON e.employeeid = ed.employeeid
+                    WHERE ed.reportingmanagerid = @ManagerId 
+                      AND e.organizationid = @OrganizationId
+                      AND ed.iscurrent = true
+                )
+                SELECT
+                    (SELECT COUNT(*) 
+                     FROM attendance.leaverequests lr
+                     INNER JOIN team t ON lr.employeeid = t.employeeid
+                     WHERE lr.status = 'pending') AS PendingLeaveRequests,
+                    
+                    (SELECT COUNT(DISTINCT p.timesheet_id) 
+                     FROM attendance.timesheet_approval_progress p
+                     WHERE p.approver_id = @ManagerId 
+                       AND LOWER(p.status) = 'pending') AS PendingTimesheetCorrections,
+                       
+                    (SELECT COUNT(*) 
+                     FROM attendance.shiftswaprequests ss
+                     WHERE ss.reportingmanagerid = @ManagerId 
+                       AND ss.status = 'pending') AS PendingShiftSwaps;";
+
+            var parameters = new { ManagerId = managerId, OrganizationId = organizationId };
+            return await QuerySingleOrDefaultAsync<PendingManagerActionsDto>(sql, parameters) ?? new PendingManagerActionsDto();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching pending actions for manager {ManagerId}", managerId);
+            throw;
+        }
+    }
 }
