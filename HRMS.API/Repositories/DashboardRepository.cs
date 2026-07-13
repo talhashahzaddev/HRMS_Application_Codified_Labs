@@ -20,7 +20,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // LEAVE BALANCES
     // Replicates the same join used in LeaveRepository.GetLeaveBalanceAsync
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<LeaveTypeBalanceSummaryDto>> GetLeaveBalancesAsync(Guid employeeId, int year)
+    public async Task<List<LeaveTypeBalanceSummaryDto>> GetLeaveBalancesAsync(Guid employeeId, Guid organizationId, int year)
     {
         try
         {
@@ -37,10 +37,10 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                     ON le.leavetypeid = lt.leavetypeid
                    AND le.employeeid  = @EmployeeId
                    AND le.year        = @Year
-                WHERE lt.isactive = true
+                WHERE lt.organizationid = @OrganizationId AND lt.isactive = true
                 ORDER BY lt.typename;";
 
-            var result = await QueryAsync<LeaveTypeBalanceSummaryDto>(sql, new { EmployeeId = employeeId, Year = year });
+            var result = await QueryAsync<LeaveTypeBalanceSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId, Year = year });
             return result.ToList();
         }
         catch (Exception ex)
@@ -560,6 +560,154 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "DashboardRepo: Error fetching workforce metrics for org {OrgId}", organizationId);
+            throw;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // HR STATS OVERVIEW
+    // ─────────────────────────────────────────────────────────────────────────
+    public async Task<WorkforceDemographicsDto> GetWorkforceDemographicsAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                WITH ActiveEmployees AS (
+                    SELECT e.employeeid, e.gender, e.dateofbirth, ed.departmentid
+                    FROM employee.employees e
+                    LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+                    WHERE e.organizationid = @OrganizationId AND LOWER(e.status) = 'active'
+                ),
+                TotalCount AS (
+                    SELECT COUNT(*) as Total FROM ActiveEmployees
+                ),
+                GenderStats AS (
+                    SELECT 
+                        SUM(CASE WHEN LOWER(gender) = 'male' THEN 1 ELSE 0 END) AS MaleCount,
+                        SUM(CASE WHEN LOWER(gender) = 'female' THEN 1 ELSE 0 END) AS FemaleCount
+                    FROM ActiveEmployees
+                ),
+                AgeStats AS (
+                    SELECT 
+                        SUM(CASE WHEN EXTRACT(YEAR FROM age(CURRENT_DATE, dateofbirth)) < 25 THEN 1 ELSE 0 END) AS Under25,
+                        SUM(CASE WHEN EXTRACT(YEAR FROM age(CURRENT_DATE, dateofbirth)) BETWEEN 25 AND 34 THEN 1 ELSE 0 END) AS Age25_34,
+                        SUM(CASE WHEN EXTRACT(YEAR FROM age(CURRENT_DATE, dateofbirth)) BETWEEN 35 AND 44 THEN 1 ELSE 0 END) AS Age35_44,
+                        SUM(CASE WHEN EXTRACT(YEAR FROM age(CURRENT_DATE, dateofbirth)) BETWEEN 45 AND 54 THEN 1 ELSE 0 END) AS Age45_54,
+                        SUM(CASE WHEN EXTRACT(YEAR FROM age(CURRENT_DATE, dateofbirth)) >= 55 THEN 1 ELSE 0 END) AS Over55
+                    FROM ActiveEmployees
+                ),
+                DeptStats AS (
+                    SELECT d.departmentname, COUNT(ae.employeeid) AS DeptCount
+                    FROM ActiveEmployees ae
+                    INNER JOIN employee.departments d ON ae.departmentid = d.departmentid
+                    GROUP BY d.departmentname
+                    ORDER BY DeptCount DESC
+                    LIMIT 1
+                )
+                SELECT 
+                    (SELECT Total FROM TotalCount) AS TotalEmployees,
+                    (SELECT MaleCount FROM GenderStats) AS MaleCount,
+                    (SELECT FemaleCount FROM GenderStats) AS FemaleCount,
+                    (SELECT Under25 FROM AgeStats) AS Under25,
+                    (SELECT Age25_34 FROM AgeStats) AS Age25_34,
+                    (SELECT Age35_44 FROM AgeStats) AS Age35_44,
+                    (SELECT Age45_54 FROM AgeStats) AS Age45_54,
+                    (SELECT Over55 FROM AgeStats) AS Over55,
+                    (SELECT departmentname FROM DeptStats) AS LargestDepartmentName,
+                    (SELECT DeptCount FROM DeptStats) AS LargestDepartmentCount;";
+
+            var parameters = new { OrganizationId = organizationId };
+            var result = await QuerySingleOrDefaultAsync<dynamic>(sql, parameters);
+
+            if (result == null || result.totalemployees == 0)
+                return new WorkforceDemographicsDto();
+
+            decimal total = (decimal)result.totalemployees;
+
+            var demographics = new WorkforceDemographicsDto
+            {
+                MalePercentage = Math.Round((decimal)result.malecount / total * 100, 2),
+                FemalePercentage = Math.Round((decimal)result.femalecount / total * 100, 2),
+                LargestDepartmentName = result.largestdepartmentname ?? "N/A",
+                LargestDepartmentPercentage = result.largestdepartmentcount != null ? Math.Round((decimal)result.largestdepartmentcount / total * 100, 2) : 0
+            };
+
+            demographics.AgeGroupPercentages.Add("Under 25", Math.Round((decimal)result.under25 / total * 100, 2));
+            demographics.AgeGroupPercentages.Add("25-34", Math.Round((decimal)result.age25_34 / total * 100, 2));
+            demographics.AgeGroupPercentages.Add("35-44", Math.Round((decimal)result.age35_44 / total * 100, 2));
+            demographics.AgeGroupPercentages.Add("45-54", Math.Round((decimal)result.age45_54 / total * 100, 2));
+            demographics.AgeGroupPercentages.Add("55+", Math.Round((decimal)result.over55 / total * 100, 2));
+
+            return demographics;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching workforce demographics for org {OrgId}", organizationId);
+            throw;
+        }
+    }
+
+    public async Task<List<PayrollOutflowDto>> GetLast3PayrollOutflowAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                WITH Last3Periods AS (
+                    SELECT periodid, periodname, startdate
+                    FROM payroll.payrollperiods
+                    WHERE organizationid = @OrganizationId AND LOWER(status) != 'cancelled'
+                    ORDER BY startdate DESC
+                    LIMIT 3
+                )
+                SELECT 
+                    lp.periodname AS PeriodName,
+                    COALESCE(SUM(r.basicsalary), 0) AS BasicSalarySum,
+                    COALESCE(SUM(r.totaldeductions), 0) AS TotalDeductionsSum,
+                    COALESCE(SUM(r.totalbonuses), 0) AS TotalBonusesSum
+                FROM Last3Periods lp
+                LEFT JOIN payroll.payrollresults r ON lp.periodid = r.periodid AND r.organizationid = @OrganizationId
+                GROUP BY lp.periodname, lp.startdate
+                ORDER BY lp.startdate ASC;";
+
+            var parameters = new { OrganizationId = organizationId };
+            var result = await QueryAsync<PayrollOutflowDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching payroll outflow for org {OrgId}", organizationId);
+            throw;
+        }
+    }
+
+    public async Task<List<MonthlyExpenseDto>> GetLast3MonthsExpensesAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                WITH Last3Months AS (
+                    SELECT date_trunc('month', CURRENT_DATE - INTERVAL '2 months') AS start_date,
+                           date_trunc('month', CURRENT_DATE) + INTERVAL '1 month - 1 day' AS end_date
+                )
+                SELECT 
+                    to_char(e.billdate, 'YYYY-MM') AS Month,
+                    COALESCE(SUM(e.amount), 0) AS TotalExpense
+                FROM expense.expenses e
+                CROSS JOIN Last3Months lm
+                WHERE e.organizationid = @OrganizationId 
+                  AND LOWER(e.status) = 'approved'
+                  AND e.billdate >= lm.start_date
+                  AND e.billdate <= lm.end_date
+                GROUP BY to_char(e.billdate, 'YYYY-MM')
+                ORDER BY to_char(e.billdate, 'YYYY-MM') ASC;";
+
+            var parameters = new { OrganizationId = organizationId };
+            var result = await QueryAsync<MonthlyExpenseDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching monthly expenses for org {OrgId}", organizationId);
             throw;
         }
     }

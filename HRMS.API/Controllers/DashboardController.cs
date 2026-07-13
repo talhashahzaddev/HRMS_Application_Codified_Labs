@@ -150,6 +150,45 @@ public class DashboardController : ControllerBase
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // HR STATS OVERVIEW
+    // ─────────────────────────────────────────────────────────────────────────
+    [HttpGet("hr-stats")]
+    public async Task<ActionResult<ServiceResponse<HrStatsDto>>> GetHrStats()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+
+            var data = await _dashboardService.GetHrStatsAsync(organizationId);
+
+            return Ok(new ServiceResponse<HrStatsDto>
+            {
+                Success = true,
+                Data    = data,
+                Message = "HR Stats fetched successfully"
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access to HR Stats");
+            return Unauthorized(new ServiceResponse<HrStatsDto>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching HR Stats");
+            return StatusCode(500, new ServiceResponse<HrStatsDto>
+            {
+                Success = false,
+                Message = "An error occurred while fetching the HR Stats"
+            });
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Private helpers (same pattern used across all other controllers)
     // ─────────────────────────────────────────────────────────────────────────
     private Guid GetCurrentUserId()

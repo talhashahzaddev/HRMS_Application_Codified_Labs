@@ -5,7 +5,7 @@ namespace HRMS.API.Repositories.Interfaces;
 public interface IDashboardRepository
 {
     // ── Leave ────────────────────────────────────────────────────────────────
-    Task<List<LeaveTypeBalanceSummaryDto>> GetLeaveBalancesAsync(Guid employeeId, int year);
+    Task<List<LeaveTypeBalanceSummaryDto>> GetLeaveBalancesAsync(Guid employeeId, Guid organizationId, int year);
 
     // ── Financial Snapshot ───────────────────────────────────────────────────
     Task<FinancialSnapshotDto?> GetLatestPayslipAsync(Guid employeeId, Guid organizationId);
@@ -31,4 +31,9 @@ public interface IDashboardRepository
     Task<PayrollRunStatusDto> GetLatestPayrollRunStatusAsync(Guid organizationId);
     Task<decimal> GetLatestPayrollOutflowAsync(Guid organizationId);
     Task<WorkforceMetricsDto> GetWorkforceMetricsAsync(Guid organizationId);
+
+    // ── HR Stats Overview ────────────────────────────────────────────────────
+    Task<WorkforceDemographicsDto> GetWorkforceDemographicsAsync(Guid organizationId);
+    Task<List<PayrollOutflowDto>> GetLast3PayrollOutflowAsync(Guid organizationId);
+    Task<List<MonthlyExpenseDto>> GetLast3MonthsExpensesAsync(Guid organizationId);
 }

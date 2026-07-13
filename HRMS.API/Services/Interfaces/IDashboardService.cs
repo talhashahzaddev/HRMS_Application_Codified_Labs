@@ -20,4 +20,9 @@ public interface IDashboardService
     /// Returns the HR and Finance overview: latest payroll run status, payroll outflow, and workforce metrics.
     /// </summary>
     Task<HrOverviewDto> GetHrOverviewAsync(Guid organizationId);
+
+    /// <summary>
+    /// Returns the deeper HR Stats: Workforce demographics, historical payroll outflow, and monthly expenses.
+    /// </summary>
+    Task<HrStatsDto> GetHrStatsAsync(Guid organizationId);
 }

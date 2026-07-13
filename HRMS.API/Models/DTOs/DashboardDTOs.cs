@@ -138,3 +138,36 @@ public class WorkforceMetricsDto
     public int TotalActiveEmployees { get; set; }
     public int TotalOpenPositions { get; set; }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. HR Stats Section
+// ─────────────────────────────────────────────────────────────────────────────
+public class HrStatsDto
+{
+    public WorkforceDemographicsDto Demographics { get; set; } = new();
+    public List<PayrollOutflowDto> PayrollOutflow { get; set; } = new();
+    public List<MonthlyExpenseDto> MonthlyExpenses { get; set; } = new();
+}
+
+public class WorkforceDemographicsDto
+{
+    public decimal MalePercentage { get; set; }
+    public decimal FemalePercentage { get; set; }
+    public Dictionary<string, decimal> AgeGroupPercentages { get; set; } = new();
+    public string LargestDepartmentName { get; set; } = string.Empty;
+    public decimal LargestDepartmentPercentage { get; set; }
+}
+
+public class PayrollOutflowDto
+{
+    public string PeriodName { get; set; } = string.Empty;
+    public decimal BasicSalarySum { get; set; }
+    public decimal TotalDeductionsSum { get; set; }
+    public decimal TotalBonusesSum { get; set; }
+}
+
+public class MonthlyExpenseDto
+{
+    public string Month { get; set; } = string.Empty;
+    public decimal TotalExpense { get; set; }
+}

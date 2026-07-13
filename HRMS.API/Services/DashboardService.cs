@@ -35,7 +35,7 @@ public class DashboardService : IDashboardService
             var currentYear = DateTime.UtcNow.Year;
 
             // ── Fire all queries in parallel ──────────────────────────────────────
-            var leaveTask = _dashboardRepository.GetLeaveBalancesAsync(employeeId, currentYear);
+            var leaveTask = _dashboardRepository.GetLeaveBalancesAsync(employeeId, organizationId, currentYear);
             var payslipTask = _dashboardRepository.GetLatestPayslipAsync(employeeId, organizationId);
             var activeLoansTask = _dashboardRepository.GetActiveLoansAsync(employeeId, organizationId);
             var advancesTask = _dashboardRepository.GetDisbursedAdvancesAsync(employeeId, organizationId);
@@ -52,7 +52,6 @@ public class DashboardService : IDashboardService
                 pendingLeaveTask, pendingShiftTask,
                 pendingOtTask, pendingAdvTask,
                 pendingLoanTask, pendingPfTask);
-
             // ── Leave balance summary ────────────────────────────────────────────
             var leaveTypes = await leaveTask;
             var leaveBalanceSummary = new LeaveBalanceSummaryDto
@@ -143,6 +142,29 @@ public class DashboardService : IDashboardService
                 LatestPayrollRun = await payrollRunTask,
                 TotalPayrollOutflow = await outflowTask,
                 WorkforceMetrics = await workforceTask
+            };
+        }
+        catch (Exception)
+        {
+            throw;
+        }
+    }
+
+    public async Task<HrStatsDto> GetHrStatsAsync(Guid organizationId)
+    {
+        try
+        {
+            var demographicsTask = _dashboardRepository.GetWorkforceDemographicsAsync(organizationId);
+            var payrollTask = _dashboardRepository.GetLast3PayrollOutflowAsync(organizationId);
+            var expensesTask = _dashboardRepository.GetLast3MonthsExpensesAsync(organizationId);
+
+            await Task.WhenAll(demographicsTask, payrollTask, expensesTask);
+
+            return new HrStatsDto
+            {
+                Demographics = await demographicsTask,
+                PayrollOutflow = await payrollTask,
+                MonthlyExpenses = await expensesTask
             };
         }
         catch (Exception)
