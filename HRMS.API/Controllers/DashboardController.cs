@@ -189,6 +189,44 @@ public class DashboardController : ControllerBase
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // LATEST HIRES / RECRUITMENT OVERVIEW
+    // ─────────────────────────────────────────────────────────────────────────
+    [HttpGet("latest-hires")]
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LatestHiredEmployeeDto>>>> GetLatestHires()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var data = await _dashboardService.GetLatestHiresAsync(organizationId);
+
+            return Ok(new ServiceResponse<IEnumerable<LatestHiredEmployeeDto>>
+            {
+                Success = true,
+                Data = data,
+                Message = "Latest hires fetched successfully"
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access to Latest Hires");
+            return Unauthorized(new ServiceResponse<IEnumerable<LatestHiredEmployeeDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching Latest Hires");
+            return StatusCode(500, new ServiceResponse<IEnumerable<LatestHiredEmployeeDto>>
+            {
+                Success = false,
+                Message = "An error occurred while fetching the Latest Hires"
+            });
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Private helpers (same pattern used across all other controllers)
     // ─────────────────────────────────────────────────────────────────────────
     private Guid GetCurrentUserId()

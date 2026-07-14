@@ -25,4 +25,9 @@ public interface IDashboardService
     /// Returns the deeper HR Stats: Workforce demographics, historical payroll outflow, and monthly expenses.
     /// </summary>
     Task<HrStatsDto> GetHrStatsAsync(Guid organizationId);
+
+    /// <summary>
+    /// Returns the latest 3 selected/hired candidates for the Recruitment pipeline.
+    /// </summary>
+    Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId);
 }

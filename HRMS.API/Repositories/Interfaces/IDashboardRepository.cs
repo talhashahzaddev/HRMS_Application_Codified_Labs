@@ -36,4 +36,7 @@ public interface IDashboardRepository
     Task<WorkforceDemographicsDto> GetWorkforceDemographicsAsync(Guid organizationId);
     Task<List<PayrollOutflowDto>> GetLast3PayrollOutflowAsync(Guid organizationId);
     Task<List<MonthlyExpenseDto>> GetLast3MonthsExpensesAsync(Guid organizationId);
+
+    // ── Recruitment Overview ─────────────────────────────────────────────────
+    Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId);
 }

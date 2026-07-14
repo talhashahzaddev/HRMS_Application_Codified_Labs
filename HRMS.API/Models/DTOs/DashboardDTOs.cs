@@ -171,3 +171,14 @@ public class MonthlyExpenseDto
     public string Month { get; set; } = string.Empty;
     public decimal TotalExpense { get; set; }
 }
+
+public class LatestHiredEmployeeDto
+{
+    public Guid JobApplyId { get; set; }
+    public Guid JobId { get; set; }
+    public string CandidateName { get; set; } = string.Empty;
+    public string Status { get; set; } = string.Empty;
+    public string JobRoleName { get; set; } = string.Empty;
+    public string Interviewers { get; set; } = string.Empty;
+}
+

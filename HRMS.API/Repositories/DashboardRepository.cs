@@ -711,4 +711,40 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
             throw;
         }
     }
+
+    public async Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"
+                SELECT 
+                    ja.jobapplyid AS JobApplyId,
+                    ja.jobid AS JobId,
+                    ja.candidatename AS CandidateName,
+                    ja.status AS Status,
+                    jo.jobrolename AS JobRoleName,
+                    (
+                        SELECT string_agg(DISTINCT e.firstname || ' ' || e.lastname, ', ')
+                        FROM jobs.applicationstages ast
+                        CROSS JOIN unnest(string_to_array(ast.interviewers, ',')) AS interviewer_id_str
+                        JOIN employee.employees e ON e.employeeid = CAST(TRIM(interviewer_id_str) AS uuid)
+                        WHERE ast.jobapplyid = ja.jobapplyid AND ast.interviewers IS NOT NULL AND ast.interviewers != ''
+                    ) AS Interviewers
+                FROM jobs.jobapplications ja
+                JOIN jobs.jobopenings jo ON ja.jobid = jo.jobid
+                WHERE ja.organizationid = @OrganizationId
+                  AND LOWER(ja.status) = 'selected'
+                ORDER BY COALESCE(ja.updateddate, ja.createddate) DESC
+                LIMIT 3;";
+
+            var parameters = new { OrganizationId = organizationId };
+            var result = await QueryAsync<LatestHiredEmployeeDto>(sql, parameters);
+            return result.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "DashboardRepo: Error fetching latest hires for org {OrgId}", organizationId);
+            throw;
+        }
+    }
 }

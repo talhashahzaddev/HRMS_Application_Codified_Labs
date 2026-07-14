@@ -172,4 +172,17 @@ public class DashboardService : IDashboardService
             throw;
         }
     }
+
+    public async Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId)
+    {
+        try
+        {
+            return await _dashboardRepository.GetLatestHiresAsync(organizationId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching latest hires");
+            throw;
+        }
+    }
 }
