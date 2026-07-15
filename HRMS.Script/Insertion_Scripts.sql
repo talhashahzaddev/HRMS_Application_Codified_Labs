@@ -108,6 +108,7 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('87b82790-acc6-480c-bbb7-751de9173ad5', 'Delete Asset Type', 'type_of_asset_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Assets
+('7912df0b-2767-45f4-81fe-a36ffd321bd4', 'Show assets', 'assets_show', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('7912df0b-2767-45f4-81fe-a36ffd321bd4', 'Create Asset', 'assets_create', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('7912df0b-2767-45f4-81fe-a36ffd321bd4', 'Asset History', 'assets_history', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('7912df0b-2767-45f4-81fe-a36ffd321bd4', 'View Asset Details', 'assets_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -463,7 +464,14 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'My Pending Loans', 'loan_employee_pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Loan Payment History', 'loan_employee_history', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Loan References', 'loan_employee_references', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'List My Loans', 'loan_employee_list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'List My Loans', 'loan_employee_list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Main Dashboard
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'My Overview', 'dashboard_my_overview', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'Manager Overview', 'dashboard_manager_overview', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'HR Overview', 'dashboard_hr_overview', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'HR Stats', 'dashboard_hr_stats', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'Latest Hires', 'dashboard_latest_hires', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================
 -- SEED DATA: Country Holiday Catalogs

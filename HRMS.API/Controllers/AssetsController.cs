@@ -23,6 +23,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpGet]
+    [PermissionAuthorize("assets_show")]
     public async Task<ActionResult<ServiceResponse<List<AssetDto>>>> GetAssets([FromQuery] AssetSearchViewModel searchModel)
     {
         try

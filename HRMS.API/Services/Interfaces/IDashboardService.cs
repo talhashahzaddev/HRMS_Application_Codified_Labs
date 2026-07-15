@@ -4,21 +4,30 @@ namespace HRMS.API.Services.Interfaces;
 
 public interface IDashboardService
 {
-    Task<DashboardStatsDto> GetDashboardStatsAsync(Guid organizationId);
-    Task<List<RecentActivityDto>> GetRecentActivitiesAsync(Guid organizationId, int count = 10);
-    
-    // New dashboard methods
-    Task<DashboardSummaryDto> GetDashboardSummaryAsync(Guid organizationId);
-    Task<AttendanceStatsDto> GetAttendanceStatsAsync(Guid organizationId, string period = "month");
-    Task<LeaveStatsDto> GetLeaveStatsAsync(Guid organizationId, string period = "month");
-    Task<PerformanceStatsDto> GetPerformanceStatsAsync(Guid organizationId);
-    Task<EmployeeGrowthDto> GetEmployeeGrowthAsync(Guid organizationId, string period = "12m");
-    Task<List<DepartmentStatsDto>> GetDepartmentStatsAsync(Guid organizationId);
-    Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(Guid organizationId, int count = 5);
-    Task<object> GetAttendanceTrendsAsync(Guid organizationId, string period = "30d");
-    Task<object> GetLeaveTrendsAsync(Guid organizationId, string period = "12m");
-    Task<List<object>> GetTopPerformersAsync(Guid organizationId, int limit = 5);
-    Task<object> GetRemindersAsync(Guid organizationId);
-    Task<object> GetQuickStatsAsync(Guid organizationId);
-    Task<OnboardingStatusDto> GetOnboardingStatusAsync(Guid organizationId);
+    /// <summary>
+    /// Returns the complete employee personal overview:
+    /// leave balances, financial snapshot (payslip), active loans/advances,
+    /// and all pending requests across every module.
+    /// </summary>
+    Task<EmployeeOverviewDto> GetEmployeeOverviewAsync(Guid userId, Guid organizationId);
+
+    /// <summary>
+    /// Returns the manager overview: team attendance today, team overtime today, and pending approvals.
+    /// </summary>
+    Task<ManagerOverviewDto> GetManagerOverviewAsync(Guid managerId, Guid organizationId);
+
+    /// <summary>
+    /// Returns the HR and Finance overview: latest payroll run status, payroll outflow, and workforce metrics.
+    /// </summary>
+    Task<HrOverviewDto> GetHrOverviewAsync(Guid organizationId);
+
+    /// <summary>
+    /// Returns the deeper HR Stats: Workforce demographics, historical payroll outflow, and monthly expenses.
+    /// </summary>
+    Task<HrStatsDto> GetHrStatsAsync(Guid organizationId);
+
+    /// <summary>
+    /// Returns the latest 3 selected/hired candidates for the Recruitment pipeline.
+    /// </summary>
+    Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId);
 }
