@@ -1,5 +1,6 @@
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
+using HRMS.API.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -34,6 +35,7 @@ public class DashboardController : ControllerBase
     /// </summary>
     // ─────────────────────────────────────────────────────────────────────────
     [HttpGet("my-overview")]
+    [PermissionAuthorize("dashboard_my_overview")]
     public async Task<ActionResult<ServiceResponse<EmployeeOverviewDto>>> GetMyOverview()
     {
         try
@@ -74,6 +76,7 @@ public class DashboardController : ControllerBase
     // MANAGER OVERVIEW
     // ─────────────────────────────────────────────────────────────────────────
     [HttpGet("manager-overview")]
+    [PermissionAuthorize("dashboard_manager_overview")]
     public async Task<ActionResult<ServiceResponse<ManagerOverviewDto>>> GetManagerOverview()
     {
         try
@@ -114,6 +117,7 @@ public class DashboardController : ControllerBase
     // HR/FINANCE OVERVIEW
     // ─────────────────────────────────────────────────────────────────────────
     [HttpGet("hr-overview")]
+    [PermissionAuthorize("dashboard_hr_overview")]
     public async Task<ActionResult<ServiceResponse<HrOverviewDto>>> GetHrOverview()
     {
         try
@@ -153,6 +157,7 @@ public class DashboardController : ControllerBase
     // HR STATS OVERVIEW
     // ─────────────────────────────────────────────────────────────────────────
     [HttpGet("hr-stats")]
+    [PermissionAuthorize("dashboard_hr_stats")]
     public async Task<ActionResult<ServiceResponse<HrStatsDto>>> GetHrStats()
     {
         try
@@ -192,6 +197,7 @@ public class DashboardController : ControllerBase
     // LATEST HIRES / RECRUITMENT OVERVIEW
     // ─────────────────────────────────────────────────────────────────────────
     [HttpGet("latest-hires")]
+    [PermissionAuthorize("dashboard_latest_hires")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<LatestHiredEmployeeDto>>>> GetLatestHires()
     {
         try
