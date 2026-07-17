@@ -42,6 +42,11 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
+// -------------------- HTTP CONTEXT --------------------
+// Required by DatabaseConnectionFactory to inject the logged-in User ID
+// into the PostgreSQL session for audit trigger support.
+builder.Services.AddHttpContextAccessor();
+
 // -------------------- CONTROLLERS --------------------
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
@@ -97,21 +102,21 @@ builder.Services.AddSwaggerGen(c =>
 DapperConfiguration.Configure();
 
 // -------------------- DATABASE --------------------
-builder.Services.AddSingleton<IDatabaseConnectionFactory>(_ =>
+// Resolve and validate the connection string once at startup.
+var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
+var finalConnectionString = !string.IsNullOrEmpty(envConnection) ? envConnection : configConnection;
+if (string.IsNullOrEmpty(finalConnectionString))
+    throw new Exception("❌ Database connection string not found");
+Console.WriteLine($"✅ DB Source: {(envConnection != null ? "Railway ENV" : "Local Config")}");
+
+// Use AddScoped (not Singleton) because DatabaseConnectionFactory now depends on
+// IHttpContextAccessor which is request-scoped. A Singleton cannot safely consume
+// a Scoped dependency.
+builder.Services.AddScoped<IDatabaseConnectionFactory>(sp =>
 {
-    var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-    var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-
-    var finalConnection = !string.IsNullOrEmpty(envConnection)
-        ? envConnection
-        : configConnection;
-
-    if (string.IsNullOrEmpty(finalConnection))
-        throw new Exception("❌ Database connection string not found");
-
-    Console.WriteLine($"✅ DB Source: {(envConnection != null ? "Railway ENV" : "Local Config")}");
-
-    return new DatabaseConnectionFactory(finalConnection);
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+    return new DatabaseConnectionFactory(finalConnectionString, httpContextAccessor);
 });
 
 // -------------------- JWT --------------------
@@ -314,6 +319,10 @@ builder.Services.AddScoped<IPolicyRepository, PolicyRepository>();
 builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
 builder.Services.AddScoped<IDemoInquiryRepository, DemoInquiryRepository>();
 builder.Services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
+
+// --- Audit Log Repository ---
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+
 
 // -------------------- HOSTED SERVICES --------------------
 builder.Services.AddAuthorization();
