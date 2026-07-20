@@ -834,8 +834,7 @@ WHERE token = @token;
                 a.actionkey AS ActionKey,
                 CASE
                     WHEN r.issystemrole = true
-                        THEN COALESCE(grp.has_permission, false)
-
+                        THEN COALESCE(grp.has_permission, COALESCE(p.has_permission, false))
                     ELSE COALESCE(p.has_permission, false)
                 END AS HasPermission
             FROM auth.roles r

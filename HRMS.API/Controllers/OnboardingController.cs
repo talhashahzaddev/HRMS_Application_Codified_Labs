@@ -1,6 +1,7 @@
 // ============================================================
 // FILE: Controllers/OnboardingController.cs
 // ============================================================
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -53,6 +54,7 @@ public class OnboardingController : ControllerBase
     /// Returns 404 when no session exists yet (fresh employee).
     /// </summary>
     [HttpGet("my-status")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> GetMyStatus()
     {
         try
@@ -83,6 +85,7 @@ public class OnboardingController : ControllerBase
     /// UPDATE the same session — never inserting a duplicate.
     /// </summary>
     [HttpPut("personal-info")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> SavePersonalInfo([FromBody] OnboardingPersonalInfoRequest request)
     {
         try
@@ -114,6 +117,7 @@ public class OnboardingController : ControllerBase
     // ── POST /api/onboarding/education  (Step 2 – add) ───────────────────────
 
     [HttpPost("education")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> AddEducation([FromBody] OnboardingEducationRequest request)
     {
         try
@@ -140,6 +144,7 @@ public class OnboardingController : ControllerBase
     // ── PUT /api/onboarding/education/{id}  (Step 2 – update) ────────────────
 
     [HttpPut("education/{id:guid}")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> UpdateEducation(
         Guid id,
         [FromBody] OnboardingEducationRequest request)
@@ -163,6 +168,7 @@ public class OnboardingController : ControllerBase
     // ── DELETE /api/onboarding/education/{id}  (Step 2 – delete) ─────────────
 
     [HttpDelete("education/{id:guid}")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> DeleteEducation(Guid id)
     {
         try
@@ -184,6 +190,7 @@ public class OnboardingController : ControllerBase
     // ── POST /api/onboarding/work-experience  (Step 3 – add) ─────────────────
 
     [HttpPost("work-experience")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> AddWorkExperience([FromBody] OnboardingWorkExperienceRequest request)
     {
         try
@@ -210,6 +217,7 @@ public class OnboardingController : ControllerBase
     // ── PUT /api/onboarding/work-experience/{id}  (Step 3 – update) ──────────
 
     [HttpPut("work-experience/{id:guid}")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> UpdateWorkExperience(
         Guid id,
         [FromBody] OnboardingWorkExperienceRequest request)
@@ -233,6 +241,7 @@ public class OnboardingController : ControllerBase
     // ── DELETE /api/onboarding/work-experience/{id}  (Step 3 – delete) ───────
 
     [HttpDelete("work-experience/{id:guid}")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> DeleteWorkExperience(Guid id)
     {
         try
@@ -254,6 +263,7 @@ public class OnboardingController : ControllerBase
     // ── PUT /api/onboarding/accept-policies  (Step 5) ────────────────────────
 
     [HttpPut("accept-policies")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> AcceptPolicies([FromBody] AcceptPoliciesRequest body)
     {
         try
@@ -272,6 +282,7 @@ public class OnboardingController : ControllerBase
     // ── PUT /api/onboarding/step  (Step tracker) ─────────────────────────────
 
     [HttpPut("step")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> UpdateStep([FromBody] UpdateStepRequest body)
     {
         try
@@ -293,6 +304,7 @@ public class OnboardingController : ControllerBase
     /// Final onboarding submission. Accepts application/json with the full submit payload.
     /// </summary>
     [HttpPost]
+    [PermissionAuthorize("onboarding_submit")]
     public async Task<IActionResult> SubmitOnboarding([FromBody] OnboardingSubmitRequest request)
     {
         try
@@ -342,6 +354,7 @@ public class OnboardingController : ControllerBase
     /// Returns 404 when no bank details have been saved yet.
     /// </summary>
     [HttpGet("bank-details")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> GetBankDetails()
     {
         try
@@ -377,6 +390,7 @@ public class OnboardingController : ControllerBase
     /// the session is advanced to step 4 so the employee can continue.
     /// </summary>
     [HttpPost("bank-details")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> SaveBankDetails([FromBody] OnboardingBankDetailsRequest request)
     {
         try
@@ -412,6 +426,7 @@ public class OnboardingController : ControllerBase
     /// Returns 404 when the record does not belong to the current employee's session.
     /// </summary>
     [HttpDelete("bank-details/{id:guid}")]
+    [PermissionAuthorize("onboarding_view")]
     public async Task<IActionResult> DeleteBankDetails(Guid id)
     {
         try
