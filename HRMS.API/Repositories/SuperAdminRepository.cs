@@ -320,9 +320,8 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
 
     public async Task<Guid> CreateGlobalRoleAsync(CreateGlobalRoleRequest request)
     {
-        var connection = CreateConnection();
-        connection.Open();
-        var transaction = connection.BeginTransaction();
+        using var connection = CreateConnection();
+        using var transaction = connection.BeginTransaction();
 
         try
         {
@@ -428,9 +427,8 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
     }
     public async Task<bool> UpdateGlobalRoleAsync(UpdateGlobalRoleRequest request)
     {
-        var connection = CreateConnection();
-        connection.Open();
-        var transaction = connection.BeginTransaction();
+        using var connection = CreateConnection();
+        using var transaction = connection.BeginTransaction();
 
         try
         {
@@ -570,7 +568,7 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
 
     private async Task<int> ExecuteAsyncWithTimeout(string sql, object? parameters = null, IDbTransaction? transaction = null, int commandTimeoutSeconds = 500)
     {
-        var connection = CreateConnection();
+        using var connection = CreateConnection();
         return await connection.ExecuteAsync(sql, parameters, transaction, commandTimeout: commandTimeoutSeconds);
     }
 }
