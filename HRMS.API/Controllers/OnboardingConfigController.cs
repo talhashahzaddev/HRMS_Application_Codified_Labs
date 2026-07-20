@@ -1,4 +1,5 @@
 ﻿// OnboardingConfigController.cs
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -21,8 +22,9 @@ public class OnboardingConfigController : ControllerBase
         _logger = logger;
     }
 
-    // GET /api/onboarding-config      
+    // GET /api/onboarding-config
     [HttpGet("getOrganizationConfiguration")]
+    [PermissionAuthorize("onboarding_config_view")]
     public async Task<IActionResult> GetMyOrgConfig()
     {
         try
@@ -39,6 +41,7 @@ public class OnboardingConfigController : ControllerBase
     }
 
     [HttpPut("update/onboardingConfiguration")]
+    [PermissionAuthorize("onboarding_config_edit")]
     public async Task<IActionResult> UpdateOnBoardingConfiguration([FromBody] UpdateOnBoardingConfigurationRequest request)
     {
         try
