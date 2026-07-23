@@ -1,4 +1,4 @@
-﻿-- ============================================================
+-- ============================================================
 -- HRMS DATABASE — FUNCTIONS SCHEMA
 -- Auto-organised from He.sql (pg_dump binary)
 -- Schemas: admin | auth | attendance | employee |
@@ -178,6 +178,26 @@ BEGIN
     WHERE gr.isactive = true;
 
     GET DIAGNOSTICS insertedRolesCount = ROW_COUNT;
+
+    -- Copy global permissions
+    INSERT INTO auth.permissions (
+        permissionid,
+        roleid,
+        actionid,
+        organizationid,
+        has_permission,
+        created_date
+    )
+    SELECT
+        uuid_generate_v4(),
+        grp.roleid,
+        grp.actionid,
+        newOrgId,
+        grp.has_permission,
+        CURRENT_TIMESTAMP
+    FROM auth.global_role_permissions grp
+    INNER JOIN auth.roles r ON grp.roleid = r.roleid
+    WHERE r.organizationid = newOrgId;
 
 	INSERT INTO payment.companysubscriptions (
 		companyid,
