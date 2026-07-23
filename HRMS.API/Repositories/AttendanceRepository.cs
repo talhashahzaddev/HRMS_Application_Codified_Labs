@@ -4066,7 +4066,7 @@ WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
                 employeeId,
                 organizationId
             };
-            var isAdminOrHR = await QuerySingleAsync<bool>(sql, parameters);
+            var isAdminOrHR = await QuerySingleOrDefaultAsync<bool>(sql, parameters);
             return isAdminOrHR;
         }
         catch (Exception ex)
