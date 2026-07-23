@@ -400,12 +400,12 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
                             uuid_generate_v4(),
                             @RoleId,
                             @ActionId,
-                            o.organizationid,
+                            r.organizationid,
                             @HasPermission,
                             CURRENT_TIMESTAMP,
                             CURRENT_TIMESTAMP
-                        FROM auth.organizations o
-                        WHERE o.status = 'active'
+                        FROM auth.roles r
+                        WHERE r.roleid = @RoleId AND r.issystemrole = true
                         ON CONFLICT DO NOTHING;";
 
                         await connection.ExecuteAsync(insertOrgPermissionsSql,
@@ -554,12 +554,12 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
                             uuid_generate_v4(),
                             @RoleId,
                             @ActionId,
-                            o.organizationid,
+                            r.organizationid,
                             @HasPermission,
                             CURRENT_TIMESTAMP,
                             CURRENT_TIMESTAMP
-                        FROM auth.organizations o
-                        WHERE o.status = 'active'
+                        FROM auth.roles r
+                        WHERE r.roleid = @RoleId AND r.issystemrole = true
                         ON CONFLICT DO NOTHING;";
 
                         await connection.ExecuteAsync(insertOrgPermissionsSql,
