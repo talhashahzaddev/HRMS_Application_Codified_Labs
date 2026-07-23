@@ -3304,7 +3304,7 @@ WHERE ed.employeeid = @EmployeeId
         ";
 
             using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-            await connection.OpenAsync();
+
 
             var report = await connection.QueryFirstAsync<AttendanceReportDto>(sql, new
             {
@@ -3405,7 +3405,7 @@ WHERE ed.employeeid = @EmployeeId
     ";
 
             using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-            await connection.OpenAsync();
+
             return (await connection.QueryAsync<DepartmentAttendanceStatsDto>(sql, new
             {
                 organizationId,
@@ -3447,7 +3447,7 @@ WHERE ed.employeeid = @EmployeeId
         GROUP BY a.workdate
         ORDER BY a.workdate";
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
+
         return (await connection.QueryAsync<DailyAttendanceStatsDto>(sql, new
         {
             organizationId,
@@ -3634,7 +3634,7 @@ LIMIT @pageSize OFFSET @offset;
 ";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
+
 
         var parameters = new
         {
