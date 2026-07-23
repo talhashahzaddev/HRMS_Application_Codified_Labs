@@ -326,6 +326,8 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
         try
         {
             var roleId = Guid.NewGuid();
+
+            // Step 1: Insert into auth.global_roles
             const string insertGlobalRoleSql = @"
             INSERT INTO auth.global_roles (roleid, rolename, description, version)
             VALUES (@RoleId, @RoleName, @Description, 1);";
@@ -336,30 +338,32 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
                 RoleId = roleId,
                 request.RoleName,
                 request.Description
-            },transaction);
+            }, transaction);
 
+            // Step 2: Insert each action's permission into auth.global_role_permissions
             foreach (var menu in request.Menus)
             {
                 foreach (var submenu in menu.SubMenus)
                 {
                     foreach (var action in submenu.Actions)
                     {
-                        const string insertPermissionSql = @"
+                        const string insertGlobalPermissionSql = @"
                         INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission)
-                        VALUES(uuid_generate_v4(), @RoleId, @ActionId, @HasPermission);";
+                        VALUES (uuid_generate_v4(), @RoleId, @ActionId, @HasPermission);";
 
-                        await connection.ExecuteAsync(insertPermissionSql,
+                        await connection.ExecuteAsync(insertGlobalPermissionSql,
                         new
                         {
                             RoleId = roleId,
                             action.ActionId,
                             action.HasPermission
-                        },transaction);
+                        }, transaction);
                     }
                 }
             }
 
-            const string insertRolesSql = @"
+            // Step 3: Push this role into auth.roles for ALL existing organizations
+            const string insertOrgRolesSql = @"
             INSERT INTO auth.roles (roleid, organizationid, rolename, description, issystemrole, createdat)
             SELECT
                 @RoleId,
@@ -369,19 +373,53 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
                 true,
                 CURRENT_TIMESTAMP
             FROM auth.organizations o
+            WHERE o.status = 'active'
             ON CONFLICT (organizationid, rolename)
             DO NOTHING;";
 
-            await ExecuteAsyncWithTimeout(insertRolesSql,
+            await connection.ExecuteAsync(insertOrgRolesSql,
             new
             {
                 RoleId = roleId,
                 RoleName = request.RoleName,
                 Description = request.Description
-            },transaction);
+            }, transaction, commandTimeout: 500);
+
+            // Step 4: Push the permissions into auth.permissions for ALL existing organizations.
+            // This ensures every current tenant immediately gets the new role's permissions —
+            // mirroring what fn_create_organization does for newly registered orgs.
+            foreach (var menu in request.Menus)
+            {
+                foreach (var submenu in menu.SubMenus)
+                {
+                    foreach (var action in submenu.Actions)
+                    {
+                        const string insertOrgPermissionsSql = @"
+                        INSERT INTO auth.permissions (permissionid, roleid, actionid, organizationid, has_permission, created_date, updated_date)
+                        SELECT
+                            uuid_generate_v4(),
+                            @RoleId,
+                            @ActionId,
+                            o.organizationid,
+                            @HasPermission,
+                            CURRENT_TIMESTAMP,
+                            CURRENT_TIMESTAMP
+                        FROM auth.organizations o
+                        WHERE o.status = 'active'
+                        ON CONFLICT DO NOTHING;";
+
+                        await connection.ExecuteAsync(insertOrgPermissionsSql,
+                        new
+                        {
+                            RoleId = roleId,
+                            action.ActionId,
+                            action.HasPermission
+                        }, transaction, commandTimeout: 500);
+                    }
+                }
+            }
 
             transaction.Commit();
-
             return roleId;
         }
         catch
@@ -432,6 +470,7 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
 
         try
         {
+            // Step 1: Update the global role name/description
             const string updateGlobalRoleSql = @"
             UPDATE auth.global_roles
             SET
@@ -447,13 +486,14 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
                 request.RoleId,
                 request.RoleName,
                 request.Description
-            },transaction);
+            }, transaction);
 
-            const string deletePermissionsSql = @"
+            // Step 2: Replace global role permissions (delete + re-insert)
+            const string deleteGlobalPermissionsSql = @"
             DELETE FROM auth.global_role_permissions
             WHERE roleid = @RoleId;";
 
-            await connection.ExecuteAsync(deletePermissionsSql, new { request.RoleId }, transaction);
+            await connection.ExecuteAsync(deleteGlobalPermissionsSql, new { request.RoleId }, transaction);
 
             foreach (var menu in request.Menus)
             {
@@ -461,22 +501,23 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
                 {
                     foreach (var action in submenu.Actions)
                     {
-                        const string insertPermissionSql = @"
+                        const string insertGlobalPermissionSql = @"
                         INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission)
                         VALUES (uuid_generate_v4(), @RoleId, @ActionId, @HasPermission);";
 
-                        await connection.ExecuteAsync(insertPermissionSql,
+                        await connection.ExecuteAsync(insertGlobalPermissionSql,
                         new
                         {
                             request.RoleId,
                             action.ActionId,
                             action.HasPermission
-                        },transaction);
+                        }, transaction);
                     }
                 }
             }
 
-            const string updateRolesSql = @"
+            // Step 3: Update name/description on all org-specific copies of this system role
+            const string updateOrgRolesSql = @"
             UPDATE auth.roles
             SET
                 rolename = @RoleName,
@@ -484,16 +525,55 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
             WHERE roleid = @RoleId
             AND issystemrole = true;";
 
-            await connection.ExecuteAsync(updateRolesSql,
+            await connection.ExecuteAsync(updateOrgRolesSql,
             new
             {
                 request.RoleId,
                 request.RoleName,
                 request.Description
-            },transaction);
+            }, transaction);
+
+            // Step 4: Sync updated permissions into auth.permissions for ALL organizations.
+            // Delete the existing org-specific permissions for this role, then re-insert
+            // from the newly updated global_role_permissions — keeping all tenants in sync.
+            const string deleteOrgPermissionsSql = @"
+            DELETE FROM auth.permissions
+            WHERE roleid = @RoleId;";
+
+            await connection.ExecuteAsync(deleteOrgPermissionsSql, new { request.RoleId }, transaction);
+
+            foreach (var menu in request.Menus)
+            {
+                foreach (var submenu in menu.SubMenus)
+                {
+                    foreach (var action in submenu.Actions)
+                    {
+                        const string insertOrgPermissionsSql = @"
+                        INSERT INTO auth.permissions (permissionid, roleid, actionid, organizationid, has_permission, created_date, updated_date)
+                        SELECT
+                            uuid_generate_v4(),
+                            @RoleId,
+                            @ActionId,
+                            o.organizationid,
+                            @HasPermission,
+                            CURRENT_TIMESTAMP,
+                            CURRENT_TIMESTAMP
+                        FROM auth.organizations o
+                        WHERE o.status = 'active'
+                        ON CONFLICT DO NOTHING;";
+
+                        await connection.ExecuteAsync(insertOrgPermissionsSql,
+                        new
+                        {
+                            request.RoleId,
+                            action.ActionId,
+                            action.HasPermission
+                        }, transaction, commandTimeout: 500);
+                    }
+                }
+            }
 
             transaction.Commit();
-
             return true;
         }
         catch
