@@ -19,7 +19,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     public async Task<Employee> CreateEmployeeAsync(Employee employee)
     {
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
 
         using var transaction = await connection.BeginTransactionAsync();
 
