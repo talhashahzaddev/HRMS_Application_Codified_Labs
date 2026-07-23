@@ -168,7 +168,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
     public async Task<AssetAssignmentDto> AssignAssetAsync(Guid organizationId, AssignAssetRequest request, Guid? createdBy)
     {
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
+
         using var transaction = await connection.BeginTransactionAsync();
 
         try
@@ -219,7 +219,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
     public async Task<AssetAssignmentDto> ReturnAssetAsync(Guid organizationId, ReturnAssetRequest request, Guid? updatedBy)
     {
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
+
         using var transaction = await connection.BeginTransactionAsync();
 
         try

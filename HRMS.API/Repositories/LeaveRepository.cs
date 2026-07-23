@@ -1,4 +1,4 @@
-﻿using HRMS.API.Configuration;
+using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
@@ -342,7 +342,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     ";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
+
         {
             using var transaction = await connection.BeginTransactionAsync();
             {
@@ -414,7 +414,7 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
 ";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
+
 
         using var transaction = await connection.BeginTransactionAsync();
         try
