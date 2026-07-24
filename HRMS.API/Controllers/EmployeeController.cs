@@ -135,7 +135,7 @@ public class EmployeeController : ControllerBase
         try
         {
             if (!ModelState.IsValid)
-            {
+            { 
                 return BadRequest(new ServiceResponse<EmployeeDto>
                 {
                     Success = false,
@@ -1161,12 +1161,12 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("managers")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeDto>>>> GetManagers()
+    public async Task<ActionResult<ServiceResponse<List<EmployeeDto>>>> GetManagers([FromQuery] Guid? departmentId)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var managers = await _employeeService.GetManagersAsync(organizationId);
+            var managers = await _employeeService.GetManagersAsync(organizationId, departmentId);
             
             return Ok(new ServiceResponse<List<EmployeeDto>>
             {

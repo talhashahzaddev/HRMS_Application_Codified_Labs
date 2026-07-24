@@ -43,9 +43,10 @@ public interface IEmployeeRepository
     Task<bool> DeletePositionAsync(Guid positionId);
     Task<int> GetEmployeeCountByPositionAsync(Guid positionId);
     Task<List<Employee>> GetEmployeesByPositionAsync(Guid positionId);
-    Task<List<Employee>> GetManagersAsync(Guid organizationId);
+    Task<List<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null);
     Task<bool> UpdateEmploymentDetailCurrencyAsync(Guid employeeId, string currency);
     Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
     Task<bool> CheckEmployeeLimitAsync(Guid organizationId);
     Task<Guid?> GetRoleIdByPositionIdAsync(Guid positionId);
+    Task<List<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId);
 }
