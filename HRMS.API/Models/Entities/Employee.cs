@@ -89,6 +89,8 @@ public class Employee : BaseEntity
     public string ReportingManagerName { get; set; }
     [NotMapped]
     public Guid? RoleId { get; set; }
+    [NotMapped]
+    public string? RoleName { get; set; }
 
     // Navigation properties
     [NotMapped]

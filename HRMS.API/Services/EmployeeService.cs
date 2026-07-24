@@ -182,9 +182,9 @@ public class EmployeeService : IEmployeeService
         if (userId == Guid.Empty)
             throw new ArgumentException("User ID cannot be empty", nameof(userId));
 
-        var empid = await _employeeRepository.GetEmployeeIdAsync(userId);
+        //var empid = await _employeeRepository.GetEmployeeIdAsync(userId);
 
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(empid);
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(userId);
 
         return _mapper.Map<EmployeeDto>(employee);
 
@@ -818,14 +818,9 @@ public class EmployeeService : IEmployeeService
         return statistics;
     }
 
-    public async Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId)
+    public async Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)
     {
-        if (organizationId == Guid.Empty)
-            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
-
-        _logger.LogInformation("Retrieving managers for organization: {OrganizationId}", organizationId);
-
-        var managers = await _employeeRepository.GetManagersAsync(organizationId);
+        var managers = await _employeeRepository.GetManagersAsync(organizationId, departmentId);
         return _mapper.Map<List<EmployeeDto>>(managers);
     }
 
@@ -1006,5 +1001,18 @@ public class EmployeeService : IEmployeeService
             res.Append(valid[rnd.Next(valid.Length)]);
         }
         return res.ToString();
+    }
+
+    public async Task<List<EmployeeDto>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId)
+    {
+        if (organizationId == Guid.Empty)
+            throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
+        if (departmentId == Guid.Empty)
+            throw new ArgumentException("Department ID cannot be empty", nameof(departmentId));
+
+        _logger.LogInformation("Retrieving department employees and admins for org {OrganizationId}, dept {DepartmentId}", organizationId, departmentId);
+
+        var employees = await _employeeRepository.GetDepartmentEmployeesAndAdminsAsync(organizationId, departmentId);
+        return _mapper.Map<List<EmployeeDto>>(employees);
     }
 }

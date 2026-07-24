@@ -34,6 +34,7 @@ public class EmployeeDto
     public string? TaxCategoryName { get; set; }
     public Guid? DepartmentId { get; set; }       // ? Added
     public Guid? PositionId { get; set; }
+    public string? RoleName { get; set; }
 }
 
 public class EmployeeNameList

@@ -336,7 +336,7 @@ ORDER BY e.firstname, e.lastname;
                  lastname=@LastName, 
                  email=@Email, 
                  emailverified=@EmailVerified, 
-                 roleid=@RoleId,
+                 roleid=COALESCE(@RoleId, roleid),
                  updatedat=CURRENT_TIMESTAMP 
              WHERE userid=@UserId";
 
@@ -392,7 +392,9 @@ ORDER BY e.firstname, e.lastname;
             p.roleid AS RoleId,
             d.departmentname,
 
-            tc.categoryname AS TaxCategoryName
+            tc.categoryname AS TaxCategoryName,
+
+            ar.rolename AS RoleName
 
         FROM employee.employees AS e
 
@@ -410,6 +412,12 @@ ORDER BY e.firstname, e.lastname;
 
         LEFT JOIN payroll.taxcategories AS tc
             ON e.categoryid = tc.categoryid
+            
+        LEFT JOIN auth.users AS u
+            ON e.userid = u.userid
+            
+        LEFT JOIN auth.roles AS ar
+            ON u.roleid = ar.roleid
 
         WHERE e.employeeid = @userId;
         ";
@@ -1206,7 +1214,7 @@ ORDER BY e.firstname, e.lastname;
         return results.ToList();
     }
 
-    public async Task<List<Employee>> GetManagersAsync(Guid organizationId)
+    public async Task<List<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)
     {
         var sql = @"
             SELECT DISTINCT 
@@ -1219,7 +1227,19 @@ ORDER BY e.firstname, e.lastname;
             LEFT JOIN auth.users u ON e.userid = u.userid
             LEFT JOIN auth.roles r ON u.roleid = r.roleid
             WHERE e.organizationid = @organizationId 
-              AND e.status = 'active'
+              AND e.status = 'active'";
+
+        if (departmentId.HasValue && departmentId.Value != Guid.Empty)
+        {
+            sql += @"
+              AND (
+                  ed.departmentid = @departmentId
+                  OR r.rolename ILIKE '%super admin%'
+              )";
+        }
+        else
+        {
+            sql += @"
               AND (
                   -- Department managers
                   e.employeeid IN (SELECT managerid FROM employee.departments WHERE managerid IS NOT NULL AND isactive = true)
@@ -1237,10 +1257,12 @@ ORDER BY e.firstname, e.lastname;
                       FROM employee.employmentdetails 
                       WHERE reportingmanagerid IS NOT NULL AND iscurrent = true
                   )
-              )
-            ORDER BY e.firstname, e.lastname";
+              )";
+        }
 
-        var results = await QueryAsync<Employee>(sql, new { organizationId });
+        sql += " ORDER BY e.firstname, e.lastname";
+
+        var results = await QueryAsync<Employee>(sql, new { organizationId, departmentId });
         return results.ToList();
     }
 
@@ -1253,6 +1275,32 @@ ORDER BY e.firstname, e.lastname;
         ";
 
         return await QuerySingleOrDefaultAsync<Guid?>(query, new { PositionId = positionId });
+    }
+
+
+    public async Task<List<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId)
+    {
+        var sql = @"
+            SELECT DISTINCT
+                e.employeeid, e.organizationid, e.userid, e.employeecode,
+                e.firstname, e.lastname, e.email, e.phone, e.address,
+                e.dateofbirth, e.hiredate, e.status, e.createdat
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN auth.users u ON e.userid = u.userid
+            LEFT JOIN auth.roles r ON u.roleid = r.roleid
+            WHERE e.organizationid = @organizationId
+              AND e.status = 'active'
+              AND (
+                  -- All employees in the selected department
+                  ed.departmentid = @departmentId
+                  -- OR anyone with the Super Admin role (case-insensitive)
+                  OR LOWER(r.rolename) = 'super admin'
+              )
+            ORDER BY e.firstname, e.lastname";
+
+        var results = await QueryAsync<Employee>(sql, new { organizationId, departmentId });
+        return results.ToList();
     }
 
 

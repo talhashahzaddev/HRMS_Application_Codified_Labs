@@ -35,10 +35,11 @@ public interface IEmployeeService
     Task<DepartmentDto?> GetDepartmentByIdAsync(Guid departmentId);
     Task<PositionDto?> GetPositionByIdAsync(Guid positionId);
     Task<EmployeeStatisticsDto> GetEmployeeStatisticsAsync(Guid organizationId);
-    Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId);
+    Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId, Guid? departmentId = null);
     Task<bool> BulkActivateEmployeesAsync(List<Guid> employeeIds);
     Task<bool> BulkDeactivateEmployeesAsync(List<Guid> employeeIds);
     Task<byte[]> ExportEmployeesAsync(Guid organizationId, string format);
     Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
     Task<List<Employee>> GetSelectedEmployeesByIdsAsync(List<Guid> employeeIds);
+    Task<List<EmployeeDto>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId);
 }
