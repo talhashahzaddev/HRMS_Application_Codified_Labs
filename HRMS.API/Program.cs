@@ -103,12 +103,15 @@ DapperConfiguration.Configure();
 
 // -------------------- DATABASE --------------------
 // Resolve and validate the connection string once at startup.
-var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+// Prefer builder.Configuration so Railway reference variables (e.g. ${{ Postgres.DATABASE_URL }})
+// are fully expanded before use. Environment.GetEnvironmentVariable would read the raw,
+// unresolved reference string and cause "Connection string is not valid" failures at startup.
 var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-var finalConnectionString = !string.IsNullOrEmpty(envConnection) ? envConnection : configConnection;
+var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
+var finalConnectionString = !string.IsNullOrEmpty(configConnection) ? configConnection : envConnection;
 if (string.IsNullOrEmpty(finalConnectionString))
     throw new Exception("❌ Database connection string not found");
-Console.WriteLine($"✅ DB Source: {(envConnection != null ? "Railway ENV" : "Local Config")}");
+Console.WriteLine($"✅ DB Source: {(!string.IsNullOrEmpty(configConnection) ? "Configuration (DefaultConnection)" : "Railway ENV (CONNECTION_STRING)")}");
 
 // Use AddScoped (not Singleton) because DatabaseConnectionFactory now depends on
 // IHttpContextAccessor which is request-scoped. A Singleton cannot safely consume
@@ -172,9 +175,10 @@ builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<Cloud
 // -------------------- SIGNALR & HANGFIRE --------------------
 builder.Services.AddSignalR();
 
-var hangfireConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? throw new Exception("Database connection string not found for Hangfire");
+// Reuse the already-resolved connection string so Hangfire and Dapper always
+// point at the same database, and so Railway reference variables are resolved
+// via builder.Configuration rather than read raw from the environment.
+var hangfireConnectionString = finalConnectionString;
 
 builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
