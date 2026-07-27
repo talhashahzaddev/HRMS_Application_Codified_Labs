@@ -23,6 +23,17 @@ using static HRMS.API.Repositories.OnboardingRepository;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Helper to convert Railway's postgresql:// URL to standard .NET Connection String
+static string ParseRailwayUrl(string? connectionString)
+{
+    if (string.IsNullOrEmpty(connectionString) || (!connectionString.StartsWith("postgres://") && !connectionString.StartsWith("postgresql://")))
+        return connectionString ?? string.Empty;
+
+    var uri = new Uri(connectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    return $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Prefer;Trust Server Certificate=true;";
+}
+
 // ===================== RAILWAY PORT FIX =====================
 if (!builder.Environment.IsDevelopment())
 {
@@ -103,9 +114,11 @@ DapperConfiguration.Configure();
 
 // -------------------- DATABASE --------------------
 // Resolve and validate the connection string once at startup.
-var finalConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
     ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
     ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
+var finalConnectionString = ParseRailwayUrl(rawConnectionString);
 
 if (string.IsNullOrEmpty(finalConnectionString))
     throw new Exception("❌ Database connection string not found");
@@ -173,10 +186,13 @@ builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<Cloud
 // -------------------- SIGNALR & HANGFIRE --------------------
 builder.Services.AddSignalR();
 
-var hangfireConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+var rawHangfireString = builder.Configuration.GetConnectionString("DefaultConnection")
     ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
-    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
-    ?? throw new Exception("Database connection string not found for Hangfire");
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
+var hangfireConnectionString = ParseRailwayUrl(rawHangfireString);
+if (string.IsNullOrEmpty(hangfireConnectionString))
+    throw new Exception("Database connection string not found for Hangfire");
 
 builder.Services.AddHangfire(configuration => configuration
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
