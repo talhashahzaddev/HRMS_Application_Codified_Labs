@@ -103,12 +103,15 @@ DapperConfiguration.Configure();
 
 // -------------------- DATABASE --------------------
 // Resolve and validate the connection string once at startup.
-var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-var finalConnectionString = !string.IsNullOrEmpty(envConnection) ? envConnection : configConnection;
+// Railway resolves reference variables (e.g. ${{ Postgres.DATABASE_URL }}) into the
+// actual value and injects it as the ConnectionStrings__DefaultConnection environment
+// variable, which ASP.NET Core's configuration system maps to ConnectionStrings:DefaultConnection.
+// Reading via IConfiguration (instead of Environment.GetEnvironmentVariable("CONNECTION_STRING"))
+// ensures Railway's reference variables are fully resolved before use.
+var finalConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 if (string.IsNullOrEmpty(finalConnectionString))
     throw new Exception("❌ Database connection string not found");
-Console.WriteLine($"✅ DB Source: {(envConnection != null ? "Railway ENV" : "Local Config")}");
+Console.WriteLine("✅ DB Source: Configuration (DefaultConnection)");
 
 // Use AddScoped (not Singleton) because DatabaseConnectionFactory now depends on
 // IHttpContextAccessor which is request-scoped. A Singleton cannot safely consume
@@ -172,8 +175,9 @@ builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<Cloud
 // -------------------- SIGNALR & HANGFIRE --------------------
 builder.Services.AddSignalR();
 
-var hangfireConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+// Reuse the already-resolved connection string so Hangfire relies on the same
+// Railway-resolved configuration value rather than re-reading a raw env var.
+var hangfireConnectionString = finalConnectionString
     ?? throw new Exception("Database connection string not found for Hangfire");
 
 builder.Services.AddHangfire(configuration => configuration
