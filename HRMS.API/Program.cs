@@ -103,12 +103,13 @@ DapperConfiguration.Configure();
 
 // -------------------- DATABASE --------------------
 // Resolve and validate the connection string once at startup.
-var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-var finalConnectionString = !string.IsNullOrEmpty(envConnection) ? envConnection : configConnection;
+var finalConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
 if (string.IsNullOrEmpty(finalConnectionString))
     throw new Exception("❌ Database connection string not found");
-Console.WriteLine($"✅ DB Source: {(envConnection != null ? "Railway ENV" : "Local Config")}");
+Console.WriteLine($"✅ DB Source: {(finalConnectionString.Contains("localhost") ? "Local Config" : "Railway ENV")}");
 
 // Use AddScoped (not Singleton) because DatabaseConnectionFactory now depends on
 // IHttpContextAccessor which is request-scoped. A Singleton cannot safely consume
@@ -172,8 +173,9 @@ builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<Cloud
 // -------------------- SIGNALR & HANGFIRE --------------------
 builder.Services.AddSignalR();
 
-var hangfireConnectionString = Environment.GetEnvironmentVariable("CONNECTION_STRING")
-    ?? builder.Configuration.GetConnectionString("DefaultConnection")
+var hangfireConnectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL")
     ?? throw new Exception("Database connection string not found for Hangfire");
 
 builder.Services.AddHangfire(configuration => configuration
