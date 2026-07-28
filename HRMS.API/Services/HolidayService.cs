@@ -310,7 +310,7 @@ public class HolidayService : IHolidayService
             // Resolve employee's department and location if not provided
             if (departmentId == null || string.IsNullOrEmpty(workLocation))
             {
-                var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+                var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
                 if (employee != null)
                 {
                     departmentId ??= employee.DepartmentId;
@@ -415,7 +415,7 @@ public class HolidayService : IHolidayService
         {
             if (departmentId == null || string.IsNullOrEmpty(workLocation))
             {
-                var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+                var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
                 if (employee != null)
                 {
                     departmentId ??= employee.DepartmentId;
@@ -447,7 +447,7 @@ public class HolidayService : IHolidayService
                 return new ServiceResponse<EmployeeRestrictedHolidayDto> { Success = false, Message = "This holiday is not a restricted holiday" };
 
             // Enforce scope applicability at API level to prevent cross-employee selection by crafted requests
-            var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+            var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
             var applicableRestricted = await _holidayRepository.GetAvailableRestrictedHolidaysForEmployeeAsync(
                 organizationId,
                 employeeId,

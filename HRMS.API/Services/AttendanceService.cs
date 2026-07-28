@@ -61,7 +61,7 @@ public class AttendanceService : IAttendanceService
 
     private async Task<HashSet<DateTime>> GetEmployeeHolidayDateSetAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
         if (employee == null)
         {
             return new HashSet<DateTime>();
@@ -801,7 +801,7 @@ public class AttendanceService : IAttendanceService
             leaveDates.Count, employeeId, year, month, string.Join(", ", leaveDates));
 
         // ✅ Get holidays for the month, filtered by employee's department/location/assignment
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
         var holidayDates = new Dictionary<DateTime, string>();
         if (employee != null)
         {
@@ -1247,7 +1247,7 @@ public class AttendanceService : IAttendanceService
         if (!assignResult)
             return false;
 
-        var currentEmp = await _employeeRepository.GetEmployeeByIdAsync(currentEmpid);
+        var currentEmp = await _employeeRepository.GetEmployeeByEmployeeIdAsync(currentEmpid);
         var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(request.ShiftId);
 
         // 2️⃣ Prepare receiver list (Selected Employees)
@@ -1334,11 +1334,11 @@ public class AttendanceService : IAttendanceService
         //Step 2: Create notification
         var EMPID = await _attendanceRepository.GetEmpId(requestDto.EmployeeId);
 
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(EMPID);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(EMPID);
         //Getting reciverid
         var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
         //Getting manager employeeid
-        var reportingManagerDetail = await _employeeRepository.GetEmployeeByIdAsync(reportingmangerid);
+        var reportingManagerDetail = await _employeeRepository.GetEmployeeByEmployeeIdAsync(reportingmangerid);
        
             var result = await _attendanceRepository.CreateShiftSwapRequestAsync(organizationId, requestDto);
             var shiftDetails = await _attendanceRepository.GetshiftInfoAsync(requestDto.RequestedShiftId);

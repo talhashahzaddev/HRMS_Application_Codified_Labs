@@ -19,6 +19,7 @@ public interface IEmployeeRepository
 
     Task<Employee> CreateEmployeeAsync(Employee employee);
     Task<Employee?> GetEmployeeByIdAsync(Guid? employeeId);
+    Task<Employee?> GetEmployeeByEmployeeIdAsync(Guid? employeeId);
     Task<string> GetUserRoleAsync(Guid userid);
     Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid);
     Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode);

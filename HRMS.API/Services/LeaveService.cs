@@ -61,7 +61,7 @@ public class LeaveService : ILeaveService
         try
         {
             var empId = await _leaveRepository.GetEmpId(employeeId);
-            var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
+            var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(empId);
             if (employee == null)
                 throw new InvalidOperationException("Employee profile not found");
 
