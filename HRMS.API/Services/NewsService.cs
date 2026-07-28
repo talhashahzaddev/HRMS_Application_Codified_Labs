@@ -52,21 +52,26 @@ namespace HRMS.API.Services
                 {
                     receiverIds = request.SelectedEmployees.ToList();
                 }
+
                 if (receiverIds.Any())
                 {
-                    var wordLimit = 15;
-                    var descriptionPreview = string.IsNullOrEmpty(request.Description)
-                        ? ""
-                        : string.Join(" ", request.Description
-                            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-                            .Take(wordLimit)) + (request.Description.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > wordLimit ? "..." : "");
+                    var wordLimit = 25;
+
+                    var words = string.IsNullOrEmpty(request.Description)
+                        ? Array.Empty<string>()
+                        : request.Description.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+                    var descriptionPreview = string.Join(" ", words.Take(wordLimit)) +
+                        (words.Length > wordLimit ? "..." : "");
 
                     var notification = new NotificationCreateDto
                     {
                         Receiveruserid = receiverIds,
                         Senderuserid = employeeId,
-                        Title = $"{request.Title}",
-                        Message = $"\"{request.Title}\" has been published. {descriptionPreview}",
+                        Title = request.Title,
+
+                        Message = $"\"{request.Title}\" - {descriptionPreview}",
+
                         Notificationtype = "Message",
                         Createdby = employeeId,
                         moduletype = "News",
@@ -74,6 +79,7 @@ namespace HRMS.API.Services
                         organizationId = organizationId,
                         RequestId = createdNews.NewsId
                     };
+
                     await _notificationRepository.CreateNotificationAsync(organizationId, notification);
                 }
             }

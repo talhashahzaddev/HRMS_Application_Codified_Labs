@@ -8,8 +8,7 @@ public interface IEmployeeRepository
 {
     Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId);
     Task<List<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId);
-    //adding this now
-    Task<Guid?> getemployeeid(Guid userId);
+    Task<Guid?> GetEmployeeIdAsync(Guid userId);
     Task<bool> EditEmployeeDetailsAsync(Guid employeeId, UpdateEmployeeRequestDTo request);
     Task<bool> EditEmployeeTableAsync(Guid employeeId, UpdateEmployeeRequestDTo request, string? profileUrl);
     Task<bool> editEmployeeUserAsync(Guid? userId, UpdateEmployeeRequestDTo request);
@@ -44,8 +43,10 @@ public interface IEmployeeRepository
     Task<bool> DeletePositionAsync(Guid positionId);
     Task<int> GetEmployeeCountByPositionAsync(Guid positionId);
     Task<List<Employee>> GetEmployeesByPositionAsync(Guid positionId);
-    Task<List<Employee>> GetManagersAsync(Guid organizationId);
+    Task<List<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null);
     Task<bool> UpdateEmploymentDetailCurrencyAsync(Guid employeeId, string currency);
     Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
     Task<bool> CheckEmployeeLimitAsync(Guid organizationId);
+    Task<Guid?> GetRoleIdByPositionIdAsync(Guid positionId);
+    Task<List<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId);
 }

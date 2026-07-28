@@ -1,21 +1,38 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using Serilog;
-using FluentValidation;
 using AutoMapper;
-using HRMS.API.Configuration;
-using HRMS.API.Middleware;
-using HRMS.API.Services.Interfaces;
-using HRMS.API.Services;
-using HRMS.API.Repositories.Interfaces;
-using HRMS.API.Repositories;
-using HRMS.AI.Services.Interface;
+using FluentValidation;
+using Hangfire;
+using Hangfire.PostgreSql;
 using HRMS.AI.Services;
-using Microsoft.AspNetCore.Authorization;
+using HRMS.AI.Services.Interface;
 using HRMS.API.Authorization;
+using HRMS.API.Configuration;
+using HRMS.API.Hubs;
+using HRMS.API.Middleware;
+using HRMS.API.Repositories;
+using HRMS.API.Repositories.Interfaces;
+using HRMS.API.Services;
+using HRMS.API.Services.Interfaces;
+using HRMS.API.Services.PayslipLayouts;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.IdentityModel.Tokens;
+using Serilog;
+using System.Text;
+using static HRMS.API.Repositories.OnboardingRepository;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Helper to convert Railway's postgresql:// URL to standard .NET Connection String
+static string ParseRailwayUrl(string? connectionString)
+{
+    if (string.IsNullOrEmpty(connectionString) || (!connectionString.StartsWith("postgres://") && !connectionString.StartsWith("postgresql://")))
+        return connectionString ?? string.Empty;
+
+    var uri = new Uri(connectionString);
+    var userInfo = uri.UserInfo.Split(':');
+    return $"Host={uri.Host};Port={uri.Port};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Prefer;Trust Server Certificate=true;";
+}
 
 // ===================== RAILWAY PORT FIX =====================
 if (!builder.Environment.IsDevelopment())
@@ -36,12 +53,23 @@ Log.Logger = new LoggerConfiguration()
 
 builder.Host.UseSerilog();
 
+// -------------------- HTTP CONTEXT --------------------
+// Required by DatabaseConnectionFactory to inject the logged-in User ID
+// into the PostgreSQL session for audit trigger support.
+builder.Services.AddHttpContextAccessor();
+
 // -------------------- CONTROLLERS --------------------
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
         options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase;
         options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
+        // Emit every DateTime as UTC ISO-8601 with 'Z' so the frontend reliably
+        // converts timestamps into the company-configured timezone.
+        options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonNullableDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonDateTimeOffsetConverter());
+        options.JsonSerializerOptions.Converters.Add(new HRMS.API.Configuration.UtcJsonNullableDateTimeOffsetConverter());
     });
 
 builder.Services.AddEndpointsApiExplorer();
@@ -85,21 +113,24 @@ builder.Services.AddSwaggerGen(c =>
 DapperConfiguration.Configure();
 
 // -------------------- DATABASE --------------------
-builder.Services.AddSingleton<IDatabaseConnectionFactory>(_ =>
+// Resolve and validate the connection string once at startup.
+var rawConnectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
+    ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
+var finalConnectionString = ParseRailwayUrl(rawConnectionString);
+
+if (string.IsNullOrEmpty(finalConnectionString))
+    throw new Exception("❌ Database connection string not found");
+Console.WriteLine($"✅ DB Source: {(finalConnectionString.Contains("localhost") ? "Local Config" : "Railway ENV")}");
+
+// Use AddScoped (not Singleton) because DatabaseConnectionFactory now depends on
+// IHttpContextAccessor which is request-scoped. A Singleton cannot safely consume
+// a Scoped dependency.
+builder.Services.AddScoped<IDatabaseConnectionFactory>(sp =>
 {
-    var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
-    var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
-
-    var finalConnection = !string.IsNullOrEmpty(envConnection)
-        ? envConnection
-        : configConnection;
-
-    if (string.IsNullOrEmpty(finalConnection))
-        throw new Exception("❌ Database connection string not found");
-
-    Console.WriteLine($"✅ DB Source: {(envConnection != null ? "Railway ENV" : "Local Config")}");
-
-    return new DatabaseConnectionFactory(finalConnection);
+    var httpContextAccessor = sp.GetRequiredService<IHttpContextAccessor>();
+    return new DatabaseConnectionFactory(finalConnectionString, httpContextAccessor);
 });
 
 // -------------------- JWT --------------------
@@ -128,6 +159,20 @@ builder.Services.AddAuthentication(options =>
         ValidateLifetime = true,
         ClockSkew = TimeSpan.Zero
     };
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
 });
 
 // -------------------- CLOUDINARY --------------------
@@ -138,14 +183,39 @@ builder.Services.AddScoped<CloudinaryService>();
 builder.Services.AddScoped<ICloudinaryService>(sp => sp.GetRequiredService<CloudinaryService>());
 builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<CloudinaryService>());
 
+// -------------------- SIGNALR & HANGFIRE --------------------
+builder.Services.AddSignalR();
+
+var rawHangfireString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
+    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+
+var hangfireConnectionString = ParseRailwayUrl(rawHangfireString);
+if (string.IsNullOrEmpty(hangfireConnectionString))
+    throw new Exception("Database connection string not found for Hangfire");
+
+builder.Services.AddHangfire(configuration => configuration
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UsePostgreSqlStorage(options => options.UseNpgsqlConnection(hangfireConnectionString)));
+
+builder.Services.AddHangfireServer();
+
 // -------------------- CORS --------------------
+var configuredOrigins = builder.Configuration.GetSection("CORS:AllowedOrigins").Get<string[]>()
+    ?? Array.Empty<string>();
+var allowedHostSuffixes = builder.Configuration.GetSection("CORS:AllowedHostSuffixes").Get<string[]>()
+    ?? new[] { ".localhost", ".briskpeople.com", ".vercel.app" };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
     {
-        policy.AllowAnyOrigin()
+        policy.SetIsOriginAllowed(origin => CorsOriginHelper.IsOriginAllowed(origin, configuredOrigins, allowedHostSuffixes))
               .AllowAnyMethod()
-              .AllowAnyHeader();
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
@@ -181,8 +251,15 @@ builder.Services.AddScoped<IIpAddressService, IpAddressService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 builder.Services.AddScoped<IPerformanceService, PerformanceService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<ISettingsService, SettingsService>();
+builder.Services.AddScoped<IPayslipTemplateService, PayslipTemplateService>();
+builder.Services.AddScoped<IPayslipPdfBuilder, PayslipPdfBuilder>();
+builder.Services.AddScoped<IPayslipLayoutRendererRegistry, PayslipLayoutRendererRegistry>();
+builder.Services.AddScoped<IPayslipLayoutRenderer, ClassicStackedLayoutRenderer>();
+builder.Services.AddScoped<IPayslipLayoutRenderer, SplitColumnsLayoutRenderer>();
+builder.Services.AddScoped<IPayslipLayoutRenderer, CompactCorporateLayoutRenderer>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IChatService, ChatService>();
 builder.Services.AddScoped<IChatBoardStatsService, ChatBoardStatsService>();
@@ -195,12 +272,24 @@ builder.Services.AddScoped<IAssetService, AssetService>();
 builder.Services.AddScoped<IExpenseService, ExpenseService>();
 builder.Services.AddScoped<IJobsService, JobsService>();
 builder.Services.AddScoped<ICareerService, CareerService>();
+builder.Services.AddScoped<IQuestionBankService, QuestionBankService>();
+builder.Services.AddHttpClient<IResumeParserService, ResumeParserService>(client => 
+{
+    client.Timeout = TimeSpan.FromMinutes(5);
+});
 builder.Services.AddScoped<INewsService, NewsService>();
 builder.Services.AddScoped<IHolidayService, HolidayService>();
 builder.Services.AddScoped<IPayRollService, PayRollService>();
+builder.Services.AddScoped<IPayslipBulkUploadService, PayslipBulkUploadService>();
+builder.Services.AddScoped<IBulkPayslipJobService, BulkPayslipJobService>();
 builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
 builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<IGeoFenceService, GeoFenceService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<IOnboardingConfigService, OnboardingConfigService>();
+builder.Services.AddScoped<IPolicyService, PolicyService>();
+
 
 // --- Super Admin Portal Services ---
 builder.Services.AddScoped<IPlatformAdminAuthService, PlatformAdminAuthService>();
@@ -214,10 +303,17 @@ builder.Services.AddScoped<IDomainRepository, DomainRepository>();
 builder.Services.AddScoped<IEmployeeRepository, EmployeeRepository>();
 builder.Services.AddScoped<IIpAddressRepository, IpAddressRepository>();
 builder.Services.AddScoped<IAttendanceRepository, AttendanceRepository>();
+builder.Services.AddScoped<ITimesheetRepository, TimesheetRepository>();
+builder.Services.AddScoped<ITimesheetConfigRepository, TimesheetConfigRepository>();
+builder.Services.AddScoped<ITimesheetService, TimesheetService>();
+builder.Services.AddScoped<ITimesheetWorkflowRepository, TimesheetWorkflowRepository>();
 builder.Services.AddScoped<ILeaveRepository, LeaveRepository>();
 builder.Services.AddScoped<IPerformanceRepository, PerformanceRepository>();
 builder.Services.AddScoped<IDashboardRepository, DashboardRepository>();
+
 builder.Services.AddScoped<ISettingsRepository, SettingsRepository>();
+builder.Services.AddScoped<IPayslipTemplateRepository, PayslipTemplateRepository>();
+builder.Services.AddScoped<IPayslipLayoutCatalogRepository, PayslipLayoutCatalogRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IAssetRepository, AssetRepository>();
 builder.Services.AddScoped<IChatBoardAiRepository, ChatBoardAiRepository>();
@@ -226,16 +322,25 @@ builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<IExpenseRepository, ExpenseRepository>();
 builder.Services.AddScoped<IJobsRepository, JobsRepository>();
 builder.Services.AddScoped<ICareerRepository, CareerRepository>();
+builder.Services.AddScoped<IQuestionBankRepository, QuestionBankRepository>();
 builder.Services.AddScoped<INewsRepository, NewsRepository>();
 builder.Services.AddScoped<IHolidayRepository, HolidayRepository>();
 builder.Services.AddScoped<IPayRollRepository, PayRollRepository>();
 builder.Services.AddScoped<IHelpDeskRepository, HelpDeskRepository>();
 builder.Services.AddScoped<IGeoFenceRepository, GeoFenceRepository>();
+builder.Services.AddScoped<IOnboardingRepository, OnboardingRepository>();
+// In Program.cs / Startup.cs — add these two lines with your other DI registrations:
+builder.Services.AddScoped<IOnboardingConfigRepository, OnboardingConfigRepository>();
+builder.Services.AddScoped<IPolicyRepository, PolicyRepository>();
 
 // --- Super Admin Portal Repositories ---
 builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
 builder.Services.AddScoped<IDemoInquiryRepository, DemoInquiryRepository>();
 builder.Services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
+
+// --- Audit Log Repository ---
+builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+
 
 // -------------------- HOSTED SERVICES --------------------
 builder.Services.AddAuthorization();
@@ -243,7 +348,10 @@ builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 // -------------------- HOSTED SERVICES --------------------
 builder.Services.AddHostedService<LeaveBalanceResetHostedService>();
-
+builder.Services.Configure<FormOptions>(options =>
+{
+    options.MultipartBodyLengthLimit = 200_000_000; // 200MB
+});
 // ===================== PIPELINE =====================
 var app = builder.Build();
 
@@ -253,6 +361,7 @@ app.UseSwaggerUI(c =>
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "HRMS API V1");
     c.RoutePrefix = string.Empty;
 });
+
 
 app.UseStaticFiles();
 
@@ -266,6 +375,14 @@ app.UseAuthorization();
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new[] { new HangfireDashboardAuthorizationFilter() }
+});
+
+app.MapHub<PayslipBulkHub>("/hubs/payslip-bulk");
+app.MapHub<PermissionHub>("/hubs/permissionHub");
+app.MapHub<HRMS.API.Hubs.CvParsingHub>("/hub/cvparsing");
 app.MapControllers();
 
 try
@@ -281,3 +398,7 @@ finally
 {
     Log.CloseAndFlush();
 }
+
+// Exposes the implicit Program class (top-level statements) to the test project
+// so WebApplicationFactory<Program> can boot the real app in integration tests.
+public partial class Program { }

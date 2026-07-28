@@ -192,6 +192,7 @@ public interface IPayRollRepository
     Task<bool> CancelMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId);
     Task<PagedResult<MySalaryAdvanceDto>> GetMySalaryAdvancesAsync(Guid organizationId, Guid employeeId, SalaryAdvanceFilterDto filter);
     Task<MySalaryAdvanceDto?> GetMySalaryAdvanceByIdAsync(Guid advanceId, Guid organizationId, Guid employeeId);
+    Task<SalaryAdvanceSummaryDto> GetMySalaryAdvanceSummaryAsync(Guid organizationId, Guid employeeId);
     Task<PagedResult<AdminSalaryAdvanceDto>> GetAllSalaryAdvanceRequestsAsync(Guid organizationId, AdminSalaryAdvanceFilterDto filter);
     Task<AdminSalaryAdvanceDto?> GetSalaryAdvanceRequestByIdAsync(Guid advanceId, Guid organizationId);
     Task<bool> ApproveSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid approvedBy);
@@ -277,6 +278,7 @@ public interface IPayRollRepository
 
     // Social Security — Employee lifecycle (enrollments, requests, claims, documents)
     Task<SocialSecurityEnrollmentDto?> GetMySocialSecurityEnrollmentAsync(Guid organizationId, Guid employeeId);
+    Task<PagedResult<SocialSecurityEnrollmentRosterDto>> GetSocialSecurityEnrollmentsAsync(Guid organizationId, SocialSecurityEnrollmentFilterDto filter);
     Task<PagedResult<SocialSecurityEnrollmentRequestDto>> GetMySocialSecurityRequestsAsync(Guid organizationId, Guid employeeId, MySocialSecurityRequestFilterDto filter);
     Task<PagedResult<SocialSecurityEnrollmentRequestDto>> GetSocialSecurityEnrollmentRequestsAsync(Guid organizationId, SocialSecurityEnrollmentRequestFilterDto filter);
     Task<Guid?> CreateSocialSecurityEnrollmentRequestAsync(Guid organizationId, Guid employeeId, Guid requestedByUserId, CreateSocialSecurityEnrollmentRequestDto dto);
@@ -294,4 +296,23 @@ public interface IPayRollRepository
     Task<bool> VerifySocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid verifiedByUserId, VerifySocialSecurityRequestDocumentDto dto);
     Task<bool> DeleteSocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid employeeId);
     Task<PagedResult<PayrollResultItemDto>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter);
+    Task<PagedResult<CompliancePayslipRowDto>> GetCompliancePayslipsAsync(Guid organizationId, CompliancePayslipFilterDto filter);
+    Task<CompliancePayslipStatsDto> GetCompliancePayslipStatsAsync(Guid organizationId, CompliancePayslipFilterDto filter);
+    Task<PayrollResultItemDto?> GetPayrollResultByResultIdAsync(Guid organizationId, Guid resultId);
+    Task<PayrollResultItemDto?> GetPayrollResultForEmployeePeriodAsync(Guid organizationId, Guid periodId, Guid employeeId);
+    Task<string?> GetPayslipUrlByResultIdAsync(Guid organizationId, Guid resultId);
+    Task UpsertPayslipUrlAsync(Guid organizationId, Guid resultId, Guid employeeId, string payslipUrl);
+    Task<IReadOnlyList<PendingPayslipForSendDto>> GetPendingPayslipsForBulkSendAsync(
+        Guid organizationId,
+        Guid payrollPeriodId,
+        IReadOnlyList<Guid> employeeIds);
+    Task UpdatePayslipAfterSendAsync(
+        Guid payslipId,
+        string? payslipUploadUrl,
+        string mailsentstatus,
+        DateTime? mailsentat,
+        Guid mailsentby);
+    Task<PagedResult<MyPayslipDto>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter);
+    Task<PagedResult<PayrollResultItemDto>> GetMyPayrollResultsAsync(Guid organizationId, Guid employeeId, MyPayrollResultsFilterDto filter);
+    Task<PayrollPeriodDto?> GetPayrollPeriodByNameAsync(Guid organizationId, string periodName);
 }

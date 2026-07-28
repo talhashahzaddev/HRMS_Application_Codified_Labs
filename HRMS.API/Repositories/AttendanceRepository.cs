@@ -17,7 +17,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         _logger = logger;
     }
- public async Task<IEnumerable<Attendance>> GetManualAttendanceRecordsAsync(Guid organizationId, Guid? managerId, Guid? employeeId, DateTime startDate, DateTime endDate)
+    public async Task<IEnumerable<Attendance>> GetManualAttendanceRecordsAsync(Guid organizationId, Guid? managerId, Guid? employeeId, DateTime startDate, DateTime endDate)
     {
         var sql = @"
             SELECT a.*
@@ -27,7 +27,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             AND a.workdate BETWEEN @startDate AND @endDate
             AND (@employeeId IS NULL OR a.employeeid = @employeeId)
             AND (@managerId IS NULL OR e.employeeid = @managerId)";
-            
+
         return await QueryAsync<Attendance>(sql, new { organizationId, managerId, employeeId, startDate, endDate });
     }
 
@@ -104,10 +104,10 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             organizationId,
             dto.TimesheetName,
             StartDate = startDate,
-            EndDate   = endDate,
+            EndDate = endDate,
             // keep legacy month/year populated when the period falls inside one calendar month
-            Month     = (startDate.Year == endDate.Year && startDate.Month == endDate.Month) ? (int?)startDate.Month : null,
-            Year      = (startDate.Year == endDate.Year && startDate.Month == endDate.Month) ? (int?)startDate.Year  : null,
+            Month = (startDate.Year == endDate.Year && startDate.Month == endDate.Month) ? (int?)startDate.Month : null,
+            Year = (startDate.Year == endDate.Year && startDate.Month == endDate.Month) ? (int?)startDate.Year : null,
             generatedBy
         });
         return rows > 0;
@@ -121,7 +121,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         if (dto.Month is int m && dto.Year is int y)
         {
             var start = new DateTime(y, m, 1);
-            var end   = start.AddMonths(1).AddDays(-1);
+            var end = start.AddMonths(1).AddDays(-1);
             return (start, end);
         }
 
@@ -129,7 +129,8 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     }
     public async Task<IEnumerable<PendingAttendanceRequest>> GetAllPendingRequestsAsync(Guid organizationId, Guid? managerId = null)
     {
-        try {
+        try
+        {
             var sql = @"
     SELECT 
         r.request_id        AS RequestId,
@@ -485,18 +486,22 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         const string sql = @"
             SELECT
-                timesheet_id, timesheet_name, period_start, period_end, status,
-                finalized_at, locked_at,
-                employee_id, employee_code, employee_name, department, designation,
-                total_calendar_days, scheduled_working_days, weekend_days, holiday_days,
-                present_days, absent_days, late_days, half_days, early_departure_days,
-                leave_days_total, paid_leave_days, unpaid_leave_days, half_paid_leave_days,
-                total_hours_worked, regular_hours, overtime_hours,
-                regular_overtime_hours, weekend_overtime_hours, holiday_overtime_hours,
-                late_minutes, late_hours, early_departure_minutes,
-                effective_present_days, attendance_percentage,
-                is_consumed_by_payroll, aggregated_at
-              FROM attendance.fn_get_timesheet_payroll_summary(@timesheetId);";
+                fn.timesheet_id, fn.timesheet_name, fn.period_start, fn.period_end, fn.status,
+                fn.finalized_at, fn.locked_at,
+                fn.employee_id, fn.employee_code, fn.employee_name, fn.department, fn.designation,
+                tps.shift_id AS shift_id,
+                fn.total_calendar_days, fn.scheduled_working_days, fn.weekend_days, fn.holiday_days,
+                fn.present_days, fn.absent_days, fn.late_days, fn.half_days, fn.early_departure_days,
+                fn.leave_days_total, fn.paid_leave_days, fn.unpaid_leave_days, fn.half_paid_leave_days,
+                fn.total_hours_worked, fn.regular_hours, fn.overtime_hours,
+                fn.regular_overtime_hours, fn.weekend_overtime_hours, fn.holiday_overtime_hours,
+                fn.late_minutes, fn.late_hours, fn.early_departure_minutes,
+                fn.effective_present_days, fn.attendance_percentage,
+                fn.is_consumed_by_payroll, fn.aggregated_at
+              FROM attendance.fn_get_timesheet_payroll_summary(@timesheetId) AS fn
+              LEFT JOIN attendance.timesheet_payroll_summary tps
+                     ON tps.timesheet_id = fn.timesheet_id
+                    AND tps.employee_id  = fn.employee_id;";
 
         var rows = (await QueryAsync<TimesheetPayrollSummaryRow>(sql, new { timesheetId })).ToList();
         if (rows.Count == 0) return null;
@@ -504,53 +509,54 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         var header = rows[0];
         var dto = new TimesheetPayrollSummaryDto
         {
-            TimesheetId   = header.timesheet_id,
+            TimesheetId = header.timesheet_id,
             TimesheetName = header.timesheet_name ?? string.Empty,
-            PeriodStart   = header.period_start,
-            PeriodEnd     = header.period_end,
-            Status        = header.status ?? string.Empty,
-            FinalizedAt   = header.finalized_at,
-            LockedAt      = header.locked_at
+            PeriodStart = header.period_start,
+            PeriodEnd = header.period_end,
+            Status = header.status ?? string.Empty,
+            FinalizedAt = header.finalized_at,
+            LockedAt = header.locked_at
         };
 
         foreach (var r in rows.Where(r => r.employee_id != Guid.Empty && r.employee_id != null))
         {
             dto.Employees.Add(new EmployeePayrollSummaryDto
             {
-                TimesheetId             = r.timesheet_id,
-                EmployeeId              = r.employee_id!.Value,
-                EmployeeCode            = r.employee_code ?? string.Empty,
-                EmployeeName            = r.employee_name ?? string.Empty,
-                Department              = r.department,
-                Designation             = r.designation,
-                PeriodStart             = r.period_start,
-                PeriodEnd               = r.period_end,
-                TotalCalendarDays       = r.total_calendar_days,
-                ScheduledWorkingDays    = r.scheduled_working_days,
-                WeekendDays             = r.weekend_days,
-                HolidayDays             = r.holiday_days,
-                PresentDays             = r.present_days,
-                AbsentDays              = r.absent_days,
-                LateDays                = r.late_days,
-                HalfDays                = r.half_days,
-                EarlyDepartureDays      = r.early_departure_days,
-                LeaveDaysTotal          = r.leave_days_total,
-                PaidLeaveDays           = r.paid_leave_days,
-                UnpaidLeaveDays         = r.unpaid_leave_days,
-                HalfPaidLeaveDays       = r.half_paid_leave_days,
-                TotalHoursWorked        = r.total_hours_worked,
-                RegularHours            = r.regular_hours,
-                OvertimeHours           = r.overtime_hours,
-                RegularOvertimeHours    = r.regular_overtime_hours,
-                WeekendOvertimeHours    = r.weekend_overtime_hours,
-                HolidayOvertimeHours    = r.holiday_overtime_hours,
-                LateMinutes             = r.late_minutes,
-                LateHours               = r.late_hours,
-                EarlyDepartureMinutes   = r.early_departure_minutes,
-                EffectivePresentDays    = r.effective_present_days,
-                AttendancePercentage    = r.attendance_percentage,
-                IsConsumedByPayroll     = r.is_consumed_by_payroll,
-                AggregatedAt            = r.aggregated_at
+                TimesheetId = r.timesheet_id,
+                EmployeeId = r.employee_id!.Value,
+                EmployeeCode = r.employee_code ?? string.Empty,
+                EmployeeName = r.employee_name ?? string.Empty,
+                Department = r.department,
+                Designation = r.designation,
+                ShiftId = r.shift_id,
+                PeriodStart = r.period_start,
+                PeriodEnd = r.period_end,
+                TotalCalendarDays = r.total_calendar_days,
+                ScheduledWorkingDays = r.scheduled_working_days,
+                WeekendDays = r.weekend_days,
+                HolidayDays = r.holiday_days,
+                PresentDays = r.present_days,
+                AbsentDays = r.absent_days,
+                LateDays = r.late_days,
+                HalfDays = r.half_days,
+                EarlyDepartureDays = r.early_departure_days,
+                LeaveDaysTotal = r.leave_days_total,
+                PaidLeaveDays = r.paid_leave_days,
+                UnpaidLeaveDays = r.unpaid_leave_days,
+                HalfPaidLeaveDays = r.half_paid_leave_days,
+                TotalHoursWorked = r.total_hours_worked,
+                RegularHours = r.regular_hours,
+                OvertimeHours = r.overtime_hours,
+                RegularOvertimeHours = r.regular_overtime_hours,
+                WeekendOvertimeHours = r.weekend_overtime_hours,
+                HolidayOvertimeHours = r.holiday_overtime_hours,
+                LateMinutes = r.late_minutes,
+                LateHours = r.late_hours,
+                EarlyDepartureMinutes = r.early_departure_minutes,
+                EffectivePresentDays = r.effective_present_days,
+                AttendancePercentage = r.attendance_percentage,
+                IsConsumedByPayroll = r.is_consumed_by_payroll,
+                AggregatedAt = r.aggregated_at
             });
         }
 
@@ -567,44 +573,45 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     /// <summary>Flat row used to materialize the result of fn_get_timesheet_payroll_summary.</summary>
     private sealed class TimesheetPayrollSummaryRow
     {
-        public Guid     timesheet_id           { get; set; }
-        public string?  timesheet_name         { get; set; }
-        public DateTime period_start           { get; set; }
-        public DateTime period_end             { get; set; }
-        public string?  status                 { get; set; }
-        public DateTime? finalized_at          { get; set; }
-        public DateTime? locked_at             { get; set; }
-        public Guid?    employee_id            { get; set; }
-        public string?  employee_code          { get; set; }
-        public string?  employee_name          { get; set; }
-        public string?  department             { get; set; }
-        public string?  designation            { get; set; }
-        public int      total_calendar_days    { get; set; }
-        public int      scheduled_working_days { get; set; }
-        public int      weekend_days           { get; set; }
-        public int      holiday_days           { get; set; }
-        public int      present_days           { get; set; }
-        public int      absent_days            { get; set; }
-        public int      late_days              { get; set; }
-        public int      half_days              { get; set; }
-        public int      early_departure_days   { get; set; }
-        public decimal  leave_days_total       { get; set; }
-        public decimal  paid_leave_days        { get; set; }
-        public decimal  unpaid_leave_days      { get; set; }
-        public decimal  half_paid_leave_days   { get; set; }
-        public decimal  total_hours_worked     { get; set; }
-        public decimal  regular_hours          { get; set; }
-        public decimal  overtime_hours         { get; set; }
-        public decimal  regular_overtime_hours { get; set; }
-        public decimal  weekend_overtime_hours { get; set; }
-        public decimal  holiday_overtime_hours { get; set; }
-        public int      late_minutes           { get; set; }
-        public decimal  late_hours             { get; set; }
-        public int      early_departure_minutes{ get; set; }
-        public decimal  effective_present_days { get; set; }
-        public decimal  attendance_percentage  { get; set; }
-        public bool     is_consumed_by_payroll { get; set; }
-        public DateTime? aggregated_at         { get; set; }
+        public Guid timesheet_id { get; set; }
+        public string? timesheet_name { get; set; }
+        public DateTime period_start { get; set; }
+        public DateTime period_end { get; set; }
+        public string? status { get; set; }
+        public DateTime? finalized_at { get; set; }
+        public DateTime? locked_at { get; set; }
+        public Guid? employee_id { get; set; }
+        public string? employee_code { get; set; }
+        public string? employee_name { get; set; }
+        public string? department { get; set; }
+        public string? designation { get; set; }
+        public Guid? shift_id { get; set; }
+        public int total_calendar_days { get; set; }
+        public int scheduled_working_days { get; set; }
+        public int weekend_days { get; set; }
+        public int holiday_days { get; set; }
+        public int present_days { get; set; }
+        public int absent_days { get; set; }
+        public int late_days { get; set; }
+        public int half_days { get; set; }
+        public int early_departure_days { get; set; }
+        public decimal leave_days_total { get; set; }
+        public decimal paid_leave_days { get; set; }
+        public decimal unpaid_leave_days { get; set; }
+        public decimal half_paid_leave_days { get; set; }
+        public decimal total_hours_worked { get; set; }
+        public decimal regular_hours { get; set; }
+        public decimal overtime_hours { get; set; }
+        public decimal regular_overtime_hours { get; set; }
+        public decimal weekend_overtime_hours { get; set; }
+        public decimal holiday_overtime_hours { get; set; }
+        public int late_minutes { get; set; }
+        public decimal late_hours { get; set; }
+        public int early_departure_minutes { get; set; }
+        public decimal effective_present_days { get; set; }
+        public decimal attendance_percentage { get; set; }
+        public bool is_consumed_by_payroll { get; set; }
+        public DateTime? aggregated_at { get; set; }
     }
 
     public async Task<IEnumerable<MonthlyTimesheetSummary>> GetMonthlySnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
@@ -684,11 +691,14 @@ SELECT
     COALESCE(raw_a.late_minutes, 0)     AS LateMinutes,
     COALESCE(raw_a.overtimehours, 0)    AS OvertimeHours,
     raw_a.overtimetype                   AS OvertimeType,
-    -- Current leave classification for the day (when status='on_leave').
-    raw_a.leave_type_id                  AS LeaveTypeId,
-    cur_lt.typename                      AS LeaveTypeName,
+    -- Current leave classification for the day. Prefer the attendance row's
+    -- leave_type_id (covers the clock-in-marked-as-leave path); fall back to
+    -- the view-supplied leavetypeid (covers approved leaverequests where no
+    -- attendance row exists for the day).
+    COALESCE(raw_a.leave_type_id, v.leavetypeid)  AS LeaveTypeId,
+    cur_lt.typename                               AS LeaveTypeName,
     CASE
-        WHEN raw_a.leave_type_id IS NULL THEN NULL
+        WHEN COALESCE(raw_a.leave_type_id, v.leavetypeid) IS NULL THEN NULL
         WHEN COALESCE(cur_lt.ishalfpaid, FALSE) THEN 'half_paid'
         WHEN COALESCE(cur_lt.ispaid,     TRUE)  THEN 'paid'
         ELSE 'unpaid'
@@ -721,7 +731,7 @@ LEFT JOIN attendance.attendance raw_a
        ON raw_a.employeeid = ed.employeeid
       AND raw_a.workdate   = ed.workdate
 LEFT JOIN attendance.leavetypes cur_lt
-       ON cur_lt.leavetypeid = raw_a.leave_type_id
+       ON cur_lt.leavetypeid = COALESCE(raw_a.leave_type_id, v.leavetypeid)
 LEFT JOIN LATERAL (
     SELECT r.requested_leave_type_id,
            r.requested_overtime_hours,
@@ -761,8 +771,15 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
     public async Task<MonthlyTimesheetSummary?> GetSnapshotByIdAsync(Guid timesheetId)
     {
-        var sql = @"SELECT timesheet_id as TimesheetId, month, year, timesheet_name as TimesheetName 
-                FROM attendance.monthly_timesheets WHERE timesheet_id = @timesheetId";
+        var sql = @"SELECT
+                    timesheet_id   AS TimesheetId,
+                    timesheet_name AS TimesheetName,
+                    period_start   AS StartDate,
+                    period_end     AS EndDate,
+                    month,
+                    year
+                FROM attendance.monthly_timesheets
+                WHERE timesheet_id = @timesheetId";
         return await QuerySingleOrDefaultAsync<MonthlyTimesheetSummary>(sql, new { timesheetId });
     }
     public async Task<int> SubmitBatchForApprovalAsync(Guid employeeId, Guid organizationId, Guid timesheetId, DateTime startDate, DateTime endDate)
@@ -783,15 +800,16 @@ ORDER BY ed.employeename, ed.workdate ASC";
         var sql = "SELECT attendance.fn_approve_all_pending_requests(@managerId, @organizationId, @timesheetId, @employeeId)";
 
         using var connection = CreateConnection();
-        try {
-        return await connection.ExecuteScalarAsync<int>(sql, new
+        try
         {
-            managerId,
-            organizationId,
-            timesheetId,
-            employeeId
-        });
-    }
+            return await connection.ExecuteScalarAsync<int>(sql, new
+            {
+                managerId,
+                organizationId,
+                timesheetId,
+                employeeId
+            });
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error batch approving requests for Timesheet {TimesheetId}", timesheetId);
@@ -986,7 +1004,8 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 ComplianceRate = total > 0 ? Math.Round((decimal)finalized * 100m / total, 2) : 0
             };
         }
-        catch (Exception ex) {
+        catch (Exception ex)
+        {
             throw ex;
         }
     }
@@ -1152,10 +1171,10 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 dto.CheckInTime,
                 dto.CheckOutTime,
                 dto.Status,
-                LeaveTypeId  = dto.LeaveTypeId,
+                LeaveTypeId = dto.LeaveTypeId,
                 OvertimeHours = dto.OvertimeHours,
-                OvertimeType  = dto.OvertimeType,
-                LateMinutes   = dto.LateMinutes,
+                OvertimeType = dto.OvertimeType,
+                LateMinutes = dto.LateMinutes,
                 Reason = dto.Notes
             }) > 0;
         }
@@ -1257,7 +1276,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
         }
     }
 
-    public async Task<Attendance?> UpdateAttendanceOverTimeType(Guid employeeId,DateTime workDate,string? overtimeType)
+    public async Task<Attendance?> UpdateAttendanceOverTimeType(Guid employeeId, DateTime workDate, string? overtimeType)
     {
         try
         {
@@ -1297,11 +1316,30 @@ ORDER BY ed.employeename, ed.workdate ASC";
     {
         try
         {
+            // Shift-aware overtime: compute expected shift hours from the employee's
+            // assigned shift, handling overnight shifts and subtracting break duration.
             var sql = @"
+        WITH emp_shift AS (
+            SELECT s.starttime, s.endtime, s.breakduration
+            FROM employee.employmentdetails ed
+            JOIN attendance.shifts s ON ed.shiftid = s.shiftid
+            WHERE ed.employeeid = @employeeId AND ed.iscurrent = true
+        ),
+        shift_hours AS (
+            SELECT CASE
+                WHEN es.endtime < es.starttime THEN
+                    EXTRACT(EPOCH FROM (es.endtime + interval '24 hours' - es.starttime)) / 3600
+                ELSE
+                    EXTRACT(EPOCH FROM (es.endtime - es.starttime)) / 3600
+            END - COALESCE(es.breakduration, 0) / 60.0 AS expected_hours
+            FROM emp_shift es
+        )
         UPDATE attendance.attendance
-        SET 
+        SET
             overtimehours = CASE
-                                WHEN totalhours > 8 THEN totalhours - 8
+                                WHEN (SELECT expected_hours FROM shift_hours) > 0
+                                     AND totalhours > (SELECT expected_hours FROM shift_hours)
+                                THEN totalhours - (SELECT expected_hours FROM shift_hours)
                                 ELSE 0
                             END,
             updatedat = NOW() AT TIME ZONE 'UTC'
@@ -1448,7 +1486,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
                     limit = pageSize,
                     offset = (page - 1) * pageSize,
                     departmentId,
-                    Status 
+                    Status
                 });
 
             var attendanceList = results.Select(r => new AttendanceDto
@@ -1564,7 +1602,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
     }
 
     //Overtime 
-   
+
     public async Task<bool> CreateEmployeeOvertimeRequestAsync(
     Guid organizationId,
     Guid employeeId,
@@ -1771,7 +1809,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
         WHERE o.organizationid = @OrganizationId
           AND o.employeeid = @EmployeeId
-          AND LOWER(o.status) = 'pending'
+      
 
         ORDER BY o.overtimedate DESC, o.createdat DESC;
     ";
@@ -1879,7 +1917,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
         return result.ToList();
     }
     //Getting all overtime request that employee created 
-    public async Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequests(Guid organizationId,Guid employeeId)
+    public async Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequests(Guid organizationId, Guid employeeId)
     {
         var sql = @"
         SELECT
@@ -1995,7 +2033,6 @@ ORDER BY ed.employeename, ed.workdate ASC";
          ON o.requestedby = e.employeeid
      WHERE o.employeeid = @EmployeeId
        AND o.overtimedate::date = @Today::date
-       AND LOWER(o.status) = 'approved'
      LIMIT 1;
      ";
 
@@ -2202,7 +2239,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
             throw;
         }
     }
- 
+
     public async Task<AttendanceSummaryDto> GetAttendanceSummaryAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
         try
@@ -2434,16 +2471,16 @@ ORDER BY ed.employeename, ed.workdate ASC";
         try
         {
             var createdAt = DateTime.UtcNow;
-                
+
             var sql = @"
         INSERT INTO attendance.shifts
         (organizationid, shiftname, starttime, endtime, applymarginhours, marginhours, grace_minutes,
          breakduration, breakstarttime, breakendtime,
-         overtimestarttime, maxovertimeinminutes, daysofweek, timezone, createdat)
+         overtimestarttime, maxovertimeinminutes, daysofweek, timezone, is_overnight, createdat)
         VALUES
         (@OrganizationId, @ShiftName, @StartTime, @EndTime, @ApplyMarginhours, @marginHours, @GraceMinutes,
          @BreakDuration, @BreakStartTime, @BreakEndTime,
-         @OvertimeStartTime, @MaxOvertimeInMinutes, @DaysofWeek, @Timezone, @CreatedAt);
+         @OvertimeStartTime, @MaxOvertimeInMinutes, @DaysofWeek, @Timezone, @IsOvernight, @CreatedAt);
     ";
 
             var parameters = new
@@ -2465,6 +2502,9 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
                 DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
                 Timezone = request.Timezone ?? "UTC",
+                IsOvernight = request.StartTime.HasValue && request.EndTime.HasValue
+                    ? request.EndTime.Value < request.StartTime.Value
+                    : false,
 
                 CreatedAt = createdAt
             };
@@ -2569,7 +2609,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
     //Getting Employee BY shift id for Manager
 
-    public async Task<List<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId,Guid currentEmp)
+    public async Task<List<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId, Guid currentEmp)
     {
         try
         {
@@ -2593,7 +2633,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
               AND ed.reportingmanagerid = @CurrentEmp;
             ";
 
-            var parameters = new { OrganizationId = organizationId, ShiftId = shiftId,CurrentEmp=currentEmp };
+            var parameters = new { OrganizationId = organizationId, ShiftId = shiftId, CurrentEmp = currentEmp };
             var result = await QueryAsync<EmployeeShiftDto>(sql, parameters);
             return result.ToList();
         }
@@ -2621,7 +2661,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
             EmployeeId = employeeId
         });
 
-         return result; // Returns null if manager not found
+        return result; // Returns null if manager not found
     }
 
     public async Task<ShiftSwapRequestCreatedDto> CreateShiftSwapRequestAsync(Guid organizationId, CreateShiftSwapRequestDto requestDto)
@@ -2650,9 +2690,9 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 RequestedShiftId = requestDto.RequestedShiftId,
                 Reason = requestDto.Reason,
                 organizationId = organizationId,
-                ReportingManagerId=reportingmanagerid
+                ReportingManagerId = reportingmanagerid
             };
-           return await QuerySingleAsync<ShiftSwapRequestCreatedDto>(sql,parameters);
+            return await QuerySingleAsync<ShiftSwapRequestCreatedDto>(sql, parameters);
         }
         catch (Exception ex)
         {
@@ -2832,7 +2872,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
         try
         {
             var sql = @"
-       SELECT 
+       SELECT
     s.shiftid AS ""ShiftId"",
     s.organizationid AS ""OrganizationId"",
     s.shiftname AS ""ShiftName"",
@@ -2841,7 +2881,8 @@ ORDER BY ed.employeename, ed.workdate ASC";
     s.applymarginhours AS ""ApplyMarginhours"",
     s.marginhours AS ""marginHours"",
     s.breakduration AS ""BreakDuration"",
-    s.daysofweek AS ""DaysOfWeek""
+    s.daysofweek AS ""DaysOfWeek"",
+    s.is_overnight AS ""IsOvernight""
 FROM employee.employmentdetails ed
 INNER JOIN attendance.shifts s
     ON ed.shiftid = s.shiftid
@@ -2862,7 +2903,7 @@ WHERE ed.employeeid = @EmployeeId
         }
     }
 
-   
+
     //Get employee all request
 
     public async Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeIdd)
@@ -2908,7 +2949,7 @@ WHERE ed.employeeid = @EmployeeId
         try
         {
             var sql = @"
-        SELECT 
+        SELECT
             shiftid AS ShiftId,
             organizationid AS OrganizationId,
             shiftname AS ShiftName,
@@ -2925,6 +2966,7 @@ WHERE ed.employeeid = @EmployeeId
             daysofweek AS DaysOfWeek,
             timezone AS Timezone,
             isactive AS IsActive,
+            is_overnight AS IsOvernight,
             createdat AS CreatedAt
         FROM attendance.shifts
         WHERE organizationid = @OrganizationId
@@ -2941,7 +2983,7 @@ WHERE ed.employeeid = @EmployeeId
             throw;
         }
     }
- //Getting shift summary 
+    //Getting shift summary 
     public async Task<ShiftSummary> GetShiftSummaryAsync(Guid organizationId, Guid currentEmployeeId)
     {
         try
@@ -3013,7 +3055,8 @@ WHERE ed.employeeid = @EmployeeId
             maxovertimeinminutes = @MaxOvertimeInMinutes,
             breakduration = @BreakDuration,
             daysofweek = @DaysofWeek,
-            timezone = @Timezone
+            timezone = @Timezone,
+            is_overnight = @IsOvernight
         WHERE
             organizationid = @OrganizationId AND shiftid = @ShiftId;
         ";
@@ -3034,7 +3077,10 @@ WHERE ed.employeeid = @EmployeeId
                 MaxOvertimeInMinutes = request.MaxOvertimeInMinutes,
                 BreakDuration = request.BreakDuration ?? 0,
                 DaysofWeek = request.DaysofWeek ?? new int[] { 1, 2, 3, 4, 5 },
-                Timezone = request.Timezone ?? "UTC"
+                Timezone = request.Timezone ?? "UTC",
+                IsOvernight = request.StartTime.HasValue && request.EndTime.HasValue
+                    ? request.EndTime.Value < request.StartTime.Value
+                    : false
             };
 
             var rowsAffected = await ExecuteAsync(sql, parameters);
@@ -3258,7 +3304,7 @@ WHERE ed.employeeid = @EmployeeId
         ";
 
             using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-            await connection.OpenAsync();
+
 
             var report = await connection.QueryFirstAsync<AttendanceReportDto>(sql, new
             {
@@ -3359,7 +3405,7 @@ WHERE ed.employeeid = @EmployeeId
     ";
 
             using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-            await connection.OpenAsync();
+
             return (await connection.QueryAsync<DepartmentAttendanceStatsDto>(sql, new
             {
                 organizationId,
@@ -3401,7 +3447,7 @@ WHERE ed.employeeid = @EmployeeId
         GROUP BY a.workdate
         ORDER BY a.workdate";
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
+
         return (await connection.QueryAsync<DailyAttendanceStatsDto>(sql, new
         {
             organizationId,
@@ -3410,7 +3456,7 @@ WHERE ed.employeeid = @EmployeeId
         })).ToList();
     }
 
-   
+
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceRecordsAsync(
 Guid organizationId,
@@ -3588,7 +3634,7 @@ LIMIT @pageSize OFFSET @offset;
 ";
 
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
+
 
         var parameters = new
         {
@@ -3834,7 +3880,7 @@ SELECT
             throw;
         }
     }
-    public async Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsForManagerAsync(Guid employeeId,Guid organizationId, DateTime date)
+    public async Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsForManagerAsync(Guid employeeId, Guid organizationId, DateTime date)
     {
         try
         {
@@ -4020,7 +4066,7 @@ WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
                 employeeId,
                 organizationId
             };
-            var isAdminOrHR = await QuerySingleAsync<bool>(sql, parameters);
+            var isAdminOrHR = await QuerySingleOrDefaultAsync<bool>(sql, parameters);
             return isAdminOrHR;
         }
         catch (Exception ex)

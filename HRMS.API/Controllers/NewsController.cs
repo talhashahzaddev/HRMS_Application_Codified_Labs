@@ -1,4 +1,5 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -25,7 +26,7 @@ namespace HRMS.API.Controllers
 
 
         [HttpPost("createNews")]
-        [Authorize(Roles = "Super Admin,HR Manager")]
+        [PermissionAuthorize("Create_News_Button")]
         public async Task<ActionResult<ServiceResponse<NewsDto>>> CreateNews([FromBody] NewsRequest request)
         {
             try
@@ -165,16 +166,18 @@ namespace HRMS.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error creating news");
+                _logger.LogError(ex, "Error getting news");
                 return StatusCode(StatusCodes.Status500InternalServerError, new ServiceResponse<PagedResult<NewsDto>>
                 {
                     Success = false,
-                    Message = "An unexpected error occurred while creating news"
+                    Message = "An unexpected error occurred while getting news"
                 });
             }
         }
 
         [HttpPut("edit/{newsId}")]
+        [PermissionAuthorize("Edit_News_Button")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> EditNews(Guid newsId, [FromBody] NewsRequest request)
         {
             try
@@ -332,6 +335,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpDelete("{newsId}")]
+        [PermissionAuthorize("Delete_News_Button")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> DeleteNews(Guid newsId)
         {
             try

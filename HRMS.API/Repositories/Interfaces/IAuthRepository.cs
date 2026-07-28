@@ -8,6 +8,7 @@ public interface IAuthRepository
 {
 
     ////adding this line here
+    Task<bool> OnboardingConfigurationAsync(Guid organizationId);
     Task<string?> GetDomainByOrganizationIdAsync(Guid organizationId);
     Task<Guid> AdminIntoEmployeeDetailsAsync( Guid positionId, Guid employeeId);
     Task<Guid> GetEmployeeIdByEmailAsync(string email);
@@ -43,6 +44,7 @@ public interface IAuthRepository
     Task<Guid> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId);
     Task<bool> UpdateRoleAsync(UpdateRoleRequest request, Guid? organizationId);
     Task<int> GetUserCountByRoleIdAsync(Guid roleId, Guid? organizationId);
+    Task<List<Guid>> GetUserIdsByRoleIdAsync(Guid roleId, Guid? organizationId);
     Task<bool> DeleteRoleAsync(Guid roleId, Guid? organizationId);
     Task<Role> GetRoleByNameforTokenAsync(string roleName, Guid? organizationId);
     Task<bool> MenuExistsAsync(Guid menuId);
@@ -55,4 +57,7 @@ public interface IAuthRepository
     Task<Role> CreateRoleAsync(Role role);
     Task<bool> UpdateUserRoleAsync(Guid? userId, Guid? roleId);
     Task<bool> VerifyEmail(string token);
+    Task<bool> UpdateUserOrganizationAsync(Guid userId, Guid organizationId);
+    Task<User> CreateUserWithoutOrganizationAsync(User user);
+    Task<bool> EmailExistsAsync(string email);
 }

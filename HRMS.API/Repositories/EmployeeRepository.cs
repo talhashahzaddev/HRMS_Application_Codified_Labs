@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using DocumentFormat.OpenXml.InkML;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
@@ -19,7 +19,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     public async Task<Employee> CreateEmployeeAsync(Employee employee)
     {
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
 
         using var transaction = await connection.BeginTransactionAsync();
 
@@ -92,25 +91,49 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             return false;
         }
     }
-
-
-    //Add this function so that i return data in my response of creating employee and return data 
     public async Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId)
     {
-
         var sql = @"
-        SELECT e.employeeid, e.organizationid, e.userid, e.employeecode, e.firstname, e.lastname,
-               e.email, e.phone, e.address, e.dateofbirth, e.gender, e.nationality,
-               e.maritalstatus, e.hiredate, e.status,
-               d.departmentname, p.positiontitle, ed.basicsalary
-        FROM employee.employees e
-        LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-        LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
-        LEFT JOIN employee.positions p ON ed.positionid = p.positionid
-        WHERE e.employeeid = @employeeId";
+    SELECT 
+        e.employeeid            AS EmployeeId,
+        e.organizationid        AS OrganizationId,
+        e.userid                AS UserId,
+        e.employeecode          AS EmployeeCode,
+        e.firstname             AS FirstName,
+        e.lastname              AS LastName,
+        e.email                 AS Email,
+        e.phone                 AS Phone,
+        e.address               AS Address,
+        e.dateofbirth           AS DateOfBirth,
+        e.gender                AS Gender,
+        e.nationality           AS Nationality,
+        e.maritalstatus         AS MaritalStatus,
+        e.hiredate              AS HireDate,
+        e.status                AS Status,
+
+        d.departmentname        AS DepartmentName,
+        p.positiontitle         AS PositionTitle,
+
+        ed.basicsalary          AS BasicSalary,
+        ed.currency             AS Currency,
+        ed.effectivedate        AS SalaryEffectiveDate,
+        ed.reportingmanagerid   AS ReportingManagerId
+
+    FROM employee.employees e
+    LEFT JOIN employee.employmentdetails ed
+        ON e.employeeid = ed.employeeid
+        AND ed.iscurrent = TRUE
+    LEFT JOIN employee.departments d
+        ON ed.departmentid = d.departmentid
+    LEFT JOIN employee.positions p
+        ON ed.positionid = p.positionid
+    WHERE e.employeeid = @employeeId";
 
         return await QuerySingleOrDefaultAsync<EmployeeDto>(sql, new { employeeId });
     }
+
+
+
     //Getting employees under reporting manager
     //    public async Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId)
     //    {
@@ -183,8 +206,8 @@ ORDER BY e.firstname, e.lastname;
 
 
 
-    //Get Empolyee ID
-    public async Task<Guid?> getemployeeid(Guid userId)
+    //Get Employee ID
+    public async Task<Guid?> GetEmployeeIdAsync(Guid userId)
     {
         var sql = @"select employeeid from  employee.employees where
              userid=@userId";
@@ -313,7 +336,7 @@ ORDER BY e.firstname, e.lastname;
                  lastname=@LastName, 
                  email=@Email, 
                  emailverified=@EmailVerified, 
-                 roleid=@RoleId,
+                 roleid=COALESCE(@RoleId, roleid),
                  updatedat=CURRENT_TIMESTAMP 
              WHERE userid=@UserId";
 
@@ -357,7 +380,7 @@ ORDER BY e.firstname, e.lastname;
             e.updatedat,
 
             e.categoryid AS TaxCategoryId,
-
+            
             ed.worklocation, 
             ed.basicsalary AS BasicSalary, 
             ed.departmentid, 
@@ -366,9 +389,12 @@ ORDER BY e.firstname, e.lastname;
 
             CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
             p.positiontitle, 
+            p.roleid AS RoleId,
             d.departmentname,
 
-            tc.categoryname AS TaxCategoryName
+            tc.categoryname AS TaxCategoryName,
+
+            ar.rolename AS RoleName
 
         FROM employee.employees AS e
 
@@ -386,6 +412,12 @@ ORDER BY e.firstname, e.lastname;
 
         LEFT JOIN payroll.taxcategories AS tc
             ON e.categoryid = tc.categoryid
+            
+        LEFT JOIN auth.users AS u
+            ON e.userid = u.userid
+            
+        LEFT JOIN auth.roles AS ar
+            ON u.roleid = ar.roleid
 
         WHERE e.employeeid = @userId;
         ";
@@ -1182,7 +1214,7 @@ ORDER BY e.firstname, e.lastname;
         return results.ToList();
     }
 
-    public async Task<List<Employee>> GetManagersAsync(Guid organizationId)
+    public async Task<List<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)
     {
         var sql = @"
             SELECT DISTINCT 
@@ -1195,7 +1227,19 @@ ORDER BY e.firstname, e.lastname;
             LEFT JOIN auth.users u ON e.userid = u.userid
             LEFT JOIN auth.roles r ON u.roleid = r.roleid
             WHERE e.organizationid = @organizationId 
-              AND e.status = 'active'
+              AND e.status = 'active'";
+
+        if (departmentId.HasValue && departmentId.Value != Guid.Empty)
+        {
+            sql += @"
+              AND (
+                  ed.departmentid = @departmentId
+                  OR r.rolename ILIKE '%super admin%'
+              )";
+        }
+        else
+        {
+            sql += @"
               AND (
                   -- Department managers
                   e.employeeid IN (SELECT managerid FROM employee.departments WHERE managerid IS NOT NULL AND isactive = true)
@@ -1213,10 +1257,49 @@ ORDER BY e.firstname, e.lastname;
                       FROM employee.employmentdetails 
                       WHERE reportingmanagerid IS NOT NULL AND iscurrent = true
                   )
+              )";
+        }
+
+        sql += " ORDER BY e.firstname, e.lastname";
+
+        var results = await QueryAsync<Employee>(sql, new { organizationId, departmentId });
+        return results.ToList();
+    }
+
+    public async Task<Guid?> GetRoleIdByPositionIdAsync(Guid positionId)
+    {
+        const string query = @"
+            SELECT roleid
+            FROM employee.positions
+            WHERE positionid = @PositionId;
+        ";
+
+        return await QuerySingleOrDefaultAsync<Guid?>(query, new { PositionId = positionId });
+    }
+
+
+    public async Task<List<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId)
+    {
+        var sql = @"
+            SELECT DISTINCT
+                e.employeeid, e.organizationid, e.userid, e.employeecode,
+                e.firstname, e.lastname, e.email, e.phone, e.address,
+                e.dateofbirth, e.hiredate, e.status, e.createdat
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN auth.users u ON e.userid = u.userid
+            LEFT JOIN auth.roles r ON u.roleid = r.roleid
+            WHERE e.organizationid = @organizationId
+              AND e.status = 'active'
+              AND (
+                  -- All employees in the selected department
+                  ed.departmentid = @departmentId
+                  -- OR anyone with the Super Admin role (case-insensitive)
+                  OR LOWER(r.rolename) = 'super admin'
               )
             ORDER BY e.firstname, e.lastname";
 
-        var results = await QueryAsync<Employee>(sql, new { organizationId });
+        var results = await QueryAsync<Employee>(sql, new { organizationId, departmentId });
         return results.ToList();
     }
 

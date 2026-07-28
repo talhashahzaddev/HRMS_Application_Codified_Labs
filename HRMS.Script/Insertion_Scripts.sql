@@ -1,4 +1,4 @@
-﻿INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, updated_date) VALUES
+INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, updated_date) VALUES
 
 -- Employee Management (New)
 ('6d880c64-e0b6-4634-b3eb-bb549cce65bf', 'Add Employee', 'add_employee', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -108,6 +108,7 @@
 ('87b82790-acc6-480c-bbb7-751de9173ad5', 'Delete Asset Type', 'type_of_asset_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Assets
+('7912df0b-2767-45f4-81fe-a36ffd321bd4', 'Show assets', 'assets_show', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('7912df0b-2767-45f4-81fe-a36ffd321bd4', 'Create Asset', 'assets_create', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('7912df0b-2767-45f4-81fe-a36ffd321bd4', 'Asset History', 'assets_history', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('7912df0b-2767-45f4-81fe-a36ffd321bd4', 'View Asset Details', 'assets_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -194,6 +195,9 @@
 ('ae4a8ee3-158c-4815-a771-e443923a7593', 'Refer a Candidate', 'opnongs_refer', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ae4a8ee3-158c-4815-a771-e443923a7593', 'Edit Job', 'opnongs_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ae4a8ee3-158c-4815-a771-e443923a7593', 'Close Job', 'opnongs_close', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ae4a8ee3-158c-4815-a771-e443923a7593', 'View All Job Openings', 'opnings_view_all', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ae4a8ee3-158c-4815-a771-e443923a7593', 'View Job Opening Overall Details', 'opnings_view_overall_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ae4a8ee3-158c-4815-a771-e443923a7593', 'Delete Job Opening', 'opnings_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
 
 -- Job Applications
 ('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'My Referenced Application', 'my_referenced_application', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -202,11 +206,34 @@
 ('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View Refered Job Details', 'job_application_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Edit Refered Job', 'job_application_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Delete Refered Job', 'job_application_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View ATS Inbox', 'ats_inbox_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Enter Application To Stage', 'job_application_enter_stage', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View Job Applications By Job', 'job_application_view_by_job', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'My Self Applications', 'my_self_application', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Create Job Application', 'job_application_create', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Apply For Myself', 'apply_for_myself', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View All Application Stages', 'app_stage_view_all', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View Application Stages By Application', 'app_stage_view_by_application', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'View Application Stage Details', 'app_stage_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Create Application Stage', 'app_stage_create', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Edit Application Stage', 'app_stage_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('ced9a8e1-b02b-4ca3-a3e7-dc48c2e477ed', 'Delete Application Stage', 'app_stage_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+
+-- Question Bank
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'View Question Bank', 'question_bank_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Add Question Category', 'add_question_category', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Edit Question Category', 'edit_question_category', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Delete Question Category', 'delete_question_category', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Add Question', 'add_question', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Edit Question', 'edit_question', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('31dfc53a-ca3a-4a98-bae8-dfe6e2ce1bfe', 'Delete Question', 'delete_question', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
 
 -- Stages
 ('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'Add Stage', 'add_stage', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'Edit Stage', 'stage_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'Delete Stage', 'stage_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'View All Stages', 'stage_view_all', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
+('f4ad7d31-0118-4e55-a17e-f3d6e1d9fe8e', 'View Stage Details', 'stage_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP), -- new
 
 -- Company Settings
 ('9154a702-1fa5-4f83-936c-b9ba18360511', 'Localization Settings', 'company_settings_save_changes', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
@@ -217,13 +244,234 @@
 ('70173e77-ddc5-45cf-8eba-58b53eb6ac5e', 'Delete IP', 'manage_ip_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Career Management
-('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'Career Mangment Page Edit', 'career_management_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'View Career Management', 'career_management_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8504c4bd-38e2-4f65-bc3e-eccf0047e9e1', 'Edit Career Management', 'career_management_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Payslip Template
+('33e1b9bf-488e-4832-8226-a298bb200c80', 'View Payslip Template', 'payslip_template_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('33e1b9bf-488e-4832-8226-a298bb200c80', 'Edit Payslip Template', 'payslip_template_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 
 -- Role Management
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Add New Role', 'add_new_role', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'View Role Details', 'role_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Edit Role', 'role_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
-('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Delete Role', 'role_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
+('857bcd02-42c2-43d4-b86a-d513dd13293a', 'Delete Role', 'role_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Payroll
+-- Payroll Period
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'View Payroll Periods', 'payroll_period_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'View Payroll Period Details', 'payroll_period_view_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Add Payroll Period', 'payroll_period_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Edit Payroll Period', 'payroll_period_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('19c46f08-8a36-4700-8df4-994ee3cc8a56', 'Delete Payroll Period', 'payroll_period_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Policies (SubMenuId: 2b3df626-459b-4435-acf8-a85ba23f6b7b)
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Payroll Rules', 'payroll_rules_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Overtime Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Overtime Rules', 'overtime_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Overtime Rule', 'overtime_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Overtime Rule', 'overtime_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Overtime Rule', 'overtime_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Attendance Deduction Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Attendance Deduction Rules', 'attendance_deduction_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Attendance Deduction Rule', 'attendance_deduction_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Attendance Deduction Rule', 'attendance_deduction_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Attendance Deduction Rule', 'attendance_deduction_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Late Arrival Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Late Arrival Rules', 'late_arrival_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Late Arrival Rule', 'late_arrival_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Late Arrival Rule', 'late_arrival_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Late Arrival Rule', 'late_arrival_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Leave Deduction Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Leave Deduction Rules', 'leave_deduction_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Leave Deduction Rule', 'leave_deduction_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Leave Deduction Rule', 'leave_deduction_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Leave Deduction Rule', 'leave_deduction_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Performance Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Performance Rules', 'performance_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Performance Rule', 'performance_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Performance Rule', 'performance_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Performance Rule', 'performance_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Bonus Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Bonus Rules', 'bonus_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Bonus Rule', 'bonus_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Bonus Rule', 'bonus_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Bonus Rule', 'bonus_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Loan Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Loan Rules', 'loan_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Loan Rule', 'loan_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Loan Rule', 'loan_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Loan Rule', 'loan_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Salary Advance Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Salary Advance Rules', 'salary_advance_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Salary Advance Rule', 'salary_advance_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Salary Advance Rule', 'salary_advance_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Salary Advance Rule', 'salary_advance_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Provident Fund Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Provident Fund Rules', 'provident_fund_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Provident Fund Rule', 'provident_fund_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Provident Fund Rule', 'provident_fund_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Provident Fund Rule', 'provident_fund_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Regimes
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Tax Regimes', 'tax_regime_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Regime', 'tax_regime_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Regime', 'tax_regime_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Regime', 'tax_regime_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Categories
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Tax Categories', 'tax_category_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Category', 'tax_category_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Category', 'tax_category_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Category', 'tax_category_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Slabs
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Tax Slabs', 'tax_slab_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Slab', 'tax_slab_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Slab', 'tax_slab_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Slab', 'tax_slab_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Component Rules / Tax Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Tax Component Rules', 'tax_component_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Tax Component Rule', 'tax_component_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Tax Component Rule', 'tax_component_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Tax Component Rule', 'tax_component_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Tax Ledger / Transactions
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'View Tax Ledger', 'get_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Add Tax Ledger', 'add_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Edit Tax Ledger', 'edit_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('70de0b8f-6a0b-4fd3-9f2a-b6084c646af0', 'Delete Tax Ledger', 'delete_transaction_ledger', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Gratuity Rules
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'View Gratuity Rules', 'gratuity_rule_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Add Gratuity Rule', 'gratuity_rule_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Edit Gratuity Rule', 'gratuity_rule_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('2b3df626-459b-4435-acf8-a85ba23f6b7b', 'Delete Gratuity Rule', 'gratuity_rule_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Bonus Pay (entries)
+('4bbf6fcb-c7be-40ba-bb48-c208074d5b87', 'View Bonus Pay', 'bonus_entry_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4bbf6fcb-c7be-40ba-bb48-c208074d5b87', 'Add Bonus Pay', 'bonus_entry_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4bbf6fcb-c7be-40ba-bb48-c208074d5b87', 'Edit Bonus Pay', 'bonus_entry_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4bbf6fcb-c7be-40ba-bb48-c208074d5b87', 'Delete Bonus Pay', 'bonus_entry_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Performance Pay (entries)
+('caef7fa3-2ede-4bf2-85a1-72d1d8fc001f', 'View Performance Pay', 'performance_pay_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('caef7fa3-2ede-4bf2-85a1-72d1d8fc001f', 'Add Performance Pay', 'performance_pay_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('caef7fa3-2ede-4bf2-85a1-72d1d8fc001f', 'Edit Performance Pay', 'performance_pay_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('caef7fa3-2ede-4bf2-85a1-72d1d8fc001f', 'Delete Performance Pay', 'performance_pay_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Overtime (entries)
+('c65b2d29-0090-4810-ac4f-6e38273532c4', 'View Overtime', 'overtime_entry_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c65b2d29-0090-4810-ac4f-6e38273532c4', 'Add Overtime', 'overtime_entry_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c65b2d29-0090-4810-ac4f-6e38273532c4', 'Edit Overtime', 'overtime_entry_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c65b2d29-0090-4810-ac4f-6e38273532c4', 'Delete Overtime', 'overtime_entry_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Attendance Summary / Absences (entries)
+('87327a28-6212-4467-815e-c9c3023fc0ac', 'View Absences', 'attendance_summary_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('87327a28-6212-4467-815e-c9c3023fc0ac', 'Add Absence', 'attendance_summary_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('87327a28-6212-4467-815e-c9c3023fc0ac', 'Edit Absence', 'attendance_summary_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('87327a28-6212-4467-815e-c9c3023fc0ac', 'Delete Absence', 'attendance_summary_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Late / Half-day Attendance (entries)
+('22032ca4-cb23-40ce-bf58-9fe5a7c8f01d', 'View Late / Half-day', 'late_attendance_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('22032ca4-cb23-40ce-bf58-9fe5a7c8f01d', 'Add Late / Half-day', 'late_attendance_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('22032ca4-cb23-40ce-bf58-9fe5a7c8f01d', 'Edit Late / Half-day', 'late_attendance_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('22032ca4-cb23-40ce-bf58-9fe5a7c8f01d', 'Delete Late / Half-day', 'late_attendance_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Leave Summary (entries)
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'View Leave Summary', 'leave_summary_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Add Leave Summary', 'leave_summary_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Edit Leave Summary', 'leave_summary_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b7bc02f5-bbfa-49bb-b7a8-2252b0a26785', 'Delete Leave Summary', 'leave_summary_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Loan Admin
+('4672c999-66a9-4920-8849-ab6b117d5104', 'View Loans Admin', 'loan_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4672c999-66a9-4920-8849-ab6b117d5104', 'Add Loan Admin', 'loan_admin_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4672c999-66a9-4920-8849-ab6b117d5104', 'Edit Loan Admin', 'loan_admin_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('4672c999-66a9-4920-8849-ab6b117d5104', 'Delete Loan Admin', 'loan_admin_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Provident Fund Admin
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'View Provident Fund Admin', 'pf_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Add Provident Fund Admin', 'pf_admin_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Edit Provident Fund Admin', 'pf_admin_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('d6dad615-5f4b-40c1-9756-7610b9380efc', 'Delete Provident Fund Admin', 'pf_admin_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- My Payslips (employee self-service tab — single permission)
+('257937b5-ee02-41cc-8ae3-2136447d54f1', 'My Payslips', 'my_payslip', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Compliance Payslips (admin management tab)
+('257937b5-ee02-41cc-8ae3-2136447d54f1', 'View Compliance Payslips', 'compliance_payslip_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('257937b5-ee02-41cc-8ae3-2136447d54f1', 'Generate Payslips', 'payslip_generation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('257937b5-ee02-41cc-8ae3-2136447d54f1', 'Mail Upload Payslips', 'mail_upload_payslip', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Gratuity Admin
+('b9f1b555-f313-40b5-9773-13fd3b07d8c8', 'View Gratuity Admin', 'gratuity_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b9f1b555-f313-40b5-9773-13fd3b07d8c8', 'Add Gratuity Admin', 'gratuity_admin_add', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b9f1b555-f313-40b5-9773-13fd3b07d8c8', 'Edit Gratuity Admin', 'gratuity_admin_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('b9f1b555-f313-40b5-9773-13fd3b07d8c8', 'Delete Gratuity Admin', 'gratuity_admin_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Payroll Calculation tab & Payroll Results tab
+('dd68096e-c54f-454c-9bc0-ee65f3628460', 'Payroll Calculation', 'payroll_calculation', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('dd68096e-c54f-454c-9bc0-ee65f3628460', 'Payroll Results', 'payroll_result', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Salary Advance Admin
+('05c4c176-1feb-45d6-a662-cace9283001a', 'List Salary Advance Admin', 'salary_advance_admin_list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('05c4c176-1feb-45d6-a662-cace9283001a', 'View Salary Advance Admin', 'salary_advance_admin_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('05c4c176-1feb-45d6-a662-cace9283001a', 'Approve Salary Advance Admin', 'salary_advance_admin_approve', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('05c4c176-1feb-45d6-a662-cace9283001a', 'Reject Salary Advance Admin', 'salary_advance_admin_reject', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('05c4c176-1feb-45d6-a662-cace9283001a', 'Disburse Salary Advance Admin', 'salary_advance_admin_disburse', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- My Benefits (employee overview)
+('0af0cd0c-c490-4389-bbfe-27e4b2cfb280', 'My Benefits', 'my_benefits', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Salary Advance Employee
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'Request Salary Advance', 'salary_advance_employee_request', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'View Salary Advance', 'salary_advance_employee_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'Edit Salary Advance', 'salary_advance_employee_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'Cancel Salary Advance', 'salary_advance_employee_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'List Salary Advances', 'salary_advance_employee_list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('238f623e-c09e-4a66-b1c7-472485750aa0', 'Salary Advance Summary', 'salary_advance_employee_summary', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Provident Fund Employee
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Enroll Provident Fund', 'pf_employee_enroll', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Edit PF Enrollment', 'pf_employee_edit_enroll', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Update PF Percentage', 'pf_employee_update_percentage', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Withdraw Provident Fund', 'pf_employee_withdraw', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'Delete PF Request', 'pf_employee_delete_request', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'List PF Pending Requests', 'pf_employee_pending_requests', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'View PF Active Account', 'pf_employee_active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('8cd4e441-a4b5-4fa4-bcd1-f380f7d43b98', 'PF Transaction History', 'pf_employee_transactions', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Gratuity Employee
+('eb15b713-9c65-4751-a8fe-61d5aea10747', 'My Gratuity', 'gratuity_employee', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Loan Employee
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Request Loan', 'loan_employee_request', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'View Loan', 'loan_employee_view', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Edit Loan Request', 'loan_employee_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Cancel Loan Request', 'loan_employee_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'My Active Loans', 'loan_employee_active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'My Pending Loans', 'loan_employee_pending', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Loan Payment History', 'loan_employee_history', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'Loan References', 'loan_employee_references', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('ebe95bf5-b19c-4d39-87b6-fd01ae2ddaaf', 'List My Loans', 'loan_employee_list', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+
+-- Main Dashboard
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'My Overview', 'dashboard_my_overview', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'Manager Overview', 'dashboard_manager_overview', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'HR Overview', 'dashboard_hr_overview', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'HR Stats', 'dashboard_hr_stats', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('3e6348bd-02b8-4a5b-b336-0e750be5480c', 'Latest Hires', 'dashboard_latest_hires', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP);
 
 -- ============================================================
 -- SEED DATA: Country Holiday Catalogs

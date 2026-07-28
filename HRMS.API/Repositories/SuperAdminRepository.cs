@@ -1,7 +1,10 @@
 using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
+using Newtonsoft.Json;
+using System.Data;
 
 namespace HRMS.API.Repositories;
 
@@ -314,5 +317,516 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
             performedBy,
             notes
         });
+    }
+
+    public async Task<Guid> CreateGlobalRoleAsync(CreateGlobalRoleRequest request)
+    {
+        using var connection = CreateConnection();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            var roleId = Guid.NewGuid();
+
+            // Step 1: Insert into auth.global_roles
+            const string insertGlobalRoleSql = @"
+            INSERT INTO auth.global_roles (roleid, rolename, description, version)
+            VALUES (@RoleId, @RoleName, @Description, 1);";
+
+            await connection.ExecuteAsync(insertGlobalRoleSql,
+            new
+            {
+                RoleId = roleId,
+                request.RoleName,
+                request.Description
+            }, transaction);
+
+            // Step 2: Insert each action's permission into auth.global_role_permissions
+            foreach (var menu in request.Menus)
+            {
+                foreach (var submenu in menu.SubMenus)
+                {
+                    foreach (var action in submenu.Actions)
+                    {
+                        const string insertGlobalPermissionSql = @"
+                        INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission)
+                        VALUES (uuid_generate_v4(), @RoleId, @ActionId, @HasPermission);";
+
+                        await connection.ExecuteAsync(insertGlobalPermissionSql,
+                        new
+                        {
+                            RoleId = roleId,
+                            action.ActionId,
+                            action.HasPermission
+                        }, transaction);
+                    }
+                }
+            }
+
+            // Step 3: Push this role into auth.roles for ALL existing organizations
+            const string insertOrgRolesSql = @"
+            INSERT INTO auth.roles (roleid, organizationid, rolename, description, issystemrole, createdat)
+            SELECT
+                @RoleId,
+                o.organizationid,
+                @RoleName,
+                @Description,
+                true,
+                CURRENT_TIMESTAMP
+            FROM auth.organizations o
+            WHERE o.status = 'active'
+            ON CONFLICT (organizationid, rolename)
+            DO NOTHING;";
+
+            await connection.ExecuteAsync(insertOrgRolesSql,
+            new
+            {
+                RoleId = roleId,
+                RoleName = request.RoleName,
+                Description = request.Description
+            }, transaction, commandTimeout: 500);
+
+            // Step 4: Push the permissions into auth.permissions for ALL existing organizations.
+            // This ensures every current tenant immediately gets the new role's permissions —
+            // mirroring what fn_create_organization does for newly registered orgs.
+            foreach (var menu in request.Menus)
+            {
+                foreach (var submenu in menu.SubMenus)
+                {
+                    foreach (var action in submenu.Actions)
+                    {
+                        const string insertOrgPermissionsSql = @"
+                        INSERT INTO auth.permissions (permissionid, roleid, actionid, organizationid, has_permission, created_date, updated_date)
+                        SELECT
+                            uuid_generate_v4(),
+                            @RoleId,
+                            @ActionId,
+                            r.organizationid,
+                            @HasPermission,
+                            CURRENT_TIMESTAMP,
+                            CURRENT_TIMESTAMP
+                        FROM auth.roles r
+                        WHERE r.roleid = @RoleId AND r.issystemrole = true
+                        ON CONFLICT DO NOTHING;";
+
+                        await connection.ExecuteAsync(insertOrgPermissionsSql,
+                        new
+                        {
+                            RoleId = roleId,
+                            action.ActionId,
+                            action.HasPermission
+                        }, transaction, commandTimeout: 500);
+                    }
+                }
+            }
+
+            transaction.Commit();
+            return roleId;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<List<GlobalRolePermissionFlatDto>> GetGlobalRolesAsync()
+    {
+        const string sql = @"
+            SELECT
+                gr.roleid AS RoleId,
+                gr.rolename AS RoleName,
+                gr.description AS Description,
+                gr.version AS Version,
+                gr.isactive AS IsActive,
+                gr.createdat AS CreatedAt,
+                gr.updatedat AS UpdatedAt,
+                m.menuid AS MenuId,
+                m.menuname AS MenuName,
+                sm.submenuid AS SubMenuId,
+                sm.submenuname AS SubMenuName,
+                a.actionid AS ActionId,
+                a.actionname AS ActionName,
+                a.actionkey AS ActionKey,
+                grp.has_permission AS HasPermission
+            FROM auth.global_roles gr
+            LEFT JOIN auth.global_role_permissions grp
+                ON gr.roleid = grp.roleid
+            LEFT JOIN auth.actions a
+                ON grp.actionid = a.actionid
+            LEFT JOIN auth.submenus sm
+                ON a.submenuid = sm.submenuid
+            LEFT JOIN auth.menus m
+                ON sm.menuid = m.menuid
+            ORDER BY gr.rolename;";
+
+        var result = await QueryAsync<GlobalRolePermissionFlatDto>(sql);
+
+        return result.ToList();
+    }
+    public async Task<bool> UpdateGlobalRoleAsync(UpdateGlobalRoleRequest request)
+    {
+        using var connection = CreateConnection();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            // Step 1: Update the global role name/description
+            const string updateGlobalRoleSql = @"
+            UPDATE auth.global_roles
+            SET
+                rolename = @RoleName,
+                description = @Description,
+                version = version + 1,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE roleid = @RoleId;";
+
+            await connection.ExecuteAsync(updateGlobalRoleSql,
+            new
+            {
+                request.RoleId,
+                request.RoleName,
+                request.Description
+            }, transaction);
+
+            // Step 2: Replace global role permissions (delete + re-insert)
+            const string deleteGlobalPermissionsSql = @"
+            DELETE FROM auth.global_role_permissions
+            WHERE roleid = @RoleId;";
+
+            await connection.ExecuteAsync(deleteGlobalPermissionsSql, new { request.RoleId }, transaction);
+
+            foreach (var menu in request.Menus)
+            {
+                foreach (var submenu in menu.SubMenus)
+                {
+                    foreach (var action in submenu.Actions)
+                    {
+                        const string insertGlobalPermissionSql = @"
+                        INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission)
+                        VALUES (uuid_generate_v4(), @RoleId, @ActionId, @HasPermission);";
+
+                        await connection.ExecuteAsync(insertGlobalPermissionSql,
+                        new
+                        {
+                            request.RoleId,
+                            action.ActionId,
+                            action.HasPermission
+                        }, transaction);
+                    }
+                }
+            }
+
+            // Step 3: Update name/description on all org-specific copies of this system role
+            const string updateOrgRolesSql = @"
+            UPDATE auth.roles
+            SET
+                rolename = @RoleName,
+                description = @Description
+            WHERE roleid = @RoleId
+            AND issystemrole = true;";
+
+            await connection.ExecuteAsync(updateOrgRolesSql,
+            new
+            {
+                request.RoleId,
+                request.RoleName,
+                request.Description
+            }, transaction);
+
+            // Step 4: Sync updated permissions into auth.permissions for ALL organizations.
+            // Delete the existing org-specific permissions for this role, then re-insert
+            // from the newly updated global_role_permissions — keeping all tenants in sync.
+            const string deleteOrgPermissionsSql = @"
+            DELETE FROM auth.permissions
+            WHERE roleid = @RoleId;";
+
+            await connection.ExecuteAsync(deleteOrgPermissionsSql, new { request.RoleId }, transaction);
+
+            foreach (var menu in request.Menus)
+            {
+                foreach (var submenu in menu.SubMenus)
+                {
+                    foreach (var action in submenu.Actions)
+                    {
+                        const string insertOrgPermissionsSql = @"
+                        INSERT INTO auth.permissions (permissionid, roleid, actionid, organizationid, has_permission, created_date, updated_date)
+                        SELECT
+                            uuid_generate_v4(),
+                            @RoleId,
+                            @ActionId,
+                            r.organizationid,
+                            @HasPermission,
+                            CURRENT_TIMESTAMP,
+                            CURRENT_TIMESTAMP
+                        FROM auth.roles r
+                        WHERE r.roleid = @RoleId AND r.issystemrole = true
+                        ON CONFLICT DO NOTHING;";
+
+                        await connection.ExecuteAsync(insertOrgPermissionsSql,
+                        new
+                        {
+                            request.RoleId,
+                            action.ActionId,
+                            action.HasPermission
+                        }, transaction, commandTimeout: 500);
+                    }
+                }
+            }
+
+            transaction.Commit();
+            return true;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    public async Task<bool> DeleteGlobalRoleAsync(Guid roleId)
+    {
+        using var connection = CreateConnection();
+        using var transaction = connection.BeginTransaction();
+
+        try
+        {
+            await connection.ExecuteAsync(@"
+                DELETE FROM auth.global_role_permissions
+                WHERE roleid = @RoleId;",
+            new { RoleId = roleId }, transaction);
+
+            var rows = await connection.ExecuteAsync(@"
+                DELETE FROM auth.global_roles
+                WHERE roleid = @RoleId;",
+            new { RoleId = roleId }, transaction);
+
+            transaction.Commit();
+
+            return rows > 0;
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+    public async Task<GlobalRole?> GetGlobalRoleByNameAsync(string roleName)
+    {
+        using var connection = CreateConnection();
+
+        const string sql = @"
+        SELECT *
+        FROM auth.global_roles
+        WHERE LOWER(rolename) = LOWER(@RoleName)
+        LIMIT 1;";
+
+        return await connection.QueryFirstOrDefaultAsync<GlobalRole>(
+            sql,
+            new
+            {
+                RoleName = roleName
+            });
+    }
+
+    public async Task<GlobalRole?> GetGlobalRoleByIdAsync(Guid roleId)
+    {
+        using var connection = CreateConnection();
+
+        const string sql = @"
+        SELECT *
+        FROM auth.global_roles
+        WHERE roleid = @RoleId
+        LIMIT 1;";
+
+        return await connection.QueryFirstOrDefaultAsync<GlobalRole>(
+            sql,
+            new
+            {
+                RoleId = roleId
+            });
+    }
+
+    private async Task<int> ExecuteAsyncWithTimeout(string sql, object? parameters = null, IDbTransaction? transaction = null, int commandTimeoutSeconds = 500)
+    {
+        using var connection = CreateConnection();
+        return await connection.ExecuteAsync(sql, parameters, transaction, commandTimeout: commandTimeoutSeconds);
+    }
+
+    // ========== User Invitation Methods ==========
+
+    public async Task<Guid> SaveInvitationAsync(Guid userId, string token, DateTime expiresAt, string? organizationName = null)
+    {
+        try
+        {
+            using var connection = CreateConnection();
+            const string sql = @"
+            INSERT INTO auth.userinvitations (userid, token, expiresat, organizationname)
+            VALUES (@userId, @token, @expiresAt, @organizationName)
+            RETURNING invitationid";
+
+            return await connection.QuerySingleAsync<Guid>(sql, new { userId, token, expiresAt, organizationName });
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task<UserInvitation?> GetInvitationByTokenAsync(string token)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            SELECT * FROM auth.userinvitations
+            WHERE token = @token
+            LIMIT 1";
+
+        return await connection.QueryFirstOrDefaultAsync<UserInvitation>(sql, new { token });
+    }
+
+    public async Task<bool> MarkInvitationAsUsedAsync(string token)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            UPDATE auth.userinvitations
+            SET used = true, updatedat = NOW()
+            WHERE token = @token AND used = false";
+
+        var rows = await connection.ExecuteAsync(sql, new { token });
+        return rows > 0;
+    }
+
+    public async Task<bool> DeactivateOldInvitationsForUserAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            UPDATE auth.userinvitations
+            SET used = true, updatedat = NOW()
+            WHERE userid = @userId AND used = false";
+
+        await connection.ExecuteAsync(sql, new { userId });
+        return true;
+    }
+
+    public async Task<bool> UserHasCompletedSetupAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            SELECT passwordchangedat IS NOT NULL
+            FROM auth.users
+            WHERE userid = @userId";
+
+        return await connection.QuerySingleOrDefaultAsync<bool>(sql, new { userId });
+    }
+
+    public async Task<PagedResult<UserInvitationDto>> GetInvitationsPagedAsync(UserInvitationFilterRequest filter)
+    {
+        using var connection = CreateConnection();
+        var parameters = new DynamicParameters();
+        var whereClause = "WHERE 1=1";
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            whereClause += " AND (LOWER(u.firstname) LIKE @search OR LOWER(u.lastname) LIKE @search OR LOWER(u.email) LIKE @search)";
+            parameters.Add("search", $"%{filter.Search.ToLower()}%");
+        }
+
+        // Count query
+        var countSql = $@"
+            SELECT COUNT(*)
+            FROM auth.userinvitations ui
+            JOIN auth.users u ON ui.userid = u.userid
+            {whereClause}";
+
+        var totalCount = await connection.ExecuteScalarAsync<int>(countSql, parameters);
+
+        // Data query
+        var offset = (filter.Page - 1) * filter.PageSize;
+        parameters.Add("limit", filter.PageSize);
+        parameters.Add("offset", offset);
+
+        var dataSql = $@"
+            SELECT
+                ui.invitationid AS InvitationId,
+                ui.userid AS UserId,
+                u.email AS Email,
+                u.firstname AS FirstName,
+                u.lastname AS LastName,
+                ui.organizationname AS OrganizationName,
+                CASE
+                    WHEN ui.used = true THEN 'Completed'
+                    WHEN ui.expiresat < NOW() THEN 'Expired'
+                    ELSE 'Pending'
+                END AS Status,
+                ui.createdat AS CreatedAt,
+                ui.expiresat AS ExpiresAt
+            FROM auth.userinvitations ui
+            JOIN auth.users u ON ui.userid = u.userid
+            {whereClause}
+            ORDER BY ui.createdat DESC
+            LIMIT @limit OFFSET @offset";
+
+        var data = await connection.QueryAsync<UserInvitationDto>(dataSql, parameters);
+
+        // Apply status filter in-memory (since status is computed)
+        var result = data.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            result = result.Where(i => i.Status.Equals(filter.Status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return new PagedResult<UserInvitationDto>
+        {
+            Data = result.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<bool> DeleteInvitationAsync(Guid invitationId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            DELETE FROM auth.userinvitations
+            WHERE invitationid = @invitationId";
+
+        var rows = await connection.ExecuteAsync(sql, new { invitationId });
+        return rows > 0;
+    }
+
+    public async Task<UserInvitation?> GetInvitationByIdAsync(Guid invitationId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            SELECT * FROM auth.userinvitations
+            WHERE invitationid = @invitationId
+            LIMIT 1";
+
+        return await connection.QueryFirstOrDefaultAsync<UserInvitation>(sql, new { invitationId });
+    }
+
+    public async Task<bool> DeactivateUserAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            UPDATE auth.users
+            SET isactive = false, emailverified = false
+            WHERE userid = @userId";
+
+        var rows = await connection.ExecuteAsync(sql, new { userId });
+        return rows > 0;
+    }
+
+    public async Task<bool> ActivateUserAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            UPDATE auth.users
+            SET isactive = true, emailverified = true, passwordchangedat = NOW()
+            WHERE userid = @userId";
+
+        var rows = await connection.ExecuteAsync(sql, new { userId });
+        return rows > 0;
     }
 }

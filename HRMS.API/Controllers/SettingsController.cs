@@ -1,7 +1,9 @@
+using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
+using HRMS.API.Services;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Services.Interfaces;
 using System.Security.Claims;
 
 namespace HRMS.API.Controllers;
@@ -12,16 +14,20 @@ namespace HRMS.API.Controllers;
 public class SettingsController : ControllerBase
 {
     private readonly ISettingsService _settingsService;
+    private readonly IPayslipTemplateService _payslipTemplateService;
     private readonly ILogger<SettingsController> _logger;
 
-    public SettingsController(ISettingsService settingsService, ILogger<SettingsController> logger)
+    public SettingsController(
+        ISettingsService settingsService,
+        IPayslipTemplateService payslipTemplateService,
+        ILogger<SettingsController> logger)
     {
         _settingsService = settingsService;
+        _payslipTemplateService = payslipTemplateService;
         _logger = logger;
     }
 
     [HttpGet("organization")]
-    //[Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<OrganizationSettingsDto>>> GetOrganizationSettings()
     {
         try
@@ -48,7 +54,6 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("currency")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateCurrency([FromBody] UpdateCurrencyRequest request)
     {
         try
@@ -76,7 +81,6 @@ public class SettingsController : ControllerBase
 
 
     [HttpPut("localization")]
-    [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateLocalization(
     [FromBody] UpdateLocalizationSettingsRequest request)
     {
@@ -111,7 +115,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpPut("career-page")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("career_management_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> UpdateCareerPage([FromBody] UpdateCareerPageRequest request)
     {
         try
@@ -138,7 +142,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("career-page")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("career_management_view")]
     public async Task<ActionResult<ServiceResponse<CareerPageDto>>> GetCareerPage()
     {
         try
@@ -162,6 +166,251 @@ public class SettingsController : ControllerBase
                 Message = "An error occurred while retrieving career page details"
             });
         }
+    }
+
+    [HttpGet("policies")]
+    public async Task<ActionResult<ServiceResponse<List<CompanyPolicyDto>>>> GetPolicies()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.GetPoliciesAsync(organizationId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving company policies");
+            return StatusCode(500, new ServiceResponse<List<CompanyPolicyDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving company policies"
+            });
+        }
+    }
+
+    [HttpGet("policies/{policyId}")]
+    public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> GetPolicyById(Guid policyId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.GetPolicyByIdAsync(organizationId, policyId);
+
+            if (!result.Success)
+            {
+                return NotFound(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving policy details");
+            return StatusCode(500, new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving policy details"
+            });
+        }
+    }
+
+    [HttpPost("policies")]
+    [PermissionAuthorize("Create_Policy")]
+
+    public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> CreatePolicy([FromBody] CreateCompanyPolicyRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var createdBy = User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name ?? "System";
+            var result = await _settingsService.CreatePolicyAsync(organizationId, request, createdBy);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating company policy");
+            return StatusCode(500, new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = false,
+                Message = "An error occurred while creating company policy"
+            });
+        }
+    }
+
+    [HttpPut("policies/{policyId}")]
+    public async Task<ActionResult<ServiceResponse<CompanyPolicyDto>>> UpdatePolicy(Guid policyId, [FromBody] UpdateCompanyPolicyRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var updatedBy = User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name ?? "System";
+            var result = await _settingsService.UpdatePolicyAsync(organizationId, policyId, request, updatedBy);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating company policy");
+            return StatusCode(500, new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = false,
+                Message = "An error occurred while updating company policy"
+            });
+        }
+    }
+
+    [HttpDelete("policies/{policyId}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeletePolicy(Guid policyId)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _settingsService.DeletePolicyAsync(organizationId, policyId);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting company policy");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting company policy"
+            });
+        }
+    }
+
+    [HttpGet("payslip-template/layouts")]
+    [PermissionAuthorize("payslip_template_view")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>>> GetPayslipLayoutOptions()
+    {
+        try
+        {
+            var result = await _payslipTemplateService.GetActiveLayoutsAsync();
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payslip layout options");
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PayslipLayoutCatalogDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving payslip layout options"
+            });
+        }
+    }
+
+    [HttpGet("payslip-template")]
+    [PermissionAuthorize("payslip_template_view")]
+    public async Task<ActionResult<ServiceResponse<PayslipTemplateDto>>> GetPayslipTemplate()
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving payslip template");
+            return StatusCode(500, new ServiceResponse<PayslipTemplateDto>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving the payslip template"
+            });
+        }
+    }
+
+    [HttpPut("payslip-template")]
+    [PermissionAuthorize("payslip_template_edit")]
+    public async Task<ActionResult<ServiceResponse<PayslipTemplateDto>>> UpsertPayslipTemplate([FromBody] UpsertPayslipTemplateRequest request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var updatedBy = GetCurrentUserId();
+            var result = await _payslipTemplateService.UpsertActiveTemplateAsync(organizationId, request, updatedBy);
+
+            if (!result.Success)
+            {
+                return BadRequest(result);
+            }
+
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error saving payslip template");
+            return StatusCode(500, new ServiceResponse<PayslipTemplateDto>
+            {
+                Success = false,
+                Message = "An error occurred while saving the payslip template"
+            });
+        }
+    }
+
+    [HttpPost("payslip-template/preview")]
+    [PermissionAuthorize("payslip_template_view")]
+    public async Task<IActionResult> PreviewPayslipTemplate([FromBody] PayslipTemplatePreviewRequest? request)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currencyCode = await _settingsService.GetOrganizationSettingsAsync(organizationId);
+            var currencyLabel = PayslipCurrencyDisplay.GetPdfHelveticaSafePrefix(currencyCode.Data?.Currency);
+            var pdfBytes = await _payslipTemplateService.BuildPreviewPdfAsync(
+                organizationId,
+                request?.Template,
+                currencyLabel);
+
+            return File(pdfBytes, "application/pdf", "payslip-preview.pdf");
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating payslip template preview");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while generating the payslip preview"
+            });
+        }
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(userIdClaim, out var userId) ? userId : null;
     }
 
     private Guid GetCurrentOrganizationId()

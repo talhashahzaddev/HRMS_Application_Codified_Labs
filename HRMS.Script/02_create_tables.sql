@@ -110,6 +110,73 @@ ALTER TABLE ONLY admin.system_jobs
 -- SCHEMA: AUTH
 -- ============================================================
 
+
+ALTER TABLE auth.roles
+DROP CONSTRAINT roles_pkey;
+
+
+ALTER TABLE auth.roles
+ADD CONSTRAINT roles_pkey
+PRIMARY KEY (roleid, organizationid);
+
+
+ALTER TABLE auth.permissions
+ADD CONSTRAINT uq_permissions
+UNIQUE(roleid, actionid, organizationid);
+
+
+ALTER TABLE auth.permissions
+ADD CONSTRAINT uq_permissions_role_action_org
+UNIQUE (roleid, actionid, organizationid);
+
+
+ALTER TABLE auth.permissions
+ADD CONSTRAINT fk_permissions_role
+FOREIGN KEY (roleid, organizationid)
+REFERENCES auth.roles(roleid, organizationid);
+
+
+CREATE TABLE IF NOT EXISTS auth.global_roles
+(
+    roleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    rolename varchar(100) NOT NULL,
+    description text,
+    version integer NOT NULL DEFAULT 1,
+    isactive boolean DEFAULT true,
+    createdat timestamptz DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamptz DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT global_roles_pkey PRIMARY KEY (roleid),
+    CONSTRAINT uq_global_roles UNIQUE (rolename)
+);
+
+
+
+CREATE TABLE IF NOT EXISTS auth.global_role_permissions
+(
+    permissionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    roleid uuid NOT NULL,
+    actionid uuid NOT NULL,
+    has_permission boolean DEFAULT false,
+    createdat timestamptz DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamptz DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT global_role_permissions_pkey
+        PRIMARY KEY (permissionid),
+
+    CONSTRAINT fk_grp_role
+        FOREIGN KEY (roleid)
+        REFERENCES auth.global_roles(roleid),
+
+    CONSTRAINT fk_grp_action
+        FOREIGN KEY (actionid)
+        REFERENCES auth.actions(actionid),
+
+    CONSTRAINT uq_global_role_action
+        UNIQUE (roleid, actionid)
+);
+
+
 -- Table: auth.actions
 CREATE TABLE auth.actions (
     actionid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
@@ -844,6 +911,7 @@ CREATE TABLE attendance.timesheet_payroll_summary (
     timesheet_id uuid NOT NULL,
     organization_id uuid NOT NULL,
     employee_id uuid NOT NULL,
+    shift_id uuid,
     period_start date NOT NULL,
     period_end   date NOT NULL,
     total_calendar_days     integer NOT NULL DEFAULT 0,
@@ -862,6 +930,9 @@ CREATE TABLE attendance.timesheet_payroll_summary (
     total_hours_worked      numeric(8,2) NOT NULL DEFAULT 0,
     regular_hours           numeric(8,2) NOT NULL DEFAULT 0,
     overtime_hours          numeric(8,2) NOT NULL DEFAULT 0,
+    regular_overtime_hours  numeric(8,2) NOT NULL DEFAULT 0,
+    weekend_overtime_hours  numeric(8,2) NOT NULL DEFAULT 0,
+    holiday_overtime_hours  numeric(8,2) NOT NULL DEFAULT 0,
     late_minutes            integer NOT NULL DEFAULT 0,
     late_hours              numeric(6,2) NOT NULL DEFAULT 0,
     early_departure_minutes integer NOT NULL DEFAULT 0,
@@ -885,10 +956,13 @@ ALTER TABLE ONLY attendance.timesheet_payroll_summary
     ADD CONSTRAINT tps_employee_id_fkey   FOREIGN KEY (employee_id)     REFERENCES employee.employees(employeeid);
 ALTER TABLE ONLY attendance.timesheet_payroll_summary
     ADD CONSTRAINT tps_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES auth.organizations(organizationid);
+ALTER TABLE ONLY attendance.timesheet_payroll_summary
+    ADD CONSTRAINT fk_tps_shift_id          FOREIGN KEY (shift_id)        REFERENCES attendance.shifts(shiftid) ON DELETE SET NULL;
 
 CREATE INDEX IF NOT EXISTS ix_tps_org_period       ON attendance.timesheet_payroll_summary (organization_id, period_start, period_end);
 CREATE INDEX IF NOT EXISTS ix_tps_employee         ON attendance.timesheet_payroll_summary (employee_id, period_start);
 CREATE INDEX IF NOT EXISTS ix_tps_payroll_period   ON attendance.timesheet_payroll_summary (payroll_period_id) WHERE payroll_period_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS ix_tps_org_period_shift ON attendance.timesheet_payroll_summary (organization_id, period_start, period_end, shift_id);
 
 COMMENT ON TABLE  attendance.timesheet_payroll_summary IS
     'Bridge between a finalized timesheet and payroll. One row per (timesheet, employee) holding every attendance-derived counter the payroll engine consumes.';
@@ -1314,93 +1388,298 @@ ALTER TABLE ONLY helpdesk.tickets
 -- SCHEMA: JOBS
 -- ============================================================
 
--- Table: jobs.applicationstages
-CREATE TABLE jobs.applicationstages (
-    applicationstageid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    jobapplyid uuid NOT NULL,
-    stageid uuid NOT NULL,
-    notes text,
-    interviewers text,
-    type character varying(50),
-    updatedon timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedby uuid,
-    interviewdate timestamp with time zone,
-    interviewplace character varying(200)
-);
-
-ALTER TABLE ONLY jobs.applicationstages
-    ADD CONSTRAINT applicationstages_pkey PRIMARY KEY (applicationstageid);
-
--- Table: jobs.jobapplications
-CREATE TABLE jobs.jobapplications (
-    jobapplyid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    jobid uuid NOT NULL,
+CREATE TABLE IF NOT EXISTS jobs.stagemaster
+(
+    stageid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
-    employeeid uuid,
-    candidateid uuid DEFAULT public.uuid_generate_v4(),
-    candidatename character varying(200),
-    candidateemail character varying(200),
-    linkedinurl text,
-    resumeurl text,
-    phone character varying(50),
-    coverletter text,
-    currentstageid uuid,
-    applicationsource character varying(100),
-    status character varying(50) DEFAULT 'Applied'::character varying,
-    createddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updateddate timestamp with time zone,
-    isself boolean DEFAULT false,
-    isexternal boolean DEFAULT false
-);
+    stagename character varying(100) COLLATE pg_catalog."default" NOT NULL,
+    stageorder integer,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    isinterviewstage boolean DEFAULT false,
+    CONSTRAINT stagemaster_pkey PRIMARY KEY (stageid)
+)
 
-ALTER TABLE ONLY jobs.jobapplications
-    ADD CONSTRAINT jobapplications_pkey PRIMARY KEY (jobapplyid);
 
--- Table: jobs.jobopenings
-CREATE TABLE jobs.jobopenings (
-    jobid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+
+CREATE TABLE IF NOT EXISTS jobs.jobopenings
+(
+    jobid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
-    jobrolename character varying(200) NOT NULL,
+    jobrolename character varying(200) COLLATE pg_catalog."default" NOT NULL,
     departmentid uuid,
     experiencemin integer,
     experiencemax integer,
     ctcmin numeric(12,2),
     ctcmax numeric(12,2),
-    currency character varying(10),
-    vacancies integer DEFAULT 1 NOT NULL,
-    location character varying(200),
-    workmode character varying(50),
-    employmenttype character varying(50),
-    jobintroduction text,
-    responsibilities text,
-    skillset text,
+    currency character varying(10) COLLATE pg_catalog."default",
+    vacancies integer NOT NULL DEFAULT 1,
+    location character varying(200) COLLATE pg_catalog."default",
+    workmode character varying(50) COLLATE pg_catalog."default",
+    employmenttype character varying(50) COLLATE pg_catalog."default",
+    jobintroduction text COLLATE pg_catalog."default",
+    responsibilities text COLLATE pg_catalog."default",
+    skillset text COLLATE pg_catalog."default",
     lastdate date,
     posteddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    postedas character varying(20) NOT NULL,
-    externallink text,
-    status character varying(50) DEFAULT 'Open'::character varying,
+    postedas character varying(20) COLLATE pg_catalog."default" NOT NULL,
+    externallink text COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Open'::character varying,
     createdby uuid,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone,
-    jobcode character varying(100)
-);
+    jobcode character varying(100) COLLATE pg_catalog."default",
+    mandatoryskills jsonb,
+    CONSTRAINT jobopenings_pkey PRIMARY KEY (jobid)
+)
 
-ALTER TABLE ONLY jobs.jobopenings
-    ADD CONSTRAINT jobopenings_pkey PRIMARY KEY (jobid);
 
--- Table: jobs.stagemaster
-CREATE TABLE jobs.stagemaster (
-    stageid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+
+CREATE TABLE IF NOT EXISTS jobs.jobapplications
+(
+    jobapplyid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobid uuid NOT NULL,
     organizationid uuid NOT NULL,
-    stagename character varying(100) NOT NULL,
-    stageorder integer,
+    employeeid uuid,
+    candidateid uuid DEFAULT uuid_generate_v4(),
+    candidatename character varying(200) COLLATE pg_catalog."default",
+    candidateemail character varying(200) COLLATE pg_catalog."default",
+    linkedinurl text COLLATE pg_catalog."default",
+    resumeurl text COLLATE pg_catalog."default",
+    phone character varying(50) COLLATE pg_catalog."default",
+    coverletter text COLLATE pg_catalog."default",
+    currentstageid uuid,
+    applicationsource character varying(100) COLLATE pg_catalog."default",
+    status character varying(50) COLLATE pg_catalog."default" DEFAULT 'Applied'::character varying,
+    createddate timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updateddate timestamp with time zone,
+    isself boolean DEFAULT false,
+    isexternal boolean DEFAULT false,
+    passedknockout boolean,
+    enteredtostage boolean NOT NULL DEFAULT false,
+    CONSTRAINT jobapplications_pkey PRIMARY KEY (jobapplyid)
+)
+
+
+
+
+CREATE TABLE IF NOT EXISTS jobs.questioncategories
+(
+    categoryid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    name character varying(200) COLLATE pg_catalog."default" NOT NULL,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    isinterviewstage boolean DEFAULT false
-);
+    updatedat timestamp with time zone,
+    isdeleted boolean DEFAULT false,
+    CONSTRAINT questioncategories_pkey PRIMARY KEY (categoryid)
+)
 
-ALTER TABLE ONLY jobs.stagemaster
-    ADD CONSTRAINT stagemaster_pkey PRIMARY KEY (stageid);
 
+CREATE TABLE IF NOT EXISTS jobs.questions
+(
+    questionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    categoryid uuid NOT NULL,
+    organizationid uuid NOT NULL,
+    questiontext text COLLATE pg_catalog."default" NOT NULL,
+    questiontype character varying(50) COLLATE pg_catalog."default" NOT NULL DEFAULT 'Text'::character varying,
+    options jsonb,
+    isknockout boolean DEFAULT false,
+    expectedanswer text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone,
+    isdeleted boolean DEFAULT false,
+    CONSTRAINT questions_pkey PRIMARY KEY (questionid),
+    CONSTRAINT fk_questions_category FOREIGN KEY (categoryid)
+        REFERENCES jobs.questioncategories (categoryid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.questions
+    OWNER to postgres;
+-- Index: idx_questions_category
+
+-- DROP INDEX IF EXISTS jobs.idx_questions_category;
+
+CREATE INDEX IF NOT EXISTS idx_questions_category
+    ON jobs.questions USING btree
+    (categoryid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_questions_org
+
+-- DROP INDEX IF EXISTS jobs.idx_questions_org;
+
+CREATE INDEX IF NOT EXISTS idx_questions_org
+    ON jobs.questions USING btree
+    (organizationid ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+
+CREATE TABLE IF NOT EXISTS jobs.jobquestions
+(
+    jobquestionid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobid uuid NOT NULL,
+    questionid uuid NOT NULL,
+    isrequired boolean DEFAULT true,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT jobquestions_pkey PRIMARY KEY (jobquestionid),
+    CONSTRAINT uq_jobquestions_job_question UNIQUE (jobid, questionid),
+    CONSTRAINT fk_jobquestions_job FOREIGN KEY (jobid)
+        REFERENCES jobs.jobopenings (jobid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT fk_jobquestions_question FOREIGN KEY (questionid)
+        REFERENCES jobs.questions (questionid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.jobquestions
+    OWNER to postgres;
+-- Index: idx_jobquestions_job
+
+-- DROP INDEX IF EXISTS jobs.idx_jobquestions_job;
+
+CREATE INDEX IF NOT EXISTS idx_jobquestions_job
+    ON jobs.jobquestions USING btree
+    (jobid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_jobquestions_question
+
+-- DROP INDEX IF EXISTS jobs.idx_jobquestions_question;
+
+CREATE INDEX IF NOT EXISTS idx_jobquestions_question
+    ON jobs.jobquestions USING btree
+    (questionid ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+
+    
+CREATE TABLE IF NOT EXISTS jobs.applicationstages
+(
+    applicationstageid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobapplyid uuid NOT NULL,
+    stageid uuid NOT NULL,
+    notes text COLLATE pg_catalog."default",
+    interviewers text COLLATE pg_catalog."default",
+    type character varying(50) COLLATE pg_catalog."default",
+    updatedon timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedby uuid,
+    interviewdate timestamp with time zone,
+    interviewplace character varying(200) COLLATE pg_catalog."default",
+    CONSTRAINT applicationstages_pkey PRIMARY KEY (applicationstageid)
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.applicationstages
+    OWNER to postgres;
+
+
+    
+CREATE TABLE IF NOT EXISTS jobs.candidateanswers
+(
+    answerid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobapplyid uuid NOT NULL,
+    questionid uuid NOT NULL,
+    answertext text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT candidateanswers_pkey PRIMARY KEY (answerid),
+    CONSTRAINT fk_candidateanswers_application FOREIGN KEY (jobapplyid)
+        REFERENCES jobs.jobapplications (jobapplyid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE,
+    CONSTRAINT fk_candidateanswers_question FOREIGN KEY (questionid)
+        REFERENCES jobs.questions (questionid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.candidateanswers
+    OWNER to postgres;
+-- Index: idx_candidateanswers_jobapply
+
+-- DROP INDEX IF EXISTS jobs.idx_candidateanswers_jobapply;
+
+CREATE INDEX IF NOT EXISTS idx_candidateanswers_jobapply
+    ON jobs.candidateanswers USING btree
+    (jobapplyid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_candidateanswers_question
+
+-- DROP INDEX IF EXISTS jobs.idx_candidateanswers_question;
+
+CREATE INDEX IF NOT EXISTS idx_candidateanswers_question
+    ON jobs.candidateanswers USING btree
+    (questionid ASC NULLS LAST)
+    TABLESPACE pg_default;
+
+
+    
+CREATE TABLE IF NOT EXISTS jobs.parsedresumes
+(
+    parsedresumeid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    jobapplyid uuid NOT NULL,
+    contactdetails jsonb,
+    skills jsonb,
+    workexperience jsonb,
+    education jsonb,
+    rawtext text COLLATE pg_catalog."default",
+    parsestatus character varying(50) COLLATE pg_catalog."default" DEFAULT 'Pending'::character varying,
+    parseerror text COLLATE pg_catalog."default",
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone,
+    CONSTRAINT parsedresumes_pkey PRIMARY KEY (parsedresumeid),
+    CONSTRAINT uq_parsedresumes_jobapply UNIQUE (jobapplyid),
+    CONSTRAINT fk_parsedresumes_application FOREIGN KEY (jobapplyid)
+        REFERENCES jobs.jobapplications (jobapplyid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE CASCADE
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS jobs.parsedresumes
+    OWNER to postgres;
+
+COMMENT ON COLUMN jobs.parsedresumes.contactdetails
+    IS 'AI-extracted contact info: {"name":"...","email":"...","phone":"...","linkedin":"..."}';
+
+COMMENT ON COLUMN jobs.parsedresumes.skills
+    IS 'AI-extracted skills as JSON array: ["Angular", "SQL", "Docker"]';
+
+COMMENT ON COLUMN jobs.parsedresumes.workexperience
+    IS 'AI-extracted work history as JSON array: [{"company":"...","title":"...","startDate":"...","endDate":"..."}]';
+
+COMMENT ON COLUMN jobs.parsedresumes.education
+    IS 'AI-extracted education as JSON array: [{"institution":"...","degree":"...","year":"..."}]';
+
+COMMENT ON COLUMN jobs.parsedresumes.rawtext
+    IS 'Raw text extracted from PDF/DOCX before AI processing';
+
+COMMENT ON COLUMN jobs.parsedresumes.parsestatus
+    IS 'Pending | Processing | Completed | Failed';
+-- Index: idx_parsedresumes_jobapply
+
+-- DROP INDEX IF EXISTS jobs.idx_parsedresumes_jobapply;
+
+CREATE INDEX IF NOT EXISTS idx_parsedresumes_jobapply
+    ON jobs.parsedresumes USING btree
+    (jobapplyid ASC NULLS LAST)
+    TABLESPACE pg_default;
+-- Index: idx_parsedresumes_status
+
+-- DROP INDEX IF EXISTS jobs.idx_parsedresumes_status;
+
+CREATE INDEX IF NOT EXISTS idx_parsedresumes_status
+    ON jobs.parsedresumes USING btree
+    (parsestatus COLLATE pg_catalog."default" ASC NULLS LAST)
+    TABLESPACE pg_default;
 
 -- ============================================================
 -- SCHEMA: NEWS
@@ -1606,144 +1885,121 @@ ALTER TABLE ONLY payment.transactions
 -- ============================================================
 
 -- Table: payroll.attendancedeductionrules
-CREATE TABLE payroll.attendancedeductionrules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+
+
+--Schema for the Payroll--
+create table if not exists payroll.payrollperiods
+(
+    periodid        uuid primary key default uuid_generate_v4(),
+    organizationid  uuid not null,
+    periodname      character varying(100) not null,  -- e.g. 'July 2025', 'August 2025'
+    startdate       date not null,
+    enddate         date not null,
+    paymentdate     date,                             -- actual salary disbursement date
+    status          character varying(20) not null default 'Open'
+    description     text,
+    isactive        boolean default true,
+    isdeleted       boolean default false,
+    createdby       uuid,
+    createdat       timestamptz default current_timestamp,
+    updatedat       timestamptz default current_timestamp,
+);
+// overtime
+CREATE TABLE IF NOT EXISTS payroll.overtimerules
+(
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
-    rulename character varying(100),
-    description text,
+    rulename character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    overtimetype character varying(20) COLLATE pg_catalog."default",
+    fixedamount numeric(15,2),
+    percentage numeric(5,2),
+    isactive boolean DEFAULT true,
+    isdeleted boolean DEFAULT false,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT overtimerules_pkey PRIMARY KEY (ruleid)
+)
+
+CREATE TABLE IF NOT EXISTS payroll.overtimeentries
+(
+    overtimeid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    employeeid uuid NOT NULL,
+    periodid uuid NOT NULL,
+    ruleid uuid,
+    hoursworked numeric(5,2) NOT NULL,
+    finalamount numeric(15,2),
+    entrystatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    approvedby uuid,
+    overtimedate date NOT NULL,
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT overtimeentries_pkey PRIMARY KEY (overtimeid),
+    CONSTRAINT overtimeentries_ruleid_fkey FOREIGN KEY (ruleid)
+        REFERENCES payroll.overtimerules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT overtimeentries_entrystatus_check CHECK (entrystatus::text = ANY (ARRAY['pending'::character varying::text, 'approved'::character varying::text, 'rejected'::character varying::text]))
+) // overtime
+
+// attendance deduction
+CREATE TABLE IF NOT EXISTS payroll.attendancedeductionrules
+(
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,
+    rulename character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
     fixeddeduction numeric(15,2),
     percentagededuction numeric(5,2),
     halfdaymultiplier numeric(3,2) DEFAULT 0.50,
     isactive boolean DEFAULT true,
     isdeleted boolean DEFAULT false,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT attendancedeductionrules_pkey PRIMARY KEY (ruleid)
+)
 
-ALTER TABLE ONLY payroll.attendancedeductionrules
-    ADD CONSTRAINT attendancedeductionrules_pkey PRIMARY KEY (ruleid);
+create table if not exists payroll.attendancesummary
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.attendancedeductionrules(ruleid),
+    shiftid             uuid,
+    scheduleddays       integer default 0,
+    totaldays           integer default 0,
+    presentdays         integer default 0,
+    absentdays          integer default 0,
+    halfdays            integer default 0,
+    effectiveabsents    numeric(6,2) default 0,
+    absentdeduction     numeric(15,2) default 0,
+    halfdaydeduction    numeric(15,2) default 0,
+    totaldeduction      numeric(15,2) default 0,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqattendance unique (periodid, employeeid)
+); // attendance deduction
 
--- Table: payroll.attendancesummary
-CREATE TABLE payroll.attendancesummary (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    employeeid uuid NOT NULL,
-    periodid uuid NOT NULL,
-    ruleid uuid,
-    shiftid uuid,
-    scheduleddays integer DEFAULT 0,
-    totaldays integer DEFAULT 0,
-    presentdays integer DEFAULT 0,
-    absentdays integer DEFAULT 0,
-    halfdays integer DEFAULT 0,
-    effectiveabsents numeric(6,2) DEFAULT 0,
-    absentdeduction numeric(15,2) DEFAULT 0,
-    halfdaydeduction numeric(15,2) DEFAULT 0,
-    totaldeduction numeric(15,2) DEFAULT 0,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ONLY payroll.attendancesummary
-    ADD CONSTRAINT attendancesummary_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.attendancesummary
-    ADD CONSTRAINT uqattendance UNIQUE (periodid, employeeid);
-ALTER TABLE ONLY payroll.attendancesummary
-    ADD CONSTRAINT attendancesummary_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.attendancedeductionrules(ruleid);
-
--- Table: payroll.bonusentries
-CREATE TABLE payroll.bonusentries (
-    bonusid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+// late attendance
+CREATE TABLE IF NOT EXISTS payroll.lateattendancerules
+(
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
-    employeeid uuid NOT NULL,
-    periodid uuid NOT NULL,
-    ruleid uuid,
-    bonousamount numeric(15,2) NOT NULL,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ONLY payroll.bonusentries
-    ADD CONSTRAINT bonusentries_pkey PRIMARY KEY (bonusid);
-ALTER TABLE ONLY payroll.bonusentries
-    ADD CONSTRAINT uqbonusentry UNIQUE (employeeid, periodid, ruleid);
-ALTER TABLE ONLY payroll.bonusentries
-    ADD CONSTRAINT bonusentries_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.bonusrules(ruleid);
-
--- Table: payroll.bonusrules
-CREATE TABLE payroll.bonusrules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    rulename character varying(100) NOT NULL,
-    description text,
-    bonustype character varying(50) NOT NULL,
-    bonusamount numeric(15,2),
-    bonuspercentage numeric(5,2),
+    rulename character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    fixeddeduction numeric(15,2),
+    percentagededuction numeric(5,2),
+    graceminutes integer DEFAULT 0,
     isactive boolean DEFAULT true,
     isdeleted boolean DEFAULT false,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT bonusrules_bonustype_check CHECK (((bonustype)::text = ANY ((ARRAY['fixed'::character varying, 'percentage'::character varying])::text[])))
-);
+    CONSTRAINT lateattendancerules_pkey PRIMARY KEY (ruleid)
+)
 
-ALTER TABLE ONLY payroll.bonusrules
-    ADD CONSTRAINT bonusrules_pkey PRIMARY KEY (ruleid);
-
--- Table: payroll.gratuityconfig
-CREATE TABLE payroll.gratuityconfig (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    configrulename character varying(100) NOT NULL,
-    description text,
-    yearsrequired integer DEFAULT 5 NOT NULL,
-    calculationtype character varying(50) NOT NULL,
-    calculationvalue numeric(10,2) NOT NULL,
-    isactive boolean DEFAULT true,
-    isdeleted boolean DEFAULT false,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT gratuityconfig_calculationtype_check CHECK (((calculationtype)::text = ANY (ARRAY[('fixed'::character varying)::text, ('peryear'::character varying)::text, ('percentage'::character varying)::text])))
-);
-
-ALTER TABLE ONLY payroll.gratuityconfig
-    ADD CONSTRAINT gratuityconfig_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.gratuityconfig
-    ADD CONSTRAINT uqgratuityconfig UNIQUE (organizationid, configrulename);
-
--- Table: payroll.gratuitytransactions
-CREATE TABLE payroll.gratuitytransactions (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    employeeid uuid NOT NULL,
-    periodid uuid,
-    configid uuid,
-    yearsworked numeric(4,2) NOT NULL,
-    lastsalary numeric(15,2),
-    totalamount numeric(15,2) NOT NULL,
-    paymentstatus character varying(20) DEFAULT 'calculated'::character varying,
-    paidat timestamp with time zone,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    paidby uuid,
-    cancellationreason text,
-    createdby uuid,
-    paymentmethod character varying(50) DEFAULT 'payroll_credit'::character varying,
-    isdeleted boolean DEFAULT false,
-    approvedby uuid,
-    approvedat timestamp with time zone,
-    notes text,
-    CONSTRAINT ck_gratuitytransactions_paymentmethod CHECK (((paymentmethod)::text = ANY (ARRAY[('payroll_credit'::character varying)::text, ('bank_transfer'::character varying)::text, ('cash'::character varying)::text]))),
-    CONSTRAINT ck_gratuitytransactions_paymentstatus CHECK (((paymentstatus)::text = ANY (ARRAY[('calculated'::character varying)::text, ('approved'::character varying)::text, ('paid'::character varying)::text, ('cancelled'::character varying)::text]))),
-    CONSTRAINT gratuitytransactions_paymentstatus_check CHECK (((paymentstatus)::text = ANY (ARRAY[('calculated'::character varying)::text, ('approved'::character varying)::text, ('paid'::character varying)::text, ('cancelled'::character varying)::text])))
-);
-
-ALTER TABLE ONLY payroll.gratuitytransactions
-    ADD CONSTRAINT gratuitytransactions_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.gratuitytransactions
-    ADD CONSTRAINT gratuitytransactions_configid_fkey FOREIGN KEY (configid) REFERENCES payroll.gratuityconfig(id);
-
--- Table: payroll.lateattendance
-CREATE TABLE payroll.lateattendance (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+CREATE TABLE IF NOT EXISTS payroll.lateattendance
+(
+    id uuid NOT NULL DEFAULT uuid_generate_v4(),
     employeeid uuid NOT NULL,
     periodid uuid NOT NULL,
     ruleid uuid,
@@ -1752,101 +2008,128 @@ CREATE TABLE payroll.lateattendance (
     isgrace boolean DEFAULT false,
     attendancedate date NOT NULL,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT lateattendance_pkey PRIMARY KEY (id),
+    CONSTRAINT lateattendance_ruleid_fkey FOREIGN KEY (ruleid)
+        REFERENCES payroll.lateattendancerules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+) // late attendance
 
-ALTER TABLE ONLY payroll.lateattendance
-    ADD CONSTRAINT lateattendance_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.lateattendance
-    ADD CONSTRAINT uqlateattendance UNIQUE (employeeid, attendancedate);
-ALTER TABLE ONLY payroll.lateattendance
-    ADD CONSTRAINT lateattendance_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.lateattendancerules(ruleid);
-
--- Table: payroll.lateattendancerules
-CREATE TABLE payroll.lateattendancerules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+// leaves
+CREATE TABLE IF NOT EXISTS payroll.leaverules
+(
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
-    rulename character varying(100),
-    description text,
-    fixeddeduction numeric(15,2),
-    percentagededuction numeric(5,2),
-    graceminutes integer DEFAULT 0,
-    isactive boolean DEFAULT true,
-    isdeleted boolean DEFAULT false,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ONLY payroll.lateattendancerules
-    ADD CONSTRAINT lateattendancerules_pkey PRIMARY KEY (ruleid);
-ALTER TABLE ONLY payroll.lateattendancerules
-    ADD CONSTRAINT uqorglaterule UNIQUE (organizationid);
-
--- Table: payroll.leaverules
-CREATE TABLE payroll.leaverules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    rulename character varying(100),
-    description text,
+    rulename character varying(100) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
     unpaidmultiplier numeric(3,2) DEFAULT 1.00,
     halfpaidmultiplier numeric(3,2) DEFAULT 0.50,
     isactive boolean DEFAULT true,
     isdeleted boolean DEFAULT false,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT leaverules_pkey PRIMARY KEY (ruleid)
+)
 
-ALTER TABLE ONLY payroll.leaverules
-    ADD CONSTRAINT leaverules_pkey PRIMARY KEY (ruleid);
-ALTER TABLE ONLY payroll.leaverules
-    ADD CONSTRAINT uqorgleaverule UNIQUE (organizationid);
+create table if not exists payroll.payrollleavesummary
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.leaverules(ruleid),
+    paiddays            numeric(5,2) default 0,
+    unpaiddays          numeric(5,2) default 0,
+    halfpaiddays        numeric(5,2) default 0,
+    unpaiddeduction     numeric(15,2) default 0,
+    halfpaiddeduction   numeric(15,2) default 0,
+    totalleavedays      numeric(5,2) generated always as (
+                            paiddays + unpaiddays + halfpaiddays
+                        ) stored,
+    totaldeduction      numeric(15,2),
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqleavesummary unique (periodid, employeeid)
+); // leaves
 
--- Table: payroll.loanpayments
-CREATE TABLE payroll.loanpayments (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+// performance 
+CREATE TABLE IF NOT EXISTS payroll.performancerules
+(
+    ruleid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
-    loanid uuid,
-    employeeid uuid NOT NULL,
-    periodid uuid,
-    installmentnumber integer DEFAULT 0 NOT NULL,
-    installmentamount numeric(15,2) NOT NULL,
-    remainingamount numeric(15,2) NOT NULL,
-    repaymenttype character varying(20) DEFAULT 'installment'::character varying,
-    paymentdate date DEFAULT CURRENT_DATE NOT NULL,
-    paymentmethod character varying(50) DEFAULT 'payroll_deduction'::character varying,
-    paymentstatus character varying(20) DEFAULT 'deducted'::character varying,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ONLY payroll.loanpayments
-    ADD CONSTRAINT loanpayments_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.loanpayments
-    ADD CONSTRAINT loanpayments_loanid_fkey FOREIGN KEY (loanid) REFERENCES payroll.loans(loanid);
-
--- Table: payroll.loanrules
-CREATE TABLE payroll.loanrules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    rulename character varying(100) NOT NULL,
-    description text,
-    organizationid uuid NOT NULL,
-    maxloanamount numeric(15,2),
-    maxinstallments integer,
-    interestrate numeric(5,2) DEFAULT 0,
+    rulename character varying(20) COLLATE pg_catalog."default",
+    description text COLLATE pg_catalog."default",
+    minscore numeric(3,2),
+    maxscore numeric(3,2),
+    fixedamount numeric(15,2),
+    percentage numeric(5,2),
     isactive boolean DEFAULT true,
     isdeleted boolean DEFAULT false,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT performancerules_pkey PRIMARY KEY (ruleid)
+)
+
+create table if not exists payroll.performancepay
+(
+    performancepayid    uuid primary key default uuid_generate_v4(),
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.performancerules(ruleid),
+    score               numeric(5,2),
+    finalamount         numeric(15,2) not null,
+    calculatedat        timestamptz default current_timestamp,
+    createdat           timestamptz default current_timestamp,
+    constraint uqperformancepay unique (employeeid, periodid)
+); // performance
+
+//Bonous
+create table if not exists payroll.bonusrules
+(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    rulename            character varying(100) not null,
+    description         text,
+    bonustype           varchar(50) not null
+                        check (bonustype in ('fixed', 'percentage')),
+    bonusamount         numeric(15,2),        -- used when bonustype = 'fixed'
+    bonuspercentage     numeric(5,2),         -- used when bonustype = 'percentage'
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+);
+create table if not exists payroll.bonusentries
+(
+    bonusid             uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    periodid            uuid not null,
+    ruleid              uuid references payroll.bonusrules(ruleid),
+    Bonousamount         numeric(15,2) not null,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqbonusentry unique (employeeid, periodid, ruleid)
+);
+// loan 
+create table if not exists payroll.loanrules(
+    ruleid              uuid primary key default uuid_generate_v4(),
+    rulename            character varying(100) not null,
+    description         text,
+    organizationid      uuid not null,
+    maxloanamount       numeric(15,2),
+    maxinstallments     integer,
+    interestrate        numeric(5,2) default 0,
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqorgloanrule unique (organizationid, rulename)
 );
 
-ALTER TABLE ONLY payroll.loanrules
-    ADD CONSTRAINT loanrules_pkey PRIMARY KEY (ruleid);
-ALTER TABLE ONLY payroll.loanrules
-    ADD CONSTRAINT uqorgloanrule UNIQUE (organizationid, rulename);
-
--- Table: payroll.loans
-CREATE TABLE payroll.loans (
-    loanid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+CREATE TABLE IF NOT EXISTS payroll.loans
+(
+    loanid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
     employeeid uuid NOT NULL,
     ruleid uuid,
@@ -1856,356 +2139,85 @@ CREATE TABLE payroll.loans (
     monthlyinstallment numeric(15,2),
     remainingamount numeric(15,2) NOT NULL,
     paidamount numeric(15,2) GENERATED ALWAYS AS (((principalamount + totalinterest) - remainingamount)) STORED,
-    totalinstallments integer DEFAULT 0 NOT NULL,
-    paidinstallments integer DEFAULT 0 NOT NULL,
-    repaymenttype character varying(20) DEFAULT 'installment'::character varying,
-    requeststatus character varying(20) DEFAULT 'pending'::character varying,
-    loanstatus character varying(20) DEFAULT 'active'::character varying,
+    totalinstallments integer NOT NULL DEFAULT 0,
+    paidinstallments integer NOT NULL DEFAULT 0,
+    repaymenttype character varying(20) COLLATE pg_catalog."default" DEFAULT 'installment'::character varying,
+    requeststatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
+    loanstatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'active'::character varying,
     approvedby uuid,
     approvedat timestamp with time zone,
-    rejectionreason text,
-    disbursementstatus character varying(20) DEFAULT 'pending'::character varying,
+    rejectionreason text COLLATE pg_catalog."default",
+    disbursementstatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
     disbursementdate date,
     startdate date,
     enddate date,
-    description text,
+    description text COLLATE pg_catalog."default",
     createdby uuid,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    referenceid character varying(20) DEFAULT ('LN-'::text || upper("substring"(replace((public.uuid_generate_v4())::text, '-'::text, ''::text), 1, 10))) NOT NULL
+    referenceid character varying(20) COLLATE pg_catalog."default" NOT NULL DEFAULT ('LN-'::text || upper("substring"(replace((uuid_generate_v4())::text, '-'::text, ''::text), 1, 10))),
+    CONSTRAINT loans_pkey PRIMARY KEY (loanid),
+    CONSTRAINT loans_ruleid_fkey FOREIGN KEY (ruleid)
+        REFERENCES payroll.loanrules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+)
+
+create table if not exists payroll.loanpayments(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    loanid              uuid references payroll.loans(loanid),
+    employeeid          uuid not null,
+    
+    -- Nullable to allow for out-of-payroll settlements (e.g., employee pays cash)
+    periodid            uuid, 
+    
+    installmentnumber   integer not null default 0,
+    installmentamount   numeric(15,2) not null,
+    remainingamount     numeric(15,2) not null,
+    repaymenttype       varchar(20) default 'installment',
+    
+    -- Exact Payment Details
+    paymentdate         date not null default current_date,
+    paymentmethod       varchar(50) default 'payroll_deduction', -- 'payroll deduction', 'cash', 'bank transfer'
+    paymentstatus       varchar(20) default 'deducted',          -- 'deducted', 'settled', 'failed'
+    
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp
+    
+); // loan
+
+// advance salary
+create table if not exists payroll.salaryadvancerules (
+    ruleid              uuid primary key default uuid_generate_v4(),
+    rulename            character varying(100) not null,
+    description         text,
+    organizationid      uuid not null,
+    maxpercentage       numeric(5,2),            -- max % of salary employee can request
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp
 );
-
-ALTER TABLE ONLY payroll.loans
-    ADD CONSTRAINT loans_pkey PRIMARY KEY (loanid);
-ALTER TABLE ONLY payroll.loans
-    ADD CONSTRAINT loans_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.loanrules(ruleid);
-
--- Table: payroll.overtimeentries
-CREATE TABLE payroll.overtimeentries (
-    overtimeid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    employeeid uuid NOT NULL,
-    periodid uuid NOT NULL,
-    ruleid uuid,
-    hoursworked numeric(5,2) NOT NULL,
-    finalamount numeric(15,2),
-    entrystatus character varying(20) DEFAULT 'pending'::character varying,
-    approvedby uuid,
-    overtimedate date NOT NULL,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT overtimeentries_entrystatus_check CHECK (((entrystatus)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying])::text[])))
-);
-
-ALTER TABLE ONLY payroll.overtimeentries
-    ADD CONSTRAINT overtimeentries_pkey PRIMARY KEY (overtimeid);
-ALTER TABLE ONLY payroll.overtimeentries
-    ADD CONSTRAINT uqovertime UNIQUE (employeeid, periodid, overtimedate);
-ALTER TABLE ONLY payroll.overtimeentries
-    ADD CONSTRAINT overtimeentries_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.overtimerules(ruleid);
-
--- Table: payroll.overtimerules
-CREATE TABLE payroll.overtimerules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    rulename character varying(100),
-    description text,
-    overtimetype character varying(20),
-    fixedamount numeric(15,2),
-    percentage numeric(5,2),
-    isactive boolean DEFAULT true,
-    isdeleted boolean DEFAULT false,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT overtimerules_overtimetype_check CHECK (((overtimetype)::text = ANY ((ARRAY['regular'::character varying, 'holiday'::character varying, 'weekend'::character varying])::text[])))
-);
-
-ALTER TABLE ONLY payroll.overtimerules
-    ADD CONSTRAINT overtimerules_pkey PRIMARY KEY (ruleid);
-ALTER TABLE ONLY payroll.overtimerules
-    ADD CONSTRAINT uqruletype UNIQUE (organizationid, overtimetype);
-
--- Table: payroll.payrolldata
-CREATE TABLE payroll.payrolldata (
-    dataid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    employeeid uuid NOT NULL,
-    periodid uuid NOT NULL,
-    entryid uuid,
-    employeesnapshot jsonb DEFAULT '{}'::jsonb NOT NULL,
-    basicsalary numeric(15,2) DEFAULT 0,
-    earningsdetail jsonb DEFAULT '[]'::jsonb NOT NULL,
-    totalearnings numeric(15,2) DEFAULT 0,
-    overtimeamount numeric(15,2) DEFAULT 0,
-    bonusamount numeric(15,2) DEFAULT 0,
-    grosssalary numeric(15,2) DEFAULT 0,
-    scheduleddays integer DEFAULT 0,
-    presentdays integer DEFAULT 0,
-    absentdays numeric(6,2) DEFAULT 0,
-    halfdays integer DEFAULT 0,
-    latedays integer DEFAULT 0,
-    overtimehours numeric(6,2) DEFAULT 0,
-    absentdeduction numeric(15,2) DEFAULT 0,
-    latededuction numeric(15,2) DEFAULT 0,
-    loandeduction numeric(15,2) DEFAULT 0,
-    advancededuction numeric(15,2) DEFAULT 0,
-    taxamount numeric(15,2) DEFAULT 0,
-    pfemployee numeric(15,2) DEFAULT 0,
-    socialsecurity numeric(15,2) DEFAULT 0,
-    otherdeductions numeric(15,2) DEFAULT 0,
-    deductionsdetail jsonb DEFAULT '[]'::jsonb NOT NULL,
-    totaldeductions numeric(15,2) DEFAULT 0,
-    pfemployer numeric(15,2) DEFAULT 0,
-    ssemployer numeric(15,2) DEFAULT 0,
-    ytdgross numeric(15,2) DEFAULT 0,
-    ytdtax numeric(15,2) DEFAULT 0,
-    ytdnet numeric(15,2) DEFAULT 0,
-    netsalary numeric(15,2) DEFAULT 0,
-    currency character varying(3) DEFAULT 'pkr'::character varying,
-    status character varying(20) DEFAULT 'draft'::character varying,
-    generatedby uuid,
-    generatedat timestamp with time zone,
-    emailsentat timestamp with time zone,
-    emailsentto character varying(255),
-    payslippdfurl text,
-    pdfgeneratedat timestamp with time zone,
-    isreissued boolean DEFAULT false,
-    reissuedby uuid,
-    reissuedat timestamp with time zone,
-    reissuenote text,
-    versionnumber integer DEFAULT 1,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    gratuityamount numeric(15,2) DEFAULT 0,
-    CONSTRAINT payrolldata_status_check CHECK (((status)::text = ANY ((ARRAY['draft'::character varying, 'generated'::character varying, 'sent'::character varying, 'viewed'::character varying])::text[])))
-);
-
-ALTER TABLE ONLY payroll.payrolldata
-    ADD CONSTRAINT payrolldata_pkey PRIMARY KEY (dataid);
-ALTER TABLE ONLY payroll.payrolldata
-    ADD CONSTRAINT uqpayslips UNIQUE (employeeid, periodid, versionnumber);
-
--- Table: payroll.payrollleavesummary
-CREATE TABLE payroll.payrollleavesummary (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    employeeid uuid NOT NULL,
-    periodid uuid NOT NULL,
-    ruleid uuid,
-    paiddays numeric(5,2) DEFAULT 0,
-    unpaiddays numeric(5,2) DEFAULT 0,
-    halfpaiddays numeric(5,2) DEFAULT 0,
-    unpaiddeduction numeric(15,2) DEFAULT 0,
-    halfpaiddeduction numeric(15,2) DEFAULT 0,
-    totalleavedays numeric(5,2) GENERATED ALWAYS AS (((paiddays + unpaiddays) + halfpaiddays)) STORED,
-    totaldeduction numeric(15,2),
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ONLY payroll.payrollleavesummary
-    ADD CONSTRAINT payrollleavesummary_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.payrollleavesummary
-    ADD CONSTRAINT uqleavesummary UNIQUE (periodid, employeeid);
-ALTER TABLE ONLY payroll.payrollleavesummary
-    ADD CONSTRAINT payrollleavesummary_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.leaverules(ruleid);
-
--- Table: payroll.payrollperiods
-CREATE TABLE payroll.payrollperiods (
-    periodid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    periodname character varying(100) NOT NULL,
-    startdate date NOT NULL,
-    enddate date NOT NULL,
-    paymentdate date,
-    status character varying(20) DEFAULT 'open'::character varying NOT NULL,
-    description text,
-    isactive boolean DEFAULT true,
-    isdeleted boolean DEFAULT false,
-    createdby uuid,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ONLY payroll.payrollperiods
-    ADD CONSTRAINT payrollperiods_pkey PRIMARY KEY (periodid);
-
--- Table: payroll.payslipemaillog
-CREATE TABLE payroll.payslipemaillog (
-    id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    payslipid uuid NOT NULL,
-    organizationid uuid NOT NULL,
-    employeeid uuid NOT NULL,
-    sentat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    sentto character varying(255) NOT NULL,
-    sentby uuid,
-    status character varying(20) DEFAULT 'sent'::character varying,
-    errormessage text,
-    CONSTRAINT payslipemaillog_status_check CHECK (((status)::text = ANY ((ARRAY['sent'::character varying, 'failed'::character varying, 'bounced'::character varying])::text[])))
-);
-
-ALTER TABLE ONLY payroll.payslipemaillog
-    ADD CONSTRAINT payslipemaillog_pkey PRIMARY KEY (id);
-ALTER TABLE ONLY payroll.payslipemaillog
-    ADD CONSTRAINT payslipemaillog_payslipid_fkey FOREIGN KEY (payslipid) REFERENCES payroll.payrolldata(dataid);
-
--- Table: payroll.performancepay
-CREATE TABLE payroll.performancepay (
-    performancepayid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    employeeid uuid NOT NULL,
-    periodid uuid NOT NULL,
-    ruleid uuid,
-    score numeric(5,2),
-    finalamount numeric(15,2) NOT NULL,
-    calculatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ONLY payroll.performancepay
-    ADD CONSTRAINT performancepay_pkey PRIMARY KEY (performancepayid);
-ALTER TABLE ONLY payroll.performancepay
-    ADD CONSTRAINT uqperformancepay UNIQUE (employeeid, periodid);
-ALTER TABLE ONLY payroll.performancepay
-    ADD CONSTRAINT performancepay_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.performancerules(ruleid);
-
--- Table: payroll.performancerules
-CREATE TABLE payroll.performancerules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    rulename character varying(20),
-    description text,
-    minscore numeric(3,2),
-    maxscore numeric(3,2),
-    fixedamount numeric(15,2),
-    percentage numeric(5,2),
-    isactive boolean DEFAULT true,
-    isdeleted boolean DEFAULT false,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
-
-ALTER TABLE ONLY payroll.performancerules
-    ADD CONSTRAINT performancerules_pkey PRIMARY KEY (ruleid);
-ALTER TABLE ONLY payroll.performancerules
-    ADD CONSTRAINT uqperformancebracket UNIQUE (organizationid, rulename);
-
--- Table: payroll.pfrequests
-CREATE TABLE payroll.pfrequests (
-    requestid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    employeeid uuid NOT NULL,
-    ruleid uuid NOT NULL,
-    pfid uuid,
-    requesttype character varying(20) NOT NULL,
-    status character varying(20) DEFAULT 'pending'::character varying,
-    requestedemployeepct numeric(5,2),
-    requestedemployerpct numeric(5,2),
-    withdrawaltype character varying(20),
-    reason character varying(100),
-    requestedamount numeric(15,2),
-    remarks text,
-    rejectionreason text,
-    approvedby uuid,
-    approvedat timestamp with time zone,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pfrequests_requesttype_check CHECK (((requesttype)::text = ANY ((ARRAY['enrollment'::character varying, 'update'::character varying, 'withdrawal'::character varying])::text[]))),
-    CONSTRAINT pfrequests_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying])::text[]))),
-    CONSTRAINT pfrequests_withdrawaltype_check CHECK (((withdrawaltype)::text = ANY ((ARRAY['temporary'::character varying, 'permanent'::character varying])::text[])))
-);
-
-ALTER TABLE ONLY payroll.pfrequests
-    ADD CONSTRAINT pfrequests_pkey PRIMARY KEY (requestid);
-ALTER TABLE ONLY payroll.pfrequests
-    ADD CONSTRAINT pfrequests_pfid_fkey FOREIGN KEY (pfid) REFERENCES payroll.providentfund(pfid);
-ALTER TABLE ONLY payroll.pfrequests
-    ADD CONSTRAINT pfrequests_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.pfrules(ruleid);
-
--- Table: payroll.pfrules
-CREATE TABLE payroll.pfrules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    rulename character varying(100) NOT NULL,
-    description text,
-    defaultemployeepct numeric(5,2) NOT NULL,
-    defaultemployerpct numeric(5,2) NOT NULL,
-    contributionbasis character varying(20) DEFAULT 'basic'::character varying,
-    allowpartialwithdraw boolean DEFAULT false,
-    vestingmonths integer DEFAULT 0,
-    withdrawal_config jsonb,
-    isactive boolean DEFAULT true,
-    isdeleted boolean DEFAULT false,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pfrules_contributionbasis_check CHECK (((contributionbasis)::text = ANY ((ARRAY['basic'::character varying, 'gross'::character varying, 'fixed'::character varying])::text[])))
-);
-
-ALTER TABLE ONLY payroll.pfrules
-    ADD CONSTRAINT pfrules_pkey PRIMARY KEY (ruleid);
-
--- Table: payroll.pftransactions
-CREATE TABLE payroll.pftransactions (
-    transactionid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    employeeid uuid NOT NULL,
-    periodid uuid NOT NULL,
-    pfid uuid NOT NULL,
-    pfrequestid uuid,
-    salarybasisamount numeric(15,2) NOT NULL,
-    employeepct numeric(5,2) NOT NULL,
-    employerpct numeric(5,2) NOT NULL,
-    employeeamount numeric(15,2) NOT NULL,
-    employeramount numeric(15,2) NOT NULL,
-    totalamount numeric(15,2) GENERATED ALWAYS AS ((employeeamount + employeramount)) STORED,
-    runningbalance numeric(15,2) NOT NULL,
-    transactiontype character varying(20) DEFAULT 'monthly'::character varying,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pftransactions_transactiontype_check CHECK (((transactiontype)::text = ANY ((ARRAY['monthly'::character varying, 'profit'::character varying, 'withdrawal'::character varying, 'adjustment'::character varying, 'settlement'::character varying])::text[])))
-);
-
-ALTER TABLE ONLY payroll.pftransactions
-    ADD CONSTRAINT pftransactions_pkey PRIMARY KEY (transactionid);
-ALTER TABLE ONLY payroll.pftransactions
-    ADD CONSTRAINT pftransactions_pfid_fkey FOREIGN KEY (pfid) REFERENCES payroll.providentfund(pfid);
-ALTER TABLE ONLY payroll.pftransactions
-    ADD CONSTRAINT pftransactions_pfrequestid_fkey FOREIGN KEY (pfrequestid) REFERENCES payroll.pfrequests(requestid);
-
--- Table: payroll.providentfund
-CREATE TABLE payroll.providentfund (
-    pfid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    organizationid uuid NOT NULL,
-    employeeid uuid NOT NULL,
-    ruleid uuid NOT NULL,
-    employeepct numeric(5,2) NOT NULL,
-    employerpct numeric(5,2) NOT NULL,
-    pfstatus character varying(20) DEFAULT 'pending'::character varying,
-    effectivefrom date NOT NULL,
-    isactive boolean DEFAULT true,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT providentfund_pfstatus_check CHECK (((pfstatus)::text = ANY ((ARRAY['active'::character varying, 'closed'::character varying, 'pending'::character varying])::text[])))
-);
-
-ALTER TABLE ONLY payroll.providentfund
-    ADD CONSTRAINT providentfund_pkey PRIMARY KEY (pfid);
-ALTER TABLE ONLY payroll.providentfund
-    ADD CONSTRAINT uq_pf_employee UNIQUE (organizationid, employeeid);
-ALTER TABLE ONLY payroll.providentfund
-    ADD CONSTRAINT providentfund_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.pfrules(ruleid);
 
 -- Table: payroll.salaryadvance
-CREATE TABLE payroll.salaryadvance (
-    advanceid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
+
+-- DROP TABLE IF EXISTS payroll.salaryadvance;
+
+CREATE TABLE IF NOT EXISTS payroll.salaryadvance
+(
+    advanceid uuid NOT NULL DEFAULT uuid_generate_v4(),
     organizationid uuid NOT NULL,
     employeeid uuid NOT NULL,
     ruleid uuid,
     amount numeric(15,2) NOT NULL,
-    reason text,
-    advancestatus character varying(20) DEFAULT 'pending'::character varying,
+    reason text COLLATE pg_catalog."default",
+    advancestatus character varying(20) COLLATE pg_catalog."default" DEFAULT 'pending'::character varying,
     approvedby uuid,
     approvedat timestamp with time zone,
     rejectedby uuid,
     rejectedat timestamp with time zone,
-    rejectionreason text,
+    rejectionreason text COLLATE pg_catalog."default",
     deductedperiodid uuid,
     deductedat timestamp with time zone,
     createdby uuid,
@@ -2213,30 +2225,357 @@ CREATE TABLE payroll.salaryadvance (
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     disbursedby uuid,
     disbursedat timestamp with time zone,
-    disbursementnote text,
-    CONSTRAINT salaryadvance_advancestatus_check CHECK (((advancestatus)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'disbursed'::character varying, 'rejected'::character varying, 'deducted'::character varying, 'cancelled'::character varying])::text[])))
+    disbursementnote text COLLATE pg_catalog."default",
+    CONSTRAINT salaryadvance_pkey PRIMARY KEY (advanceid),
+    CONSTRAINT salaryadvance_ruleid_fkey FOREIGN KEY (ruleid)
+        REFERENCES payroll.salaryadvancerules (ruleid) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION,
+    CONSTRAINT salaryadvance_advancestatus_check CHECK (advancestatus::text = ANY (ARRAY['pending'::character varying::text, 'approved'::character varying::text, 'disbursed'::character varying::text, 'rejected'::character varying::text, 'deducted'::character varying::text, 'cancelled'::character varying::text]))
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS payroll.salaryadvance
+    OWNER to postgres; -- advance salary
+
+// pf rules
+create table if not exists payroll.pfrules(
+    ruleid                  uuid primary key default uuid_generate_v4(),
+    organizationid          uuid not null,
+    rulename                varchar(100) not null,
+    description             text,
+
+    defaultemployeepct      numeric(5,2) not null,
+    defaultemployerpct      numeric(5,2) not null,
+
+    contributionbasis       varchar(20) default 'basic'
+                            check (contributionbasis in ('basic', 'gross', 'fixed')),
+
+    allowpartialwithdraw    boolean default false,
+    vestingmonths           int default 0,
+    
+    -- The JSON object defining withdrawal rules (e.g., Medical = 50% max)
+    withdrawal_config       jsonb, 
+
+    isactive                boolean default true,
+    isdeleted               boolean default false,
+
+    createdat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp
 );
 
-ALTER TABLE ONLY payroll.salaryadvance
-    ADD CONSTRAINT salaryadvance_pkey PRIMARY KEY (advanceid);
-ALTER TABLE ONLY payroll.salaryadvance
-    ADD CONSTRAINT salaryadvance_ruleid_fkey FOREIGN KEY (ruleid) REFERENCES payroll.salaryadvancerules(ruleid);
+create table if not exists payroll.providentfund(
+    pfid                    uuid primary key default uuid_generate_v4(),
+    organizationid          uuid not null,
+    employeeid              uuid not null,
+    ruleid                  uuid not null references payroll.pfrules(ruleid),
 
--- Table: payroll.salaryadvancerules
-CREATE TABLE payroll.salaryadvancerules (
-    ruleid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
-    rulename character varying(100) NOT NULL,
-    description text,
+    employeepct             numeric(5,2) not null,
+    employerpct             numeric(5,2) not null,
+
+    pfstatus                varchar(20) default 'pending'
+                            check (pfstatus in ('active', 'closed','pending')),
+
+    effectivefrom           date not null,
+    
+    isactive                boolean default true,
+    createdat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp,
+
+    constraint uq_pf_employee unique (organizationid, employeeid)
+);
+
+create table if not exists payroll.pfrequests(
+    requestid               uuid primary key default uuid_generate_v4(),
+    organizationid          uuid not null,
+    employeeid              uuid not null,
+    ruleid                  uuid not null references payroll.pfrules(ruleid),
+    
+    -- NULLABLE: Because an 'enrollment' request happens before the PF account exists!
+    pfid                    uuid references payroll.providentfund(pfid),
+    
+    -- CORE REQUEST ROUTING
+    requesttype             varchar(20) not null 
+                            check (requesttype in ('enrollment', 'update', 'withdrawal')),
+    
+    status                  varchar(20) default 'pending'
+                            check (status in ('pending', 'approved', 'rejected')),
+
+    -- 1. ENROLLMENT & UPDATE SPECIFIC FIELDS
+    requestedemployeepct    numeric(5,2), 
+    requestedemployerpct    numeric(5,2),
+
+    -- 2. WITHDRAWAL SPECIFIC FIELDS
+    withdrawaltype          varchar(20) 
+                            check (withdrawaltype in ('temporary', 'permanent')),
+    reason                  varchar(100), 
+    requestedamount         numeric(15,2),
+                            
+    -- 3. AUDIT & ADMIN FIELDS
+    remarks                 text,
+    rejectionreason         text,
+    
+    approvedby              uuid,
+    approvedat              timestamptz,
+    
+    createdat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp
+);
+
+create table if not exists payroll.pftransactions(
+    transactionid           uuid primary key default uuid_generate_v4(),
+    organizationid          uuid not null,
+    employeeid              uuid not null,
+    periodid                uuid not null,
+    pfid                    uuid not null references payroll.providentfund(pfid),
+    
+    -- Links the transaction back to the approved request (NULL for regular monthly payroll)
+    pfrequestid             uuid references payroll.pfrequests(requestid),
+
+    salarybasisamount       numeric(15,2) not null,
+    employeepct             numeric(5,2) not null,
+    employerpct             numeric(5,2) not null,
+
+    employeeamount          numeric(15,2) not null,
+    employeramount          numeric(15,2) not null,
+
+    totalamount             numeric(15,2) generated always as (employeeamount + employeramount) stored,
+
+    runningbalance          numeric(15,2) not null,
+
+    transactiontype         varchar(20) default 'monthly'
+                            check (transactiontype in ('monthly', 'profit', 'withdrawal', 'adjustment', 'settlement')),
+
+    createdat               timestamptz default current_timestamp,
+    updatedat               timestamptz default current_timestamp
+); // pf rules
+
+// tax slabs 
+-- 1. Handles Yearly/Fiscal updates per country and per organization
+CREATE TABLE payroll.taxregimes
+(
+    regimeid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,           -- Identifies which company owns this tax setup
+    country VARCHAR(50),                    -- Target country (e.g., Pakistan, UAE)
+    regimename VARCHAR(100),                -- Display name (e.g., Finance Act 2024)
+    startdate DATE NOT NULL,                -- Start of fiscal year
+    enddate DATE NOT NULL,                  -- End of fiscal year
+    isactive BOOLEAN DEFAULT TRUE,          -- Toggle to enable/disable this regime
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    isdeleted BOOLEAN DEFAULT FALSE
+);
+
+-- 2. Handles different tax statuses (Linked to Regime)
+CREATE TABLE payroll.taxcategories
+(
+    categoryid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    regimeid uuid NOT NULL,                 -- Link to the specific fiscal year/country
+    categoryname VARCHAR(100),              -- e.g., Salaried, Non-Salaried, Filer
+    isactive BOOLEAN DEFAULT TRUE,          -- Toggle for this specific category
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    isdeleted BOOLEAN DEFAULT FALSE
+);
+
+-- 3. Refined Slabs (Linked to Category)
+CREATE TABLE payroll.taxslabs
+(
+    slabid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    categoryid uuid NOT NULL,               -- Link to category (e.g., Salaried slabs)
+    slaborder INT NOT NULL,                 -- Order of calculation (1, 2, 3...)
+    minincome NUMERIC(15,2) NOT NULL,       -- The "Floor" of the tax bucket
+    maxincome NUMERIC(15,2),                -- The "Ceiling" (NULL means infinity)
+    fixedamount NUMERIC(15,2) DEFAULT 0,    -- The tax accumulated from previous buckets
+    percentage NUMERIC(5,2) DEFAULT 0,      -- Tax rate for amount exceeding minincome
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    isdeleted BOOLEAN DEFAULT FALSE
+);
+
+-- 4. Component Mapping (How Loans, PF, Gratuity affect tax per company)
+CREATE TABLE payroll.taxcomponentrules
+(
+    componentruleid uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    regimeid uuid NOT NULL,                 -- Link to specific country/year
+    organizationid uuid NOT NULL,           -- Company specific rules for PF/Gratuity
+    componentname VARCHAR(50),              -- Name of your module (Loan, PF, Gratuity)
+    taxability VARCHAR(20),                 -- FullyTaxable, Exempt, PartiallyExempt
+    limitamount NUMERIC(15,2) DEFAULT 0,    -- Fixed tax-free limit (e.g., 300,000)
+    limitpercentage NUMERIC(5,2) DEFAULT 0, -- % tax-free limit (e.g., 10% of basic)
+    applystage VARCHAR(20),                 -- BeforeTax (Income filter) or AfterTax (Rebate)
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    isdeleted BOOLEAN DEFAULT FALSE,
+    CONSTRAINT unique_applystage UNIQUE (applystage)
+);
+
+-- 5. Final Transactions (The actual payroll record)
+CREATE TABLE payroll.taxtransactions
+(
+    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
+    organizationid uuid NOT NULL,           -- For fast filtering per company
+    employeeid uuid NOT NULL,               -- The person being taxed
+    periodid uuid NOT NULL,                 -- The specific Payroll Month ID
+    categoryid uuid,                        -- The category used (Salaried/Filer etc)
+    grossincome NUMERIC(15,2),              -- Total earnings before any logic
+    taxableincome NUMERIC(15,2),            -- Income after passing through componentrules
+    taxamount NUMERIC(15,2),                -- Total tax for the whole year
+    monthlytax NUMERIC(15,2),               -- Final deduction for this month (taxamount / 12)
+    createdat TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+
+
+// gratuity
+create table if not exists payroll.gratuityconfig
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    configrulename      varchar(100) not null,
+    description         text,
+    yearsrequired       integer not null default 5,    -- whole years only (e.g. 5, not 4.5)
+    calculationtype     varchar(50) not null
+                        check (calculationtype in ('fixed', 'peryear', 'percentage')),
+    calculationvalue    numeric(15,2) not null,        -- fixed: was numeric(10,2), consistent with all payroll financial fields
+    isactive            boolean default true,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp,
+    constraint uqgratuityconfig unique (organizationid, configrulename)
+);
+
+create table if not exists payroll.gratuitytransactions
+(
+    id                  uuid primary key default uuid_generate_v4(),
+    organizationid      uuid not null,
+    employeeid          uuid not null,
+    -- Nullable to allow off-cycle/manual settlement, similar to loanpayments.periodid
+    periodid            uuid,
+    configid            uuid not null references payroll.gratuityconfig(id),  -- NOT NULL: policy selection is mandatory
+    yearsworked         numeric(5,2) not null,          -- fixed: was numeric(4,2), allows up to 999.99 years
+    lastsalary          numeric(15,2),
+    totalamount         numeric(15,2) not null,
+    paymentstatus       varchar(20) default 'calculated'
+                        check (paymentstatus in ('calculated', 'approved', 'paid', 'cancelled')),
+    paymentmethod       varchar(50) default 'payroll_credit', -- 'payroll_credit', 'bank_transfer', 'cash'
+    approvedby          uuid,
+    approvedat          timestamptz,
+    paidat              timestamptz,
+    paidby              uuid,                           -- who disbursed/marked as paid
+    cancellationreason  text,                          -- reason if cancelled (mirrors loan/advance pattern)
+    notes               text,
+    createdby           uuid,
+    isdeleted           boolean default false,
+    createdat           timestamptz default current_timestamp,
+    updatedat           timestamptz default current_timestamp
+    -- NOTE: unique constraint replaced by partial index below to support soft-delete + rehire scenarios
+);
+
+-- Partial unique index: allows a new gratuity record after soft-delete (rehire/correction scenario)
+-- A hard constraint on (employeeid, organizationid) would block re-creation even after isdeleted = true
+create unique index if not exists uq_gratuitytransaction_active
+    on payroll.gratuitytransactions (employeeid, organizationid)
+    where isdeleted = false;
+// gratuity
+
+
+// payrolldata 
+CREATE TABLE payroll.payrollresults (
+    resultid uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     organizationid uuid NOT NULL,
-    maxpercentage numeric(5,2),
-    isactive boolean DEFAULT true,
-    isdeleted boolean DEFAULT false,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    employeeid uuid NOT NULL,
+    periodid uuid NOT NULL,
+    basicsalary numeric(15,2) DEFAULT 0 NOT NULL,
+    totaldeductions numeric(15,2) DEFAULT 0 NOT NULL,
+    totalbonuses numeric(15,2) DEFAULT 0 NOT NULL,
+    netsalary numeric(15,2) DEFAULT 0 NOT NULL,
+    loandeductions jsonb DEFAULT '[]'::jsonb,
+    salaryadvancedeductions jsonb DEFAULT '[]'::jsonb,
+    pfdeductions jsonb DEFAULT '[]'::jsonb,
+    taxdeductions jsonb DEFAULT '[]'::jsonb,
+    attendancedeductions jsonb DEFAULT '[]'::jsonb,
+    lateattendancedeductions jsonb DEFAULT '[]'::jsonb,
+    leavedeductions jsonb DEFAULT '[]'::jsonb,
+    performancebonuses jsonb DEFAULT '[]'::jsonb,
+    generalbonuses jsonb DEFAULT '[]'::jsonb,
+    gratuity jsonb DEFAULT '[]'::jsonb,
+    overtimedetails jsonb DEFAULT '[]'::jsonb,
+    socialsecuritydeductions jsonb DEFAULT '[]'::jsonb,
+    calculatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+ALTER TABLE ONLY payroll.payrollresults
+    ADD CONSTRAINT payrollresults_pkey PRIMARY KEY (resultid);
+ALTER TABLE ONLY payroll.payrollresults
+    ADD CONSTRAINT uq_payrollresults UNIQUE (organizationid, employeeid, periodid);
+ALTER TABLE ONLY payroll.payrollresults
+    ADD CONSTRAINT fk_payrollresults_emp FOREIGN KEY (employeeid) REFERENCES employee.employees(employeeid) ON DELETE CASCADE;
+
+// payslips
+create table if not exists payroll.payslips
+(
+    payslipid       uuid primary key default uuid_generate_v4(),
+    resultid        uuid not null references payroll.payrollresults(resultid),
+    payslipurl      text, 
+    payslipuploadurl text,
+    organizationid  uuid not null,
+    employeeid      uuid not null,
+    mailsentat      timestamptz,
+    mailsentby      uuid,
+    mailsentstatus  varchar(20) default 'pending'
+                    check (mailsentstatus in ('pending','sent', 'failed', 'bounced'))
+); // payslipemaillog
+
+-- Payslip layout catalog (master list of available PDF layout styles)
+CREATE TABLE IF NOT EXISTS payroll.payslipLayoutCatalog (
+    layoutKey         varchar(50) PRIMARY KEY,
+    displayName       varchar(100) NOT NULL,
+    description       text,
+    previewImageUrl   varchar(500),
+    configSchema      jsonb NOT NULL DEFAULT '{}'::jsonb,
+    defaultConfig     jsonb NOT NULL DEFAULT '{}'::jsonb,
+    rendererKey       varchar(100) NOT NULL,
+    isActive          boolean NOT NULL DEFAULT true,
+    sortOrder         int NOT NULL DEFAULT 0,
+    createdAt         timestamptz DEFAULT CURRENT_TIMESTAMP,
+    updatedAt         timestamptz DEFAULT CURRENT_TIMESTAMP
 );
 
-ALTER TABLE ONLY payroll.salaryadvancerules
-    ADD CONSTRAINT salaryadvancerules_pkey PRIMARY KEY (ruleid);
+INSERT INTO payroll.paysliplayoutcatalog (layoutkey, displayname, description, rendererkey, sortorder)
+VALUES
+    ('classic_stacked', 'Classic stacked', 'Traditional payslip with stacked sections: employee details, earnings, deductions, and net pay.', 'classic_stacked', 1),
+    ('split_columns', 'Split columns', 'Side-by-side earnings and deductions columns for easier comparison.', 'split_columns', 2),
+    ('compact_corporate', 'Compact corporate', 'Summary strip with gross, deductions, and net pay plus compact line items.', 'compact_corporate', 3)
+ON CONFLICT (layoutkey) DO NOTHING;
+
+-- Payslip template configuration (one active template per organization)
+CREATE TABLE IF NOT EXISTS payroll.payslipTemplates (
+    templateId                 uuid PRIMARY KEY DEFAULT public.uuid_generate_v4(),
+    organizationId             uuid NOT NULL REFERENCES auth.organizations(organizationid) ON DELETE CASCADE,
+    name                       varchar(100) NOT NULL DEFAULT 'Default',
+    isActive                   boolean NOT NULL DEFAULT true,
+    layoutKey                  varchar(50) NOT NULL DEFAULT 'classic_stacked'
+                               REFERENCES payroll.paysliplayoutcatalog(layoutkey),
+    layoutConfig               jsonb NOT NULL DEFAULT '{}'::jsonb,
+    logoUrl                    varchar(500),
+    headerTitle                varchar(150) DEFAULT 'SALARY SLIP',
+    headerSubtitle             varchar(255),
+    companyAddress             text,
+    footerText                 text,
+    primaryColor               varchar(7) DEFAULT '#1E3A5F',
+    accentColor                varchar(7) DEFAULT '#DBEAFE',
+    sectionTitleColor          varchar(7) DEFAULT '#E2E8F0',
+    showGeneratedAt            boolean DEFAULT true,
+    showPayrollCalculatedAt    boolean DEFAULT true,
+    fieldConfig                jsonb NOT NULL DEFAULT '{}'::jsonb,
+    createdAt                  timestamptz DEFAULT CURRENT_TIMESTAMP,
+    updatedAt                  timestamptz DEFAULT CURRENT_TIMESTAMP,
+    createdBy                  uuid,
+    updatedBy                  uuid
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_payslipTemplatesOrgActive
+    ON payroll.payslipTemplates (organizationId)
+    WHERE isActive = true;
+
+CREATE INDEX IF NOT EXISTS idx_payslipTemplatesOrg
+    ON payroll.payslipTemplates (organizationId);
 
     // Social security
 

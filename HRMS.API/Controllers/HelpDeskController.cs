@@ -1,4 +1,5 @@
-﻿using HRMS.API.Models.DTOs;
+﻿using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -26,6 +27,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPost("create-ticket")]
+        [PermissionAuthorize("Create_Ticket_Button")]
+
         public async Task<ActionResult<ServiceResponse<TicketDto>>> CreateTicket([FromBody] TicketRequest ticketRequest)
         {
             try
@@ -273,6 +276,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpDelete("delete-ticket/{ticketId}")]
+        [PermissionAuthorize("Ticket_Delete_Button")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> DeleteTicket(Guid ticketId)
         {
             try
@@ -312,6 +317,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPost("create-group")]
+        [PermissionAuthorize("Create_AgentGroup_Button")]
+
         public async Task<ActionResult<ServiceResponse<TicketGroupDto>>> CreateGroup([FromBody] CreateTicketGroupRequest request)
         {
             try
@@ -345,6 +352,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPut("update-group")]
+        [PermissionAuthorize("EDIT_AGENTGROUP_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> UpdateGroup([FromBody] UpdateTicketGroupRequest request)
         {
             try
@@ -451,6 +460,8 @@ namespace HRMS.API.Controllers
         }
         //Delete Group
         [HttpDelete("delete-group/{groupId}")]
+        [PermissionAuthorize("DELETE_AGENTGROUP_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> DeleteGroup(Guid groupId)
         {
             try
@@ -631,6 +642,8 @@ namespace HRMS.API.Controllers
 
 
         [HttpPost("create-category")]
+        [PermissionAuthorize("CREATE_TICKETCATEGORY_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> CreateCategory([FromBody] CreateCategoryRequest request)
         {
             try
@@ -697,6 +710,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPut("update-category")]
+        [PermissionAuthorize("EDIT_TICKETCategory_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> UpdateCategory([FromBody] UpdateCategoryRequest request)
         {
             try
@@ -735,6 +750,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpDelete("delete-category/{categoryId}")]
+        [PermissionAuthorize("DELETE_TICKETCateogry_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> DeleteCategory(Guid categoryId)
         {
             try

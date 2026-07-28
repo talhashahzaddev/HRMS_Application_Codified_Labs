@@ -1,3 +1,4 @@
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Services.Interfaces;
@@ -22,6 +23,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpGet]
+    [PermissionAuthorize("assets_show")]
     public async Task<ActionResult<ServiceResponse<List<AssetDto>>>> GetAssets([FromQuery] AssetSearchViewModel searchModel)
     {
         try
@@ -81,7 +83,8 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("assets_create")]
+
     public async Task<ActionResult<ServiceResponse<AssetDto>>> CreateAsset([FromBody] CreateAssetRequest request)
     {
         try
@@ -119,7 +122,8 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("assets_edit")]
+
     public async Task<ActionResult<ServiceResponse<AssetDto>>> UpdateAsset(Guid id, [FromBody] UpdateAssetRequest request)
     {
         try
@@ -168,7 +172,6 @@ public class AssetsController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAsset(Guid id)
     {
         try
@@ -265,7 +268,8 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPost("asset-types")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("type_of_asset_Craete")]
+
     public async Task<ActionResult<ServiceResponse<AssetTypeDto>>> CreateAssetType([FromBody] CreateAssetTypeRequest request)
     {
         try
@@ -303,7 +307,8 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPut("asset-types/{id:guid}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("type_of_asset_edit")]
+
     public async Task<ActionResult<ServiceResponse<AssetTypeDto>>> UpdateAssetType(Guid id, [FromBody] UpdateAssetTypeRequest request)
     {
         try
@@ -352,7 +357,7 @@ public class AssetsController : ControllerBase
     }
 
     [HttpDelete("asset-types/{id:guid}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("type_of_asset_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAssetType(Guid id)
     {
         try
@@ -390,7 +395,8 @@ public class AssetsController : ControllerBase
 
     // Asset assignments endpoints (moved from AssetAssignmentsController)
     [HttpPost("asset-assignments/assign")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("assets_assign")]
+
     public async Task<ActionResult<ServiceResponse<AssetAssignmentDto>>> AssignAsset([FromBody] AssignAssetRequest request)
     {
         try
@@ -428,7 +434,8 @@ public class AssetsController : ControllerBase
     }
 
     [HttpPost("asset-assignments/return")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("assets_return")]
+
     public async Task<ActionResult<ServiceResponse<AssetAssignmentDto>>> ReturnAsset([FromBody] ReturnAssetRequest request)
     {
         try

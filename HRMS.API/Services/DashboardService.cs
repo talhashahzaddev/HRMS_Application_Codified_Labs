@@ -1,230 +1,188 @@
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using Microsoft.Extensions.Logging;
 
 namespace HRMS.API.Services;
 
 public class DashboardService : IDashboardService
 {
     private readonly IDashboardRepository _dashboardRepository;
+    private readonly IAttendanceService   _attendanceService;   // used to resolve userId → employeeId
     private readonly ILogger<DashboardService> _logger;
 
     public DashboardService(
         IDashboardRepository dashboardRepository,
+        IAttendanceService   attendanceService,
         ILogger<DashboardService> logger)
     {
         _dashboardRepository = dashboardRepository;
-        _logger = logger;
+        _attendanceService   = attendanceService;
+        _logger              = logger;
     }
 
-    public async Task<DashboardStatsDto> GetDashboardStatsAsync(Guid organizationId)
+    /// <summary>
+    /// Aggregates all personal dashboard widgets for the logged-in employee.
+    /// All sub-queries run in parallel via Task.WhenAll for maximum performance.
+    /// </summary>
+    public async Task<EmployeeOverviewDto> GetEmployeeOverviewAsync(Guid userId, Guid organizationId)
     {
-        if (organizationId == Guid.Empty)
+        try
         {
-            _logger.LogWarning("Invalid organizationId for GetDashboardStatsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
+            // Resolve the employee row id from the users table (same pattern used across all controllers)
+            var employeeId = await _attendanceService.GetEmployeeFromTable(userId);
+
+            var currentYear = DateTime.UtcNow.Year;
+
+            // ── Fire all queries in parallel ──────────────────────────────────────
+            var leaveTask = _dashboardRepository.GetLeaveBalancesAsync(employeeId, organizationId, currentYear);
+            var payslipTask = _dashboardRepository.GetLatestPayslipAsync(employeeId, organizationId);
+            var activeLoansTask = _dashboardRepository.GetActiveLoansAsync(employeeId, organizationId);
+            var advancesTask = _dashboardRepository.GetDisbursedAdvancesAsync(employeeId, organizationId);
+            var pendingLeaveTask = _dashboardRepository.GetPendingLeaveRequestsAsync(employeeId);
+            var pendingShiftTask = _dashboardRepository.GetPendingShiftSwapRequestsAsync(employeeId);
+            var pendingOtTask = _dashboardRepository.GetPendingOvertimeRequestsAsync(employeeId, organizationId);
+            var pendingAdvTask = _dashboardRepository.GetPendingSalaryAdvanceRequestsAsync(employeeId, organizationId);
+            var pendingLoanTask = _dashboardRepository.GetPendingLoanRequestsAsync(employeeId, organizationId);
+            var pendingPfTask = _dashboardRepository.GetPendingPfRequestsAsync(employeeId, organizationId);
+
+            await Task.WhenAll(
+                leaveTask, payslipTask,
+                activeLoansTask, advancesTask,
+                pendingLeaveTask, pendingShiftTask,
+                pendingOtTask, pendingAdvTask,
+                pendingLoanTask, pendingPfTask);
+            // ── Leave balance summary ────────────────────────────────────────────
+            var leaveTypes = await leaveTask;
+            var leaveBalanceSummary = new LeaveBalanceSummaryDto
+            {
+                TotalRemainingDays = leaveTypes.Sum(l => l.RemainingDays),
+                ByType = leaveTypes
+            };
+
+            // ── Financial snapshot ────────────────────────────────────────────────
+            var payslip = await payslipTask ?? new FinancialSnapshotDto { IsPayslipAvailable = false };
+
+            // ── Active loans & advances ──────────────────────────────────────────
+            var activeLoans = await activeLoansTask;
+            var activeAdvances = await advancesTask;
+
+            var activeLoansAdvances = new ActiveLoansAdvancesDto
+            {
+                TotalRemainingLoanAmount = activeLoans.Sum(l => l.RemainingAmount),
+                TotalRemainingAdvanceAmount = activeAdvances.Sum(a => a.Amount),
+                ActiveLoans = activeLoans,
+                ActiveAdvances = activeAdvances
+            };
+
+            // ── Merge all pending requests, sorted newest first ───────────────────
+            var allPending = new List<PendingRequestSummaryDto>();
+            allPending.AddRange(await pendingLeaveTask);
+            allPending.AddRange(await pendingShiftTask);
+            allPending.AddRange(await pendingOtTask);
+            allPending.AddRange(await pendingAdvTask);
+            allPending.AddRange(await pendingLoanTask);
+            allPending.AddRange(await pendingPfTask);
+            allPending = allPending.OrderByDescending(r => r.SubmittedAt).ToList();
+
+            return new EmployeeOverviewDto
+            {
+                LeaveBalances = leaveBalanceSummary,
+                FinancialSnapshot = payslip,
+                ActiveLoansAndAdvances = activeLoansAdvances,
+                PendingRequests = allPending
+            };
+
         }
-        return await _dashboardRepository.GetDashboardStatsAsync(organizationId);
+        catch (Exception ex)
+        {
+            throw;
+        }
     }
 
-    public async Task<List<RecentActivityDto>> GetRecentActivitiesAsync(Guid organizationId, int count = 10)
+    public async Task<ManagerOverviewDto> GetManagerOverviewAsync(Guid userId, Guid organizationId)
     {
-        if (organizationId == Guid.Empty)
+        try
         {
-            _logger.LogWarning("Invalid organizationId for GetRecentActivitiesAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
+            var managerId = await _attendanceService.GetEmployeeFromTable(userId);
+            var today = DateTime.UtcNow.Date;
+
+            // Start all tasks concurrently
+            var snapshotTask = _dashboardRepository.GetTeamAttendanceSnapshotAsync(managerId, organizationId, today);
+            var overtimeTask = _dashboardRepository.GetTeamOvertimeCountTodayAsync(managerId, organizationId, today);
+            var actionsTask = _dashboardRepository.GetPendingManagerActionsAsync(managerId, organizationId);
+
+            await Task.WhenAll(snapshotTask, overtimeTask, actionsTask);
+
+            return new ManagerOverviewDto
+            {
+                TeamAttendanceSnapshot = await snapshotTask,
+                TeamOvertimeCountToday = await overtimeTask,
+                PendingActions = await actionsTask
+            };
         }
-        if (count <= 0 || count > 100)
+        catch (Exception)
         {
-            _logger.LogWarning("Invalid count {Count} for GetRecentActivitiesAsync", count);
-            throw new ArgumentException("Count must be between 1 and 100", nameof(count));
+            throw;
         }
-        return await _dashboardRepository.GetRecentActivitiesAsync(organizationId, count);
     }
 
-    public async Task<DashboardSummaryDto> GetDashboardSummaryAsync(Guid organizationId)
+    public async Task<HrOverviewDto> GetHrOverviewAsync(Guid organizationId)
     {
-        if (organizationId == Guid.Empty)
+        try
         {
-            _logger.LogWarning("Invalid organizationId for GetDashboardSummaryAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
+            var payrollRunTask = _dashboardRepository.GetLatestPayrollRunStatusAsync(organizationId);
+            var outflowTask = _dashboardRepository.GetLatestPayrollOutflowAsync(organizationId);
+            var workforceTask = _dashboardRepository.GetWorkforceMetricsAsync(organizationId);
+
+            await Task.WhenAll(payrollRunTask, outflowTask, workforceTask);
+
+            return new HrOverviewDto
+            {
+                LatestPayrollRun = await payrollRunTask,
+                TotalPayrollOutflow = await outflowTask,
+                WorkforceMetrics = await workforceTask
+            };
         }
-        return await _dashboardRepository.GetDashboardSummaryAsync(organizationId);
+        catch (Exception)
+        {
+            throw;
+        }
     }
 
-    public async Task<AttendanceStatsDto> GetAttendanceStatsAsync(Guid organizationId, string period = "month")
+    public async Task<HrStatsDto> GetHrStatsAsync(Guid organizationId)
     {
-        if (organizationId == Guid.Empty)
+        try
         {
-            _logger.LogWarning("Invalid organizationId for GetAttendanceStatsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
+            var demographicsTask = _dashboardRepository.GetWorkforceDemographicsAsync(organizationId);
+            var payrollTask = _dashboardRepository.GetLast3PayrollOutflowAsync(organizationId);
+            var expensesTask = _dashboardRepository.GetLast3MonthsExpensesAsync(organizationId);
+
+            await Task.WhenAll(demographicsTask, payrollTask, expensesTask);
+
+            return new HrStatsDto
+            {
+                Demographics = await demographicsTask,
+                PayrollOutflow = await payrollTask,
+                MonthlyExpenses = await expensesTask
+            };
         }
-        if (!IsValidStatsPeriod(period))
+        catch (Exception)
         {
-            _logger.LogWarning("Invalid period {Period} for GetAttendanceStatsAsync", period);
-            throw new ArgumentException("Invalid period. Allowed values: week, month, quarter, year", nameof(period));
+            throw;
         }
-        return await _dashboardRepository.GetAttendanceStatsAsync(organizationId, period);
     }
 
-    public async Task<LeaveStatsDto> GetLeaveStatsAsync(Guid organizationId, string period = "month")
+    public async Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId)
     {
-        if (organizationId == Guid.Empty)
+        try
         {
-            _logger.LogWarning("Invalid organizationId for GetLeaveStatsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
+            return await _dashboardRepository.GetLatestHiresAsync(organizationId);
         }
-        if (!IsValidStatsPeriod(period))
+        catch (Exception ex)
         {
-            _logger.LogWarning("Invalid period {Period} for GetLeaveStatsAsync", period);
-            throw new ArgumentException("Invalid period. Allowed values: week, month, quarter, year", nameof(period));
+            _logger.LogError(ex, "Error fetching latest hires");
+            throw;
         }
-        return await _dashboardRepository.GetLeaveStatsAsync(organizationId, period);
-    }
-
-    public async Task<PerformanceStatsDto> GetPerformanceStatsAsync(Guid organizationId)
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetPerformanceStatsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        return await _dashboardRepository.GetPerformanceStatsAsync(organizationId);
-    }
-
-    public async Task<EmployeeGrowthDto> GetEmployeeGrowthAsync(Guid organizationId, string period = "12m")
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetEmployeeGrowthAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        if (!IsValidGrowthPeriod(period))
-        {
-            _logger.LogWarning("Invalid period {Period} for GetEmployeeGrowthAsync", period);
-            throw new ArgumentException("Invalid period. Allowed values: 3m, 6m, 12m, 24m", nameof(period));
-        }
-        return await _dashboardRepository.GetEmployeeGrowthAsync(organizationId, period);
-    }
-
-    public async Task<List<DepartmentStatsDto>> GetDepartmentStatsAsync(Guid organizationId)
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetDepartmentStatsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        return await _dashboardRepository.GetDepartmentStatsAsync(organizationId);
-    }
-
-    public async Task<List<UpcomingEventDto>> GetUpcomingEventsAsync(Guid organizationId, int count = 5)
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetUpcomingEventsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        if (count <= 0 || count > 100)
-        {
-            _logger.LogWarning("Invalid count {Count} for GetUpcomingEventsAsync", count);
-            throw new ArgumentException("Count must be between 1 and 100", nameof(count));
-        }
-        return await _dashboardRepository.GetUpcomingEventsAsync(organizationId, count);
-    }
-
-    public async Task<object> GetAttendanceTrendsAsync(Guid organizationId, string period = "30d")
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetAttendanceTrendsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        if (!IsValidTrendPeriod(period))
-        {
-            _logger.LogWarning("Invalid period {Period} for GetAttendanceTrendsAsync", period);
-            throw new ArgumentException("Invalid period. Allowed values: 7d, 30d, 90d", nameof(period));
-        }
-        return await _dashboardRepository.GetAttendanceTrendsAsync(organizationId, period);
-    }
-
-    public async Task<object> GetLeaveTrendsAsync(Guid organizationId, string period = "12m")
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetLeaveTrendsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        if (!IsValidGrowthPeriod(period))
-        {
-            _logger.LogWarning("Invalid period {Period} for GetLeaveTrendsAsync", period);
-            throw new ArgumentException("Invalid period. Allowed values: 3m, 6m, 12m, 24m", nameof(period));
-        }
-        return await _dashboardRepository.GetLeaveTrendsAsync(organizationId, period);
-    }
-
-    public async Task<List<object>> GetTopPerformersAsync(Guid organizationId, int limit = 5)
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetTopPerformersAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        if (limit <= 0 || limit > 100)
-        {
-            _logger.LogWarning("Invalid limit {Limit} for GetTopPerformersAsync", limit);
-            throw new ArgumentException("Limit must be between 1 and 100", nameof(limit));
-        }
-        return await _dashboardRepository.GetTopPerformersAsync(organizationId, limit);
-    }
-
-    public async Task<object> GetRemindersAsync(Guid organizationId)
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetRemindersAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        return await _dashboardRepository.GetRemindersAsync(organizationId);
-    }
-
-    public async Task<object> GetQuickStatsAsync(Guid organizationId)
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetQuickStatsAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        return await _dashboardRepository.GetQuickStatsAsync(organizationId);
-    }
-
-    public async Task<OnboardingStatusDto> GetOnboardingStatusAsync(Guid organizationId)
-    {
-        if (organizationId == Guid.Empty)
-        {
-            _logger.LogWarning("Invalid organizationId for GetOnboardingStatusAsync");
-            throw new ArgumentException("Organization ID is required", nameof(organizationId));
-        }
-        return await _dashboardRepository.GetOnboardingStatusAsync(organizationId);
-    }
-
-    private static bool IsValidStatsPeriod(string? period)
-    {
-        if (string.IsNullOrWhiteSpace(period)) return false;
-        var p = period.Trim().ToLowerInvariant();
-        return p is "week" or "month" or "quarter" or "year";
-    }
-
-    private static bool IsValidGrowthPeriod(string? period)
-    {
-        if (string.IsNullOrWhiteSpace(period)) return false;
-        var p = period.Trim().ToLowerInvariant();
-        return p is "3m" or "6m" or "12m" or "24m";
-    }
-
-    private static bool IsValidTrendPeriod(string? period)
-    {
-        if (string.IsNullOrWhiteSpace(period)) return false;
-        var p = period.Trim().ToLowerInvariant();
-        return p is "7d" or "30d" or "90d";
     }
 }

@@ -25,6 +25,8 @@ public class EmployeeDto
     public string? DepartmentName { get; set; }
     public string? PositionTitle { get; set; }
     public decimal? BasicSalary { get; set; }
+    public string? Currency { get; set; }
+    public DateTime? SalaryEffectiveDate { get; set; }
     public Guid ReportingManagerId { get; set; }
     public string? ReportingManagerName { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -32,6 +34,7 @@ public class EmployeeDto
     public string? TaxCategoryName { get; set; }
     public Guid? DepartmentId { get; set; }       // ? Added
     public Guid? PositionId { get; set; }
+    public string? RoleName { get; set; }
 }
 
 public class EmployeeNameList

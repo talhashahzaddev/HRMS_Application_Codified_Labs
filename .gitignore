@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+HRMS.API/scripts/CLEAN_timesheet_permissions.sql
+HRMS.API/scripts/CLEAN_timesheet_schema.sql
+HRMS.API/scripts/ONBOARDING_PERMISSIONS.sql

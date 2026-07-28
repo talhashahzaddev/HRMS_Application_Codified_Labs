@@ -969,6 +969,46 @@ public class SocialSecurityEnrollmentDto
     public DateTime UpdatedAt { get; set; }
 }
 
+// ───────────────────────────── Social Security: Enrollment Roster (admin) ───────────────
+
+public class SocialSecurityEnrollmentRosterDto
+{
+    public Guid EnrollmentId { get; set; }
+    public Guid OrganizationId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? EmployeeCode { get; set; }
+    public Guid RuleId { get; set; }
+    public string? RuleName { get; set; }
+    public Guid? SchemeId { get; set; }
+    public string? SchemeName { get; set; }
+    public string EnrollmentType { get; set; } = string.Empty;
+    public string EnrollmentStatus { get; set; } = string.Empty;
+    public DateTime EffectiveDate { get; set; }
+    public DateTime? EndDate { get; set; }
+    public decimal? EmployeeCustomPct { get; set; }
+    public decimal? EmployerCustomPct { get; set; }
+    public decimal? RuleEmployeeDefaultPct { get; set; }
+    public decimal? RuleEmployerDefaultPct { get; set; }
+    public decimal? SalaryCapOverride { get; set; }
+    public string? ContributionBasis { get; set; }
+    public bool IsCurrent { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class SocialSecurityEnrollmentFilterDto
+{
+    public string? SearchTerm { get; set; }
+    public string? EnrollmentStatus { get; set; }
+    public Guid? RuleId { get; set; }
+    public Guid? SchemeId { get; set; }
+    public bool? CurrentOnly { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
 // ───────────────────────────── Social Security: Enrollment Requests ─────────────────────
 
 public class SocialSecurityEnrollmentRequestDto
@@ -1630,6 +1670,21 @@ public class SalaryAdvanceFilterDto
     public int PageSize { get; set; } = 10;
 }
 
+public class SalaryAdvanceSummaryDto
+{
+    /// <summary>
+    /// Employee's current basic salary resolved from employment details. This is the
+    /// basis every rule cap is applied against ("max % of salary"). Zero when the
+    /// employee has no basic salary configured.
+    /// </summary>
+    public decimal BasicSalary { get; set; }
+    public bool HasBasicSalary { get; set; }
+    public decimal OutstandingAmount { get; set; }
+    public decimal DisbursedAmount { get; set; }
+    public decimal DeductedAmount { get; set; }
+    public int ActiveAdvanceCount { get; set; }
+}
+
 public class AdminSalaryAdvanceDto
 {
     public Guid AdvanceId { get; set; }
@@ -1788,11 +1843,24 @@ public class AddLoanPaymentDto
 public class CalculatePayrollDto
 {
     public Guid PeriodId { get; set; }
-    public Guid CycleId { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public Guid? CycleId { get; set; }
     public Guid? BonusRuleId { get; set; }
     public Guid? AttendanceRuleId { get; set; }
     public Guid? LateAttendanceRuleId { get; set; }
     public Guid? LeaveRuleId { get; set; }
+    public bool? ApplyAttendanceRule { get; set; }
+    public bool? ApplyLateAttendanceRule { get; set; }
+    public bool? ApplyLeaveRule { get; set; }
+    public bool? ApplyOvertime { get; set; }
+    public bool? ApplyPerformanceBonus { get; set; }
+    public bool? ApplyGeneralBonus { get; set; }
+    public bool? ApplyGratuity { get; set; }
+    public bool? ApplyProvidentFund { get; set; }
+    public bool? ApplySocialSecurity { get; set; }
+    public bool? ApplyTax { get; set; }
+    public bool? ApplyLoanDeductions { get; set; }
+    public bool? ApplySalaryAdvanceDeductions { get; set; }
 }
 
 public class PayrollLoanDeductionDetailDto
@@ -1850,6 +1918,24 @@ public class PayrollGratuityDetailDto
     public decimal NetSalaryAfterGratuity { get; set; }
 }
 
+public class PayrollSocialSecurityDeductionDetailDto
+{
+    public Guid EmployeeId { get; set; }
+    public Guid TransactionId { get; set; }
+    public Guid? RuleId { get; set; }
+    public string? ContributionBasis { get; set; }
+    public decimal? ContributionBase { get; set; }
+    public decimal EmployeeRate { get; set; }
+    public decimal EmployerRate { get; set; }
+    public decimal EmployeeAmount { get; set; }
+    public decimal EmployerAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public string? TransactionType { get; set; }
+    public bool IsManualOverride { get; set; }
+    public bool AutoCreated { get; set; }
+    public decimal NetSalaryAfterSocialSecurityDeduction { get; set; }
+}
+
 public class PayrollTaxDeductionDetailDto
 {
     public Guid EmployeeId { get; set; }
@@ -1899,6 +1985,11 @@ public class PayrollCalculationResultDto
     public decimal TotalProvidentFundDeductionAmount { get; set; }
     public List<PayrollProvidentFundDeductionDetailDto> ProvidentFundDeductionDetails { get; set; } = new();
 
+    public int SocialSecurityDeductionsApplied { get; set; }
+    public decimal TotalSocialSecurityEmployeeAmount { get; set; }
+    public decimal TotalSocialSecurityEmployerAmount { get; set; }
+    public List<PayrollSocialSecurityDeductionDetailDto> SocialSecurityDeductionDetails { get; set; } = new();
+
     public int PerformanceBonusApplied { get; set; }
     public decimal TotalPerformanceBonusAmount { get; set; }
     public List<PayrollPerformanceBonusDetailDto> PerformanceBonusDetails { get; set; } = new();
@@ -1934,7 +2025,7 @@ public class PayrollCalculationResultDto
     public decimal TotalHolidayOvertimeAmount { get; set; }
     public List<PayrollOvertimeDetailDto> OvertimeDetails { get; set; } = new();
 
-    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount + TotalLeaveDeductionAmount;
+    public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalSocialSecurityEmployeeAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount + TotalLeaveDeductionAmount;
 }
 
 public class PayrollLeaveDeductionDetailDto
@@ -2148,6 +2239,7 @@ public class PayrollResultItemDto
     public Guid OrganizationId { get; set; }
     public Guid EmployeeId { get; set; }
     public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
     public string EmployeeName { get; set; } = string.Empty;
     public string EmployeeCode { get; set; } = string.Empty;
     public string DepartmentName { get; set; } = string.Empty;
@@ -2167,6 +2259,124 @@ public class PayrollResultItemDto
     public string? GeneralBonuses { get; set; }
     public string? Gratuity { get; set; }
     public string? OvertimeDetails { get; set; }
+    public string? SocialSecurityDeductions { get; set; }
     public DateTime CalculatedAt { get; set; }
     public int TotalCount { get; set; }
+}
+
+/// <summary>Compliance payslips grid — sourced from payroll.payrollresults (+ optional payroll.payslips URL).</summary>
+public class CompliancePayslipFilterDto
+{
+    public Guid? PayrollPeriodId { get; set; }
+    public Guid? DepartmentId { get; set; }
+    public string? SearchTerm { get; set; }
+    /// <summary>Optional: draft | generated | sent | failed | bounced | viewed (viewed maps to sent).</summary>
+    public string? Status { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 50;
+}
+
+public class CompliancePayslipStatsDto
+{
+    public int TotalCount { get; set; }
+    public int GeneratedCount { get; set; }
+    public int PendingCount { get; set; }
+}
+
+public class CompliancePayslipRowDto
+{
+    public Guid ResultId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid PeriodId { get; set; }
+    public string PeriodLabel { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string DepartmentName { get; set; } = string.Empty;
+    public Guid? DepartmentId { get; set; }
+    public decimal GrossSalaryPkr { get; set; }
+    public decimal DeductionsPkr { get; set; }
+    public decimal NetSalaryPkr { get; set; }
+    public string Status { get; set; } = "draft";
+    public int VersionNo { get; set; } = 1;
+    public string? PayslipUrl { get; set; }
+    public DateTime CalculatedAt { get; set; }
+    public int TotalCount { get; set; }
+}
+
+public class BulkPayslipPdfRequestDto
+{
+    public Guid PayrollPeriodId { get; set; }
+    public List<Guid> EmployeeIds { get; set; } = new();
+    public bool OverwriteExisting { get; set; }
+}
+
+public class BulkPayslipPdfResponseDto
+{
+    public int GeneratedCount { get; set; }
+    public int SkippedCount { get; set; }
+    public List<string> Messages { get; set; } = new();
+}
+
+public class UploadSendPayslipsRequestDto
+{
+    public Guid PayrollPeriodId { get; set; }
+    public List<Guid> EmployeeIds { get; set; } = new();
+    public string? Subject { get; set; }
+    public string? Message { get; set; }
+    /// <summary>Optional SignalR connection id; client should also call JoinJob on the hub with the returned JobId.</summary>
+    public string? ConnectionId { get; set; }
+}
+
+public class UploadSendPayslipsResponseDto
+{
+    public string JobId { get; set; } = string.Empty;
+    public string Message { get; set; } = string.Empty;
+}
+
+public class PayslipBulkProgressDto
+{
+    public string JobId { get; set; } = string.Empty;
+    public int Total { get; set; }
+    public int Processed { get; set; }
+    public int Failed { get; set; }
+    public decimal PercentageCompleted { get; set; }
+    public bool IsComplete { get; set; }
+    public Guid? CurrentEmployeeId { get; set; }
+    public string? LastError { get; set; }
+}
+
+public class PendingPayslipForSendDto
+{
+    public Guid PayslipId { get; set; }
+    public Guid ResultId { get; set; }
+    public Guid EmployeeId { get; set; }
+    public string PayslipUrl { get; set; } = string.Empty;
+    public string EmployeeEmail { get; set; } = string.Empty;
+    public string EmployeeFirstName { get; set; } = string.Empty;
+    public string EmployeeLastName { get; set; } = string.Empty;
+    public string? PeriodName { get; set; }
+}
+
+public class MyPayslipDto
+{
+    public Guid PeriodId { get; set; }
+    public string PeriodName { get; set; } = string.Empty;
+    public string? PayslipUploadUrl { get; set; }
+    public decimal BasicSalary { get; set; }
+    public decimal NetSalary { get; set; }
+    public DateTime CalculatedAt { get; set; }
+    public Guid EmployeeId { get; set; }
+    public Guid OrganizationId { get; set; }
+}
+public class MyPayslipFilterDto
+{
+    public Guid? PeriodId { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class MyPayrollResultsFilterDto
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
 }

@@ -9,8 +9,11 @@ using Org.BouncyCastle.Asn1.Ocsp;
 using System.Linq;
 using System.Security.Claims;
 using System.Text.Json;
+
 using System.Linq;
 using HRMS.API.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using HRMS.API.Hubs;
 
 namespace HRMS.API.Controllers;
 
@@ -21,11 +24,13 @@ public class EmployeeController : ControllerBase
 {
     private readonly IEmployeeService _employeeService;
     private readonly ILogger<EmployeeController> _logger;
+    private readonly IHubContext<PermissionHub> _hubContext;
 
-    public EmployeeController(IEmployeeService employeeService, ILogger<EmployeeController> logger)
+    public EmployeeController(IEmployeeService employeeService, ILogger<EmployeeController> logger, IHubContext<PermissionHub> hubContext)
     {
         _employeeService = employeeService;
         _logger = logger;
+        _hubContext = hubContext;
     }
 
     [HttpGet]
@@ -124,13 +129,13 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpPost]
-    [PermissionAuthorize("add_employee")]
+    [PermissionAuthorize("Add_Employee_Button")]
     public async Task<ActionResult<ServiceResponse<EmployeeDto>>> CreateEmployee([FromBody] CreateEmployeeRequest request)
     {
         try
         {
             if (!ModelState.IsValid)
-            {
+            { 
                 return BadRequest(new ServiceResponse<EmployeeDto>
                 {
                     Success = false,
@@ -235,7 +240,21 @@ public class EmployeeController : ControllerBase
                 });
             }
             var result = await _employeeService.UpdateEmployeeAsync(id, request);
-            
+
+            if (result)
+            {
+                var organizationId = GetCurrentOrganizationId();
+                var payload = new EmployeeUpdatedPayload
+                {
+                    EmployeeId = id,
+                    OrganizationId = organizationId,
+                    Message = "Employee updated"
+                };
+                await _hubContext.Clients
+                    .Group(PermissionHub.GetEmployeeGroupName(organizationId.ToString(), id.ToString()))
+                    .SendAsync(PermissionHub.EmployeeUpdatedEvent, payload);
+            }
+
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
@@ -897,9 +916,9 @@ public class EmployeeController : ControllerBase
 
             if (Request.Form.ContainsKey("EmergencyContact"))
                 request.EmergencyContact = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["EmergencyContact"]);
-
+            var orgId = GetCurrentOrganizationId();
             // Call service to update employee
-            await _employeeService.UpdateEmployeeAsync(request.EmployeeId, request, profileurl);
+            await _employeeService.UpdateEmployeeAsync(request.EmployeeId, request, orgId, profileurl);
 
             return Ok(new ServiceResponse<bool>
             {
@@ -953,6 +972,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            var orgId = GetCurrentOrganizationId();
             var employee = await _employeeService.ActivateEmployeeAsync(id);
             return Ok(new ServiceResponse<EmployeeDto>
             {
@@ -995,6 +1015,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            var orgId = GetCurrentOrganizationId();
             var employee = await _employeeService.DeactivateEmployeeAsync(id);
             return Ok(new ServiceResponse<EmployeeDto>
             {
@@ -1140,12 +1161,12 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("managers")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeDto>>>> GetManagers()
+    public async Task<ActionResult<ServiceResponse<List<EmployeeDto>>>> GetManagers([FromQuery] Guid? departmentId)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var managers = await _employeeService.GetManagersAsync(organizationId);
+            var managers = await _employeeService.GetManagersAsync(organizationId, departmentId);
             
             return Ok(new ServiceResponse<List<EmployeeDto>>
             {
@@ -1170,6 +1191,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            var orgId=GetCurrentOrganizationId();
             var result = await _employeeService.BulkActivateEmployeesAsync(request.EmployeeIds);
             return Ok(new ServiceResponse<bool>
             {

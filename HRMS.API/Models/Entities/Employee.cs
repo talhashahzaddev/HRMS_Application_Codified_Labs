@@ -87,6 +87,10 @@ public class Employee : BaseEntity
     public string? TaxCategoryName { get; set; }
     public string employmenttype { get; set; }
     public string ReportingManagerName { get; set; }
+    [NotMapped]
+    public Guid? RoleId { get; set; }
+    [NotMapped]
+    public string? RoleName { get; set; }
 
     // Navigation properties
     [NotMapped]

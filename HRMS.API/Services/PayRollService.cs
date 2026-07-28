@@ -1,6 +1,7 @@
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.Hosting;
 
 namespace HRMS.API.Services;
 
@@ -8,16 +9,28 @@ public class PayRollService : IPayRollService
 {
     private readonly IPayRollRepository _payRollRepository;
     private readonly IAttendanceRepository _attendanceRepository;
+    private readonly ISettingsRepository _settingsRepository;
+    private readonly IPayslipTemplateService _payslipTemplateService;
+    private readonly IPayslipPdfBuilder _payslipPdfBuilder;
     private readonly ILogger<PayRollService> _logger;
+    private readonly IWebHostEnvironment _hostEnvironment;
 
     public PayRollService(
         IPayRollRepository payRollRepository,
         IAttendanceRepository attendanceRepository,
-        ILogger<PayRollService> logger)
+        ISettingsRepository settingsRepository,
+        IPayslipTemplateService payslipTemplateService,
+        IPayslipPdfBuilder payslipPdfBuilder,
+        ILogger<PayRollService> logger,
+        IWebHostEnvironment hostEnvironment)
     {
         _payRollRepository = payRollRepository;
         _attendanceRepository = attendanceRepository;
+        _settingsRepository = settingsRepository;
+        _payslipTemplateService = payslipTemplateService;
+        _payslipPdfBuilder = payslipPdfBuilder;
         _logger = logger;
+        _hostEnvironment = hostEnvironment;
     }
 
     public async Task<ServiceResponse<PayRollRulesGroupedDto>> GetAllRulesAsync(Guid organizationId)
@@ -2263,6 +2276,10 @@ public class PayRollService : IPayRollService
             var result = await _payRollRepository.CreateSalaryAdvanceAsync(organizationId, employeeId, dto);
             return new ServiceResponse<SalaryAdvanceDto> { Success = true, Data = result };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating salary advance request");
@@ -2278,6 +2295,10 @@ public class PayRollService : IPayRollService
             if (result == null)
                 return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "Salary advance request not found or cannot be updated." };
             return new ServiceResponse<SalaryAdvanceDto> { Success = true, Data = result };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = ex.Message };
         }
         catch (Exception ex)
         {
@@ -2332,6 +2353,20 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error getting salary advance request by ID for employee");
             return new ServiceResponse<MySalaryAdvanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SalaryAdvanceSummaryDto>> GetMySalaryAdvanceSummaryAsync(Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMySalaryAdvanceSummaryAsync(organizationId, employeeId);
+            return new ServiceResponse<SalaryAdvanceSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting salary advance summary for employee");
+            return new ServiceResponse<SalaryAdvanceSummaryDto> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -3800,6 +3835,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>>> GetSocialSecurityEnrollmentsAsync(Guid organizationId, SocialSecurityEnrollmentFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetSocialSecurityEnrollmentsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security enrollments for organization {OrganizationId}", organizationId);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>>> GetMySocialSecurityRequestsAsync(Guid organizationId, Guid employeeId, MySocialSecurityRequestFilterDto filter)
     {
         try
@@ -4059,6 +4108,158 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error getting payroll results");
             return new ServiceResponse<PagedResult<PayrollResultItemDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<CompliancePayslipRowDto>>> GetCompliancePayslipsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetCompliancePayslipsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<CompliancePayslipRowDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading compliance payslips");
+            return new ServiceResponse<PagedResult<CompliancePayslipRowDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<MyPayslipDto>>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetMyPayslipsAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<MyPayslipDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my payslips for employee: {EmployeeId}", employeeId);
+            return new ServiceResponse<PagedResult<MyPayslipDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<CompliancePayslipStatsDto>> GetCompliancePayslipStatsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetCompliancePayslipStatsAsync(organizationId, filter);
+            return new ServiceResponse<CompliancePayslipStatsDto> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading compliance payslip stats");
+            return new ServiceResponse<CompliancePayslipStatsDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollResultItemDto?>> GetPayrollPayslipSourceAsync(Guid organizationId, Guid resultId)
+    {
+        try
+        {
+            var row = await _payRollRepository.GetPayrollResultByResultIdAsync(organizationId, resultId);
+            return new ServiceResponse<PayrollResultItemDto?> { Success = true, Data = row };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading payslip payroll row {ResultId}", resultId);
+            return new ServiceResponse<PayrollResultItemDto?> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<BulkPayslipPdfResponseDto>> BulkGeneratePayslipPdfsAsync(Guid organizationId, BulkPayslipPdfRequestDto dto)
+    {
+        var resp = new BulkPayslipPdfResponseDto();
+        if (dto.PayrollPeriodId == Guid.Empty || dto.EmployeeIds == null || dto.EmployeeIds.Count == 0)
+        {
+            return new ServiceResponse<BulkPayslipPdfResponseDto>
+            {
+                Success = false,
+                Message = "Payroll period and at least one employee are required.",
+                Data = resp
+            };
+        }
+
+        try
+        {
+            var webRoot = _hostEnvironment.WebRootPath ?? Path.Combine(_hostEnvironment.ContentRootPath, "wwwroot");
+            var orgFolder = Path.Combine(webRoot, "payslips", organizationId.ToString("D"));
+            Directory.CreateDirectory(orgFolder);
+
+            var currencyLabel = await ResolvePayslipCurrencyDisplayPrefixAsync(organizationId);
+            var templateResponse = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
+            var template = templateResponse.Data;
+
+            foreach (var employeeId in dto.EmployeeIds.Distinct())
+            {
+                var row = await _payRollRepository.GetPayrollResultForEmployeePeriodAsync(organizationId, dto.PayrollPeriodId, employeeId);
+                if (row == null)
+                {
+                    resp.SkippedCount++;
+                    resp.Messages.Add($"No payroll result for employee {employeeId}.");
+                    continue;
+                }
+
+                var existingUrl = await _payRollRepository.GetPayslipUrlByResultIdAsync(organizationId, row.ResultId);
+                if (!string.IsNullOrWhiteSpace(existingUrl) && !dto.OverwriteExisting)
+                {
+                    resp.SkippedCount++;
+                    continue;
+                }
+
+                var periodLabel = string.IsNullOrWhiteSpace(row.PeriodName) ? dto.PayrollPeriodId.ToString() : row.PeriodName;
+                var pdf = await _payslipPdfBuilder.BuildAsync(row, periodLabel, currencyLabel, template);
+                var relativeUrl = $"/payslips/{organizationId:D}/{row.ResultId:D}.pdf";
+                var physical = Path.Combine(orgFolder, $"{row.ResultId:D}.pdf");
+                await File.WriteAllBytesAsync(physical, pdf);
+
+                try
+                {
+                    await _payRollRepository.UpsertPayslipUrlAsync(organizationId, row.ResultId, employeeId, relativeUrl);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Payslip metadata upsert failed for result {ResultId}; PDF file was still written.", row.ResultId);
+                }
+
+                resp.GeneratedCount++;
+            }
+
+            return new ServiceResponse<BulkPayslipPdfResponseDto> { Success = true, Data = resp };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during bulk payslip PDF generation");
+            return new ServiceResponse<BulkPayslipPdfResponseDto> { Success = false, Message = "An error occurred while generating payslips.", Data = resp };
+        }
+    }
+
+    public async Task<byte[]?> GetCompliancePayslipPdfBytesAsync(Guid organizationId, Guid resultId)
+    {
+        var row = await _payRollRepository.GetPayrollResultByResultIdAsync(organizationId, resultId);
+        if (row == null)
+        {
+            return null;
+        }
+
+        var currencyLabel = await ResolvePayslipCurrencyDisplayPrefixAsync(organizationId);
+        var templateResponse = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
+        var template = templateResponse.Data;
+        var periodLabel = string.IsNullOrWhiteSpace(row.PeriodName) ? row.PeriodId.ToString("D") : row.PeriodName;
+        return await _payslipPdfBuilder.BuildAsync(row, periodLabel, currencyLabel, template);
+    }
+
+    private async Task<string> ResolvePayslipCurrencyDisplayPrefixAsync(Guid organizationId)
+    {
+        try
+        {
+            var code = await _settingsRepository.GetCurrencyAsync(organizationId);
+            return PayslipCurrencyDisplay.GetPdfHelveticaSafePrefix(code);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read organization currency for payslip PDF; using default symbol.");
+            return PayslipCurrencyDisplay.GetPdfHelveticaSafePrefix(null);
         }
     }
 }

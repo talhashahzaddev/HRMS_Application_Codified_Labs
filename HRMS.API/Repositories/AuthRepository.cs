@@ -8,6 +8,7 @@ using Newtonsoft.Json;
 using Org.BouncyCastle.Asn1.Ocsp;
 using System.Data;
 using System.Text.Json;
+using System.Linq;
 
 namespace HRMS.API.Repositories;
 
@@ -65,19 +66,19 @@ public class AuthRepository : BaseRepository, IAuthRepository
         var sql = @"
                     SELECT u.userid,
        u.organizationid,
-       u.email AS Email, 
-       u.firstname AS FirstName, 
-       u.lastname AS LastName, 
-       u.isactive AS IsActive, 
+       u.email AS Email,
+       u.firstname AS FirstName,
+       u.lastname AS LastName,
+       u.isactive AS IsActive,
        u.passwordhash,
-       u.lastloginat AS LastLoginAt, 
+       u.lastloginat AS LastLoginAt,
        u.createdat AS CreatedAt,
-       r.rolename AS RoleName, 
+       r.rolename AS RoleName,
        r.permissions AS Permissions,
        o.name AS OrganizationName
 FROM auth.users u
-INNER JOIN auth.roles r ON u.roleid = r.roleid
-INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
+LEFT JOIN auth.roles r ON u.roleid = r.roleid
+LEFT JOIN auth.organizations o ON u.organizationid = o.organizationid
         WHERE u.userid = @userId";
         try
         {
@@ -564,8 +565,8 @@ WHERE token = @token;
         {
             var sql = @"
             SELECT roleid, organizationid, rolename, description, permissions, issystemrole, createdat
-            FROM auth.roles 
-            WHERE organizationid = @organizationId AND rolename = @roleName";
+            FROM auth.roles
+            WHERE organizationid = @organizationId AND LOWER(rolename) = LOWER(@roleName)";
 
             var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { organizationId, roleName });
             if (result == null) return null;
@@ -724,6 +725,25 @@ WHERE token = @token;
         return await ExecuteScalarAsync<int>(sql, parameters);
     }
 
+    // Get user ids by role id
+    public async Task<List<Guid>> GetUserIdsByRoleIdAsync(Guid roleId, Guid? organizationId)
+    {
+        const string sql = @"
+    SELECT e.employeeid
+    FROM auth.users u
+    INNER JOIN employee.employees e 
+        ON e.userid = u.userid
+    WHERE u.roleid = @RoleId
+      AND (u.organizationid = @OrganizationId OR @OrganizationId IS NULL)";
+
+        var parameters = new DynamicParameters();
+        parameters.Add("RoleId", roleId, DbType.Guid);
+        parameters.Add("OrganizationId", organizationId, DbType.Guid);
+
+        var results = await QueryAsync<Guid>(sql, parameters);
+        return results.ToList();
+    }
+
     // Delete role
     public async Task<bool> DeleteRoleAsync(Guid roleId, Guid? organizationId)
     {
@@ -801,23 +821,45 @@ WHERE token = @token;
 
     public async Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId)
     {
-        const string sql = @"
-    SELECT 
-        m.menuid,
-        m.menuname as MenuName,
-        sm.submenuid,
-        sm.submenuname as SubMenuName,
-        a.actionid,
-        a.actionname as ActionName,
-        a.actionkey as ActionKey,
-        COALESCE(p.has_permission, false) as HasPermission
-    FROM auth.menus m
-    INNER JOIN auth.submenus sm ON sm.menuid = m.menuid
-    INNER JOIN auth.actions a ON a.submenuid = sm.submenuid
-    LEFT JOIN auth.permissions p ON p.actionid = a.actionid AND p.roleid = @roleid
-    ORDER BY m.menuname, sm.submenuname, a.actionname";
+        try
+        {
+            const string sql = @"
+            SELECT
+                m.menuid,
+                m.menuname AS MenuName,
+                sm.submenuid,
+                sm.submenuname AS SubMenuName,
+                a.actionid,
+                a.actionname AS ActionName,
+                a.actionkey AS ActionKey,
+                CASE
+                    WHEN r.issystemrole = true
+                        THEN COALESCE(grp.has_permission, COALESCE(p.has_permission, false))
+                    ELSE COALESCE(p.has_permission, false)
+                END AS HasPermission
+            FROM auth.roles r
+            INNER JOIN auth.menus m
+                ON 1 = 1
+            INNER JOIN auth.submenus sm
+                ON sm.menuid = m.menuid
+            INNER JOIN auth.actions a
+                ON a.submenuid = sm.submenuid
+            LEFT JOIN auth.global_role_permissions grp
+                ON grp.actionid = a.actionid
+                AND grp.roleid = r.roleid
+            LEFT JOIN auth.permissions p
+                ON p.actionid = a.actionid
+                AND p.roleid = r.roleid
+                AND p.organizationid = r.organizationid
+            WHERE r.roleid = @roleid
+            ORDER BY m.menuname, sm.submenuname, a.actionname;";
 
-        return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
+            return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
+        }
+        catch(Exception ex)
+        {
+            throw ex;
+        }
     }
     public async Task<Role> GetRoleByIdAsync(Guid roleId)
     {
@@ -950,6 +992,19 @@ WHERE token = @token;
             throw;
         }
     }
+    public async Task<bool> OnboardingConfigurationAsync(Guid organizationId)
+    {
+        try
+        {
+            var sql = @"SELECT auth.fn_create_onboarding(@organizationId);";
+            var result = await ExecuteScalarAsync<bool>(sql, new { organizationId });
+            return result;
+        }
+        catch (Exception ex)
+        {
+            throw new Exception("Onboarding configuration failed", ex);
+        }
+    }
 
     public async Task<bool> UpdateUserRoleAsync(Guid? userId, Guid? roleId)
     {
@@ -996,6 +1051,60 @@ WHERE token = @token;
         {
             throw new Exception("Cannot map to the result", ex.InnerException);
         }
+    }
+
+    public async Task<bool> UpdateUserOrganizationAsync(Guid userId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE auth.users
+            SET organizationid = @organizationId,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE userid = @userId";
+
+        var affected = await ExecuteAsync(sql, new { userId, organizationId });
+        return affected > 0;
+    }
+
+    /// <summary>
+    /// Creates a user without an organization or role.
+    /// Used for platform admin invitations where the org will be created later during password setup.
+    /// Bypasses fn_create_user which requires an existing organization.
+    /// </summary>
+    public async Task<User> CreateUserWithoutOrganizationAsync(User user)
+    {
+        try
+        {
+            const string sql = @"
+            INSERT INTO auth.users (userid, email, passwordhash, firstname, lastname, isactive, emailverified, createdat, updatedat)
+            VALUES (@userId, @email, @passwordHash, @firstName, @lastName, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING userId";
+
+            var userId = await ExecuteScalarAsync<Guid>(sql, new
+            {
+                userId = user.UserId,
+                email = user.Email,
+                passwordHash = user.PasswordHash,
+                firstName = user.FirstName,
+                lastName = user.LastName
+            });
+
+            user.UserId = userId;
+            return user;
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    /// <summary>
+    /// Direct email existence check against auth.users — no JOINs, no employee/org requirements.
+    /// Use this when checking if an email is already taken before creating any user.
+    /// </summary>
+    public async Task<bool> EmailExistsAsync(string email)
+    {
+        const string sql = "SELECT EXISTS(SELECT 1 FROM auth.users WHERE LOWER(email) = LOWER(@email))";
+        return await QuerySingleOrDefaultAsync<bool>(sql, new { email });
     }
 
 }

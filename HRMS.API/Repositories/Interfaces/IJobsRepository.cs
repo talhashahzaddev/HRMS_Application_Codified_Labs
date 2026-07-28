@@ -35,6 +35,9 @@ public interface IJobsRepository
     Task<Guid> CreateJobApplicationAsync(JobApplication entity);
     Task<bool> UpdateJobApplicationAsync(JobApplication entity);
     Task<bool> DeleteJobApplicationAsync(Guid jobApplyId);
+    Task<bool> UpdatePassedKnockoutAsync(Guid jobApplyId, bool passed);
+    Task<IEnumerable<JobApplicationDto>> GetAtsApplicationsAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, bool? passedKnockout);
+    Task<bool> UpdateEnteredToStageAsync(Guid jobApplyId);
 
     // ApplicationStages
     Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId);

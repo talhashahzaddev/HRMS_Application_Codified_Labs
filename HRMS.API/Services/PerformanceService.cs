@@ -5,6 +5,7 @@ using HRMS.API.Models.Entities;
 using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using Mailjet.Client.Resources;
 using NPOI.SS.Formula.Functions;
 using static HRMS.API.Models.DTOs.NotificationDto;
 
@@ -41,8 +42,6 @@ public class PerformanceService : IPerformanceService
 
     public async Task<AppraisalCycleDto> CreateAppraisalCycleAsync(CreateAppraisalCycleRequest request, Guid organizationId, Guid currentEmployeeId)
     {
-        _logger.LogInformation("Creating appraisal cycle: {CycleName}", request.CycleName);
-
         // 🔹 Basic validations
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
@@ -62,8 +61,7 @@ public class PerformanceService : IPerformanceService
         var cycle = await _performanceRepository.CreateAppraisalCycleAsync(request, organizationId, currentEmployeeId);
 
         if (cycle == null)
-            throw new InvalidOperationException("Failed to create appraisal cycle");
-
+        throw new InvalidOperationException("Failed to create appraisal cycle");
         return _mapper.Map<AppraisalCycleDto>(cycle);
     }
 
@@ -705,9 +703,9 @@ public class PerformanceService : IPerformanceService
         if (request == null)
             throw new ArgumentNullException(nameof(request), "Request cannot be null");
         var appraisalCycle = await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
-        if (appraisalCycle.StartDate <= DateTime.UtcNow)
+        if (string.Equals(appraisalCycle.Status, "start", StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Cannot Update appraisal cycle because it has already started.");
+            throw new InvalidOperationException("Cannot delete appraisal cycle because it has already started.");
         }
 
         return await _performanceRepository.UpdateAppraisalCycleAsync(cycleId, request);
@@ -719,7 +717,7 @@ public class PerformanceService : IPerformanceService
         if (cycleId == Guid.Empty)
             throw new ArgumentException("Cycle ID cannot be empty", nameof(cycleId));
         var appraisalCycle = await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
-        if (appraisalCycle.StartDate <= DateTime.UtcNow)
+        if (string.Equals(appraisalCycle.Status, "start", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("Cannot delete appraisal cycle because it has already started.");
         }
@@ -948,6 +946,19 @@ public class PerformanceService : IPerformanceService
         {
             // Get employee details for the sender (current employee who created self-assessment)
             var employeeDetails = await _employeeRepository.GetEmployeedetailsAsync(CurrentEmployeeId);
+            var notification = new NotificationCreateDto
+            {
+                Receiveruserid = new List<Guid> { employeeDetails.ReportingManagerId },
+                Senderuserid = CurrentEmployeeId,
+                Title = "Prfromanec Self Assessment",
+                Message = $"{employeeDetails.FirstName} {employeeDetails.LastName} has completed and submitted their self-assessment for goals.",
+                moduletype = "Performance",
+                RequestId=result.SelfAssessmentId,
+                Redirecturl= $"/performance/appraisals",
+                Notificationtype = "Message",
+                Createdby = CurrentEmployeeId,
+            };
+            await _notificationRepository.CreateNotificationAsync(organizationId, notification);
 
         }
         catch (Exception ex)
@@ -1015,7 +1026,23 @@ public class PerformanceService : IPerformanceService
 
     public async Task<ManagerReviewDto> SubmitManagerReviewAsync(ManagerReviewRequest request, Guid organizationId, Guid currentEmpId)
     {
-        return await _performanceRepository.SubmitManagerReviewAsync(request, organizationId, currentEmpId);
+        var result=await _performanceRepository.SubmitManagerReviewAsync(request, organizationId, currentEmpId);
+        // Get employee details for the sender (current employee who created self-assessment)
+        var employeeDetails = await _employeeRepository.GetEmployeedetailsAsync(currentEmpId);
+        var notification = new NotificationCreateDto
+        {
+            Receiveruserid = new List<Guid> { request.EmployeeId },
+            Senderuserid = currentEmpId,
+            Title = "Prfromanec",
+            Message = $"{employeeDetails.FirstName} {employeeDetails.LastName}  give you Manager Apraisals on your Self Assessment",
+            moduletype = "Performance",
+            RequestId = result.ManagerReviewId,
+            Redirecturl = $"/performance/appraisals",
+            Notificationtype = "Message",
+            Createdby = currentEmpId,
+        };
+        await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+        return result;
     }
 
     //Manager review and employee reviews
@@ -1039,7 +1066,7 @@ public class PerformanceService : IPerformanceService
    HrReviewRequest request, Guid organizationId, Guid currentEmployeeId)
     {
         //get hr appraisal for cy
-        var cycle=await _performanceRepository.GetAppraisalCycleByIdAsync(request.CycleId);
+        var cycle = await _performanceRepository.GetAppraisalCycleByIdAsync(request.CycleId);
         if (cycle.AppraisalEnabled == false)
         {
             throw new InvalidOperationException("Appraisal is not allowed for this appraisal cycle.");
@@ -1050,7 +1077,25 @@ public class PerformanceService : IPerformanceService
         {
             throw new InvalidOperationException("Cannot submit HR appraisal because employee appraisal against this cycle already exists.");
         }
-        return await _performanceRepository.SubmitHrReviewAsync(request, organizationId, currentEmployeeId);
+        var result=await _performanceRepository.SubmitHrReviewAsync(request, organizationId, currentEmployeeId);
+
+        // Get employee details for the sender (current employee who created self-assessment)
+        var employeeDetails = await _employeeRepository.GetEmployeedetailsAsync(currentEmployeeId);
+        var notification = new NotificationCreateDto
+        {
+            Receiveruserid = new List<Guid> { request.EmployeeId},
+            Senderuserid = currentEmployeeId,
+            Title = "Prfromanec",
+            Message = $"{employeeDetails.FirstName} {employeeDetails.LastName}  give you Hr Review on Appraisal Cycle",
+            moduletype = "Performance",
+            RequestId = result.HrReviewId,
+            Redirecturl = $"/performance/appraisals",
+            Notificationtype = "Message",
+            Createdby = currentEmployeeId,
+        };
+        await _notificationRepository.CreateNotificationAsync(organizationId, notification);
+
+        return result;
     }
 
     public async Task<List<HrReviewDto>> GetHrReviewsAsync(Guid organizationId, Guid CurrentEmpId)

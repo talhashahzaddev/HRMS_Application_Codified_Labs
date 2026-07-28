@@ -24,7 +24,8 @@ public class CareerRepository : BaseRepository, ICareerRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid

@@ -63,6 +63,7 @@ public class JobOpeningDto
     public string? CreatedByName { get; set; }
     public DateTime? CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+    public string? MandatorySkills { get; set; }
 }
 
 public class CreateJobOpeningRequest
@@ -107,6 +108,9 @@ public class CreateJobOpeningRequest
 
     [MaxLength(50)]
     public string? Status { get; set; }
+
+    /// <summary>JSON array of mandatory skill strings for AI match scoring.</summary>
+    public string? MandatorySkills { get; set; }
 }
 
 public class UpdateJobOpeningRequest
@@ -149,6 +153,8 @@ public class UpdateJobOpeningRequest
 
     [MaxLength(50)]
     public string? Status { get; set; }
+
+    public string? MandatorySkills { get; set; }
 }
 
 public class JobOpeningStatsDto
@@ -182,6 +188,11 @@ public class JobApplicationDto
     public string Status { get; set; } = "Applied";
     public DateTime? CreatedDate { get; set; }
     public DateTime? UpdatedDate { get; set; }
+    public bool? PassedKnockout { get; set; }
+    public bool EnteredToStage { get; set; } = false;
+    /// <summary>Dynamically calculated match score (0-100). Not stored in DB.</summary>
+    public decimal? MatchScore { get; set; }
+    public string? MandatorySkills { get; set; }
 }
 
 public class CreateJobApplicationRequest
@@ -210,6 +221,8 @@ public class CreateJobApplicationRequest
     [MaxLength(50)]
     public string? Status { get; set; }
     public bool? IsSelf { get; set; }
+    public bool? IsExternal { get; set; }
+    public List<SubmitCandidateAnswerRequest>? Answers { get; set; }
 }
 
 /// <summary>
@@ -229,6 +242,8 @@ public class ApplyForMySelfRequest
 
     [MaxLength(100)]
     public string? ApplicationSource { get; set; }
+
+    public List<SubmitCandidateAnswerRequest>? Answers { get; set; }
 }
 
 // ==================== Application Stages (interviewer info for GET) ====================
@@ -322,4 +337,6 @@ public class UpdateJobApplicationRequest
 
     [MaxLength(50)]
     public string? Status { get; set; }
+
+    public List<SubmitCandidateAnswerRequest>? Answers { get; set; }
 }
