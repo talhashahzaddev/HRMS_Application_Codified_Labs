@@ -211,7 +211,7 @@ public class EmployeeService : IEmployeeService
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
 
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
         return employee != null ? _mapper.Map<EmployeeDto>(employee) : null;
     }
 
@@ -248,7 +248,7 @@ public class EmployeeService : IEmployeeService
         if (request == null)
             throw new ArgumentNullException(nameof(request), "Request cannot be null");
 
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
 
@@ -274,7 +274,7 @@ public class EmployeeService : IEmployeeService
             status = "active";
         }
 
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
 
@@ -365,7 +365,7 @@ public class EmployeeService : IEmployeeService
     //    var UpdateUserTable = await _employeeRepository.editEmployeeUserAsync(userId, request);
 
     //    // 1️⃣ Get employee from database
-    //    var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+    //    var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
     //    if (employee.OrganizationId != orgId)
     //        throw new ArgumentException("Employee in this organization does not exists", nameof(employeeId));
     //    if (employee == null)
@@ -405,7 +405,7 @@ public class EmployeeService : IEmployeeService
         var UpdateUserTable = await _employeeRepository.editEmployeeUserAsync(userId, request);
 
         // 1️⃣ Get employee from database
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
         if (employee.OrganizationId != orgId)
             throw new ArgumentException("Employee in this organization does not exists", nameof(employeeId));
         if (employee == null)
@@ -732,7 +732,7 @@ public class EmployeeService : IEmployeeService
 
         _logger.LogInformation("Activating employee: {EmployeeId}", employeeId);
 
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
 
@@ -750,7 +750,7 @@ public class EmployeeService : IEmployeeService
 
         _logger.LogInformation("Deactivating employee: {EmployeeId}", employeeId);
 
-        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
         if (employee == null)
             throw new KeyNotFoundException($"Employee with ID {employeeId} not found");
 
