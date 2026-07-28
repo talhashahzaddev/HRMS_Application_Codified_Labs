@@ -1048,5 +1048,59 @@ public class EmailService : IEmailService
             .Replace("\r\n", "<br/>", StringComparison.Ordinal)
             .Replace("\n", "<br/>", StringComparison.Ordinal);
     }
+
+    public async Task<bool> SendUserInvitationAsync(
+        string email,
+        string firstName,
+        string organizationName,
+        string setPasswordLink)
+    {
+        var subject = $"You've been invited to join {organizationName} on BriskPeople";
+
+        var body = $@"<!DOCTYPE html>
+<html>
+<head><meta charset='UTF-8'></head>
+<body style='margin:0;padding:0;background:#f4f6f8;font-family:Arial,Helvetica,sans-serif;'>
+<table width='100%' cellpadding='0' cellspacing='0' style='padding:30px 0;'>
+<tr><td align='center'>
+<table width='600' cellpadding='0' cellspacing='0' style='background:#ffffff;border-radius:8px;overflow:hidden;'>
+<tr>
+<td align='center' style='padding:30px;background:#ffffff;'>
+    <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
+    <tr>
+        <td style='vertical-align:middle;padding-right:10px;'>
+            <img src='https://www.briskpeople.com/hub.png' alt='BriskPeople' style='height:40px;display:block;' />
+        </td>
+        <td style='vertical-align:middle;font-size:22px;font-weight:bold;color:#1f4fd8;'>BriskPeople</td>
+    </tr>
+    </table>
+</td>
+</tr>
+<tr>
+<td style='padding:35px;color:#333;font-size:14px;line-height:1.7;'>
+    <p style='margin-top:0;'>Hi <strong>{firstName}</strong>,</p>
+    <p>You've been invited to join <strong>{organizationName}</strong> on <strong>BriskPeople</strong>.</p>
+    <p>To get started, click the button below to set up your password:</p>
+    <p style='text-align:center;margin:35px 0;'>
+        <a href='{setPasswordLink}' style='background:#1f4fd8;color:#ffffff;padding:14px 32px;text-decoration:none;border-radius:6px;font-weight:bold;display:inline-block;'>Set Up Your Password</a>
+    </p>
+    <p>This link will expire in <strong>48 hours</strong>.</p>
+    <p>If you did not expect this invitation, you may safely ignore this email.</p>
+    <p style='margin-bottom:0;'>Best regards,<br/><strong>BriskPeople Team</strong></p>
+</td>
+</tr>
+<tr>
+<td align='center' style='padding:18px;background:#f4f6f8;font-size:12px;color:#777;'>
+© {DateTime.UtcNow.Year} BriskPeople. All rights reserved.
+</td>
+</tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>";
+
+        return await SendEmailAsync(email, subject, body);
+    }
 }
 

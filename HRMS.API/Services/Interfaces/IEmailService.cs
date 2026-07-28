@@ -24,4 +24,5 @@ public interface IEmailService
         Guid organizationId,
         string? emailSubject = null,
         string? emailMessage = null);
+    Task<bool> SendUserInvitationAsync(string email, string firstName, string organizationName, string setPasswordLink);
 }
