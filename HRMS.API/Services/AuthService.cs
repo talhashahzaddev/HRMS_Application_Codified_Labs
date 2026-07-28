@@ -35,6 +35,7 @@ public class AuthService : IAuthService
     private readonly IJobsRepository _jobsRepository;
     private readonly IHubContext<PermissionHub> _hubContext;
     private readonly INotificationRepository _notificationRepository;
+    private readonly IConfiguration _configuration;
 
     public AuthService(
         IAuthRepository authRepository,
@@ -47,7 +48,8 @@ public class AuthService : IAuthService
         IEmailService emailService,
         IJobsRepository jobsRepository,
         INotificationRepository notificationRepository,
-        IHubContext<PermissionHub> hubContext)
+        IHubContext<PermissionHub> hubContext,
+        IConfiguration configuration)
     {
         _authRepository = authRepository;
         _organizationService = organizationService;
@@ -60,6 +62,7 @@ public class AuthService : IAuthService
         _jobsRepository = jobsRepository;
         _notificationRepository = notificationRepository;
         _hubContext = hubContext;
+        _configuration = configuration;
     }
 
     public async Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request)
@@ -408,8 +411,8 @@ public class AuthService : IAuthService
         await _authRepository.SavePasswordResetTokenAsync(user.UserId.Value, resetToken, expiresAt);
 
         // 4️⃣ Generate link for frontend reset page
-        //var resetLink = $"http://localhost:4200/reset-password?token={resetToken}";
-        var resetLink = $"https://login.briskpeople.com/reset-password?token={resetToken}";
+        var portalUrl = _configuration["EmployeePortal:PortalUrl"];
+        var resetLink = $"{portalUrl}reset-password?token={resetToken}";
 
         // 5️⃣ Send email
         await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, resetLink);
