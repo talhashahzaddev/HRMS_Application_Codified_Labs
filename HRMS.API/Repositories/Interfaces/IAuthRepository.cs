@@ -57,4 +57,7 @@ public interface IAuthRepository
     Task<Role> CreateRoleAsync(Role role);
     Task<bool> UpdateUserRoleAsync(Guid? userId, Guid? roleId);
     Task<bool> VerifyEmail(string token);
+    Task<bool> UpdateUserOrganizationAsync(Guid userId, Guid organizationId);
+    Task<User> CreateUserWithoutOrganizationAsync(User user);
+    Task<bool> EmailExistsAsync(string email);
 }

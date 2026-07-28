@@ -1,6 +1,8 @@
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using System.Security.Cryptography;
 
 namespace HRMS.API.Services;
 
@@ -10,17 +12,32 @@ public class SuperAdminService : ISuperAdminService
     private readonly IPaymentRepository _paymentRepository;
     private readonly ILogger<SuperAdminService> _logger;
     private readonly IAuthRepository _authRepository;
+    private readonly IAuthService _authService;
+    private readonly IEmailService _emailService;
+    private readonly IOrganizationRepository _organizationRepository;
+    private readonly IJobsRepository _jobsRepository;
+    private readonly IEmployeeRepository _employeeRepository;
 
     public SuperAdminService(
         ISuperAdminRepository superAdminRepository,
         IPaymentRepository paymentRepository,
         ILogger<SuperAdminService> logger,
-        IAuthRepository authRepository)
+        IAuthRepository authRepository,
+        IAuthService authService,
+        IEmailService emailService,
+        IOrganizationRepository organizationRepository,
+        IJobsRepository jobsRepository,
+        IEmployeeRepository employeeRepository)
     {
         _superAdminRepository = superAdminRepository;
         _paymentRepository = paymentRepository;
         _logger = logger;
         _authRepository = authRepository;
+        _authService = authService;
+        _emailService = emailService;
+        _organizationRepository = organizationRepository;
+        _jobsRepository = jobsRepository;
+        _employeeRepository = employeeRepository;
     }
 
     public async Task<ServiceResponse<PlatformDashboardDto>> GetPlatformDashboardAsync()
@@ -419,5 +436,511 @@ public class SuperAdminService : ISuperAdminService
          .ToList();
 
         return menus;
+    }
+
+    // ========== User Invitation Methods ==========
+
+    public async Task<ServiceResponse<bool>> InviteUserAsync(InviteUserRequest request, string portalUrl)
+    {
+        try
+        {
+            // Check if email is already taken
+            var emailExists = await _authRepository.EmailExistsAsync(request.Email);
+            if (emailExists)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "A user with this email already exists"
+                };
+            }
+
+            // Invitation is always for a NEW organization (matches self-registration flow)
+            // Create user directly without fn_create_user (which requires an existing org)
+            // The org, role, and employee setup happens in SetPasswordAsync when user sets their password
+            var placeholderPassword = Guid.NewGuid().ToString("N") + "!Aa1";
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(placeholderPassword);
+
+            var newUser = new User
+            {
+                UserId = Guid.NewGuid(),
+                Email = request.Email,
+                PasswordHash = passwordHash,
+                FirstName = request.FirstName,
+                LastName = request.LastName
+            };
+            var savedUser = await _authRepository.CreateUserWithoutOrganizationAsync(newUser);
+
+            // Set user as inactive until they set their password
+            await _superAdminRepository.DeactivateUserAsync(savedUser.UserId!.Value);
+
+            // Generate cryptographically secure invitation token
+            var tokenBytes = new byte[64];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(tokenBytes);
+            }
+            var token = BitConverter.ToString(tokenBytes).Replace("-", "").ToLowerInvariant();
+
+            // Save invitation (48-hour expiry) with optional organization name
+            var expiresAt = DateTime.UtcNow.AddHours(48);
+            await _superAdminRepository.SaveInvitationAsync(savedUser.UserId.Value, token, expiresAt, request.OrganizationName);
+
+            // Organization name for email (use admin's choice or default)
+            var orgName = request.OrganizationName ?? "Your Organization";
+
+            // Send invitation email
+            var setPasswordLink = $"{portalUrl.TrimEnd('/')}/set-password?token={token}";
+            await _emailService.SendUserInvitationAsync(request.Email, request.FirstName, orgName, setPasswordLink);
+
+            _logger.LogInformation("User invitation sent to {Email}", request.Email);
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Invitation sent successfully"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inviting user {Email}", request.Email);
+            return new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "Failed to send invitation"
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<UserInvitationDto>>> GetInvitationsAsync(UserInvitationFilterRequest filter)
+    {
+        try
+        {
+            var result = await _superAdminRepository.GetInvitationsPagedAsync(filter);
+            return new ServiceResponse<PagedResult<UserInvitationDto>> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting invitations list");
+            return new ServiceResponse<PagedResult<UserInvitationDto>>
+            {
+                Success = false,
+                Message = "Failed to load invitations"
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> ResendInvitationAsync(Guid invitationId, string portalUrl)
+    {
+        try
+        {
+            var invitation = await _superAdminRepository.GetInvitationByIdAsync(invitationId);
+            if (invitation == null)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invitation not found"
+                };
+            }
+
+            // Check if user has already completed setup
+            var completed = await _superAdminRepository.UserHasCompletedSetupAsync(invitation.UserId);
+            if (completed)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "User has already completed setup"
+                };
+            }
+
+            // Deactivate old invitations for this user
+            await _superAdminRepository.DeactivateOldInvitationsForUserAsync(invitation.UserId);
+
+            // Generate new token
+            var tokenBytes = new byte[64];
+            using (var rng = RandomNumberGenerator.Create())
+            {
+                rng.GetBytes(tokenBytes);
+            }
+            var newToken = BitConverter.ToString(tokenBytes).Replace("-", "").ToLowerInvariant();
+
+            // Save new invitation
+            var expiresAt = DateTime.UtcNow.AddHours(48);
+            await _superAdminRepository.SaveInvitationAsync(invitation.UserId, newToken, expiresAt);
+
+            // Get user details for email
+            var user = await _authRepository.GetUserByIdAsync(invitation.UserId);
+            if (user == null)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "User not found"
+                };
+            }
+
+            // Get organization name
+            var orgName = "Your Organization";
+            var orgDetail = await _superAdminRepository.GetOrganizationDetailAsync(user.OrganizationId!.Value);
+            if (orgDetail != null) orgName = orgDetail.Name;
+
+            // Send new invitation email
+            var setPasswordLink = $"{portalUrl.TrimEnd('/')}/set-password?token={newToken}";
+            await _emailService.SendUserInvitationAsync(user.Email!, user.FirstName!, orgName, setPasswordLink);
+
+            _logger.LogInformation("Invitation resent to {Email}", user.Email);
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Invitation resent successfully"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resending invitation {InvitationId}", invitationId);
+            return new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "Failed to resend invitation"
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> DeleteInvitationAsync(Guid invitationId)
+    {
+        try
+        {
+            var invitation = await _superAdminRepository.GetInvitationByIdAsync(invitationId);
+            if (invitation == null)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invitation not found"
+                };
+            }
+
+            var completed = await _superAdminRepository.UserHasCompletedSetupAsync(invitation.UserId);
+            if (completed)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Cannot delete invitation for user who has completed setup"
+                };
+            }
+
+            var deleted = await _superAdminRepository.DeleteInvitationAsync(invitationId);
+            return new ServiceResponse<bool>
+            {
+                Success = deleted,
+                Data = deleted,
+                Message = deleted ? "Invitation deleted" : "Failed to delete invitation"
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting invitation {InvitationId}", invitationId);
+            return new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "Failed to delete invitation"
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<SetPasswordValidationDto>> ValidateInvitationTokenAsync(string token)
+    {
+        try
+        {
+            var invitation = await _superAdminRepository.GetInvitationByTokenAsync(token);
+            if (invitation == null)
+            {
+                return new ServiceResponse<SetPasswordValidationDto>
+                {
+                    Success = false,
+                    Data = new SetPasswordValidationDto { Valid = false, Message = "Invalid token" },
+                    Message = "Invalid token"
+                };
+            }
+
+            if (invitation.Used)
+            {
+                return new ServiceResponse<SetPasswordValidationDto>
+                {
+                    Success = false,
+                    Data = new SetPasswordValidationDto { Valid = false, Message = "Token has already been used" },
+                    Message = "Token has already been used"
+                };
+            }
+
+            if (invitation.ExpiresAt < DateTime.UtcNow)
+            {
+                return new ServiceResponse<SetPasswordValidationDto>
+                {
+                    Success = false,
+                    Data = new SetPasswordValidationDto { Valid = false, Message = "Token has expired" },
+                    Message = "Token has expired"
+                };
+            }
+
+            // Get user details
+            var user = await _authRepository.GetUserByIdAsync(invitation.UserId);
+            if (user == null)
+            {
+                return new ServiceResponse<SetPasswordValidationDto>
+                {
+                    Success = false,
+                    Data = new SetPasswordValidationDto { Valid = false, Message = "User not found" },
+                    Message = "User not found"
+                };
+            }
+
+            // This is always a new organization invitation — user MUST provide org name
+            // Return admin's suggested name (if any) so user can see/override it
+            return new ServiceResponse<SetPasswordValidationDto>
+            {
+                Success = true,
+                Data = new SetPasswordValidationDto
+                {
+                    Valid = true,
+                    FirstName = user.FirstName,
+                    Email = user.Email,
+                    OrganizationName = invitation.OrganizationName, // admin's choice (nullable)
+                    RequiresOrganization = true // always — user must set/confirm org name
+                }
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating invitation token");
+            return new ServiceResponse<SetPasswordValidationDto>
+            {
+                Success = false,
+                Message = "Failed to validate token"
+            };
+        }
+    }
+
+    public async Task<ServiceResponse<bool>> SetPasswordAsync(SetPasswordRequest request)
+    {
+        try
+        {
+            var invitation = await _superAdminRepository.GetInvitationByTokenAsync(request.Token);
+            if (invitation == null)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid token"
+                };
+            }
+
+            if (invitation.Used)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Token has already been used"
+                };
+            }
+
+            if (invitation.ExpiresAt < DateTime.UtcNow)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Token has expired"
+                };
+            }
+
+            // Get user details
+            var user = await _authRepository.GetUserByIdAsync(invitation.UserId);
+            if (user == null)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "User not found"
+                };
+            }
+
+            // Always create a new organization (this is a new-org-only invitation)
+            var orgName = request.OrganizationName;
+
+            // Check if organization name already exists
+            var existingOrg = await _organizationRepository.GetOrganizationByNameAsync(orgName);
+            if (existingOrg != null)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = $"An organization named '{orgName}' already exists. Please choose a different name."
+                };
+            }
+
+            // Create new organization (fn_create_organization copies global roles incl. "Super Admin")
+            var newOrg = new Organization
+            {
+                Name = orgName,
+                AdminEmail = user.Email,
+                Status = "active"
+            };
+            var createdOrg = await _organizationRepository.CreateOrganizationAsync(newOrg);
+
+            if (!createdOrg.OrganizationId.HasValue || !user.UserId.HasValue)
+            {
+                return new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Failed to create organization"
+                };
+            }
+
+            var newOrgId = createdOrg.OrganizationId.Value;
+
+            // === Mirror self-registration: full org scaffolding ===
+
+            // 1. Create default job application stages
+            var defaultStages = new[] { ("Initial", 1), ("Short List", 2), ("Interviewed", 3), ("Selected", 4), ("Rejected", 5) };
+            foreach (var (stageName, stageOrder) in defaultStages)
+            {
+                await _jobsRepository.CreateStageMasterAsync(newOrgId, stageName, stageOrder, false);
+            }
+            _logger.LogInformation("Default job stages created for organization {OrgId}", newOrgId);
+
+            // 2. Create default departments and positions
+            var allRoles = await _authRepository.GetOrganizationRolesAsync(newOrgId);
+            var departments = new List<(
+                string DeptName,
+                string Description,
+                List<(string PositionName, string RoleName)> Positions)>
+            {
+                (
+                    "Human Resources",
+                    "This is default department of Human Resources",
+                    new List<(string PositionName, string RoleName)>
+                    {
+                        ("Manager", "Manager")
+                    }
+                ),
+                (
+                    "Marketing",
+                    "This is Marketing Department",
+                    new List<(string PositionName, string RoleName)>
+                    {
+                        ("Team Lead", "Employee"),
+                        ("Trainee", "Employee")
+                    }
+                )
+            };
+            foreach (var dept in departments)
+            {
+                var createdDepartment = await _employeeRepository.CreateDepartmentAsync(new Department
+                {
+                    DepartmentName = dept.DeptName,
+                    Description = dept.Description,
+                    OrganizationId = newOrgId
+                });
+                foreach (var pos in dept.Positions)
+                {
+                    var role = allRoles.FirstOrDefault(r => r.RoleName == pos.RoleName);
+                    if (role == null)
+                        continue;
+                    await _authRepository.CreatePositionAsync(
+                        newOrgId,
+                        role.RoleId.Value,
+                        createdDepartment.DepartmentId,
+                        pos.PositionName
+                    );
+                }
+            }
+            _logger.LogInformation("Default departments and positions created for organization {OrgId}", newOrgId);
+
+            // 3. Update user's organization
+            await _authRepository.UpdateUserOrganizationAsync(user.UserId.Value, newOrgId);
+
+            // 4. Find the "Super Admin" role and assign it to the user
+            var superAdminRole = await _authRepository.GetRoleByNameAsync(newOrgId, "Super Admin")
+                ?? await _authRepository.GetRoleByNameAsync(newOrgId, "SuperAdmin")
+                ?? await _authRepository.GetRoleByNameAsync(newOrgId, "Organization Admin")
+                ?? await _authRepository.GetRoleByNameAsync(newOrgId, "Admin");
+            if (superAdminRole != null)
+            {
+                await _authRepository.UpdateUserRoleAsync(user.UserId, superAdminRole.RoleId);
+                _logger.LogInformation("Assigned role '{RoleName}' to user {UserId} in organization {OrgId}",
+                    superAdminRole.RoleName, user.UserId, newOrgId);
+            }
+            else
+            {
+                _logger.LogWarning("No admin role found in organization {OrgId} for user {UserId}", newOrgId, user.UserId);
+            }
+
+            // 5. Create employee record for the admin
+            user.OrganizationId = newOrgId;
+            user.RoleId = superAdminRole?.RoleId;
+            user.employeecode = GenerateEmployeeCode();
+            await _authRepository.adminIntoEmployeeAsync(user);
+
+            // 6. Create "Super Admin" position and link to employee
+            var superadminEmployeeId = await _authRepository.GetEmployeeIdByEmailAsync(user.Email);
+            if (superAdminRole?.RoleId != null)
+            {
+                var adminPosition = await _authRepository.CreatePositionAsync(newOrgId, superAdminRole.RoleId.Value, null, "Super Admin");
+                await _authRepository.AdminIntoEmployeeDetailsAsync(superadminEmployeeId, adminPosition);
+            }
+            else
+            {
+                _logger.LogWarning("Super Admin role not found in organization {OrgId} — skipping position creation for admin", newOrgId);
+            }
+
+            // 7. Run onboarding configuration
+            await _authRepository.OnboardingConfigurationAsync(newOrgId);
+
+            _logger.LogInformation("Organization {OrgId} ({OrgName}) fully scaffolded for user {UserId} — matches self-registration flow",
+                newOrgId, orgName, user.UserId);
+
+            // Hash the new password
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
+
+            // Update user: set password
+            await _authRepository.UpdateUserPasswordAsync(invitation.UserId, passwordHash);
+
+            // Activate user and mark email as verified
+            await _superAdminRepository.ActivateUserAsync(invitation.UserId);
+
+            // Mark invitation as used
+            await _superAdminRepository.MarkInvitationAsUsedAsync(request.Token);
+
+            _logger.LogInformation("Password set for user {UserId} via invitation", invitation.UserId);
+
+            return new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Password set successfully. You can now log in."
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error setting password via invitation");
+            return new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "Failed to set password"
+            };
+        }
+    }
+
+    private string GenerateEmployeeCode()
+    {
+        var random = new Random();
+        int number = random.Next(1000, 9999);
+        return $"EMP{number}";
     }
 }

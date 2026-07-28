@@ -13,16 +13,24 @@ public class SuperAdminController : ControllerBase
 {
     private readonly ISuperAdminService _superAdminService;
     private readonly ITransactionService _transactionService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<SuperAdminController> _logger;
 
     public SuperAdminController(
         ISuperAdminService superAdminService,
         ITransactionService transactionService,
+        IConfiguration configuration,
         ILogger<SuperAdminController> logger)
     {
         _superAdminService = superAdminService;
         _transactionService = transactionService;
+        _configuration = configuration;
         _logger = logger;
+    }
+
+    private string GetPortalUrl()
+    {
+        return _configuration["EmployeePortal:PortalUrl"] ?? "https://login.briskpeople.com/";
     }
 
     /// <summary>
@@ -466,6 +474,139 @@ public class SuperAdminController : ControllerBase
             });
         }
     }
+
+    // ========== USER INVITATIONS ==========
+
+    /// <summary>
+    /// Invite a new user to an organization
+    /// </summary>
+    [HttpPost("invite-user")]
+    public async Task<ActionResult<ServiceResponse<bool>>> InviteUser([FromBody] InviteUserRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+
+            var portalUrl = GetPortalUrl();
+            var response = await _superAdminService.InviteUserAsync(request, portalUrl);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inviting user");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while inviting the user"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get paginated list of user invitations
+    /// </summary>
+    [HttpGet("invitations")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<UserInvitationDto>>>> GetInvitations(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            var filter = new UserInvitationFilterRequest
+            {
+                Search = search,
+                Status = status,
+                Page = page,
+                PageSize = Math.Min(pageSize, 50)
+            };
+
+            var response = await _superAdminService.GetInvitationsAsync(filter);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting invitations list");
+            return StatusCode(500, new ServiceResponse<PagedResult<UserInvitationDto>>
+            {
+                Success = false,
+                Message = "An error occurred while loading invitations"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Re-send an invitation email
+    /// </summary>
+    [HttpPost("invitations/{invitationId:guid}/resend")]
+    public async Task<ActionResult<ServiceResponse<bool>>> ResendInvitation(Guid invitationId)
+    {
+        try
+        {
+            var portalUrl = GetPortalUrl();
+            var response = await _superAdminService.ResendInvitationAsync(invitationId, portalUrl);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resending invitation {InvitationId}", invitationId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while resending the invitation"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Delete a pending invitation
+    /// </summary>
+    [HttpDelete("invitations/{invitationId:guid}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteInvitation(Guid invitationId)
+    {
+        try
+        {
+            var response = await _superAdminService.DeleteInvitationAsync(invitationId);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting invitation {InvitationId}", invitationId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting the invitation"
+            });
+        }
+    }
+
     private Guid GetCurrentAdminId()
     {
         var adminIdClaim = User.FindFirstValue("adminId");

@@ -179,3 +179,70 @@ public class GlobalRole
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 }
+
+// ========== User Invitation DTOs ==========
+
+public class InviteUserRequest
+{
+    [Required]
+    [EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string FirstName { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(100)]
+    public string LastName { get; set; } = string.Empty;
+
+    // Optional: admin can pre-set the organization name
+    [MaxLength(200)]
+    public string? OrganizationName { get; set; }
+}
+
+public class UserInvitationDto
+{
+    public Guid InvitationId { get; set; }
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? OrganizationName { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime ExpiresAt { get; set; }
+}
+
+public class UserInvitationFilterRequest
+{
+    public string? Search { get; set; }
+    public string? Status { get; set; }
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 10;
+}
+
+public class SetPasswordRequest
+{
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    [Required]
+    [MinLength(8)]
+    public string Password { get; set; } = string.Empty;
+
+    // Required: user must set/confirm organization name (can override admin's choice)
+    [Required]
+    [MaxLength(200)]
+    public string OrganizationName { get; set; } = string.Empty;
+}
+
+public class SetPasswordValidationDto
+{
+    public bool Valid { get; set; }
+    public string? FirstName { get; set; }
+    public string? Email { get; set; }
+    public string? OrganizationName { get; set; }
+    public bool RequiresOrganization { get; set; }
+    public string? Message { get; set; }
+}

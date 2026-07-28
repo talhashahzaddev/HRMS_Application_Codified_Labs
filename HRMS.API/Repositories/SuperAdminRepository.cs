@@ -1,6 +1,7 @@
 using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
+using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using Newtonsoft.Json;
 using System.Data;
@@ -650,5 +651,182 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
     {
         using var connection = CreateConnection();
         return await connection.ExecuteAsync(sql, parameters, transaction, commandTimeout: commandTimeoutSeconds);
+    }
+
+    // ========== User Invitation Methods ==========
+
+    public async Task<Guid> SaveInvitationAsync(Guid userId, string token, DateTime expiresAt, string? organizationName = null)
+    {
+        try
+        {
+            using var connection = CreateConnection();
+            const string sql = @"
+            INSERT INTO auth.userinvitations (userid, token, expiresat, organizationname)
+            VALUES (@userId, @token, @expiresAt, @organizationName)
+            RETURNING invitationid";
+
+            return await connection.QuerySingleAsync<Guid>(sql, new { userId, token, expiresAt, organizationName });
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    public async Task<UserInvitation?> GetInvitationByTokenAsync(string token)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            SELECT * FROM auth.userinvitations
+            WHERE token = @token
+            LIMIT 1";
+
+        return await connection.QueryFirstOrDefaultAsync<UserInvitation>(sql, new { token });
+    }
+
+    public async Task<bool> MarkInvitationAsUsedAsync(string token)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            UPDATE auth.userinvitations
+            SET used = true, updatedat = NOW()
+            WHERE token = @token AND used = false";
+
+        var rows = await connection.ExecuteAsync(sql, new { token });
+        return rows > 0;
+    }
+
+    public async Task<bool> DeactivateOldInvitationsForUserAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            UPDATE auth.userinvitations
+            SET used = true, updatedat = NOW()
+            WHERE userid = @userId AND used = false";
+
+        await connection.ExecuteAsync(sql, new { userId });
+        return true;
+    }
+
+    public async Task<bool> UserHasCompletedSetupAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            SELECT passwordchangedat IS NOT NULL
+            FROM auth.users
+            WHERE userid = @userId";
+
+        return await connection.QuerySingleOrDefaultAsync<bool>(sql, new { userId });
+    }
+
+    public async Task<PagedResult<UserInvitationDto>> GetInvitationsPagedAsync(UserInvitationFilterRequest filter)
+    {
+        using var connection = CreateConnection();
+        var parameters = new DynamicParameters();
+        var whereClause = "WHERE 1=1";
+
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            whereClause += " AND (LOWER(u.firstname) LIKE @search OR LOWER(u.lastname) LIKE @search OR LOWER(u.email) LIKE @search)";
+            parameters.Add("search", $"%{filter.Search.ToLower()}%");
+        }
+
+        // Count query
+        var countSql = $@"
+            SELECT COUNT(*)
+            FROM auth.userinvitations ui
+            JOIN auth.users u ON ui.userid = u.userid
+            {whereClause}";
+
+        var totalCount = await connection.ExecuteScalarAsync<int>(countSql, parameters);
+
+        // Data query
+        var offset = (filter.Page - 1) * filter.PageSize;
+        parameters.Add("limit", filter.PageSize);
+        parameters.Add("offset", offset);
+
+        var dataSql = $@"
+            SELECT
+                ui.invitationid AS InvitationId,
+                ui.userid AS UserId,
+                u.email AS Email,
+                u.firstname AS FirstName,
+                u.lastname AS LastName,
+                ui.organizationname AS OrganizationName,
+                CASE
+                    WHEN ui.used = true THEN 'Completed'
+                    WHEN ui.expiresat < NOW() THEN 'Expired'
+                    ELSE 'Pending'
+                END AS Status,
+                ui.createdat AS CreatedAt,
+                ui.expiresat AS ExpiresAt
+            FROM auth.userinvitations ui
+            JOIN auth.users u ON ui.userid = u.userid
+            {whereClause}
+            ORDER BY ui.createdat DESC
+            LIMIT @limit OFFSET @offset";
+
+        var data = await connection.QueryAsync<UserInvitationDto>(dataSql, parameters);
+
+        // Apply status filter in-memory (since status is computed)
+        var result = data.AsEnumerable();
+        if (!string.IsNullOrWhiteSpace(filter.Status))
+        {
+            result = result.Where(i => i.Status.Equals(filter.Status, StringComparison.OrdinalIgnoreCase));
+        }
+
+        return new PagedResult<UserInvitationDto>
+        {
+            Data = result.ToList(),
+            TotalCount = totalCount,
+            Page = filter.Page,
+            PageSize = filter.PageSize
+        };
+    }
+
+    public async Task<bool> DeleteInvitationAsync(Guid invitationId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            DELETE FROM auth.userinvitations
+            WHERE invitationid = @invitationId";
+
+        var rows = await connection.ExecuteAsync(sql, new { invitationId });
+        return rows > 0;
+    }
+
+    public async Task<UserInvitation?> GetInvitationByIdAsync(Guid invitationId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            SELECT * FROM auth.userinvitations
+            WHERE invitationid = @invitationId
+            LIMIT 1";
+
+        return await connection.QueryFirstOrDefaultAsync<UserInvitation>(sql, new { invitationId });
+    }
+
+    public async Task<bool> DeactivateUserAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            UPDATE auth.users
+            SET isactive = false, emailverified = false
+            WHERE userid = @userId";
+
+        var rows = await connection.ExecuteAsync(sql, new { userId });
+        return rows > 0;
+    }
+
+    public async Task<bool> ActivateUserAsync(Guid userId)
+    {
+        using var connection = CreateConnection();
+        const string sql = @"
+            UPDATE auth.users
+            SET isactive = true, emailverified = true, passwordchangedat = NOW()
+            WHERE userid = @userId";
+
+        var rows = await connection.ExecuteAsync(sql, new { userId });
+        return rows > 0;
     }
 }

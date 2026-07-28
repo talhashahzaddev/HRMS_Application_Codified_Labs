@@ -66,19 +66,19 @@ public class AuthRepository : BaseRepository, IAuthRepository
         var sql = @"
                     SELECT u.userid,
        u.organizationid,
-       u.email AS Email, 
-       u.firstname AS FirstName, 
-       u.lastname AS LastName, 
-       u.isactive AS IsActive, 
+       u.email AS Email,
+       u.firstname AS FirstName,
+       u.lastname AS LastName,
+       u.isactive AS IsActive,
        u.passwordhash,
-       u.lastloginat AS LastLoginAt, 
+       u.lastloginat AS LastLoginAt,
        u.createdat AS CreatedAt,
-       r.rolename AS RoleName, 
+       r.rolename AS RoleName,
        r.permissions AS Permissions,
        o.name AS OrganizationName
 FROM auth.users u
-INNER JOIN auth.roles r ON u.roleid = r.roleid
-INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
+LEFT JOIN auth.roles r ON u.roleid = r.roleid
+LEFT JOIN auth.organizations o ON u.organizationid = o.organizationid
         WHERE u.userid = @userId";
         try
         {
@@ -565,8 +565,8 @@ WHERE token = @token;
         {
             var sql = @"
             SELECT roleid, organizationid, rolename, description, permissions, issystemrole, createdat
-            FROM auth.roles 
-            WHERE organizationid = @organizationId AND rolename = @roleName";
+            FROM auth.roles
+            WHERE organizationid = @organizationId AND LOWER(rolename) = LOWER(@roleName)";
 
             var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { organizationId, roleName });
             if (result == null) return null;
@@ -1051,6 +1051,60 @@ WHERE token = @token;
         {
             throw new Exception("Cannot map to the result", ex.InnerException);
         }
+    }
+
+    public async Task<bool> UpdateUserOrganizationAsync(Guid userId, Guid organizationId)
+    {
+        var sql = @"
+            UPDATE auth.users
+            SET organizationid = @organizationId,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE userid = @userId";
+
+        var affected = await ExecuteAsync(sql, new { userId, organizationId });
+        return affected > 0;
+    }
+
+    /// <summary>
+    /// Creates a user without an organization or role.
+    /// Used for platform admin invitations where the org will be created later during password setup.
+    /// Bypasses fn_create_user which requires an existing organization.
+    /// </summary>
+    public async Task<User> CreateUserWithoutOrganizationAsync(User user)
+    {
+        try
+        {
+            const string sql = @"
+            INSERT INTO auth.users (userid, email, passwordhash, firstname, lastname, isactive, emailverified, createdat, updatedat)
+            VALUES (@userId, @email, @passwordHash, @firstName, @lastName, false, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            RETURNING userId";
+
+            var userId = await ExecuteScalarAsync<Guid>(sql, new
+            {
+                userId = user.UserId,
+                email = user.Email,
+                passwordHash = user.PasswordHash,
+                firstName = user.FirstName,
+                lastName = user.LastName
+            });
+
+            user.UserId = userId;
+            return user;
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+
+    /// <summary>
+    /// Direct email existence check against auth.users — no JOINs, no employee/org requirements.
+    /// Use this when checking if an email is already taken before creating any user.
+    /// </summary>
+    public async Task<bool> EmailExistsAsync(string email)
+    {
+        const string sql = "SELECT EXISTS(SELECT 1 FROM auth.users WHERE LOWER(email) = LOWER(@email))";
+        return await QuerySingleOrDefaultAsync<bool>(sql, new { email });
     }
 
 }
