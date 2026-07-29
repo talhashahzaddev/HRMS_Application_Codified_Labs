@@ -1805,6 +1805,14 @@ public class AttendanceService : IAttendanceService
         var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
         var sheet = workbook.CreateSheet("Attendance Report");
 
+        // Create header style ONCE (reuse for all header cells)
+        var headerStyle = workbook.CreateCellStyle();
+        var headerFont = workbook.CreateFont();
+        headerFont.IsBold = true;
+        headerStyle.SetFont(headerFont);
+        headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
+        headerStyle.FillForegroundColor = NPOI.SS.UserModel.IndexedColors.Grey25Percent.Index;
+
         var headerRow = sheet.CreateRow(0);
         string[] headers = { "Date", "Employee Name", "Check In", "Check Out", "Total Hours", "Overtime Hours", "Status", "Notes" };
 
@@ -1812,15 +1820,6 @@ public class AttendanceService : IAttendanceService
         {
             var cell = headerRow.CreateCell(i);
             cell.SetCellValue(headers[i]);
-
-            var headerStyle = workbook.CreateCellStyle();
-            var headerFont = workbook.CreateFont();
-            headerFont.IsBold = true;
-            headerStyle.SetFont(headerFont);
-            //headerStyle.FillForegroundColor = NPOI.HSSF.Util.HSSFColor.Grey25Percent.Index;
-            //headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
-            headerStyle.FillPattern = NPOI.SS.UserModel.FillPattern.SolidForeground;
-            headerStyle.FillForegroundColor = NPOI.SS.UserModel.IndexedColors.Grey25Percent.Index;
             cell.CellStyle = headerStyle;
         }
 
@@ -1830,19 +1829,21 @@ public class AttendanceService : IAttendanceService
             var row = sheet.CreateRow(i + 1);
 
             row.CreateCell(0).SetCellValue(record.WorkDate.ToString("yyyy-MM-dd"));
-            row.CreateCell(1).SetCellValue(record.EmployeeName);
+            row.CreateCell(1).SetCellValue(record.EmployeeName ?? "Unknown");
             row.CreateCell(2).SetCellValue(record.CheckInTime?.ToString("HH:mm") ?? "N/A");
             row.CreateCell(3).SetCellValue(record.CheckOutTime?.ToString("HH:mm") ?? "N/A");
             row.CreateCell(4).SetCellValue((double)record.TotalHours);
             row.CreateCell(5).SetCellValue((double)record.OvertimeHours);
-
-            row.CreateCell(6).SetCellValue(record.Status);
+            row.CreateCell(6).SetCellValue(record.Status ?? "");
             row.CreateCell(7).SetCellValue(record.Notes ?? "");
         }
 
-        for (int i = 0; i < headers.Length; i++)
+        // Use fixed column widths instead of AutoSizeColumn (broken on Linux containers)
+        // Widths are in 256ths of a character
+        int[] columnWidths = { 3000, 6000, 3000, 3000, 3500, 3500, 3000, 8000 };
+        for (int i = 0; i < columnWidths.Length; i++)
         {
-            sheet.AutoSizeColumn(i);
+            sheet.SetColumnWidth(i, columnWidths[i]);
         }
 
         using var stream = new MemoryStream();
