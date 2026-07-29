@@ -917,6 +917,14 @@ public class EmployeeController : ControllerBase
             if (Request.Form.ContainsKey("EmergencyContact"))
                 request.EmergencyContact = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["EmergencyContact"]);
             var orgId = GetCurrentOrganizationId();
+
+            // Only Super Admin can change employee code
+            var currentRole = User.FindFirstValue(ClaimTypes.Role);
+            if (!string.Equals(currentRole, "Super Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                request.EmployeeNumber = null;
+            }
+
             // Call service to update employee
             await _employeeService.UpdateEmployeeAsync(request.EmployeeId, request, orgId, profileurl);
 
