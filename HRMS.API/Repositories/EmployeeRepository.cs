@@ -419,7 +419,7 @@ ORDER BY e.firstname, e.lastname;
         LEFT JOIN auth.roles AS ar
             ON u.roleid = ar.roleid
 
-        WHERE e.employeeid = @userId;
+        WHERE e.userid = @userId;
         ";
 
             return await QuerySingleOrDefaultAsync<Employee>(
@@ -432,6 +432,63 @@ ORDER BY e.firstname, e.lastname;
             return null;
         }
     }
+
+    public async Task<Employee?> GetEmployeeByEmployeeIdAsync(Guid? employeeId)
+    {
+        try
+        {
+            var sql = @"
+        SELECT
+            e.employeeid,
+            e.organizationid,
+            e.userid,
+            e.employeecode AS EmployeeNumber,
+            e.firstname,
+            e.lastname,
+            e.email,
+            e.phone,
+            e.address,
+            e.profilepictureurl AS ProfilePictureUrl,
+            e.dateofbirth,
+            e.gender,
+            e.nationality,
+            e.maritalstatus,
+            e.emergencycontact AS EmergencyContact,
+            e.hiredate,
+            e.terminationdate,
+            e.status,
+            e.createdat,
+            e.updatedat,
+            e.categoryid AS TaxCategoryId,
+            ed.worklocation,
+            ed.basicsalary AS BasicSalary,
+            ed.departmentid,
+            ed.positionid,
+            ed.reportingmanagerid AS reporting_manager_id,
+            CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
+            p.positiontitle,
+            p.roleid AS RoleId,
+            d.departmentname,
+            tc.categoryname AS TaxCategoryName,
+            ar.rolename AS RoleName
+        FROM employee.employees AS e
+        LEFT JOIN employee.employmentdetails AS ed ON e.employeeid = ed.employeeid
+        LEFT JOIN employee.positions AS p ON ed.positionid = p.positionid
+        LEFT JOIN employee.departments AS d ON ed.departmentid = d.departmentid
+        LEFT JOIN employee.employees AS mgr ON ed.reportingmanagerid = mgr.employeeid
+        LEFT JOIN payroll.taxcategories AS tc ON e.categoryid = tc.categoryid
+        LEFT JOIN auth.users AS u ON e.userid = u.userid
+        LEFT JOIN auth.roles AS ar ON u.roleid = ar.roleid
+        WHERE e.employeeid = @employeeId;";
+
+            return await QuerySingleOrDefaultAsync<Employee>(sql, new { employeeId });
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     public async Task<string> GetUserRoleAsync(Guid userid)
     {
         try

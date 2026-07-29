@@ -42,9 +42,9 @@ namespace HRMS.API.Services
             var ticket = await _helpDeskRepository.CreateTicketAsync(request, organizationId, employeeId);
 
             //Implementing notification
-            var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+            var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(employeeId);
             var reportingmangerid = await _notificationRepository.GetReciveridAsync(employee.EmployeeId);
-            var reportingManagerDetails = await _employeeRepository.GetEmployeeByIdAsync(reportingmangerid);
+            var reportingManagerDetails = await _employeeRepository.GetEmployeeByEmployeeIdAsync(reportingmangerid);
             var ticketInof = await _helpDeskRepository.GetTicketByIdAsync(organizationId, ticket);
                       
                 //get employees og group from groupid
@@ -383,7 +383,7 @@ namespace HRMS.API.Services
                 throw new ArgumentException("TicketId is required", nameof(request.TicketId));
             var result = await _helpDeskRepository.AssignTicketAsync(request, assignedBy);
             //Get assigned Employee Information
-            var employee = await _employeeRepository.GetEmployeeByIdAsync(assignedBy);
+            var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(assignedBy);
             //Get Ticket information
             var Ticket = await _helpDeskRepository.GetTicketByIdAsync(organizationId, request.TicketId);
             if (Ticket != null)
@@ -428,7 +428,7 @@ namespace HRMS.API.Services
                 //First sending request into repo
                 var result = await _helpDeskRepository.CreateMessageAsync(organizationId, request);
                 //Get employee information who creates message
-                var employee = await _employeeRepository.GetEmployeeByIdAsync(request.SenderId);
+                var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(request.SenderId);
                 //Get Ticket information
                 var Ticket = await _helpDeskRepository.GetTicketByIdAsync(organizationId, request.TicketId);
 
