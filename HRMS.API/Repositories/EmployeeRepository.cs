@@ -975,7 +975,7 @@ ORDER BY e.firstname, e.lastname;
           AND (@status IS NULL OR ee.status = @status)
         ORDER BY ep.positiontitle, ee.firstname, ee.lastname";
 
-            var results = await QueryAsync<PositionWithEmployees>(sql, new { organizationId, departmentId, search, status });
+            var results = await QueryAsync<PositionWithEmployees>(sql, new { organizationId, departmentId, search, status }, commandTimeout: 120);
 
             var positions = results
                 .GroupBy(r => r.PositionId)
