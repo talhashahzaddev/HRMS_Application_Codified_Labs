@@ -266,7 +266,9 @@ CREATE TABLE auth.roles (
     description text,
     permissions jsonb DEFAULT '{}'::jsonb,
     issystemrole boolean DEFAULT false,
-    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+    createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+    role_version integer DEFAULT 1,
+    iscustomized boolean DEFAULT false
 );
 
 ALTER TABLE ONLY auth.roles
