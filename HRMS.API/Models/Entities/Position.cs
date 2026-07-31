@@ -77,13 +77,13 @@ public class PositionWithEmployees
     public string? EmployeeEmail { get; set; }
     public string? EmployeePhone { get; set; }
     public string? EmployeeStatus { get; set; }
-    public DateTime HireDate { get; set; }
+    public DateTime? HireDate { get; set; }
 
     // Employment details
     public string? EmploymentType { get; set; }
     public string? PayType { get; set; }
     public decimal? BasicSalary { get; set; }
     public string? WorkLocation { get; set; }
-    public DateTime EffectiveDate { get; set; }
-    public bool IsCurrentEmployment { get; set; }
+    public DateTime? EffectiveDate { get; set; }
+    public bool? IsCurrentEmployment { get; set; }
 }

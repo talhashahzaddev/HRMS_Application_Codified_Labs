@@ -1003,8 +1003,8 @@ ORDER BY e.firstname, e.lastname;
                             PayType = e.PayType,
                             BasicSalary = e.BasicSalary,
                             WorkLocation = e.WorkLocation,
-                            EffectiveDate = e.EffectiveDate,
-                            IsCurrent = e.IsCurrentEmployment,
+                            EffectiveDate = e.EffectiveDate ?? DateTime.UtcNow,
+                            IsCurrent = e.IsCurrentEmployment ?? true,
                             Employee = new Employee
                             {
                                 EmployeeId = e.EmployeeId.Value,
@@ -1012,7 +1012,7 @@ ORDER BY e.firstname, e.lastname;
                                 LastName = e.EmployeeLastName,
                                 Email = e.EmployeeEmail,
                                 Phone = e.EmployeePhone,
-                                HireDate = e.HireDate,
+                                HireDate = e.HireDate ?? DateTime.UtcNow,
                                 Status = e.EmployeeStatus
                             }
                         }).ToList()
