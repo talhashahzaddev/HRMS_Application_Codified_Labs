@@ -30,10 +30,10 @@ public abstract class BaseRepository
         return await connection.QuerySingleAsync<T>(sql, parameters);
     }
 
-    protected async Task<IEnumerable<T>> QueryAsync<T>(string sql, object? parameters = null)
+    protected async Task<IEnumerable<T>> QueryAsync<T>(string sql, object? parameters = null, int? commandTimeout = null)
     {
         using var connection = CreateConnection();
-        return await connection.QueryAsync<T>(sql, parameters);
+        return await connection.QueryAsync<T>(sql, parameters, commandTimeout: commandTimeout);
     }
 
     protected async Task<int> ExecuteAsync(string sql, object? parameters = null)
