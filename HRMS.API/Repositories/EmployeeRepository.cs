@@ -924,106 +924,125 @@ ORDER BY e.firstname, e.lastname;
     Guid organizationId,
     Guid? departmentId = null,
     string? search = null,
-    string? status = null) // status can be "active"/"inactive" or your column value
+    string? status = null)
     {
-        try
+        // ── Step 1: Fetch positions (fast — only 3 lightweight JOINs) ──────
+        var posSql = @"
+            SELECT
+                ep.positionid   AS PositionId,
+                ep.organizationid AS OrganizationId,
+                ep.positiontitle AS PositionTitle,
+                ep.departmentid  AS DepartmentId,
+                ed.departmentname AS DepartmentName,
+                ep.description,
+                ep.requirements,
+                ep.salaryrange,
+                ep.roleid        AS RoleId,
+                ar.rolename     AS RoleName,
+                ep.isactive      AS IsActive,
+                ep.createdat     AS CreatedAt,
+                ep.updatedat     AS UpdatedAt
+            FROM employee.positions ep
+            LEFT JOIN employee.departments ed ON ep.departmentid = ed.departmentid
+            LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
+            WHERE ep.organizationid = @organizationId
+              AND (@departmentId IS NULL OR ep.departmentid = @departmentId)
+              AND (@search IS NULL OR ep.positiontitle ILIKE '%' || @search || '%')
+            ORDER BY ep.positiontitle";
+
+        var posResults = (await QueryAsync<PositionWithEmployees>(posSql,
+            new { organizationId, departmentId, search }, commandTimeout: 60)).ToList();
+
+        if (posResults.Count == 0)
+            return new List<Position>();
+
+        // Collect position IDs for the IN clause
+        var posIds = posResults.Select(p => p.PositionId).ToList();
+
+        // ── Step 2: Fetch current employment details + employees ───────────
+        //    Only for positions that actually exist. Uses a single efficient
+        //    query instead of a 6-way cartesian JOIN.
+        var empSql = @"
+            SELECT
+                edet.positionid            AS PositionId,
+                edet.employeeid            AS EmployeeId,
+                ee.employeecode            AS EmployeeCode,
+                ee.firstname               AS EmployeeFirstName,
+                ee.lastname                AS EmployeeLastName,
+                ee.email                   AS EmployeeEmail,
+                ee.phone                   AS EmployeePhone,
+                ee.status                  AS EmployeeStatus,
+                ee.hiredate                AS HireDate,
+                edet.employmenttype        AS EmploymentType,
+                edet.paytype               AS PayType,
+                edet.basicsalary           AS BasicSalary,
+                edet.worklocation          AS WorkLocation,
+                edet.effectivedate         AS EffectiveDate,
+                edet.iscurrent             AS IsCurrentEmployment
+            FROM employee.employmentdetails edet
+            INNER JOIN employee.employees ee ON edet.employeeid = ee.employeeid
+            WHERE edet.positionid = ANY(@PositionIds)
+              AND edet.iscurrent = true";
+
+        // If status filter is requested, apply it
+        if (!string.IsNullOrEmpty(status))
         {
-            var sql = @"
-        SELECT 
-            ep.positionid, 
-            ep.organizationid, 
-            ep.positiontitle, 
-            ep.departmentid, 
-            ed.departmentname AS DepartmentName, 
-            ep.description, 
-            ep.requirements, 
-            ep.salaryrange, 
-            ep.roleid, 
-            ar.rolename AS RoleName,
-            ep.isactive, 
-            ep.createdat, 
-            ep.updatedat,
-            -- Employee Details
-            ee.employeeid AS EmployeeId,
-            ee.employeecode AS EmployeeCode,
-            ee.firstname AS EmployeeFirstName,
-            ee.lastname AS EmployeeLastName,
-            ee.email AS EmployeeEmail,
-            ee.phone AS EmployeePhone,
-            ee.status AS EmployeeStatus,
-            ee.hiredate AS HireDate,
-            -- User Details
-            au.firstname AS UserFirstName,
-            au.lastname AS UserLastName,
-            au.email AS UserEmail,
-            -- Employment Details
-            edet.employmenttype AS EmploymentType,
-            edet.paytype AS PayType,
-            edet.basicsalary AS BasicSalary,
-            edet.worklocation AS WorkLocation,
-            edet.effectivedate AS EffectiveDate,
-            edet.iscurrent AS IsCurrentEmployment
-        FROM employee.positions ep
-        LEFT JOIN employee.departments ed ON ep.departmentid = ed.departmentid
-        LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
-        LEFT JOIN employee.employmentdetails edet ON ep.positionid = edet.positionid AND edet.iscurrent = true
-        LEFT JOIN employee.employees ee ON edet.employeeid = ee.employeeid
-        LEFT JOIN auth.users au ON ee.userid = au.userid AND au.roleid = ep.roleid
-        WHERE ep.organizationid = @organizationId
-          AND (@departmentId IS NULL OR ep.departmentid = @departmentId)
-          AND (@search IS NULL OR ep.positiontitle ILIKE '%' || @search || '%')
-          AND (@status IS NULL OR ee.status = @status)
-        ORDER BY ep.positiontitle, ee.firstname, ee.lastname";
+            empSql += " AND ee.status = @status";
+        }
 
-            var results = await QueryAsync<PositionWithEmployees>(sql, new { organizationId, departmentId, search, status });
+        var empResults = (await QueryAsync<PositionWithEmployees>(empSql,
+            new { PositionIds = posIds, status })).ToList();
 
-            var positions = results
-                .GroupBy(r => r.PositionId)
-                .Select(g => new Position
+        // Build lookup: PositionId → List<EmploymentDetail>
+        var empLookup = empResults
+            .GroupBy(e => e.PositionId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(e => new EmploymentDetail
                 {
+                    EmployeeId = e.EmployeeId!.Value,
                     PositionId = g.Key,
-                    OrganizationId = g.First().OrganizationId,
-                    PositionTitle = g.First().PositionTitle,
-                    DepartmentId = g.First().DepartmentId,
-                    DepartmentName = g.First().DepartmentName,
-                    Description = g.First().Description,
-                    Requirements = g.First().Requirements,
-                    SalaryRange = g.First().SalaryRange,
-                    RoleId = g.First().RoleId,
-                    RoleName = g.First().RoleName,
-                    IsActive = g.First().IsActive,
-                    CreatedAt = g.First().CreatedAt,
-                    UpdatedAt = g.First().UpdatedAt,
-                    EmploymentDetails = g.Where(x => x.EmployeeId != null)
-                        .Select(e => new EmploymentDetail
-                        {
-                            EmployeeId = e.EmployeeId.Value,
-                            PositionId = g.Key,
-                            EmploymentType = e.EmploymentType,
-                            PayType = e.PayType,
-                            BasicSalary = e.BasicSalary,
-                            WorkLocation = e.WorkLocation,
-                            EffectiveDate = e.EffectiveDate ?? DateTime.UtcNow,
-                            IsCurrent = e.IsCurrentEmployment ?? true,
-                            Employee = new Employee
-                            {
-                                EmployeeId = e.EmployeeId.Value,
-                                FirstName = e.EmployeeFirstName,
-                                LastName = e.EmployeeLastName,
-                                Email = e.EmployeeEmail,
-                                Phone = e.EmployeePhone,
-                                HireDate = e.HireDate ?? DateTime.UtcNow,
-                                Status = e.EmployeeStatus
-                            }
-                        }).ToList()
-                }).ToList();
+                    EmploymentType = e.EmploymentType,
+                    PayType = e.PayType,
+                    BasicSalary = e.BasicSalary,
+                    WorkLocation = e.WorkLocation,
+                    EffectiveDate = e.EffectiveDate ?? DateTime.UtcNow,
+                    IsCurrent = e.IsCurrentEmployment ?? true,
+                    Employee = new Employee
+                    {
+                        EmployeeId = e.EmployeeId!.Value,
+                        FirstName = e.EmployeeFirstName,
+                        LastName = e.EmployeeLastName,
+                        Email = e.EmployeeEmail,
+                        Phone = e.EmployeePhone,
+                        HireDate = e.HireDate ?? DateTime.UtcNow,
+                        Status = e.EmployeeStatus
+                    }
+                }).ToList()
+            );
 
-            return positions;
-        }
-        catch (Exception)
+        // ── Step 3: Assemble final list (in-memory, no SQL) ───────────────
+        var positions = posResults.Select(p => new Position
         {
-            throw;
-        }
+            PositionId = p.PositionId,
+            OrganizationId = p.OrganizationId,
+            PositionTitle = p.PositionTitle ?? string.Empty,
+            DepartmentId = p.DepartmentId,
+            DepartmentName = p.DepartmentName,
+            Description = p.Description,
+            Requirements = p.Requirements ?? new Dictionary<string, object>(),
+            SalaryRange = p.SalaryRange ?? new Dictionary<string, object>(),
+            RoleId = p.RoleId,
+            RoleName = p.RoleName,
+            IsActive = p.IsActive,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
+            EmploymentDetails = empLookup.TryGetValue(p.PositionId, out var emps)
+                ? emps
+                : new List<EmploymentDetail>()
+        }).ToList();
+
+        return positions;
     }
 
 
