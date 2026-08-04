@@ -658,6 +658,23 @@ WHERE token = @token;
         parameters.Add("p_description", request.Description, DbType.String);
         parameters.Add("p_issystemrole", request.IsSystemRole, DbType.Boolean);
 
+        // Deduplicate action IDs globally at the repository level (last line of defence)
+        if (request.Menus != null)
+        {
+            var globalSeenActionIds = new HashSet<Guid>();
+            foreach (var menu in request.Menus)
+            {
+                if (menu.SubMenus == null) continue;
+                foreach (var sub in menu.SubMenus)
+                {
+                    if (sub.Actions == null) continue;
+                    sub.Actions = sub.Actions
+                        .Where(a => globalSeenActionIds.Add(a.ActionId))
+                        .ToList();
+                }
+            }
+        }
+
         string jsonMenus = JsonConvert.SerializeObject(request.Menus);
         parameters.Add("p_menus", jsonMenus, DbType.String);
 
