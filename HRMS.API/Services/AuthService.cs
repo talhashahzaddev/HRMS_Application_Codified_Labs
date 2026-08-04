@@ -1130,13 +1130,14 @@ public class AuthService : IAuthService
                     {
                         SubMenuId = sg.Key.SubMenuId,
                         SubMenuName = sg.Key.SubMenuName,
-                        Actions = sg.Select(p => new UserActionPermission
-                        {
-                            ActionId = p.ActionId,
-                            ActionName = p.ActionName,
-                            ActionKey = p.ActionKey,
-                            HasPermission = p.HasPermission
-                        }).ToList()
+                        Actions = sg.GroupBy(p => new { p.ActionId, p.ActionName, p.ActionKey })
+                                    .Select(ag => new UserActionPermission
+                                    {
+                                        ActionId = ag.Key.ActionId,
+                                        ActionName = ag.Key.ActionName,
+                                        ActionKey = ag.Key.ActionKey,
+                                        HasPermission = ag.Any(x => x.HasPermission)
+                                    }).ToList()
                     }).ToList()
             }).ToList();
 
