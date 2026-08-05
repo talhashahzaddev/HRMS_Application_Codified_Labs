@@ -129,6 +129,8 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('c3921870-089a-4dfc-ba7d-0c2096e9d30c', 'Create Skill', 'skill_matrix_create', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('c3921870-089a-4dfc-ba7d-0c2096e9d30c', 'Edit Skill', 'skill_matrix_edit', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('c3921870-089a-4dfc-ba7d-0c2096e9d30c', 'Activate/DeActivate Skill', 'skill_matrix_activate-deactivate', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c3921870-089a-4dfc-ba7d-0c2096e9d30c', 'All Employees & Skills', 'skill_matrix_all_employees_skills', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c3921870-089a-4dfc-ba7d-0c2096e9d30c', 'Pending Skill Assessments', 'skill_matrix_pending_skill_assessments', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Goals & KRAs
 ('e9745efe-8e5d-431e-9787-980703d80abb', 'Create New KRA', 'goals&kras_new', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),

@@ -613,6 +613,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employee-skills/team-summary")]
+    [PermissionAuthorize("skill_matrix_pending_skill_assessments")]
     public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetTeamEmployeeSkillsSummary([FromQuery] Guid? employeeId = null, [FromQuery] Guid? skillSetId = null, [FromQuery] string? department = null, [FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
     {
         try
@@ -868,6 +869,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employee-skills")]
+    [PermissionAuthorize("skill_matrix_all_employees_skills")]
     public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>>> GetAllEmployeeSkills(
         [FromQuery] Guid? employeeId = null,
         [FromQuery] Guid? skillSetId = null,
