@@ -533,6 +533,11 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
             OR LOWER(e.email) LIKE LOWER(@search))");
             parameters.Add("search", $"%{filter.Search.Trim()}%");
         }
+        if (filter.ReportingManagerId.HasValue)
+        {
+            conditions.Add("ed.reportingmanagerid = @reportingManagerId");
+            parameters.Add("reportingManagerId", filter.ReportingManagerId.Value);
+        }
 
         var where = string.Join(" AND ", conditions);
 
@@ -934,6 +939,12 @@ ORDER BY s.category, s.skillname;
         {
             whereConditions.Add("(LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search) OR LOWER(s.skillname) LIKE LOWER(@Search) OR LOWER(s.category) LIKE LOWER(@Search))");
             parameters.Add("Search", $"%{filter.Search.Trim()}%");
+        }
+
+        if (filter.OnlySelfAdded == true)
+        {
+            // The employee assessed it themselves (AssessedBy is null initially)
+            whereConditions.Add("es.assessedby IS NULL");
         }
 
         var whereClause = string.Join(" AND ", whereConditions);

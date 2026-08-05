@@ -123,6 +123,7 @@ INSERT INTO auth.actions (submenuid, actionname, actionkey, created_date, update
 ('c05fb051-5398-4b48-96e6-f5c110f77731', 'Create Self Assessment', 'appraisal_self_assessment', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('c05fb051-5398-4b48-96e6-f5c110f77731', 'View Appriasal Details', 'view_appraisal_details', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 ('c05fb051-5398-4b48-96e6-f5c110f77731', 'Delete Appriasal', 'appraisal_delete', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+('c05fb051-5398-4b48-96e6-f5c110f77731', 'Manager Appraisals review', 'appraisal_manager_appraisals_review', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
 
 -- Skill Matrix
 ('c3921870-089a-4dfc-ba7d-0c2096e9d30c', 'Create Skill', 'skill_matrix_create', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
