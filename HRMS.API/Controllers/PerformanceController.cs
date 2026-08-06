@@ -612,28 +612,35 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    //[HttpGet("employee-skills")]
-    //public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>>> GetAllEmployeeSkills([FromQuery] Guid? employeeId = null, [FromQuery] Guid? skillSetId = null, [FromQuery] string? department = null, [FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
-    //{
-    //    try
-    //    {
-    //        var organizationId = GetCurrentOrganizationId();
-    //        var filter = new EmployeeSkillFilterRequest
-    //        {
-    //            EmployeeId = employeeId,
-    //            SkillSetId = skillSetId,
-    //            Department = department,
-    //            Search = search
-    //        };
-    //        var result = await _performanceService.GetEmployeeSkillsSummaryPagedAsync(organizationId, filter, page, limit);
-    //        return Ok(new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>> { Success = true, Data = result });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error retrieving all employee skills");
-    //        return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>> { Success = false, Message = "An error occurred" });
-    //    }
-    //}
+    [HttpGet("employee-skills/team-summary")]
+    [PermissionAuthorize("skill_matrix_pending_skill_assessments")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetTeamEmployeeSkillsSummary([FromQuery] Guid? employeeId = null, [FromQuery] Guid? skillSetId = null, [FromQuery] string? department = null, [FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            
+            var filter = new EmployeeSkillFilterRequest
+            {
+                EmployeeId = employeeId,
+                SkillSetId = skillSetId,
+                Department = department,
+                Search = search,
+                ReportingManagerId = currentEmployeeId,
+                OnlySelfAdded = true // Fetch only skills that haven't been assessed by others yet
+            };
+            
+            // We use GetEmployeeSkillsByManagerPagedAsync to get individual skills instead of summary
+            var result = await _performanceService.GetEmployeeSkillsByManagerPagedAsync(currentEmployeeId, filter, page, limit);
+            return Ok(new ServiceResponse<PagedResult<EmployeeSkillDto>> { Success = true, Data = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving team employee skills");
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
 
     [HttpGet("employee-skills/detail/{employeeId}")]
     public async Task<ActionResult<ServiceResponse<EmployeeSkillFullDetailDto>>> GetEmployeeSkillDetail(Guid employeeId)
@@ -862,7 +869,8 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employee-skills")]
-    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetAllEmployeeSkills(
+    [PermissionAuthorize("skill_matrix_all_employees_skills")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>>> GetAllEmployeeSkills(
         [FromQuery] Guid? employeeId = null,
         [FromQuery] Guid? skillSetId = null,
         [FromQuery] string? department = null,
@@ -883,9 +891,9 @@ public class PerformanceController : ControllerBase
                 Search = search
             };
 
-            var result = await _performanceService.GetEmployeeSkillsPagedAsync(organizationId, filter, page, limit);
+            var result = await _performanceService.GetEmployeeSkillsSummaryPagedAsync(organizationId, filter, page, limit);
 
-            return Ok(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            return Ok(new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>
             {
                 Success = true,
                 Data = result
@@ -894,7 +902,7 @@ public class PerformanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving all employee skills");
-            return BadRequest(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            return BadRequest(new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -903,7 +911,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all employee skills");
-            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee skills"
@@ -2145,6 +2153,7 @@ public class PerformanceController : ControllerBase
 
     // Get reviews created by manager (for their employees)
     [HttpGet("getall/created/Manager/Reviews")]
+    [PermissionAuthorize("appraisal_manager_appraisals_review")]
     public async Task<ActionResult<ServiceResponse<List<ManagerReviewDto>>>> GetManagerCreatedReviews()
     {
         try

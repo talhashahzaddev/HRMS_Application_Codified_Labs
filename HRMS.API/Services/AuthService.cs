@@ -785,6 +785,32 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Role name already exists in this organization");
         }
 
+        // Deduplicate Menus, SubMenus, and Actions to prevent uq_permissions violations
+        if (request.Menus != null)
+        {
+            var seenActionIds = new HashSet<Guid>();
+            request.Menus = request.Menus
+                .GroupBy(m => m.MenuId)
+                .Select(mg => new MenuPermissionDto
+                {
+                    MenuId = mg.Key,
+                    SubMenus = mg.SelectMany(m => m.SubMenus ?? new List<SubMenuPermissionDto>())
+                        .GroupBy(sm => sm.SubMenuId)
+                        .Select(smg => new SubMenuPermissionDto
+                        {
+                            SubMenuId = smg.Key,
+                            Actions = smg.SelectMany(sm => sm.Actions ?? new List<ActionPermissionDto>())
+                                .GroupBy(a => a.ActionId)
+                                .Where(ag => seenActionIds.Add(ag.Key))
+                                .Select(ag => new ActionPermissionDto
+                                {
+                                    ActionId = ag.Key,
+                                    HasPermission = ag.Any(a => a.HasPermission)
+                                }).ToList()
+                        }).ToList()
+                }).ToList();
+        }
+
         // Validate all menu, submenu, and action IDs
         foreach (var menu in request.Menus)
         {
@@ -864,6 +890,32 @@ public class AuthService : IAuthService
         {
             _logger.LogWarning("Cannot convert system role to non-system role: {RoleId}", request.RoleId);
             throw new InvalidOperationException("System role cannot be converted to non-system role");
+        }
+
+        // Deduplicate Menus, SubMenus, and Actions to prevent uq_permissions violations
+        if (request.Menus != null)
+        {
+            var seenActionIds = new HashSet<Guid>();
+            request.Menus = request.Menus
+                .GroupBy(m => m.MenuId)
+                .Select(mg => new MenuPermissionDto
+                {
+                    MenuId = mg.Key,
+                    SubMenus = mg.SelectMany(m => m.SubMenus ?? new List<SubMenuPermissionDto>())
+                        .GroupBy(sm => sm.SubMenuId)
+                        .Select(smg => new SubMenuPermissionDto
+                        {
+                            SubMenuId = smg.Key,
+                            Actions = smg.SelectMany(sm => sm.Actions ?? new List<ActionPermissionDto>())
+                                .GroupBy(a => a.ActionId)
+                                .Where(ag => seenActionIds.Add(ag.Key))
+                                .Select(ag => new ActionPermissionDto
+                                {
+                                    ActionId = ag.Key,
+                                    HasPermission = ag.Any(a => a.HasPermission)
+                                }).ToList()
+                        }).ToList()
+                }).ToList();
         }
 
         // Validate all menu, submenu, and action IDs
@@ -1056,13 +1108,14 @@ public class AuthService : IAuthService
                         {
                             SubMenuId = sg.Key.SubMenuId,
                             SubMenuName = sg.Key.SubMenuName,
-                            Actions = sg.Select(p => new RoleActionPermission
-                            {
-                                ActionId = p.MenuId,
-                                ActionName = p.ActionName,
-                                ActionKey = p.ActionKey,
-                                HasPermission = p.HasPermission
-                            }).ToList()
+                            Actions = sg.GroupBy(p => new { p.ActionId, p.ActionName, p.ActionKey })
+                                        .Select(ag => new RoleActionPermission
+                                        {
+                                            ActionId = ag.Key.ActionId,
+                                            ActionName = ag.Key.ActionName,
+                                            ActionKey = ag.Key.ActionKey,
+                                            HasPermission = ag.Any(x => x.HasPermission)
+                                        }).ToList()
                         }).ToList()
                 }).ToList();
 
@@ -1130,13 +1183,14 @@ public class AuthService : IAuthService
                     {
                         SubMenuId = sg.Key.SubMenuId,
                         SubMenuName = sg.Key.SubMenuName,
-                        Actions = sg.Select(p => new UserActionPermission
-                        {
-                            ActionId = p.ActionId,
-                            ActionName = p.ActionName,
-                            ActionKey = p.ActionKey,
-                            HasPermission = p.HasPermission
-                        }).ToList()
+                        Actions = sg.GroupBy(p => new { p.ActionId, p.ActionName, p.ActionKey })
+                                    .Select(ag => new UserActionPermission
+                                    {
+                                        ActionId = ag.Key.ActionId,
+                                        ActionName = ag.Key.ActionName,
+                                        ActionKey = ag.Key.ActionKey,
+                                        HasPermission = ag.Any(x => x.HasPermission)
+                                    }).ToList()
                     }).ToList()
             }).ToList();
 

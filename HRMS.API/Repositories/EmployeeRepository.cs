@@ -951,7 +951,9 @@ ORDER BY e.firstname, e.lastname;
             ORDER BY ep.positiontitle";
 
         var posResults = (await QueryAsync<PositionWithEmployees>(posSql,
-            new { organizationId, departmentId, search }, commandTimeout: 60)).ToList();
+            new { organizationId, departmentId, search }, commandTimeout: 60))
+            .DistinctBy(p => p.PositionId)
+            .ToList();
 
         if (posResults.Count == 0)
             return new List<Position>();
