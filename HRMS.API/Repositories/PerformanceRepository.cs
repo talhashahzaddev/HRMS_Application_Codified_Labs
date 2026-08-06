@@ -324,7 +324,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
                         (k.weightpercentage::numeric / 100.0) * kr.rating::numeric
                     )
                 FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
-                JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                JOIN performance.kra k ON k.kraid = kr.kraid::uuid
             ), LEAST(GREATEST(COALESCE(ea.overallrating, 0), 0), 5))
             /* NO KRA → RETURN DIRECT OVERALL RATING */
             ELSE LEAST(GREATEST(COALESCE(ea.overallrating, 0), 0), 5)
@@ -344,7 +344,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
                                 (k.weightpercentage::numeric / 100.0) * kr.rating::numeric
                             )
                         FROM jsonb_each_text(ea_all.kraratings) kr(kraid, rating)
-                        JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                        JOIN performance.kra k ON k.kraid = kr.kraid::uuid
                     ), LEAST(GREATEST(COALESCE(ea_all.overallrating, 0), 0), 5))
                     ELSE LEAST(GREATEST(COALESCE(ea_all.overallrating, 0), 0), 5)
                 END
@@ -1925,7 +1925,22 @@ ORDER BY sa.createdat DESC;
 
     public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
     {
-        var sql = @"SELECT * FROM performance.selfassessments WHERE employeeid = @EmployeeId AND cycleid = @CycleId";
+        var sql = @"
+            SELECT
+                sa.selfassessmentid as SelfAssessmentId,
+                sa.employeeid as EmployeeId,
+                k.cycleid as CycleId,
+                sa.kraid as KraId,
+                sa.goalid as GoalId,
+                sa.selfrating as SelfRating,
+                sa.selfcomment as SelfComment,
+                sa.status as Status,
+                sa.createdat as CreatedAt,
+                sa.updatedat as UpdatedAt,
+                k.kraname as KraName
+            FROM performance.selfassessments sa
+            INNER JOIN performance.kra k ON sa.kraid = k.kraid
+            WHERE sa.employeeid = @EmployeeId AND k.cycleid = @CycleId";
         return await QueryAsync<SelfAssessmentDto>(sql, new { EmployeeId = employeeId, CycleId = cycleId });
     }
 
@@ -1936,7 +1951,7 @@ ORDER BY sa.createdat DESC;
 
         if (cycleId.HasValue)
         {
-            whereConditions.Add("sa.cycleid = @CycleId");
+            whereConditions.Add("k.cycleid = @CycleId");
             parameters.Add("CycleId", cycleId.Value);
         }
 
@@ -1948,7 +1963,7 @@ ORDER BY sa.createdat DESC;
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(sa.comments) LIKE LOWER(@Search))");
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kraname) LIKE LOWER(@Search) OR LOWER(sa.selfcomment) LIKE LOWER(@Search))");
             parameters.Add("Search", $"%{search.Trim()}%");
         }
 
@@ -1958,21 +1973,21 @@ ORDER BY sa.createdat DESC;
             SELECT 
                 sa.selfassessmentid as SelfAssessmentId,
                 sa.employeeid as EmployeeId,
-                sa.cycleid as CycleId,
+                k.cycleid as CycleId,
                 sa.kraid as KraId,
-                sa.skillid as SkillId,
-                sa.rating as Rating,
-                sa.comments as Comments,
-                sa.evidenceurls as EvidenceUrls,
+                sa.goalid as GoalId,
+                sa.selfrating as SelfRating,
+                sa.selfcomment as SelfComment,
                 sa.status as Status,
-                sa.submittedat as SubmittedAt,
                 sa.createdat as CreatedAt,
                 sa.updatedat as UpdatedAt,
                 ac.cyclename as CycleName,
-                k.kratitle as KraName
+                k.kraname as KraName,
+                g.title as GoalName
             FROM performance.selfassessments sa
-            LEFT JOIN performance.appraisalcycles ac ON sa.cycleid = ac.cycleid
-            LEFT JOIN performance.kras k ON sa.kraid = k.kraid
+            LEFT JOIN performance.kra k ON sa.kraid = k.kraid
+            LEFT JOIN performance.appraisal_cycle ac ON k.cycleid = ac.cycleid
+            LEFT JOIN performance.goals g ON sa.goalid = g.goalid
             WHERE {whereClause}
             ORDER BY sa.createdat DESC";
 
@@ -1983,8 +1998,8 @@ ORDER BY sa.createdat DESC;
     public async Task UpdateSelfAssessmentStatusAsync(Guid employeeId, Guid cycleId, string status)
     {
         var sql = @"UPDATE performance.selfassessments
-                SET status = @Status, updatedat = CURRENT_TIMESTAMP, submittedat = CURRENT_TIMESTAMP
-                WHERE employeeid = @EmployeeId AND cycleid = @CycleId";
+                SET status = @Status, updatedat = CURRENT_TIMESTAMP
+                WHERE employeeid = @EmployeeId AND kraid IN (SELECT kraid FROM performance.kra WHERE cycleid = @CycleId)";
         await ExecuteAsync(sql, new { EmployeeId = employeeId, CycleId = cycleId, Status = status });
     }
 
@@ -2008,11 +2023,24 @@ ORDER BY sa.createdat DESC;
     public async Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId)
     {
         var sql = @"
-        SELECT sa.*
+        SELECT
+            sa.selfassessmentid as SelfAssessmentId,
+            sa.employeeid as EmployeeId,
+            k.cycleid as CycleId,
+            sa.kraid as KraId,
+            sa.goalid as GoalId,
+            sa.selfrating as SelfRating,
+            sa.selfcomment as SelfComment,
+            sa.status as Status,
+            sa.createdat as CreatedAt,
+            sa.updatedat as UpdatedAt,
+            k.kraname as KraName,
+            CONCAT(e.firstname, ' ', e.lastname) as EmployeeName
         FROM performance.selfassessments sa
         INNER JOIN employee.employees e ON sa.employeeid = e.employeeid
         INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-        WHERE ed.managerid = @ManagerId AND sa.cycleid = @CycleId;
+        INNER JOIN performance.kra k ON sa.kraid = k.kraid
+        WHERE ed.managerid = @ManagerId AND k.cycleid = @CycleId;
     ";
         return await QueryAsync<SelfAssessmentDto>(sql, new { ManagerId = managerId, CycleId = cycleId });
     }
@@ -2024,7 +2052,7 @@ ORDER BY sa.createdat DESC;
 
         if (cycleId.HasValue)
         {
-            whereConditions.Add("sa.cycleid = @CycleId");
+            whereConditions.Add("k.cycleid = @CycleId");
             parameters.Add("CycleId", cycleId.Value);
         }
 
@@ -2042,7 +2070,7 @@ ORDER BY sa.createdat DESC;
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(sa.comments) LIKE LOWER(@Search) OR LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search))");
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kraname) LIKE LOWER(@Search) OR LOWER(sa.selfcomment) LIKE LOWER(@Search) OR LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search))");
             parameters.Add("Search", $"%{search.Trim()}%");
         }
 
@@ -2052,23 +2080,23 @@ ORDER BY sa.createdat DESC;
             SELECT 
                 sa.selfassessmentid as SelfAssessmentId,
                 sa.employeeid as EmployeeId,
-                sa.cycleid as CycleId,
+                k.cycleid as CycleId,
                 sa.kraid as KraId,
-                sa.skillid as SkillId,
-                sa.rating as Rating,
-                sa.comments as Comments,
-                sa.evidenceurls as EvidenceUrls,
+                sa.goalid as GoalId,
+                sa.selfrating as SelfRating,
+                sa.selfcomment as SelfComment,
                 sa.status as Status,
-                sa.submittedat as SubmittedAt,
                 sa.createdat as CreatedAt,
                 sa.updatedat as UpdatedAt,
                 ac.cyclename as CycleName,
-                k.kratitle as KraName,
+                k.kraname as KraName,
+                g.title as GoalName,
                 CONCAT(e.firstname, ' ', e.lastname) as EmployeeName
             FROM performance.selfassessments sa
             INNER JOIN employee.employees e ON sa.employeeid = e.employeeid
-            LEFT JOIN performance.appraisalcycles ac ON sa.cycleid = ac.cycleid
-            LEFT JOIN performance.kras k ON sa.kraid = k.kraid
+            LEFT JOIN performance.kra k ON sa.kraid = k.kraid
+            LEFT JOIN performance.appraisal_cycle ac ON k.cycleid = ac.cycleid
+            LEFT JOIN performance.goals g ON sa.goalid = g.goalid
             WHERE {whereClause}
             ORDER BY sa.createdat DESC";
 
@@ -2083,7 +2111,7 @@ ORDER BY sa.createdat DESC;
 
         if (cycleId.HasValue)
         {
-            whereConditions.Add("sa.cycleid = @CycleId");
+            whereConditions.Add("k.cycleid = @CycleId");
             parameters.Add("CycleId", cycleId.Value);
         }
 
@@ -2101,7 +2129,7 @@ ORDER BY sa.createdat DESC;
 
         if (!string.IsNullOrWhiteSpace(search))
         {
-            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kratitle) LIKE LOWER(@Search) OR LOWER(sa.comments) LIKE LOWER(@Search) OR LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search))");
+            whereConditions.Add("(LOWER(ac.cyclename) LIKE LOWER(@Search) OR LOWER(k.kraname) LIKE LOWER(@Search) OR LOWER(sa.selfcomment) LIKE LOWER(@Search) OR LOWER(CONCAT(e.firstname, ' ', e.lastname)) LIKE LOWER(@Search))");
             parameters.Add("Search", $"%{search.Trim()}%");
         }
 
@@ -2111,24 +2139,24 @@ ORDER BY sa.createdat DESC;
             SELECT 
                 sa.selfassessmentid as SelfAssessmentId,
                 sa.employeeid as EmployeeId,
-                sa.cycleid as CycleId,
+                k.cycleid as CycleId,
                 sa.kraid as KraId,
-                sa.skillid as SkillId,
-                sa.rating as Rating,
-                sa.comments as Comments,
-                sa.evidenceurls as EvidenceUrls,
+                sa.goalid as GoalId,
+                sa.selfrating as SelfRating,
+                sa.selfcomment as SelfComment,
                 sa.status as Status,
-                sa.submittedat as SubmittedAt,
                 sa.createdat as CreatedAt,
                 sa.updatedat as UpdatedAt,
                 ac.cyclename as CycleName,
-                k.kratitle as KraName,
+                k.kraname as KraName,
+                g.title as GoalName,
                 CONCAT(e.firstname, ' ', e.lastname) as EmployeeName
             FROM performance.selfassessments sa
             INNER JOIN employee.employees e ON sa.employeeid = e.employeeid
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
-            LEFT JOIN performance.appraisalcycles ac ON sa.cycleid = ac.cycleid
-            LEFT JOIN performance.kras k ON sa.kraid = k.kraid
+            LEFT JOIN performance.kra k ON sa.kraid = k.kraid
+            LEFT JOIN performance.appraisal_cycle ac ON k.cycleid = ac.cycleid
+            LEFT JOIN performance.goals g ON sa.goalid = g.goalid
             WHERE {whereClause}
             ORDER BY sa.createdat DESC";
 
@@ -2718,7 +2746,7 @@ ORDER BY sa.createdat DESC;
                                 (k.weightpercentage::numeric / 100.0) * kr.rating::numeric
                             )
                         FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
-                        JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                        JOIN performance.kra k ON k.kraid = kr.kraid::uuid
                     )
                     /* --------------------------------------
                        NO KRA → RETURN DIRECT OVERALL RATING
@@ -3128,7 +3156,7 @@ WHERE cycleid = @cycleId";
                     (k.weightpercentage::numeric / 100.0) * kr.rating::numeric
                 )
             FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
-            JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+            JOIN performance.kra k ON k.kraid = kr.kraid::uuid
         )
         /* --------------------------------------
            NO KRA → RETURN DIRECT OVERALL RATING
@@ -3337,7 +3365,7 @@ LIMIT @limit OFFSET @offset;
                                             k.weightpercentage::numeric
                                             / NULLIF(
                                                 (SELECT SUM(weightpercentage)
-                                                 FROM performance.kras
+                                                 FROM performance.kra
                                                  WHERE kraid IN (
                                                      SELECT kraid::uuid
                                                      FROM jsonb_each_text(ea.kraratings)
@@ -3347,7 +3375,7 @@ LIMIT @limit OFFSET @offset;
                                         ) * kr.rating::numeric
                                     )
                                 FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
-                                JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                                JOIN performance.kra k ON k.kraid = kr.kraid::uuid
                             )
 
                             /* Only Skill Exists → 100% Skill */
@@ -3362,7 +3390,7 @@ LIMIT @limit OFFSET @offset;
                                 WITH 
                                 kra_total AS (
                                     SELECT COALESCE(SUM(weightpercentage), 0) AS wt
-                                    FROM performance.kras
+                                    FROM performance.kra
                                     WHERE kraid IN (
                                         SELECT kraid::uuid
                                         FROM jsonb_each_text(ea.kraratings)
@@ -3376,7 +3404,7 @@ LIMIT @limit OFFSET @offset;
                                         ) * kr.rating::numeric
                                     ) AS score
                                     FROM jsonb_each_text(ea.kraratings) kr(kraid, rating)
-                                    JOIN performance.kras k ON k.kraid = kr.kraid::uuid
+                                    JOIN performance.kra k ON k.kraid = kr.kraid::uuid
                                 ),
                                 skill_score AS (
                                     SELECT AVG(s.rating::numeric) AS score
