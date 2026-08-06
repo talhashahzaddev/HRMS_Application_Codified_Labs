@@ -2501,8 +2501,8 @@ public class CreateAppraisalCycleRequest
 
     public string? Status { get; set; } // upcoming, inprogress, concluded
 
-    public bool IsSelfAssessmentEnable { get; set; }
-    public bool ManagerReview { get; set; }   // renamed from IsReviewEnable
+    public bool IsSelfAssessmentEnable { get; set; } = true;
+    public bool ManagerReview { get; set; } = true;   // renamed from IsReviewEnable
     public bool IsAppraisalEnable { get; set; }
 
     public string? Description { get; set; }

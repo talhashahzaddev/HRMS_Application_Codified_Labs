@@ -1982,6 +1982,9 @@ ORDER BY sa.createdat DESC;
                 sa.createdat as CreatedAt,
                 sa.updatedat as UpdatedAt,
                 ac.cyclename as CycleName,
+                ac.isselfassessmentenable as IsSelfAssessmentEnable,
+                ac.managerreview as ManagerReview,
+                ac.isappraisalenable as IsAppraisalEnable,
                 k.kraname as KraName,
                 g.title as GoalName
             FROM performance.selfassessments sa
@@ -2089,6 +2092,9 @@ ORDER BY sa.createdat DESC;
                 sa.createdat as CreatedAt,
                 sa.updatedat as UpdatedAt,
                 ac.cyclename as CycleName,
+                ac.isselfassessmentenable as IsSelfAssessmentEnable,
+                ac.managerreview as ManagerReview,
+                ac.isappraisalenable as IsAppraisalEnable,
                 k.kraname as KraName,
                 g.title as GoalName,
                 CONCAT(e.firstname, ' ', e.lastname) as EmployeeName
@@ -2148,6 +2154,9 @@ ORDER BY sa.createdat DESC;
                 sa.createdat as CreatedAt,
                 sa.updatedat as UpdatedAt,
                 ac.cyclename as CycleName,
+                ac.isselfassessmentenable as IsSelfAssessmentEnable,
+                ac.managerreview as ManagerReview,
+                ac.isappraisalenable as IsAppraisalEnable,
                 k.kraname as KraName,
                 g.title as GoalName,
                 CONCAT(e.firstname, ' ', e.lastname) as EmployeeName
