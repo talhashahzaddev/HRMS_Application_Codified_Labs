@@ -101,7 +101,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
     }
 
     // ==================== GET ALL ASSET TYPES ====================
-    public async Task<List<AssetTypeDto>> GetAssetTypesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<AssetTypeDto>> GetAssetTypesAsync(Guid organizationId)
     {
         const string sql = @"
             SELECT id::uuid AS AssetTypeId,
@@ -115,9 +115,7 @@ public class AssetRepository : BaseRepository, IAssetRepository
               AND organization_id = @organizationId
             ORDER BY name;";
 
-        // FIX: pass organizationId parameter (was missing before)
-        var result = await QueryAsync<AssetTypeDto>(sql, new { organizationId });
-        return result.ToList();
+        return await QueryAsync<AssetTypeDto>(sql, new { organizationId });
     }
 
     // ==================== UPDATE ASSET TYPE ====================
@@ -272,7 +270,7 @@ condition AS Condition,
     }
 
     // ==================== GET ASSET ASSIGNMENT HISTORY ====================
-    public async Task<List<AssetAssignmentDto>> GetAssetAssignmentHistoryAsync(Guid organizationId, Guid? assetId, Guid? employeeId)
+    public async Task<IReadOnlyList<AssetAssignmentDto>> GetAssetAssignmentHistoryAsync(Guid organizationId, Guid? assetId, Guid? employeeId)
     {
         const string sql = @"
             SELECT aa.assignment_id AS AssignmentId,
@@ -300,8 +298,7 @@ aa.condition AS Condition,
               AND (@employeeId IS NULL OR aa.employee_id = @employeeId)
             ORDER BY aa.assigned_at DESC;";
 
-        var result = await QueryAsync<AssetAssignmentDto>(sql, new { organizationId, assetId, employeeId });
-        return result.ToList();
+        return await QueryAsync<AssetAssignmentDto>(sql, new { organizationId, assetId, employeeId });
     }
 
     // ==================== GET ASSET BY ID ====================
@@ -333,7 +330,7 @@ aa.condition AS Condition,
     }
 
     // ==================== GET ASSETS ====================
-    public async Task<List<AssetDto>> GetAssetsAsync(Guid organizationId, AssetSearchViewModel searchModel)
+    public async Task<IReadOnlyList<AssetDto>> GetAssetsAsync(Guid organizationId, AssetSearchViewModel searchModel)
     {
         var sql = new StringBuilder(@"
             SELECT a.id::uuid AS AssetId,
@@ -369,8 +366,7 @@ aa.condition AS Condition,
 
         sql.Append(" ORDER BY a.createdat DESC");
 
-        var result = await QueryAsync<AssetDto>(sql.ToString(), parameters);
-        return result.ToList();
+        return await QueryAsync<AssetDto>(sql.ToString(), parameters);
     }
 
     // ==================== UPDATE ASSET ====================

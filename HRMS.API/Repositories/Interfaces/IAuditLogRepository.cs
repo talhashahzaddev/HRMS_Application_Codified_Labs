@@ -18,5 +18,5 @@ public interface IAuditLogRepository
     /// Returns all audit history for one specific record (by recordid).
     /// Use this to show the full lifecycle of a Loan, Leave Request, etc.
     /// </summary>
-    Task<IEnumerable<AuditLogDto>> GetRecordHistoryAsync(Guid recordId);
+    Task<IReadOnlyList<AuditLogDto>> GetRecordHistoryAsync(Guid recordId);
 }

@@ -17,7 +17,7 @@ public class EmployeeOverviewDto
 public class LeaveBalanceSummaryDto
 {
     public decimal TotalRemainingDays { get; set; }
-    public List<LeaveTypeBalanceSummaryDto> ByType { get; set; } = new();
+    public IReadOnlyList<LeaveTypeBalanceSummaryDto> ByType { get; set; } = new List<LeaveTypeBalanceSummaryDto>();
 }
 
 public class LeaveTypeBalanceSummaryDto
@@ -55,8 +55,8 @@ public class ActiveLoansAdvancesDto
 {
     public decimal TotalRemainingLoanAmount { get; set; }
     public decimal TotalRemainingAdvanceAmount { get; set; }
-    public List<ActiveLoanSummaryDto> ActiveLoans { get; set; } = new();
-    public List<ActiveAdvanceSummaryDto> ActiveAdvances { get; set; } = new();
+    public IReadOnlyList<ActiveLoanSummaryDto> ActiveLoans { get; set; } = new List<ActiveLoanSummaryDto>();
+    public IReadOnlyList<ActiveAdvanceSummaryDto> ActiveAdvances { get; set; } = new List<ActiveAdvanceSummaryDto>();
 }
 
 public class ActiveLoanSummaryDto
@@ -145,8 +145,8 @@ public class WorkforceMetricsDto
 public class HrStatsDto
 {
     public WorkforceDemographicsDto Demographics { get; set; } = new();
-    public List<PayrollOutflowDto> PayrollOutflow { get; set; } = new();
-    public List<MonthlyExpenseDto> MonthlyExpenses { get; set; } = new();
+    public IReadOnlyList<PayrollOutflowDto> PayrollOutflow { get; set; } = new List<PayrollOutflowDto>();
+    public IReadOnlyList<MonthlyExpenseDto> MonthlyExpenses { get; set; } = new List<MonthlyExpenseDto>();
 }
 
 public class WorkforceDemographicsDto

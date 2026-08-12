@@ -29,5 +29,5 @@ public interface IDashboardService
     /// <summary>
     /// Returns the latest 3 selected/hired candidates for the Recruitment pipeline.
     /// </summary>
-    Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId);
+    Task<IReadOnlyList<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId);
 }

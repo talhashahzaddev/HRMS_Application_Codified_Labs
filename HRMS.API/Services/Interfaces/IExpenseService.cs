@@ -5,14 +5,14 @@ namespace HRMS.API.Services.Interfaces;
 public interface IExpenseService
 {
     // ExpenseCategories
-    Task<IEnumerable<ExpenseCategoryDto>> GetExpenseCategoriesAsync(Guid organizationId);
+    Task<IReadOnlyList<ExpenseCategoryDto>> GetExpenseCategoriesAsync(Guid organizationId);
     Task<ExpenseCategoryDto?> GetExpenseCategoryByIdAsync(Guid categoryId);
     Task<ExpenseCategoryDto> CreateExpenseCategoryAsync(Guid organizationId, CreateExpenseCategoryRequest request);
     Task<ExpenseCategoryDto?> UpdateExpenseCategoryAsync(Guid categoryId, UpdateExpenseCategoryRequest request);
     Task<bool> DeleteExpenseCategoryAsync(Guid categoryId);
 
     // Expenses
-    Task<IEnumerable<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
+    Task<IReadOnlyList<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
     Task<PagedResult<ExpenseDto>> GetExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize);
     Task<ExpenseDto?> GetExpenseByIdAsync(Guid expenseId);
     Task<ExpenseDto> CreateExpenseAsync(CreateExpenseRequest request, Guid organizationId, Guid employeeId, bool isSuperAdmin, Guid? approvedByEmployeeId);
@@ -20,7 +20,7 @@ public interface IExpenseService
     Task<bool> DeleteExpenseAsync(Guid expenseId);
 
     // RecurringExpenses
-    Task<IEnumerable<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
+    Task<IReadOnlyList<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
     Task<PagedResult<RecurringExpenseDto>> GetRecurringExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize);
     Task<RecurringExpenseDto?> GetRecurringExpenseByIdAsync(Guid recurringExpenseId);
     Task<RecurringExpenseDto> CreateRecurringExpenseAsync(CreateRecurringExpenseRequest request, Guid organizationId, Guid employeeId, bool isSuperAdmin, Guid? approvedByEmployeeId);
@@ -30,7 +30,7 @@ public interface IExpenseService
     /// <summary>
     /// Gets category-wise cost for pie report (Approved only, by created date range, for organization).
     /// </summary>
-    Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+    Task<IReadOnlyList<ExpensePieReportItemDto>> GetExpensePieReportAsync(
         Guid organizationId,
         DateTime? fromDate,
         DateTime? toDate,
@@ -40,7 +40,7 @@ public interface IExpenseService
     /// <summary>
     /// Gets cost per month for a year (line chart): Approved only, by organization.
     /// </summary>
-    Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+    Task<IReadOnlyList<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
         Guid organizationId,
         int year,
         bool expense,
@@ -49,7 +49,7 @@ public interface IExpenseService
     /// <summary>
     /// Gets cost per year for a range of years (bar chart): Approved only, by organization.
     /// </summary>
-    Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+    Task<IReadOnlyList<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
         Guid organizationId,
         int fromYear,
         int toYear,
