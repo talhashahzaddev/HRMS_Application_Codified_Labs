@@ -30,10 +30,13 @@ public abstract class BaseRepository
         return await connection.QuerySingleAsync<T>(sql, parameters);
     }
 
-    protected async Task<IEnumerable<T>> QueryAsync<T>(string sql, object? parameters = null, int? commandTimeout = null)
+    protected async Task<IReadOnlyList<T>> QueryAsync<T>(string sql, object? parameters = null, int? commandTimeout = null)
     {
         using var connection = CreateConnection();
-        return await connection.QueryAsync<T>(sql, parameters, commandTimeout: commandTimeout);
+        var result = await connection.QueryAsync<T>(sql, parameters, commandTimeout: commandTimeout);
+        // Dapper's QueryAsync returns a List<T> cast as IEnumerable<T> internally.
+        // We cast it directly to IReadOnlyList to expose it without allocating a new list.
+        return result as IReadOnlyList<T> ?? result.ToList();
     }
 
     protected async Task<int> ExecuteAsync(string sql, object? parameters = null)
