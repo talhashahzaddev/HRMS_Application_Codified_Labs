@@ -12,7 +12,7 @@ namespace HRMS.API.Repositories
         public OnboardingConfigRepository(IDatabaseConnectionFactory connectionFactory)
             : base(connectionFactory) { }
 
-        public async Task<List<FieldConfigRecord>> GetByOrganizationAsync(Guid organizationId)
+        public async Task<IReadOnlyList<FieldConfigRecord>> GetByOrganizationAsync(Guid organizationId)
         {
             const string sql = @"
             SELECT organizationid, section, fieldkey, enabled, required
@@ -20,7 +20,7 @@ namespace HRMS.API.Repositories
             WHERE  organizationid = @OrganizationId";
 
             var results = await QueryAsync<FieldConfigRecord>(sql, new { OrganizationId = organizationId });
-            return results.ToList();
+            return results;
         }
 
         public async Task<bool> BulkUpsertAsync(Guid organizationId, List<FieldConfigRecord> records)

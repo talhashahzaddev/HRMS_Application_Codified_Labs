@@ -1,4 +1,4 @@
-﻿using HRMS.API.Authorization;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -169,7 +169,7 @@ namespace HRMS.API.Controllers
                 var organizationId = GetCurrentOrganizationId();
                 var currentEmployeeId = await GetCurrentEmployeeId();
                 var tickets = await _helpDeskService.GetAllTicketsAsync(organizationId, currentEmployeeId, searchModel);
-                return Ok(new ServiceResponse<List<TicketDto>>
+                return Ok(new ServiceResponse<IEnumerable<TicketDto>>
                 {
                     Success = true,
                     Data = tickets
@@ -178,7 +178,7 @@ namespace HRMS.API.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid argument while retrieving tickets");
-                return BadRequest(new ServiceResponse<List<TicketDto>>
+                return BadRequest(new ServiceResponse<IEnumerable<TicketDto>>
                 {
                     Success = false,
                     Message = ex.Message
@@ -249,7 +249,7 @@ namespace HRMS.API.Controllers
                 var organizationId = GetCurrentOrganizationId();
                 var currentEmployeeId = await GetCurrentEmployeeId();
                 var tickets = await _helpDeskService.GetAllAssignedTicket(organizationId, currentEmployeeId, searchModel);
-                return Ok(new ServiceResponse<List<TicketDto>>
+                return Ok(new ServiceResponse<IEnumerable<TicketDto>>
                 {
                     Success = true,
                     Data = tickets
@@ -258,7 +258,7 @@ namespace HRMS.API.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid argument while retrieving tickets");
-                return BadRequest(new ServiceResponse<List<TicketDto>>
+                return BadRequest(new ServiceResponse<IEnumerable<TicketDto>>
                 {
                     Success = false,
                     Message = ex.Message
@@ -406,7 +406,7 @@ namespace HRMS.API.Controllers
 
                 // Call service to fetch all groups for the organization
                 var groups = await _helpDeskService.GetAllTicketGroupsAsync(organizationId, search,departmentId,categoryId);
-                return Ok(new ServiceResponse<List<TicketGroupDto>>
+                return Ok(new ServiceResponse<IEnumerable<TicketGroupDto>>
                 {
                     Success = true,
                     Data = groups
@@ -415,7 +415,7 @@ namespace HRMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all ticket groups for organization {OrganizationId}", GetCurrentOrganizationId());
-                return StatusCode(500, new ServiceResponse<List<TicketGroupDto>>
+                return StatusCode(500, new ServiceResponse<IEnumerable<TicketGroupDto>>
                 {
                     Success = false,
                     Message = "An error occurred while retrieving ticket groups"
@@ -622,7 +622,7 @@ namespace HRMS.API.Controllers
                 // Fetch messages sent or received by current employee
                 var messages = await _helpDeskService.GetMessagesByEmployeeIdAsync(organizationId, currentEmployeeId, ticketId);
 
-                return Ok(new ServiceResponse<List<TicketMessageDto>>
+                return Ok(new ServiceResponse<IEnumerable<TicketMessageDto>>
                 {
                     Success = true,
                     Message = "Messages retrieved successfully",
@@ -632,7 +632,7 @@ namespace HRMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving messages for current employee");
-                return StatusCode(500, new ServiceResponse<List<TicketMessageDto>>
+                return StatusCode(500, new ServiceResponse<IEnumerable<TicketMessageDto>>
                 {
                     Success = false,
                     Message = "An error occurred while retrieving messages"
@@ -690,7 +690,7 @@ namespace HRMS.API.Controllers
                 
                 var categories = await _helpDeskService.GetCategoriesAsync(organizationId, search);
 
-                return Ok(new ServiceResponse<List<CategoryDto>>
+                return Ok(new ServiceResponse<IEnumerable<CategoryDto>>
                 {
                     Success = true,
                     Message = "Categories fetched successfully",
@@ -701,7 +701,7 @@ namespace HRMS.API.Controllers
             {
                 _logger.LogError(ex, "Error fetching categories");
 
-                return StatusCode(500, new ServiceResponse<List<CategoryDto>>
+                return StatusCode(500, new ServiceResponse<IEnumerable<CategoryDto>>
                 {
                     Success = false,
                     Message = "Error fetching categories"

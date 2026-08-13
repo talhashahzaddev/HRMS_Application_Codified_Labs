@@ -1781,7 +1781,7 @@ public class AttendanceService : IAttendanceService
         }
     }
 
-    private byte[] GenerateCsvExport(List<AttendanceDto> records, DateTime startDate, DateTime endDate)
+    private byte[] GenerateCsvExport(IReadOnlyList<AttendanceDto> records, DateTime startDate, DateTime endDate)
     {
         var csvBuilder = new StringBuilder();
 
@@ -1800,7 +1800,7 @@ public class AttendanceService : IAttendanceService
 
         return Encoding.UTF8.GetBytes(csvBuilder.ToString());
     }
-    private byte[] GenerateExcelExport(List<AttendanceDto> records, DateTime startDate, DateTime endDate)
+    private byte[] GenerateExcelExport(IReadOnlyList<AttendanceDto> records, DateTime startDate, DateTime endDate)
     {
         var workbook = new NPOI.XSSF.UserModel.XSSFWorkbook();
         var sheet = workbook.CreateSheet("Attendance Report");

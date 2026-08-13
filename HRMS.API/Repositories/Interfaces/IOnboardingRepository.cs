@@ -33,13 +33,13 @@ public interface IOnboardingRepository
         string? department);
 
     // ── Education ────────────────────────────────────────────
-    Task<List<OnboardingEducation>> GetEducationBySessionAsync(Guid onboardingId);
+    Task<IReadOnlyList<OnboardingEducation>> GetEducationBySessionAsync(Guid onboardingId);
     Task<OnboardingEducation> AddEducationAsync(OnboardingEducation record);
     Task<bool> UpdateEducationAsync(OnboardingEducation record);
     Task<bool> DeleteEducationAsync(Guid educationId, Guid onboardingId);
 
     // ── Work Experience ──────────────────────────────────────
-    Task<List<OnboardingWorkExperience>> GetWorkExperienceBySessionAsync(Guid onboardingId);
+    Task<IReadOnlyList<OnboardingWorkExperience>> GetWorkExperienceBySessionAsync(Guid onboardingId);
     Task<OnboardingWorkExperience> AddWorkExperienceAsync(OnboardingWorkExperience record);
     Task<bool> UpdateWorkExperienceAsync(OnboardingWorkExperience record);
     Task<bool> DeleteWorkExperienceAsync(Guid experienceId, Guid onboardingId);

@@ -461,7 +461,7 @@ public class PolicyService : IPolicyService
     // ── Read ──────────────────────────────────────────────────────────────────
 
     /// <summary>Super Admin sees ALL; employees see published only.</summary>
-    public async Task<List<PolicyDto>> GetPoliciesAsync(Guid organizationId, bool isSuperAdmin)
+    public async Task<IReadOnlyList<PolicyDto>> GetPoliciesAsync(Guid organizationId, bool isSuperAdmin)
         => isSuperAdmin
             ? await _repo.GetAllAsync(organizationId)
             : await _repo.GetPublishedAsync(organizationId);

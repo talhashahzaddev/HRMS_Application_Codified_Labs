@@ -93,8 +93,8 @@ public class OnboardingStatusResponse
     public string? DocumentNotes { get; set; }
 
     public OnboardingPersonalInfoDto? PersonalInfo { get; set; }
-    public List<OnboardingEducationDto> EducationList { get; set; } = new();
-    public List<OnboardingWorkExperienceDto> WorkExperienceList { get; set; } = new();
+    public IReadOnlyList<OnboardingEducationDto> EducationList { get; set; } = Array.Empty<OnboardingEducationDto>();
+    public IReadOnlyList<OnboardingWorkExperienceDto> WorkExperienceList { get; set; } = Array.Empty<OnboardingWorkExperienceDto>();
 }
 
 public class OnboardingPersonalInfoDto
