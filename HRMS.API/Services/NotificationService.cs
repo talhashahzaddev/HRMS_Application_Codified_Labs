@@ -79,7 +79,7 @@ namespace HRMS.API.Services
         }
 
         // Get notifications for a specific user (manager/admin)
-        public async Task<ServiceResponse<List<Notification>>> GetNotificationsForUserAsync(Guid userId, Guid organizationId)
+        public async Task<ServiceResponse<IReadOnlyList<Notification>>> GetNotificationsForUserAsync(Guid userId, Guid organizationId)
         {
             _logger.LogInformation("Getting notifications for user: {UserId}, organization: {OrganizationId}", userId, organizationId);
 
@@ -101,7 +101,7 @@ namespace HRMS.API.Services
 
                 _logger.LogInformation("Successfully retrieved {Count} notifications for user: {UserId}", notifications?.Count ?? 0, userId);
 
-                return new ServiceResponse<List<Notification>>
+                return new ServiceResponse<IReadOnlyList<Notification>>
                 {
                     Success = true,
                     Message = "Notifications retrieved successfully",
