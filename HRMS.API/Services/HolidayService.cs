@@ -61,10 +61,10 @@ public class HolidayService : IHolidayService
             var holidays = await _holidayRepository.GetCompanyHolidaysAsync(organizationId, year);
             
             // Populate EmployeeIds for holidays with applicableTo='employee'
-            var holidayList = holidays.ToList();
+            var holidayList = holidays.ToArray();
             foreach (var h in holidayList.Where(h => h.ApplicableTo == "employee"))
             {
-                h.EmployeeIds = (await _holidayRepository.GetEmployeeAssignmentsAsync(h.HolidayId)).ToList();
+                h.EmployeeIds = (await _holidayRepository.GetEmployeeAssignmentsAsync(h.HolidayId)).ToArray();
             }
             
             return new ServiceResponse<IEnumerable<CompanyHolidayDto>> { Success = true, Data = holidayList };
@@ -87,7 +87,7 @@ public class HolidayService : IHolidayService
             // Populate EmployeeIds if applicable
             if (holiday.ApplicableTo == "employee")
             {
-                holiday.EmployeeIds = (await _holidayRepository.GetEmployeeAssignmentsAsync(holidayId)).ToList();
+                holiday.EmployeeIds = (await _holidayRepository.GetEmployeeAssignmentsAsync(holidayId)).ToArray();
             }
 
             return new ServiceResponse<CompanyHolidayDto> { Success = true, Data = holiday };
@@ -139,7 +139,7 @@ public class HolidayService : IHolidayService
             // Populate EmployeeIds for the response
             if (created != null && created.ApplicableTo == "employee")
             {
-                created.EmployeeIds = (await _holidayRepository.GetEmployeeAssignmentsAsync(holidayId)).ToList();
+                created.EmployeeIds = (await _holidayRepository.GetEmployeeAssignmentsAsync(holidayId)).ToArray();
             }
 
             return new ServiceResponse<CompanyHolidayDto> { Success = true, Data = created, Message = "Holiday created successfully" };
@@ -197,7 +197,7 @@ public class HolidayService : IHolidayService
             // Populate EmployeeIds for the response
             if (updated != null && updated.ApplicableTo == "employee")
             {
-                updated.EmployeeIds = (await _holidayRepository.GetEmployeeAssignmentsAsync(holidayId)).ToList();
+                updated.EmployeeIds = (await _holidayRepository.GetEmployeeAssignmentsAsync(holidayId)).ToArray();
             }
 
             return new ServiceResponse<CompanyHolidayDto> { Success = true, Data = updated, Message = "Holiday updated successfully" };

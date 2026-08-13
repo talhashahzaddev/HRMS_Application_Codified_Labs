@@ -20,7 +20,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
     // Catalog Methods
     // ========================
 
-    public async Task<IEnumerable<HolidayCatalogDto>> GetCatalogByCountryAsync(string countryCode)
+    public async Task<IReadOnlyList<HolidayCatalogDto>> GetCatalogByCountryAsync(string countryCode)
     {
         const string sql = @"
             SELECT catalogid AS CatalogId, countrycode AS CountryCode, countryname AS CountryName,
@@ -33,7 +33,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
         return await QueryAsync<HolidayCatalogDto>(sql, new { CountryCode = countryCode });
     }
 
-    public async Task<IEnumerable<CatalogCountryDto>> GetAvailableCountriesAsync()
+    public async Task<IReadOnlyList<CatalogCountryDto>> GetAvailableCountriesAsync()
     {
         const string sql = @"
             SELECT countrycode AS CountryCode, countryname AS CountryName, COUNT(*) AS HolidayCount
@@ -56,7 +56,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
         return await QuerySingleOrDefaultAsync<HolidayCatalogDto>(sql, new { CatalogId = catalogId });
     }
 
-    public async Task<IEnumerable<HolidayCatalogDto>> GetCatalogHolidaysByIdsAsync(IEnumerable<Guid> catalogIds)
+    public async Task<IReadOnlyList<HolidayCatalogDto>> GetCatalogHolidaysByIdsAsync(IEnumerable<Guid> catalogIds)
     {
         const string sql = @"
             SELECT catalogid AS CatalogId, countrycode AS CountryCode, countryname AS CountryName,
@@ -73,7 +73,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
     // Company Holiday Methods
     // ========================
 
-    public async Task<IEnumerable<CompanyHolidayDto>> GetCompanyHolidaysAsync(Guid organizationId, int year)
+    public async Task<IReadOnlyList<CompanyHolidayDto>> GetCompanyHolidaysAsync(Guid organizationId, int year)
     {
         const string sql = @"
             SELECT holidayid AS HolidayId, organizationid AS OrganizationId, holidayname AS HolidayName,
@@ -175,7 +175,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
     // Holiday Range Queries
     // ========================
 
-    public async Task<IEnumerable<HolidayRangeDto>> GetHolidaysInRangeAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+    public async Task<IReadOnlyList<HolidayRangeDto>> GetHolidaysInRangeAsync(Guid organizationId, DateTime startDate, DateTime endDate)
     {
         const string sql = @"
             SELECT holidayid AS HolidayId, holidayname AS HolidayName, holidaydate AS HolidayDate,
@@ -199,7 +199,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
     /// Gets holidays applicable to a specific employee based on their department, location, or direct assignment.
     /// Filters: applicableto='all' OR department match OR location match OR employee assignment.
     /// </summary>
-    public async Task<IEnumerable<HolidayRangeDto>> GetHolidaysInRangeForEmployeeAsync(
+    public async Task<IReadOnlyList<HolidayRangeDto>> GetHolidaysInRangeForEmployeeAsync(
         Guid organizationId, Guid employeeId, Guid? departmentId, string? workLocation,
         DateTime startDate, DateTime endDate)
     {
@@ -242,18 +242,24 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
         // Delete existing assignments first
         await DeleteEmployeeAssignmentsAsync(holidayId);
 
+        if (employeeIds == null || !employeeIds.Any()) return;
+
         const string sql = @"
             INSERT INTO attendance.holiday_employee_assignments (holiday_id, employee_id, assigned_by, assigned_at)
             VALUES (@HolidayId, @EmployeeId, @AssignedBy, NOW())
             ON CONFLICT (holiday_id, employee_id) DO NOTHING";
 
-        foreach (var employeeId in employeeIds)
-        {
-            await ExecuteAsync(sql, new { HolidayId = holidayId, EmployeeId = employeeId, AssignedBy = assignedBy });
-        }
+        var parameters = employeeIds.Select(employeeId => new 
+        { 
+            HolidayId = holidayId, 
+            EmployeeId = employeeId, 
+            AssignedBy = assignedBy 
+        });
+        
+        await ExecuteAsync(sql, parameters);
     }
 
-    public async Task<IEnumerable<Guid>> GetEmployeeAssignmentsAsync(Guid holidayId)
+    public async Task<IReadOnlyList<Guid>> GetEmployeeAssignmentsAsync(Guid holidayId)
     {
         const string sql = @"
             SELECT employee_id FROM attendance.holiday_employee_assignments
@@ -319,7 +325,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
     // Employee Restricted Holidays
     // ========================
 
-    public async Task<IEnumerable<EmployeeRestrictedHolidayDto>> GetEmployeeRestrictedHolidaysAsync(Guid employeeId, Guid organizationId, int year)
+    public async Task<IReadOnlyList<EmployeeRestrictedHolidayDto>> GetEmployeeRestrictedHolidaysAsync(Guid employeeId, Guid organizationId, int year)
     {
         const string sql = @"
             SELECT erh.id AS Id, erh.employeeid AS EmployeeId, erh.companyholidayid AS CompanyHolidayId,
@@ -341,7 +347,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
         });
     }
 
-    public async Task<IEnumerable<CompanyHolidayDto>> GetAvailableRestrictedHolidaysAsync(Guid organizationId, int year)
+    public async Task<IReadOnlyList<CompanyHolidayDto>> GetAvailableRestrictedHolidaysAsync(Guid organizationId, int year)
     {
         const string sql = @"
             SELECT holidayid AS HolidayId, organizationid AS OrganizationId, holidayname AS HolidayName,
@@ -359,7 +365,7 @@ public class HolidayRepository : BaseRepository, IHolidayRepository
         return await QueryAsync<CompanyHolidayDto>(sql, new { OrganizationId = organizationId, Year = year });
     }
 
-    public async Task<IEnumerable<CompanyHolidayDto>> GetAvailableRestrictedHolidaysForEmployeeAsync(
+    public async Task<IReadOnlyList<CompanyHolidayDto>> GetAvailableRestrictedHolidaysForEmployeeAsync(
         Guid organizationId, Guid employeeId, Guid? departmentId, string? workLocation, int year)
     {
         const string sql = @"
