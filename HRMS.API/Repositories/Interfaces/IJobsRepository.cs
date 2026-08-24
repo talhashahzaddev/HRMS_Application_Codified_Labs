@@ -6,14 +6,14 @@ namespace HRMS.API.Repositories.Interfaces;
 public interface IJobsRepository
 {
     // StageMaster
-    Task<IEnumerable<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId);
+    Task<IReadOnlyList<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId);
     Task<StageMasterDto?> GetStageMasterByIdAsync(Guid stageId);
     Task<Guid> CreateStageMasterAsync(Guid organizationId, string stageName, int? stageOrder, bool isInterviewStage);
     Task<bool> UpdateStageMasterAsync(Guid stageId, string stageName, int? stageOrder, bool isInterviewStage);
     Task<bool> DeleteStageMasterAsync(Guid stageId);
 
     // JobOpenings
-    Task<IEnumerable<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId);
+    Task<IReadOnlyList<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId);
     Task<JobOpeningStatsDto> GetJobOpeningStatsAsync(Guid organizationId);
     Task<PagedResult<JobOpeningDto>> GetJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize);
     Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? employmentType, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize);
@@ -24,28 +24,28 @@ public interface IJobsRepository
     Task<bool> IsJobCodeExistsAsync(string jobCode, Guid organizationId, Guid? excludeJobId = null);
 
     // JobApplications
-    Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);
+    Task<IReadOnlyList<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);
     Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize);
     Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize);
     Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId);
-    Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId);
+    Task<IReadOnlyList<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId);
     Task<PagedResult<JobApplicationDto>> GetJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize);
     Task<PagedResult<JobApplicationDto>> GetMySelfJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize);
-    Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId);
+    Task<IReadOnlyList<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId);
     Task<Guid> CreateJobApplicationAsync(JobApplication entity);
     Task<bool> UpdateJobApplicationAsync(JobApplication entity);
     Task<bool> DeleteJobApplicationAsync(Guid jobApplyId);
     Task<bool> UpdatePassedKnockoutAsync(Guid jobApplyId, bool passed);
-    Task<IEnumerable<JobApplicationDto>> GetAtsApplicationsAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, bool? passedKnockout);
+    Task<IReadOnlyList<JobApplicationDto>> GetAtsApplicationsAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, bool? passedKnockout);
     Task<bool> UpdateEnteredToStageAsync(Guid jobApplyId);
 
     // ApplicationStages
-    Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId);
+    Task<IReadOnlyList<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId);
     Task<ApplicationStageDto?> GetApplicationStageByIdAsync(Guid applicationStageId);
-    Task<IEnumerable<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId);
+    Task<IReadOnlyList<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId);
     Task<Guid> CreateApplicationStageAsync(ApplicationStage entity);
     Task<bool> UpdateApplicationStageAsync(ApplicationStage entity);
     Task<bool> DeleteApplicationStageAsync(Guid applicationStageId);
     Task<bool> ApplicationStageExistsAsync(Guid jobApplyId, Guid stageId);
-    Task<IEnumerable<InterviewerInfoDto>> GetInterviewerDetailsAsync(IEnumerable<Guid> employeeIds);
+    Task<IReadOnlyList<InterviewerInfoDto>> GetInterviewerDetailsAsync(IEnumerable<Guid> employeeIds);
 }
