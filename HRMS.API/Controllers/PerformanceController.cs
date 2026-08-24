@@ -293,7 +293,7 @@ public class PerformanceController : ControllerBase
 
             var employees = await _employeeService.GetEmployeesByManagerAsync(currentEmployeeId, organizationId);
 
-            return Ok(new ServiceResponse<List<EmployeeListItemDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
             {
                 Success = true,
                 Data = employees
@@ -302,7 +302,7 @@ public class PerformanceController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access attempt for my team employees");
-            return StatusCode(403, new ServiceResponse<List<EmployeeListItemDto>>
+            return StatusCode(403, new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
             {
                 Success = false,
                 Message = "You do not have permission to access this resource."
@@ -311,7 +311,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving my team employees");
-            return StatusCode(500, new ServiceResponse<List<EmployeeListItemDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving team employees"

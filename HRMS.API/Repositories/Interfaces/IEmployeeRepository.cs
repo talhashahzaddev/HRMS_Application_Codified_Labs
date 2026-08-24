@@ -21,21 +21,22 @@ public interface IEmployeeRepository
     Task<Employee?> GetEmployeeByIdAsync(Guid? employeeId);
     Task<Employee?> GetEmployeeByEmployeeIdAsync(Guid? employeeId);
     Task<string> GetUserRoleAsync(Guid userid);
-    Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid);
+    Task<IReadOnlyList<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid);
     Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode);
-    Task<List<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds);
+    Task<IReadOnlyList<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds);
     Task<Employee?> GetEmployeeByEmailAsync(Guid organizationId, string email);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(
     Guid? organizationId = null, string? searchTerm = null, Guid? departmentId = null,Guid? positionId=null,string? employmentType=null,
     string? status = null, int page = 1, int pageSize = 50);
     Task<bool> UpdateEmployeeAsync(Employee employee);
     Task<bool> DeleteEmployeeAsync(Guid employeeId,string status);
-    Task<List<Department>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null,
+    Task<IReadOnlyList<Department>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null,
     bool? status = null);
     Task<Department> CreateDepartmentAsync(Department department);
     Task<Department?> GetDepartmentByIdAsync(Guid departmentId);
     Task<Department> UpdateDepartmentAsync(Department department);
     Task<bool> DeleteDepartmentAsync(Guid departmentId);
+    Task<bool> DepartmentNameExistsAsync(Guid organizationId, string departmentName, Guid? excludeDepartmentId = null);
     Task<int> GetEmployeeCountByDepartmentAsync(Guid departmentId);
     Task<IReadOnlyList<Position>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
     Task<Position> CreatePositionAsync(Position position);
@@ -44,10 +45,10 @@ public interface IEmployeeRepository
     Task<bool> DeletePositionAsync(Guid positionId);
     Task<int> GetEmployeeCountByPositionAsync(Guid positionId);
     Task<IReadOnlyList<Employee>> GetEmployeesByPositionAsync(Guid positionId);
-    Task<List<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null);
+    Task<IReadOnlyList<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null);
     Task<bool> UpdateEmploymentDetailCurrencyAsync(Guid employeeId, string currency);
-    Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
+    Task<IReadOnlyList<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
     Task<bool> CheckEmployeeLimitAsync(Guid organizationId);
     Task<Guid?> GetRoleIdByPositionIdAsync(Guid positionId);
-    Task<List<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId);
+    Task<IReadOnlyList<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId);
 }

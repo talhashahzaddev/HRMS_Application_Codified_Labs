@@ -91,7 +91,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("GetEmployeebyOrganization")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeNameList>>>> GetEmployeebyOrganization()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeNameList>>>> GetEmployeebyOrganization()
     {
         try
         {
@@ -103,14 +103,14 @@ public class EmployeeController : ControllerBase
 
             if (employees == null || !employees.Any())
             {
-                return NotFound(new ServiceResponse<List<EmployeeNameList>>
+                return NotFound(new ServiceResponse<IReadOnlyList<EmployeeNameList>>
                 {
                     Success = false,
                     Message = "Employees not found"
                 });
             }
 
-            return Ok(new ServiceResponse<List<EmployeeNameList>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeNameList>>
             {
                 Success = true,
                 Data = employees
@@ -120,7 +120,7 @@ public class EmployeeController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving employees");
 
-            return StatusCode(500, new ServiceResponse<List<EmployeeNameList>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeNameList>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employees"
@@ -190,13 +190,13 @@ public class EmployeeController : ControllerBase
         }
     }
     [HttpPost("get-selected-employees")]
-    public async Task<ActionResult<ServiceResponse<List<Employee>>>> GetEmployeesByIds([FromBody] List<Guid> recipientIds)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<Employee>>>> GetEmployeesByIds([FromBody] List<Guid> recipientIds)
     {
         try
         {
             if (recipientIds == null || !recipientIds.Any())
             {
-                return BadRequest(new ServiceResponse<List<Employee>>
+                return BadRequest(new ServiceResponse<IReadOnlyList<Employee>>
                 {
                     Success = false,
                     Message = "RecipientIds are required"
@@ -205,7 +205,7 @@ public class EmployeeController : ControllerBase
 
             var employees = await _employeeService.GetSelectedEmployeesByIdsAsync(recipientIds);
 
-            return Ok(new ServiceResponse<List<Employee>>
+            return Ok(new ServiceResponse<IReadOnlyList<Employee>>
             {
                 Success = true,
                 Message = "Employees fetched successfully",
@@ -216,7 +216,7 @@ public class EmployeeController : ControllerBase
         {
             _logger.LogError(ex, "Error fetching employees");
 
-            return StatusCode(500, new ServiceResponse<List<Employee>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<Employee>>
             {
                 Success = false,
                 Message = "Error fetching employees"
@@ -352,7 +352,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("departments")]
-    public async Task<ActionResult<ServiceResponse<List<DepartmentDto>>>> GetDepartments([FromQuery] string? searchQuery,
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<DepartmentDto>>>> GetDepartments([FromQuery] string? searchQuery,
     [FromQuery] bool? status)
     {
         try
@@ -360,7 +360,7 @@ public class EmployeeController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var departments = await _employeeService.GetDepartmentsAsync(organizationId, searchQuery, status);
             
-            return Ok(new ServiceResponse<List<DepartmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<DepartmentDto>>
             {
                 Success = true,
                 Data = departments
@@ -369,7 +369,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving departments");
-            return StatusCode(500, new ServiceResponse<List<DepartmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<DepartmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving departments"
@@ -1170,14 +1170,14 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("managers")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeDto>>>> GetManagers([FromQuery] Guid? departmentId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeDto>>>> GetManagers([FromQuery] Guid? departmentId)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var managers = await _employeeService.GetManagersAsync(organizationId, departmentId);
             
-            return Ok(new ServiceResponse<List<EmployeeDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeDto>>
             {
                 Success = true,
                 Data = managers
@@ -1186,7 +1186,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving managers");
-            return StatusCode(500, new ServiceResponse<List<EmployeeDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving managers"
@@ -1281,14 +1281,14 @@ public class EmployeeController : ControllerBase
 
     [HttpGet("managers/{managerEmployeeId}/employees")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeListItemDto>>>> GetEmployeesByManager(Guid managerEmployeeId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeListItemDto>>>> GetEmployeesByManager(Guid managerEmployeeId)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var employees = await _employeeService.GetEmployeesByManagerAsync(managerEmployeeId, organizationId);
             
-            return Ok(new ServiceResponse<List<EmployeeListItemDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
             {
                 Success = true,
                 Data = employees
@@ -1297,7 +1297,7 @@ public class EmployeeController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employees for manager {ManagerEmployeeId}", managerEmployeeId);
-            return StatusCode(500, new ServiceResponse<List<EmployeeListItemDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving manager's employees"

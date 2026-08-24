@@ -505,7 +505,7 @@ ORDER BY e.firstname, e.lastname;
             return null;
         }
     }
-    public async Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid)
+    public async Task<IReadOnlyList<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid)
     {
         try
         {
@@ -526,18 +526,17 @@ ORDER BY e.firstname, e.lastname;
             );
         ";
 
-            var result =  await QueryAsync<EmployeeNameList>(
+            return await QueryAsync<EmployeeNameList>(
                 sql,
                 new { organizationid, reportingmanagerid }
             );
-            return result.ToList();
         }
         catch (Exception)
         {
             return null;
         }
     }
-    public async Task<List<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds)
+    public async Task<IReadOnlyList<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds)
     {
         try
         {
@@ -567,14 +566,14 @@ ORDER BY e.firstname, e.lastname;
         WHERE e.employeeid = ANY(@employeeIds);
         ";
 
-            return (await QueryAsync<Employee>(
+            return await QueryAsync<Employee>(
                 sql,
                 new { employeeIds }
-            )).ToList();
+            );
         }
         catch (Exception)
         {
-            return new List<Employee>();
+            return System.Array.Empty<Employee>();
         }
     }
     public async Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode)
@@ -703,7 +702,7 @@ ORDER BY e.firstname, e.lastname;
     }
 
 
-    public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
+    public async Task<IReadOnlyList<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
     {
         try
         {
@@ -735,7 +734,7 @@ ORDER BY e.firstname, e.lastname;
 
             var results = await QueryAsync<dynamic>(sql, new { ManagerEmployeeId = managerEmployeeId, OrganizationId = organizationId });
 
-            var employees = results.Select(r => new EmployeeListItemDto
+            return results.Select(r => new EmployeeListItemDto
             {
                 EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
                 EmployeeCode = r.employeecode,
@@ -748,9 +747,7 @@ ORDER BY e.firstname, e.lastname;
                 DepartmentName = r.departmentname,
                 PositionTitle = r.positiontitle,
                 IsActive = r.status?.ToString().ToLower() == "active"
-            }).ToList();
-
-            return employees;
+            }).ToArray();
         }
         catch (Exception ex)
         {
@@ -816,7 +813,7 @@ ORDER BY e.firstname, e.lastname;
     }
 
 
-    public async Task<List<Department>> GetDepartmentsAsync(
+    public async Task<IReadOnlyList<Department>> GetDepartmentsAsync(
         Guid organizationId,
         string? searchQuery = null,
         bool? status = null)
@@ -859,7 +856,7 @@ ORDER BY e.firstname, e.lastname;
 
             var results = await QueryAsync<Department>(sql, parameters);
 
-            var departments = results.Select(d => new Department
+            return results.Select(d => new Department
             {
                 DepartmentId = d.DepartmentId,
                 OrganizationId = d.OrganizationId,
@@ -878,13 +875,10 @@ ORDER BY e.firstname, e.lastname;
                     FirstName = d.ManagerFirstName,
                     LastName = d.ManagerLastName
                 } : null
-            }).ToList();
-
-            return departments;
+            }).ToArray();
         }
         catch (Exception ex)
         {
-            // Optional: log the exception
             throw;
         }
     }
@@ -1206,6 +1200,23 @@ ORDER BY e.firstname, e.lastname;
         return affected > 0;
     }
 
+    /// <summary>
+    /// Efficiently checks if a department name already exists within an organization using a
+    /// targeted EXISTS query — avoids fetching the full department list just for validation.
+    /// </summary>
+    public async Task<bool> DepartmentNameExistsAsync(Guid organizationId, string departmentName, Guid? excludeDepartmentId = null)
+    {
+        var sql = @"
+            SELECT EXISTS (
+                SELECT 1 FROM employee.departments
+                WHERE organizationid = @organizationId
+                  AND LOWER(TRIM(departmentname)) = LOWER(TRIM(@departmentName))
+                  AND (@excludeDepartmentId IS NULL OR departmentid != @excludeDepartmentId)
+            )";
+
+        return await ExecuteScalarAsync<bool>(sql, new { organizationId, departmentName, excludeDepartmentId });
+    }
+
     public async Task<int> GetEmployeeCountByDepartmentAsync(Guid departmentId)
     {
         var sql = @"
@@ -1285,7 +1296,7 @@ ORDER BY e.firstname, e.lastname;
         return await QueryAsync<Employee>(sql, new { positionId });
     }
 
-    public async Task<List<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)
+    public async Task<IReadOnlyList<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)
     {
         var sql = @"
             SELECT DISTINCT 
@@ -1334,7 +1345,7 @@ ORDER BY e.firstname, e.lastname;
         sql += " ORDER BY e.firstname, e.lastname";
 
         var results = await QueryAsync<Employee>(sql, new { organizationId, departmentId });
-        return results.ToList();
+        return results.ToArray();
     }
 
     public async Task<Guid?> GetRoleIdByPositionIdAsync(Guid positionId)
@@ -1349,7 +1360,7 @@ ORDER BY e.firstname, e.lastname;
     }
 
 
-    public async Task<List<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId)
+    public async Task<IReadOnlyList<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId)
     {
         var sql = @"
             SELECT DISTINCT
@@ -1370,8 +1381,7 @@ ORDER BY e.firstname, e.lastname;
               )
             ORDER BY e.firstname, e.lastname";
 
-        var results = await QueryAsync<Employee>(sql, new { organizationId, departmentId });
-        return results.ToList();
+        return await QueryAsync<Employee>(sql, new { organizationId, departmentId });
     }
 
 
