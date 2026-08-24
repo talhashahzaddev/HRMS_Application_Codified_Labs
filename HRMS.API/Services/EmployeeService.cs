@@ -473,7 +473,7 @@ public class EmployeeService : IEmployeeService
                             {
                                 var notification = new NotificationCreateDto
                                 {
-                                    Receiveruserid = userIds,                // all users holding the old role
+                                    Receiveruserid = userIds?.ToList(),               // all users holding the old role
                                     Senderuserid = Guid.Empty,              // system-generated
                                     Title = "Role Updated",
                                     Message = "Your position has been changed. Your role and permissions have been updated accordingly.",
@@ -532,20 +532,21 @@ public class EmployeeService : IEmployeeService
         return employee;
     }
 
-    public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,
+    public async Task<IReadOnlyList<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,
     string? status = null)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
 
         var positions = await _employeeRepository.GetPositionsAsync(organizationId, departmentId, search, status);
+
+        // Build a lookup to avoid O(n*m) FirstOrDefault scan in a foreach loop
+        var countLookup = positions.ToDictionary(p => p.PositionId, p => p.EmploymentDetails?.Count ?? 0);
+
         var positionDtos = _mapper.Map<List<PositionDto>>(positions);
-
-
-        foreach (var positionDto in positionDtos)
+        foreach (var dto in positionDtos)
         {
-            var position = positions.FirstOrDefault(p => p.PositionId == positionDto.PositionId);
-            positionDto.EmployeeCount = position?.EmploymentDetails?.Count ?? 0;
+            dto.EmployeeCount = countLookup.TryGetValue(dto.PositionId, out var count) ? count : 0;
         }
 
         return positionDtos;
@@ -566,19 +567,19 @@ public class EmployeeService : IEmployeeService
             PositionId = positionId,
             PositionTitle = employees.FirstOrDefault()?.PositionTitle ?? string.Empty,
             EmployeeCount = employees.Count,
-            Employees = employees
+            Employees = employees.ToList()
         };
 
         return result;
     }
 
-    public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<PositionDto>> GetPositionsAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
 
         var positions = await _employeeRepository.GetPositionsAsync(organizationId, null);
-        return _mapper.Map<List<PositionDto>>(positions);
+        return _mapper.Map<IReadOnlyList<PositionDto>>(positions);
     }
 
     public async Task<PositionDto> CreatePositionAsync(CreatePositionRequest request, Guid organizationId)

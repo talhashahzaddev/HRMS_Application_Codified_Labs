@@ -23,8 +23,8 @@ public interface IEmployeeService
     Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId);
     Task<DepartmentDto> UpdateDepartmentAsync(Guid departmentId, CreateDepartmentRequest request);
     Task<bool> DeleteDepartmentAsync(Guid departmentId);
-    Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
-    Task<List<PositionDto>> GetPositionsAsync(Guid organizationId);
+    Task<IReadOnlyList<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
+    Task<IReadOnlyList<PositionDto>> GetPositionsAsync(Guid organizationId);
     Task<PositionDto> CreatePositionAsync(CreatePositionRequest request, Guid organizationId);
     Task<PositionDto> UpdatePositionAsync(Guid positionId, CreatePositionRequest request);
     Task<bool> DeletePositionAsync(Guid positionId);

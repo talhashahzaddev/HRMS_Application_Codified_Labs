@@ -920,7 +920,7 @@ ORDER BY e.firstname, e.lastname;
   
 
 
-    public async Task<List<Position>> GetPositionsAsync(
+    public async Task<IReadOnlyList<Position>> GetPositionsAsync(
     Guid organizationId,
     Guid? departmentId = null,
     string? search = null,
@@ -953,13 +953,13 @@ ORDER BY e.firstname, e.lastname;
         var posResults = (await QueryAsync<PositionWithEmployees>(posSql,
             new { organizationId, departmentId, search }, commandTimeout: 60))
             .DistinctBy(p => p.PositionId)
-            .ToList();
+            .ToArray();
 
-        if (posResults.Count == 0)
-            return new List<Position>();
+        if (posResults.Length == 0)
+            return System.Array.Empty<Position>();
 
         // Collect position IDs for the IN clause
-        var posIds = posResults.Select(p => p.PositionId).ToList();
+        var posIds = posResults.Select(p => p.PositionId).ToArray();
 
         // ── Step 2: Fetch current employment details + employees ───────────
         //    Only for positions that actually exist. Uses a single efficient
@@ -992,8 +992,8 @@ ORDER BY e.firstname, e.lastname;
             empSql += " AND ee.status = @status";
         }
 
-        var empResults = (await QueryAsync<PositionWithEmployees>(empSql,
-            new { PositionIds = posIds, status })).ToList();
+        var empResults = await QueryAsync<PositionWithEmployees>(empSql,
+            new { PositionIds = posIds, status });
 
         // Build lookup: PositionId → List<EmploymentDetail>
         var empLookup = empResults
@@ -1024,7 +1024,7 @@ ORDER BY e.firstname, e.lastname;
             );
 
         // ── Step 3: Assemble final list (in-memory, no SQL) ───────────────
-        var positions = posResults.Select(p => new Position
+        return posResults.Select(p => new Position
         {
             PositionId = p.PositionId,
             OrganizationId = p.OrganizationId,
@@ -1042,14 +1042,11 @@ ORDER BY e.firstname, e.lastname;
             EmploymentDetails = empLookup.TryGetValue(p.PositionId, out var emps)
                 ? emps
                 : new List<EmploymentDetail>()
-        }).ToList();
-
-        return positions;
+        }).ToArray();
     }
 
 
-    //Emloyee gettig of postion
-    public async Task<List<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId)
+    public async Task<IReadOnlyList<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId)
     {
         var sql = @"
         SELECT 
@@ -1073,14 +1070,11 @@ ORDER BY e.firstname, e.lastname;
         ORDER BY ee.firstname, ee.lastname;
     ";
 
-        // Use helper QueryAsync method to keep consistent with ExecuteScalarAsync pattern
-        var employees = await QueryAsync<PositionEmployeeDto>(sql, new
+        return await QueryAsync<PositionEmployeeDto>(sql, new
         {
             OrganizationId = organizationId,
             PositionId = positionId
         });
-
-        return employees.ToList();
     }
 
 
@@ -1277,7 +1271,7 @@ ORDER BY e.firstname, e.lastname;
         }
     }
 
-    public async Task<List<Employee>> GetEmployeesByPositionAsync(Guid positionId)
+    public async Task<IReadOnlyList<Employee>> GetEmployeesByPositionAsync(Guid positionId)
     {
         var sql = @"
             SELECT e.employeeid, e.organizationid, e.userid, e.employeecode, e.firstname, e.lastname,
@@ -1288,8 +1282,7 @@ ORDER BY e.firstname, e.lastname;
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
             WHERE ed.positionid = @positionId AND ed.iscurrent = true AND e.status != 'deleted'";
 
-        var results = await QueryAsync<Employee>(sql, new { positionId });
-        return results.ToList();
+        return await QueryAsync<Employee>(sql, new { positionId });
     }
 
     public async Task<List<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)

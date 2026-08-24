@@ -7,7 +7,7 @@ namespace HRMS.API.Repositories.Interfaces;
 public interface IEmployeeRepository
 {
     Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId);
-    Task<List<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId);
+    Task<IReadOnlyList<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId);
     Task<Guid?> GetEmployeeIdAsync(Guid userId);
     Task<bool> EditEmployeeDetailsAsync(Guid employeeId, UpdateEmployeeRequestDTo request);
     Task<bool> EditEmployeeTableAsync(Guid employeeId, UpdateEmployeeRequestDTo request, string? profileUrl);
@@ -37,13 +37,13 @@ public interface IEmployeeRepository
     Task<Department> UpdateDepartmentAsync(Department department);
     Task<bool> DeleteDepartmentAsync(Guid departmentId);
     Task<int> GetEmployeeCountByDepartmentAsync(Guid departmentId);
-    Task<List<Position>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
+    Task<IReadOnlyList<Position>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
     Task<Position> CreatePositionAsync(Position position);
     Task<Position?> GetPositionByIdAsync(Guid positionId);
     Task<Position> UpdatePositionAsync(Position position);
     Task<bool> DeletePositionAsync(Guid positionId);
     Task<int> GetEmployeeCountByPositionAsync(Guid positionId);
-    Task<List<Employee>> GetEmployeesByPositionAsync(Guid positionId);
+    Task<IReadOnlyList<Employee>> GetEmployeesByPositionAsync(Guid positionId);
     Task<List<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null);
     Task<bool> UpdateEmploymentDetailCurrencyAsync(Guid employeeId, string currency);
     Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);

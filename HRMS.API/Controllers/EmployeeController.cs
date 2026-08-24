@@ -555,7 +555,7 @@ public class EmployeeController : ControllerBase
     }
 
     [HttpGet("positions")]
-    public async Task<ActionResult<ServiceResponse<List<PositionDto>>>> GetPositions([FromQuery] Guid? departmentId = null, [FromQuery] string? search = null,
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PositionDto>>>> GetPositions([FromQuery] Guid? departmentId = null, [FromQuery] string? search = null,
     [FromQuery] string? status = null)
     {
         try
@@ -563,16 +563,17 @@ public class EmployeeController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var positions = await _employeeService.GetPositionsAsync(organizationId, departmentId, search, status);
 
-            return Ok(new ServiceResponse<List<PositionDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<PositionDto>>
             {
                 Success = true,
-                Data = positions
+                Data = positions,
+                Message = "Positions retrieved successfully"
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving positions");
-            return StatusCode(500, new ServiceResponse<List<PositionDto>>
+            _logger.LogError(ex, "Error getting positions");
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PositionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving positions"
