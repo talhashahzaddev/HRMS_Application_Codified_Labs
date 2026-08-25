@@ -18,7 +18,7 @@ public class DemoInquiryService : IDemoInquiryService
         _emailService = emailService;
     }
 
-    public async Task<dynamic> CreateAsync(CreateDemoInquiryRequest request)
+    public async Task<ServiceResponse<Guid>> CreateAsync(CreateDemoInquiryRequest request)
     {
         try
         {
@@ -43,7 +43,7 @@ public class DemoInquiryService : IDemoInquiryService
             {
                 await _emailService.SendDemoEmailAsync("talhashahzaddev@gmail.com", request.FullName, request.CompanyName, request.EmailAddress);
             }
-            return new ServiceResponse<dynamic>
+            return new ServiceResponse<Guid>
             {
                 Success = true,
                 Message = "Inquiry submitted successfully. We will contact you shortly.",
@@ -53,7 +53,7 @@ public class DemoInquiryService : IDemoInquiryService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating demo inquiry for {Email}", request.EmailAddress);
-            return new ServiceResponse<dynamic>
+            return new ServiceResponse<Guid>
             {
                 Success = false,
                 Message = "Failed to submit inquiry. Please try again."
