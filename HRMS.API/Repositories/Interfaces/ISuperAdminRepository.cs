@@ -8,11 +8,11 @@ public interface ISuperAdminRepository
     Task<PlatformDashboardDto> GetPlatformDashboardAsync();
     Task<PagedResult<OrganizationListItemDto>> GetOrganizationsPagedAsync(OrganizationFilterRequest filter);
     Task<OrganizationDetailDto?> GetOrganizationDetailAsync(Guid organizationId);
-    Task<List<SubscriptionHistoryDto>> GetSubscriptionHistoryAsync(Guid companyId);
+    Task<IReadOnlyList<SubscriptionHistoryDto>> GetSubscriptionHistoryAsync(Guid companyId);
     Task LogSubscriptionHistoryAsync(Guid subscriptionId, Guid companyId, string action,
         Guid? oldPlanId, Guid? newPlanId, DateTime? oldEndDate, DateTime? newEndDate,
         Guid? performedBy, string? notes);
-    Task<List<GlobalRolePermissionFlatDto>> GetGlobalRolesAsync();
+    Task<IReadOnlyList<GlobalRolePermissionFlatDto>> GetGlobalRolesAsync();
     Task<Guid> CreateGlobalRoleAsync(CreateGlobalRoleRequest request);
     Task<bool> UpdateGlobalRoleAsync(UpdateGlobalRoleRequest request);
     Task<bool> DeleteGlobalRoleAsync(Guid roleId);
