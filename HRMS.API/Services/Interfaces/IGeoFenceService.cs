@@ -1,17 +1,17 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 
 namespace HRMS.API.Services.Interfaces;
 
 public interface IGeoFenceService
 {
-    Task<IEnumerable<GeoFenceDto>> GetAllGeoFencesAsync(Guid organizationId);
+    Task<IReadOnlyList<GeoFenceDto>> GetAllGeoFencesAsync(Guid organizationId);
     Task<GeoFenceDto?> GetGeoFenceByIdAsync(Guid geoFenceId);
     Task<ServiceResponse<Guid>> CreateGeoFenceAsync(Guid organizationId, Guid createdBy, CreateGeoFenceDto dto);
     Task<ServiceResponse<bool>> UpdateGeoFenceAsync(Guid geoFenceId, Guid organizationId, UpdateGeoFenceDto dto);
     Task<ServiceResponse<bool>> DeleteGeoFenceAsync(Guid geoFenceId, Guid organizationId);
     Task<ServiceResponse<bool>> ToggleActiveAsync(Guid geoFenceId, Guid organizationId, bool isActive);
 
-    Task<IEnumerable<ShiftGeoFenceDto>> GetGeoFencesByShiftAsync(Guid shiftId);
+    Task<IReadOnlyList<ShiftGeoFenceDto>> GetGeoFencesByShiftAsync(Guid shiftId);
     Task<ServiceResponse<bool>> LinkGeoFenceToShiftAsync(Guid shiftId, Guid geoFenceId);
     Task<ServiceResponse<bool>> UnlinkGeoFenceFromShiftAsync(Guid shiftId, Guid geoFenceId);
 
@@ -20,8 +20,8 @@ public interface IGeoFenceService
 
     Task<ServiceResponse<GeoClockInResponse>> GeoClockInOutAsync(Guid employeeId, GeoClockInRequest request);
 
-    Task<IEnumerable<TeamLiveStreamDto>> GetTeamLiveStreamAsync(Guid organizationId);
-    Task<IEnumerable<GeoFenceViolationReportDto>> GetViolationsReportAsync(
+    Task<IReadOnlyList<TeamLiveStreamDto>> GetTeamLiveStreamAsync(Guid organizationId);
+    Task<IReadOnlyList<GeoFenceViolationReportDto>> GetViolationsReportAsync(
         Guid organizationId, DateTime startDate, DateTime endDate, Guid? shiftId = null);
     Task<SystemHealthDto> GetSystemHealthAsync(Guid organizationId);
 }

@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 
 namespace HRMS.API.Repositories.Interfaces;
@@ -6,7 +6,7 @@ namespace HRMS.API.Repositories.Interfaces;
 public interface IGeoFenceRepository
 {
     // Geo-Fences CRUD
-    Task<IEnumerable<GeoFenceDto>> GetAllGeoFencesAsync(Guid organizationId);
+    Task<IReadOnlyList<GeoFenceDto>> GetAllGeoFencesAsync(Guid organizationId);
     Task<GeoFenceDto?> GetGeoFenceByIdAsync(Guid geoFenceId);
     Task<Guid> CreateGeoFenceAsync(Guid organizationId, Guid createdBy, CreateGeoFenceDto dto);
     Task<bool> UpdateGeoFenceAsync(Guid geoFenceId, Guid organizationId, UpdateGeoFenceDto dto);
@@ -14,7 +14,7 @@ public interface IGeoFenceRepository
     Task<bool> ToggleGeoFenceActiveAsync(Guid geoFenceId, Guid organizationId, bool isActive);
 
     // Shift ↔ Geo-Fence links
-    Task<IEnumerable<ShiftGeoFenceDto>> GetGeoFencesByShiftAsync(Guid shiftId);
+    Task<IReadOnlyList<ShiftGeoFenceDto>> GetGeoFencesByShiftAsync(Guid shiftId);
     Task<bool> LinkGeoFenceToShiftAsync(Guid shiftId, Guid geoFenceId);
     Task<bool> UnlinkGeoFenceFromShiftAsync(Guid shiftId, Guid geoFenceId);
 
@@ -24,14 +24,14 @@ public interface IGeoFenceRepository
 
     // Face recognition logs
     Task<Guid> CreateFaceLogAsync(Guid employeeId, SubmitFaceLogRequest dto);
-    Task<IEnumerable<FaceRecognitionLogDto>> GetFaceLogsByEmployeeAsync(Guid employeeId, int limit = 10);
+    Task<IReadOnlyList<FaceRecognitionLogDto>> GetFaceLogsByEmployeeAsync(Guid employeeId, int limit = 10);
 
     // Geo-aware clock in/out
     Task<GeoClockInResponse> GeoClockInOutAsync(Guid employeeId, GeoClockInRequest request);
 
     // Views / reports
-    Task<IEnumerable<TeamLiveStreamDto>> GetTeamLiveStreamAsync(Guid organizationId);
-    Task<IEnumerable<GeoFenceViolationReportDto>> GetViolationsReportAsync(
+    Task<IReadOnlyList<TeamLiveStreamDto>> GetTeamLiveStreamAsync(Guid organizationId);
+    Task<IReadOnlyList<GeoFenceViolationReportDto>> GetViolationsReportAsync(
         Guid organizationId, DateTime startDate, DateTime endDate, Guid? shiftId = null);
     Task<SystemHealthDto> GetSystemHealthAsync(Guid organizationId);
 
