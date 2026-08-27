@@ -501,6 +501,21 @@ ALTER TABLE ONLY attendance.attendance
 ALTER TABLE ONLY attendance.attendance
     ADD CONSTRAINT fk_att_out_facelog FOREIGN KEY (clock_out_face_log_id) REFERENCES attendance.face_recognition_logs(logid) ON DELETE SET NULL;
 
+-- M11: FK on attendance.employeeid
+ALTER TABLE ONLY attendance.attendance
+    ADD CONSTRAINT fk_att_employee FOREIGN KEY (employeeid) REFERENCES employee.employees(employeeid);
+
+-- M15: Index on attendance.workdate (most queries filter on this)
+CREATE INDEX IF NOT EXISTS idx_attendance_workdate ON attendance.attendance(workdate);
+
+-- M16: Index on attendance.status (fn_get_attendance filters by status)
+CREATE INDEX IF NOT EXISTS idx_attendance_status ON attendance.attendance(status);
+
+-- CR10: CHECK constraint on attendance.status
+ALTER TABLE ONLY attendance.attendance
+    ADD CONSTRAINT attendance_status_check
+    CHECK (status IN ('present', 'absent', 'late', 'half_day', 'on_leave', 'holiday', 'weekend'));
+
 -- Table: attendance.attendance_update_requests
 CREATE TABLE attendance.attendance_update_requests (
     request_id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
@@ -526,11 +541,16 @@ ALTER TABLE ONLY attendance.attendance_update_requests
 ALTER TABLE ONLY attendance.attendance_update_requests
     ADD CONSTRAINT attendance_update_requests_actioned_by_fkey FOREIGN KEY (actioned_by) REFERENCES employee.employees(employeeid);
 ALTER TABLE ONLY attendance.attendance_update_requests
-    ADD CONSTRAINT attendance_update_requests_attendance_id_fkey FOREIGN KEY (attendance_id) REFERENCES attendance.attendance(attendanceid) ON DELETE CASCADE;
+    ADD CONSTRAINT attendance_update_requests_attendance_id_fkey FOREIGN KEY (attendance_id) REFERENCES attendance.attendance(attendanceid) ON DELETE SET NULL;
 ALTER TABLE ONLY attendance.attendance_update_requests
     ADD CONSTRAINT attendance_update_requests_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES employee.employees(employeeid);
 ALTER TABLE ONLY attendance.attendance_update_requests
     ADD CONSTRAINT attendance_update_requests_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES auth.organizations(organizationid);
+
+-- CR11: CHECK constraint on attendance_update_requests.status
+ALTER TABLE ONLY attendance.attendance_update_requests
+    ADD CONSTRAINT attendance_update_requests_status_check
+    CHECK (status IN ('pending', 'approved', 'rejected'));
 
 -- Table: attendance.attendancesessions
 CREATE TABLE attendance.attendancesessions (
@@ -689,6 +709,12 @@ ALTER TABLE ONLY attendance.finalized_timesheet_records
     ADD CONSTRAINT finalized_timesheet_records_employee_id_fkey FOREIGN KEY (employee_id) REFERENCES employee.employees(employeeid);
 ALTER TABLE ONLY attendance.finalized_timesheet_records
     ADD CONSTRAINT finalized_timesheet_records_organization_id_fkey FOREIGN KEY (organization_id) REFERENCES auth.organizations(organizationid);
+
+-- M12: CHECK constraint on finalized_timesheet_records.record_status
+ALTER TABLE ONLY attendance.finalized_timesheet_records
+    ADD CONSTRAINT ftr_record_status_check
+    CHECK (record_status IN ('finalized', 'submitted', 'approved', 'rejected', 'pending'));
+
 CREATE INDEX IF NOT EXISTS ix_ftr_timesheet_employee
     ON attendance.finalized_timesheet_records (timesheet_id, employee_id);
 
@@ -840,6 +866,11 @@ CREATE TABLE attendance.leaverequests (
 
 ALTER TABLE ONLY attendance.leaverequests
     ADD CONSTRAINT leaverequests_pkey PRIMARY KEY (requestid);
+
+-- M13: CHECK constraint on leaverequests.status
+ALTER TABLE ONLY attendance.leaverequests
+    ADD CONSTRAINT leaverequests_status_check
+    CHECK (status IN ('pending', 'approved', 'rejected', 'cancelled'));
 
 -- Table: attendance.leavetypes
 CREATE TABLE attendance.leavetypes (
@@ -1203,7 +1234,9 @@ CREATE TABLE IF NOT EXISTS attendance.overtime
     createdat timestamp with time zone DEFAULT now(),
     updatedat timestamp with time zone DEFAULT now(),
     totalactualovertime numeric(5,2),
-    CONSTRAINT overtime_pkey PRIMARY KEY (overtimeid)
+    CONSTRAINT overtime_pkey PRIMARY KEY (overtimeid),
+    CONSTRAINT chk_overtime_requesttype CHECK (requesttype IN ('employee', 'manager')),
+    CONSTRAINT chk_overtime_overtimetype CHECK (overtimetype IN ('Regular', 'Weekend', 'Holiday', 'Night'))
 )
 
 TABLESPACE pg_default;
@@ -1257,6 +1290,14 @@ CREATE TABLE IF NOT EXISTS attendance.employee_overtime_requests
 )
 
 TABLESPACE pg_default;
+
+-- M14: FK on employee_overtime_requests.managerid
+ALTER TABLE ONLY attendance.employee_overtime_requests
+    ADD CONSTRAINT fk_eor_manager FOREIGN KEY (managerid) REFERENCES employee.employees(employeeid);
+
+-- M17: Index on overtime request tables (common query pattern)
+CREATE INDEX IF NOT EXISTS idx_eor_employee_status ON attendance.employee_overtime_requests(employeeid, status);
+CREATE INDEX IF NOT EXISTS idx_eor_overtimedate ON attendance.employee_overtime_requests(overtimedate);
 
 
 

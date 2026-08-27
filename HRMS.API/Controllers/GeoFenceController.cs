@@ -114,9 +114,17 @@ public class GeoFenceController : ControllerBase
     [HttpPatch("{id}/toggle")]
     public async Task<ActionResult<ServiceResponse<bool>>> Toggle(Guid id, [FromBody] bool isActive)
     {
-        var orgId = GetCurrentOrganizationId();
-        var result = await _service.ToggleActiveAsync(id, orgId, isActive);
-        return Ok(result);
+        try
+        {
+            var orgId = GetCurrentOrganizationId();
+            var result = await _service.ToggleActiveAsync(id, orgId, isActive);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error toggling geo-fence {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred." });
+        }
     }
 
     // ── Shift ↔ Geo-Fence ─────────────────────────────────────────────────
@@ -131,15 +139,31 @@ public class GeoFenceController : ControllerBase
     [HttpPost("shift/{shiftId}/link/{geoFenceId}")]
     public async Task<ActionResult<ServiceResponse<bool>>> LinkToShift(Guid shiftId, Guid geoFenceId)
     {
-        var result = await _service.LinkGeoFenceToShiftAsync(shiftId, geoFenceId);
-        return Ok(result);
+        try
+        {
+            var result = await _service.LinkGeoFenceToShiftAsync(shiftId, geoFenceId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error linking geo-fence {GeoFenceId} to shift {ShiftId}", geoFenceId, shiftId);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred." });
+        }
     }
 
     [HttpDelete("shift/{shiftId}/unlink/{geoFenceId}")]
     public async Task<ActionResult<ServiceResponse<bool>>> UnlinkFromShift(Guid shiftId, Guid geoFenceId)
     {
-        var result = await _service.UnlinkGeoFenceFromShiftAsync(shiftId, geoFenceId);
-        return Ok(result);
+        try
+        {
+            var result = await _service.UnlinkGeoFenceFromShiftAsync(shiftId, geoFenceId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unlinking geo-fence {GeoFenceId} from shift {ShiftId}", geoFenceId, shiftId);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred." });
+        }
     }
 
     // ── Face Recognition ──────────────────────────────────────────────────

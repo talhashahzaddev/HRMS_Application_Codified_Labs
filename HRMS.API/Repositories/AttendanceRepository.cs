@@ -19,14 +19,17 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     }
     public async Task<IEnumerable<Attendance>> GetManualAttendanceRecordsAsync(Guid organizationId, Guid? managerId, Guid? employeeId, DateTime startDate, DateTime endDate)
     {
+        // H4 fix: when managerId is provided, show team members (employees reporting to that manager),
+        // not just the manager's own records.
         var sql = @"
             SELECT a.*
             FROM attendance.attendance a
             JOIN employee.employees e ON a.employeeid = e.employeeid
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
             WHERE e.organizationid = @organizationId
             AND a.workdate BETWEEN @startDate AND @endDate
             AND (@employeeId IS NULL OR a.employeeid = @employeeId)
-            AND (@managerId IS NULL OR e.employeeid = @managerId)";
+            AND (@managerId IS NULL OR ed.reportingmanagerid = @managerId OR e.employeeid = @managerId)";
 
         return await QueryAsync<Attendance>(sql, new { organizationId, managerId, employeeId, startDate, endDate });
     }
@@ -75,12 +78,28 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         if (editorId == targetEmployeeId) return true;
 
+        // H6 fix: allow managers/HR/admin to edit team member records
         var sql = @"
             SELECT COUNT(1)
-            FROM employee.employees
-            WHERE employeeid = @targetEmployeeId
-            AND employeeid = @editorId
-            AND organizationid = @organizationId";
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed
+                ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            WHERE e.employeeid = @targetEmployeeId
+            AND e.organizationid = @organizationId
+            AND (
+                ed.reportingmanagerid = @editorId
+                OR EXISTS (
+                    SELECT 1 FROM employee.employees mgr
+                    WHERE mgr.employeeid = @editorId
+                    AND mgr.organizationid = @organizationId
+                    AND EXISTS (
+                        SELECT 1 FROM employee.employmentdetails mged
+                        WHERE mged.employeeid = @editorId
+                        AND mged.iscurrent = true
+                        AND LOWER(COALESCE(mged.jobtitle, '')) LIKE ANY (ARRAY['%manager%', '%admin%', '%hr%'])
+                    )
+                )
+            )";
 
         var count = await ExecuteScalarAsync<int>(sql, new { editorId, targetEmployeeId, organizationId });
         return count > 0;
@@ -1006,7 +1025,8 @@ ORDER BY ed.employeename, ed.workdate ASC";
         }
         catch (Exception ex)
         {
-            throw ex;
+            _logger.LogError(ex, "Error fetching org submission progress for organization {OrganizationId}", organizationId);
+            throw;
         }
     }
     public async Task<bool> AdminFinalizeRecordAsync(ManualAttendanceUpdateDto dto, Guid managerId, Guid orgId)
@@ -1422,12 +1442,14 @@ ORDER BY ed.employeename, ed.workdate ASC";
     {
         try
         {
+            // H7 fix: use PKT (Pakistan Standard Time) for date comparison, not UTC.
+            // Between midnight and 5am PKT, UTC date is the previous day.
             var sql = @"
                 SELECT attendanceid, employeeid, workdate, checkintime, checkouttime,
                        breakstarttime, breakendtime, totalhours, overtimehours, breakhours,
                        status, location, notes, approvedby, approvedat, createdat, updatedat
-                FROM attendance.attendance 
-                WHERE employeeid = @employeeId AND workdate = (NOW() AT TIME ZONE 'UTC')::date";
+                FROM attendance.attendance
+                WHERE employeeid = @employeeId AND workdate = (NOW() AT TIME ZONE 'Asia/Karachi')::date";
 
             return await QuerySingleOrDefaultAsync<Attendance>(sql, new { employeeId });
         }
@@ -1466,6 +1488,173 @@ ORDER BY ed.employeename, ed.workdate ASC";
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────────
+    // CR1+CR2+CR3: Atomic clock-in — wraps fn_clock_in_out + session + late + OT
+    // updates in a single connection/transaction so partial failure is impossible.
+    // ─────────────────────────────────────────────────────────────────────────────
+    public async Task ExecuteClockInAtomicallyAsync(
+        Guid employeeId, DateTime timestamp,
+        Dictionary<string, object>? location, string? notes, string? overtimeType)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            var locationJson = System.Text.Json.JsonSerializer.Serialize(location ?? new Dictionary<string, object>());
+
+            // 1. Core clock-in via fn_clock_in_out (uses FOR UPDATE — CR12)
+            await connection.ExecuteScalarAsync<bool>(
+                "SELECT attendance.fn_clock_in_out(@employeeId, @action, @timestamp, @location::jsonb, @notes)",
+                new { employeeId, action = "in", timestamp, location = locationJson, notes },
+                transaction);
+
+            // 2. Update attendance from sessions (first checkin / last checkout)
+            const string sessionsSql = @"
+                WITH todays_attendance AS (
+                    SELECT attendanceid FROM attendance.attendance
+                    WHERE employeeid = @employeeId AND workdate = (NOW() AT TIME ZONE 'UTC')::date
+                ),
+                first_session AS (
+                    SELECT MIN(checkintime) AS first_checkin
+                    FROM attendance.attendancesessions
+                    WHERE attendanceid IN (SELECT attendanceid FROM todays_attendance)
+                ),
+                last_session AS (
+                    SELECT checkouttime AS last_checkout
+                    FROM attendance.attendancesessions
+                    WHERE attendanceid IN (SELECT attendanceid FROM todays_attendance)
+                    ORDER BY checkintime DESC LIMIT 1
+                )
+                UPDATE attendance.attendance a
+                SET checkintime  = (SELECT first_checkin FROM first_session),
+                    checkouttime = (SELECT last_checkout FROM last_session),
+                    updatedat    = NOW() AT TIME ZONE 'UTC'
+                WHERE a.employeeid = @employeeId
+                  AND a.workdate   = (NOW() AT TIME ZONE 'UTC')::date";
+            await connection.ExecuteAsync(sessionsSql, new { employeeId }, transaction);
+
+            // 3. Update late status via fn_calculate_late_minutes
+            const string lateSql = @"
+                UPDATE attendance.attendance a
+                SET
+                    late_minutes = attendance.fn_calculate_late_minutes(a.employeeid, a.workdate, a.checkintime),
+                    islate       = (attendance.fn_calculate_late_minutes(a.employeeid, a.workdate, a.checkintime) > 0),
+                    status       = CASE
+                                      WHEN LOWER(COALESCE(a.status,'present')) = 'half_day' THEN a.status
+                                      WHEN attendance.fn_calculate_late_minutes(a.employeeid, a.workdate, a.checkintime) > 0
+                                           THEN 'late'
+                                      ELSE COALESCE(a.status, 'present')
+                                   END,
+                    updatedat    = NOW() AT TIME ZONE 'UTC'
+                WHERE a.employeeid = @employeeId
+                  AND a.workdate   = (NOW() AT TIME ZONE 'UTC')::date";
+            await connection.ExecuteAsync(lateSql, new { employeeId }, transaction);
+
+            // 4. Update overtime type (if applicable)
+            if (!string.IsNullOrEmpty(overtimeType))
+            {
+                const string otTypeSql = @"
+                    UPDATE attendance.attendance
+                    SET overtimetype = @overtimeType, updatedat = NOW() AT TIME ZONE 'UTC'
+                    WHERE employeeid = @employeeId
+                      AND workdate   = (NOW() AT TIME ZONE 'UTC')::date";
+                await connection.ExecuteAsync(otTypeSql, new { employeeId, overtimeType }, transaction);
+            }
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // CR3: Atomic clock-out — wraps fn_clock_in_out + session + OT hours in a
+    // single connection/transaction.
+    // ─────────────────────────────────────────────────────────────────────────────
+    public async Task ExecuteClockOutAtomicallyAsync(
+        Guid employeeId, DateTime timestamp,
+        Dictionary<string, object>? location, string? notes)
+    {
+        using var connection = CreateConnection();
+        connection.Open();
+        using var transaction = connection.BeginTransaction();
+        try
+        {
+            var locationJson = System.Text.Json.JsonSerializer.Serialize(location ?? new Dictionary<string, object>());
+
+            // 1. Core clock-out via fn_clock_in_out (uses FOR UPDATE — CR12)
+            await connection.ExecuteScalarAsync<bool>(
+                "SELECT attendance.fn_clock_in_out(@employeeId, @action, @timestamp, @location::jsonb, @notes)",
+                new { employeeId, action = "out", timestamp, location = locationJson, notes },
+                transaction);
+
+            // 2. Update attendance from sessions
+            const string sessionsSql = @"
+                WITH todays_attendance AS (
+                    SELECT attendanceid FROM attendance.attendance
+                    WHERE employeeid = @employeeId AND workdate = (NOW() AT TIME ZONE 'UTC')::date
+                ),
+                first_session AS (
+                    SELECT MIN(checkintime) AS first_checkin
+                    FROM attendance.attendancesessions
+                    WHERE attendanceid IN (SELECT attendanceid FROM todays_attendance)
+                ),
+                last_session AS (
+                    SELECT checkouttime AS last_checkout
+                    FROM attendance.attendancesessions
+                    WHERE attendanceid IN (SELECT attendanceid FROM todays_attendance)
+                    ORDER BY checkintime DESC LIMIT 1
+                )
+                UPDATE attendance.attendance a
+                SET checkintime  = (SELECT first_checkin FROM first_session),
+                    checkouttime = (SELECT last_checkout FROM last_session),
+                    updatedat    = NOW() AT TIME ZONE 'UTC'
+                WHERE a.employeeid = @employeeId
+                  AND a.workdate   = (NOW() AT TIME ZONE 'UTC')::date";
+            await connection.ExecuteAsync(sessionsSql, new { employeeId }, transaction);
+
+            // 3. Update overtime hours (shift-aware)
+            const string otHoursSql = @"
+                WITH emp_shift AS (
+                    SELECT s.starttime, s.endtime, s.breakduration
+                    FROM employee.employmentdetails ed
+                    JOIN attendance.shifts s ON ed.shiftid = s.shiftid
+                    WHERE ed.employeeid = @employeeId AND ed.iscurrent = true
+                ),
+                shift_hours AS (
+                    SELECT CASE
+                        WHEN es.endtime < es.starttime THEN
+                            EXTRACT(EPOCH FROM (es.endtime + interval '24 hours' - es.starttime)) / 3600
+                        ELSE
+                            EXTRACT(EPOCH FROM (es.endtime - es.starttime)) / 3600
+                    END - COALESCE(es.breakduration, 0) / 60.0 AS expected_hours
+                    FROM emp_shift es
+                )
+                UPDATE attendance.attendance
+                SET
+                    overtimehours = CASE
+                                        WHEN (SELECT expected_hours FROM shift_hours) > 0
+                                             AND totalhours > (SELECT expected_hours FROM shift_hours)
+                                        THEN totalhours - (SELECT expected_hours FROM shift_hours)
+                                        ELSE 0
+                                    END,
+                    updatedat = NOW() AT TIME ZONE 'UTC'
+                WHERE employeeid = @employeeId
+                  AND workdate   = (NOW() AT TIME ZONE 'UTC')::date";
+            await connection.ExecuteAsync(otHoursSql, new { employeeId }, transaction);
+
+            transaction.Commit();
+        }
+        catch
+        {
+            transaction.Rollback();
+            throw;
+        }
+    }
 
 
     public async Task<PagedResult<AttendanceDto>> GetAttendanceAsync(string? SearchTerm,
@@ -2430,13 +2619,13 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
             return results.Select(r => new AttendanceDto
             {
-                AttendanceId = r.attendance_id,
-                EmployeeId = r.employee_id,
-                EmployeeName = r.employee_name,
-                WorkDate = r.work_date,
-                CheckInTime = r.check_in_time,
-                CheckOutTime = r.check_out_time,
-                TotalHours = r.total_hours,
+                AttendanceId = r.attendanceid,
+                EmployeeId = r.employeeid,
+                EmployeeName = r.employeename,
+                WorkDate = r.workdate,
+                CheckInTime = r.checkintime,
+                CheckOutTime = r.checkouttime,
+                TotalHours = r.totalhours,
                 Status = r.status
             }).ToList();
         }
@@ -2903,6 +3092,48 @@ WHERE ed.employeeid = @EmployeeId
         }
     }
 
+    public async Task<int> GetLateMinutesAsync(Guid employeeId, DateTime workDate, DateTime checkIn)
+    {
+        try
+        {
+            // Reuse the exact late-minutes logic payroll/timesheet uses, so the on-screen
+            // "late" message can never contradict the stored late_minutes.
+            var sql = "SELECT attendance.fn_calculate_late_minutes(@EmployeeId, @WorkDate, @CheckIn);";
+            return await QuerySingleOrDefaultAsync<int>(sql, new
+            {
+                EmployeeId = employeeId,
+                WorkDate = workDate,
+                CheckIn = checkIn
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating late minutes for employee {EmployeeId}", employeeId);
+            throw;
+        }
+    }
+
+    public async Task<int> GetEarlyDepartureMinutesAsync(Guid employeeId, DateTime workDate, DateTime checkOut)
+    {
+        try
+        {
+            // Mirror fn_calculate_late_minutes but for early departure, so the clock-out
+            // "left early" message uses the same grace resolution payroll uses for lateness.
+            var sql = "SELECT attendance.fn_calculate_early_departure_minutes(@EmployeeId, @WorkDate, @CheckOut);";
+            return await QuerySingleOrDefaultAsync<int>(sql, new
+            {
+                EmployeeId = employeeId,
+                WorkDate = workDate,
+                CheckOut = checkOut
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error calculating early departure minutes for employee {EmployeeId}", employeeId);
+            throw;
+        }
+    }
+
 
     //Get employee all request
 
@@ -3173,11 +3404,32 @@ WHERE ed.employeeid = @EmployeeId
         }
     }
 
+    // M23: Check for existing attendance on a given date
+    public async Task<Attendance?> GetAttendanceByEmployeeAndDateAsync(Guid employeeId, DateTime workDate)
+    {
+        try
+        {
+            var sql = @"
+                SELECT attendanceid, employeeid, workdate, checkintime, checkouttime,
+                       totalhours, overtimehours, status, notes, createdat, ismanualentry
+                FROM attendance.attendance
+                WHERE employeeid = @employeeId AND workdate = @workDate
+                LIMIT 1";
+            var results = await QueryAsync<Attendance>(sql, new { employeeId, workDate });
+            return results.FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking existing attendance for employee {EmployeeId} on {WorkDate}", employeeId, workDate);
+            throw;
+        }
+    }
+
     public async Task<bool> DeleteAttendanceAsync(Guid attendanceId)
     {
         try
         {
-            var sql = "DELETE FROM attendance.attendance WHERE attendance_id = @attendanceId";
+            var sql = "DELETE FROM attendance.attendance WHERE attendanceid = @attendanceId";
             var rowsAffected = await ExecuteAsync(sql, new { attendanceId });
             return rowsAffected > 0;
         }
@@ -3801,7 +4053,8 @@ LEFT JOIN employee.employees m
         }
         catch (Exception ex)
         {
-            return Guid.Empty;
+            _logger.LogError(ex, "Error resolving employee ID for user {UserId}", employeeId);
+            throw;
         }
     }
     public async Task<DailyAttendanceStatsDto> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime date)

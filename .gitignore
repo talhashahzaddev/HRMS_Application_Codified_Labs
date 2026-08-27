@@ -364,3 +364,6 @@ FodyWeavers.xsd
 HRMS.API/scripts/CLEAN_timesheet_permissions.sql
 HRMS.API/scripts/CLEAN_timesheet_schema.sql
 HRMS.API/scripts/ONBOARDING_PERMISSIONS.sql
+HRMS.API/scripts/ATTENDANCE_AUDIT_FINDINGS.csv
+HRMS.API/scripts/GLOBAL_ROLES_PERMISSIONS.sql
+.gitignore

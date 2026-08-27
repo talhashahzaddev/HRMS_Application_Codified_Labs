@@ -8,6 +8,10 @@ public interface IAttendanceRepository
     Task<bool> CheckAlreadyClockInAsync(Guid employeeId);
     Task<List<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId, Guid currentEmp);
     Task<ShiftSwapRequestDto?> getshifrequestDetailsAsync(Guid requestId);
+
+    // CR1+CR2+CR3: Atomic clock-in/clock-out methods that wrap all DB operations in a single transaction
+    Task ExecuteClockInAtomicallyAsync(Guid employeeId, DateTime timestamp, Dictionary<string, object>? location, string? notes, string? overtimeType);
+    Task ExecuteClockOutAtomicallyAsync(Guid employeeId, DateTime timestamp, Dictionary<string, object>? location, string? notes);
     Task<ShiftDto?> GetshiftInfoAsync(Guid shiftId);
     Task<PagedResult<AttendanceSessionWithInfoDto>> GetEmployeeSessionsWithInfoAsync(Guid employeeId, DateTime startDate, DateTime endDate, int pageNumber = 1, int pageSize = 10);
     Task<List<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId);
@@ -22,6 +26,18 @@ public interface IAttendanceRepository
     Task<bool> DeleteShiftAsync(Guid organizationId, Guid shiftId);
     Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId);
     Task<ShiftDto?> GetShiftByEmployeeIdAsync(Guid employeeId);
+    /// <summary>
+    /// Returns late minutes using attendance.fn_calculate_late_minutes — the SAME function
+    /// payroll/timesheet uses. This keeps the clock-in "late" message consistent with the
+    /// stored late_minutes (GraceMinutes -> payroll rule -> 15-min default).
+    /// </summary>
+    Task<int> GetLateMinutesAsync(Guid employeeId, DateTime workDate, DateTime checkIn);
+    /// <summary>
+    /// Returns early-departure minutes using attendance.fn_calculate_early_departure_minutes —
+    /// mirrors the late function (GraceMinutes -> payroll rule -> 15-min default). Keeps the
+    /// clock-out "left early" message consistent with the grace-based lateness philosophy.
+    /// </summary>
+    Task<int> GetEarlyDepartureMinutesAsync(Guid employeeId, DateTime workDate, DateTime checkOut);
     Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId);
     Task<bool> RejectShiftSwapRequestAsync(ApproveShiftSwapRequestDto dto);
     Task<bool> AcceptswapRequestAsync(ApproveShiftSwapRequestDto dto);
@@ -40,6 +56,7 @@ public interface IAttendanceRepository
 
     Task<Attendance?> GetAttendanceByIdAsync(Guid? attendanceId);
     Task<Attendance> CreateAttendanceAsync(Attendance attendance);
+    Task<Attendance?> GetAttendanceByEmployeeAndDateAsync(Guid employeeId, DateTime workDate);
     Task<bool> DeleteAttendanceAsync(Guid attendanceId);
     Task<List<Attendance>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate);
     Task<AttendanceReportDto> GetAttendanceReportAsync(Guid organizationId, DateTime startDate, DateTime endDate);
