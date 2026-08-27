@@ -833,10 +833,11 @@ DECLARE
 
 BEGIN
 	    v_ip := p_location ->> 'ip';
-    -- Step 1: Ensure daily attendance record exists
-    SELECT * INTO attendanceRecord 
-    FROM attendance.Attendance 
-    WHERE employeeId = p_employee_id AND workDate = todayDate;
+    -- Step 1: Ensure daily attendance record exists (CR12: FOR UPDATE to prevent race conditions)
+    SELECT * INTO attendanceRecord
+    FROM attendance.Attendance
+    WHERE employeeId = p_employee_id AND workDate = todayDate
+    FOR UPDATE;
 
     IF attendanceRecord IS NULL THEN
         INSERT INTO attendance.Attendance (employeeId, workDate, location, status, notes)
@@ -1054,11 +1055,23 @@ BEGIN
         v_violation_id,
         'Success'::VARCHAR;
 
-EXCEPTION WHEN OTHERS THEN
-    RETURN QUERY
-    SELECT
-        FALSE, NULL::UUID, NULL::UUID, 'unknown'::VARCHAR,
-        NULL::NUMERIC, NULL::UUID, SQLERRM::VARCHAR;
+EXCEPTION
+    WHEN foreign_key_violation THEN
+        -- M30: Only catch specific errors; log unexpected ones
+        RAISE NOTICE 'fn_clock_in_out_geo FK violation: %', SQLERRM;
+        RETURN QUERY
+        SELECT
+            FALSE, NULL::UUID, NULL::UUID, 'unknown'::VARCHAR,
+            NULL::NUMERIC, NULL::UUID, 'Invalid employee or geofence reference.'::VARCHAR;
+    WHEN unique_violation THEN
+        RAISE NOTICE 'fn_clock_in_out_geo unique violation: %', SQLERRM;
+        RETURN QUERY
+        SELECT
+            FALSE, NULL::UUID, NULL::UUID, 'unknown'::VARCHAR,
+            NULL::NUMERIC, NULL::UUID, 'Duplicate clock-in detected. Please try again.'::VARCHAR;
+    WHEN OTHERS THEN
+        -- M30: Re-raise unexpected errors so the caller sees the real problem
+        RAISE EXCEPTION 'fn_clock_in_out_geo unexpected error: %', SQLERRM;
 END;
 $$;
 
@@ -1151,7 +1164,8 @@ DECLARE
 BEGIN
     SELECT * INTO v_req
     FROM attendance.attendance_update_requests
-    WHERE request_id = p_request_id AND status = 'pending';
+    WHERE request_id = p_request_id AND status = 'pending'
+    FOR UPDATE;  -- M19: Lock row to prevent concurrent double-approval
 
     IF NOT FOUND THEN
         RAISE EXCEPTION 'Request not found or already processed.';
@@ -1190,7 +1204,7 @@ END;
 $$;
 
 -- Function: attendance.fn_get_attendance(character varying, uuid, uuid, uuid, character varying, timestamp with time zone, timestamp with time zone, integer, integer)
-CREATE FUNCTION attendance.fn_get_attendance(p_search_term character varying DEFAULT NULL::character varying, p_employee_id uuid DEFAULT NULL::uuid, p_organization_id uuid DEFAULT NULL::uuid, p_department_id uuid DEFAULT NULL::uuid, p_status character varying DEFAULT NULL::character varying, p_start_date timestamp with time zone DEFAULT NULL::timestamp with time zone, p_end_date timestamp with time zone DEFAULT NULL::timestamp with time zone, p_limit integer DEFAULT 100, p_offset integer DEFAULT 0) RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, location jsonb, checkinip character varying, checkoutip character varying, totalhours numeric, overtimehours numeric, status character varying, sessionscount integer, notes character varying, totalcount bigint)
+CREATE FUNCTION attendance.fn_get_attendance(p_search_term character varying DEFAULT NULL::character varying, p_employee_id uuid DEFAULT NULL::uuid, p_organization_id uuid DEFAULT NULL::uuid, p_department_id uuid DEFAULT NULL::uuid, p_status character varying DEFAULT NULL::character varying, p_start_date timestamp with time zone DEFAULT NULL::timestamp with time zone, p_end_date timestamp with time zone DEFAULT NULL::timestamp with time zone, p_limit integer DEFAULT 100, p_offset integer DEFAULT 0) RETURNS TABLE(attendanceid uuid, employeeid uuid, employeename character varying, workdate date, checkintime timestamp with time zone, checkouttime timestamp with time zone, location jsonb, checkinip character varying, checkoutip character varying, totalhours numeric, overtimehours numeric, status character varying, sessionscount integer, notes character varying, totalcount bigint, shiftid uuid)
     LANGUAGE plpgsql
     AS $$
 
@@ -1210,12 +1224,13 @@ BEGIN
       AND (p_department_id IS NULL OR d.departmentid = p_department_id)
       AND (p_employee_id IS NULL OR e.employeeid = p_employee_id)
       AND (
-            p_search_term IS NULL 
-            OR LOWER(CONCAT(e.firstname,' ',e.lastname)) LIKE LOWER('%'||p_search_term||'%')
+            p_search_term IS NULL
+            -- M31: Escape LIKE wildcards (% and _) in user input
+            OR LOWER(CONCAT(e.firstname,' ',e.lastname)) LIKE LOWER('%'||REPLACE(REPLACE(p_search_term,'_','__'),'%','%%')||'%')
           );
 
     RETURN QUERY
-    SELECT 
+    SELECT
         a.attendanceid,
         e.employeeid,
         CONCAT(e.firstname,' ',e.lastname)::varchar AS employeename,
@@ -1231,7 +1246,8 @@ BEGIN
         COALESCE(a.status,'absent')::varchar AS status,
         COALESCE(sess.sessionscount,0)::integer AS sessionscount,
         a.notes::varchar,
-        totalRecords::bigint AS totalcount
+        totalRecords::bigint AS totalcount,
+        e.shiftid  -- L17: Return shiftid for attendance records
 
     FROM
     (
@@ -1244,11 +1260,12 @@ BEGIN
 
     CROSS JOIN
     (
-        SELECT 
+        SELECT
             e.employeeid,
             e.firstname,
             e.lastname,
-            e.hiredate
+            e.hiredate,
+            d.shiftid  -- L17: Expose shiftid for outer SELECT
         FROM employee.employees e
         INNER JOIN employee.employmentdetails d
             ON e.employeeid = d.employeeid
@@ -1258,7 +1275,8 @@ BEGIN
           AND (p_employee_id IS NULL OR e.employeeid = p_employee_id)
           AND (
                 p_search_term IS NULL
-                OR LOWER(CONCAT(e.firstname,' ',e.lastname)) LIKE LOWER('%'||p_search_term||'%')
+                -- M31: Escape LIKE wildcards (% and _) in user input
+                OR LOWER(CONCAT(e.firstname,' ',e.lastname)) LIKE LOWER('%'||REPLACE(REPLACE(p_search_term,'_','__'),'%','%%')||'%')
               )
     ) e
 
@@ -1302,20 +1320,22 @@ CREATE FUNCTION attendance.fn_initialize_leave_entitlements(p_employee_id uuid, 
     LANGUAGE plpgsql
     AS $$
 DECLARE
-    rec RECORD;
     current_year INT := EXTRACT(YEAR FROM NOW());
 BEGIN
-    FOR rec IN 
-        SELECT leavetypeid, maxdaysperyear
-        FROM attendance.leavetypes
-        WHERE organizationid = p_organization_id
-          AND isactive = true
-    LOOP
-        INSERT INTO attendance.leaveentitlements
-            (employeeid, leavetypeid, year, totaldays, useddays, remainingdays, carryforwarddays, createdat)
-        VALUES
-            (p_employee_id, rec.leavetypeid, current_year, rec.maxdaysperyear, 0, rec.maxdaysperyear, 0, NOW());
-    END LOOP;
+    -- L14: Bulk INSERT instead of row-by-row loop
+    INSERT INTO attendance.leaveentitlements
+        (employeeid, leavetypeid, year, totaldays, useddays, remainingdays, carryforwarddays, createdat)
+    SELECT
+        p_employee_id, lt.leavetypeid, current_year, lt.maxdaysperyear, 0, lt.maxdaysperyear, 0, NOW()
+    FROM attendance.leavetypes lt
+    WHERE lt.organizationid = p_organization_id
+      AND lt.isactive = true
+      AND NOT EXISTS (
+          SELECT 1 FROM attendance.leaveentitlements le
+          WHERE le.employeeid = p_employee_id
+            AND le.leavetypeid = lt.leavetypeid
+            AND le.year = current_year
+      );
 END;
 $$;
 
@@ -1543,6 +1563,11 @@ BEGIN
 
     IF leave_request IS NULL THEN
         RAISE EXCEPTION 'Leave request not found';
+    END IF;
+
+    -- M20: Guard against double-approval/double-rejection
+    IF leave_request.status = p_status THEN
+        RAISE EXCEPTION 'Leave request is already %', p_status;
     END IF;
 
     current_year := EXTRACT(YEAR FROM leave_request.startDate);
