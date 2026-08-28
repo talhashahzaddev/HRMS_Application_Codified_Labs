@@ -7,8 +7,8 @@ public interface IPayRollRepository
     Task<PayRollRulesGroupedDto> GetAllRulesAsync(Guid organizationId);
 
     // Overtime Rules
-    Task<IEnumerable<OvertimeRuleDto>> GetAllOvertimeRulesAsync(Guid organizationId);
-    Task<IEnumerable<OvertimeRuleDto>> GetActiveOvertimeRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<OvertimeRuleDto>> GetAllOvertimeRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<OvertimeRuleDto>> GetActiveOvertimeRulesAsync(Guid organizationId);
     Task<OvertimeRuleDto?> GetOvertimeRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<OvertimeRuleDto> CreateOvertimeRuleAsync(Guid organizationId, CreateOvertimeRuleDto dto);
     Task<OvertimeRuleDto?> UpdateOvertimeRuleAsync(Guid ruleId, Guid organizationId, UpdateOvertimeRuleDto dto);
@@ -30,24 +30,24 @@ public interface IPayRollRepository
     Task<bool> DeletePayrollPeriodAsync(Guid periodId, Guid organizationId);
 
     // Attendance Deduction Rules
-    Task<IEnumerable<AttendanceDeductionRuleDto>> GetAllAttendanceDeductionRulesAsync(Guid organizationId);
-    Task<IEnumerable<AttendanceDeductionRuleDto>> GetActiveAttendanceDeductionRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<AttendanceDeductionRuleDto>> GetAllAttendanceDeductionRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<AttendanceDeductionRuleDto>> GetActiveAttendanceDeductionRulesAsync(Guid organizationId);
     Task<AttendanceDeductionRuleDto?> GetAttendanceDeductionRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<AttendanceDeductionRuleDto> CreateAttendanceDeductionRuleAsync(Guid organizationId, CreateAttendanceDeductionRuleDto dto);
     Task<AttendanceDeductionRuleDto?> UpdateAttendanceDeductionRuleAsync(Guid ruleId, Guid organizationId, UpdateAttendanceDeductionRuleDto dto);
     Task<bool> DeleteAttendanceDeductionRuleAsync(Guid ruleId, Guid organizationId);
 
     // Late Arrival Rules
-    Task<IEnumerable<LateArrivalRuleDto>> GetAllLateArrivalRulesAsync(Guid organizationId);
-    Task<IEnumerable<LateArrivalRuleDto>> GetActiveLateArrivalRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<LateArrivalRuleDto>> GetAllLateArrivalRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<LateArrivalRuleDto>> GetActiveLateArrivalRulesAsync(Guid organizationId);
     Task<LateArrivalRuleDto?> GetLateArrivalRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<LateArrivalRuleDto> CreateLateArrivalRuleAsync(Guid organizationId, CreateLateArrivalRuleDto dto);
     Task<LateArrivalRuleDto?> UpdateLateArrivalRuleAsync(Guid ruleId, Guid organizationId, UpdateLateArrivalRuleDto dto);
     Task<bool> DeleteLateArrivalRuleAsync(Guid ruleId, Guid organizationId);
 
     // Leave Rules
-    Task<IEnumerable<LeaveRuleDto>> GetAllLeaveRulesAsync(Guid organizationId);
-    Task<IEnumerable<LeaveRuleDto>> GetActiveLeaveRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<LeaveRuleDto>> GetAllLeaveRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<LeaveRuleDto>> GetActiveLeaveRulesAsync(Guid organizationId);
     Task<LeaveRuleDto?> GetLeaveRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<LeaveRuleDto> CreateLeaveRuleAsync(Guid organizationId, CreateLeaveRuleDto dto);
     Task<LeaveRuleDto?> UpdateLeaveRuleAsync(Guid ruleId, Guid organizationId, UpdateLeaveRuleDto dto);
@@ -75,16 +75,16 @@ public interface IPayRollRepository
     Task<bool> DeleteLeaveSummaryAsync(Guid id, Guid organizationId);
 
     // Performance Rules
-    Task<IEnumerable<PerformanceRuleDto>> GetAllPerformanceRulesAsync(Guid organizationId);
-    Task<IEnumerable<PerformanceRuleDto>> GetActivePerformanceRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<PerformanceRuleDto>> GetAllPerformanceRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<PerformanceRuleDto>> GetActivePerformanceRulesAsync(Guid organizationId);
     Task<PerformanceRuleDto?> GetPerformanceRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<PerformanceRuleDto> CreatePerformanceRuleAsync(Guid organizationId, CreatePerformanceRuleDto dto);
     Task<PerformanceRuleDto?> UpdatePerformanceRuleAsync(Guid ruleId, Guid organizationId, UpdatePerformanceRuleDto dto);
     Task<bool> DeletePerformanceRuleAsync(Guid ruleId, Guid organizationId);
 
     // Bonus Rules
-    Task<IEnumerable<BonusRuleDto>> GetAllBonusRulesAsync(Guid organizationId);
-    Task<IEnumerable<BonusRuleDto>> GetActiveBonusRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<BonusRuleDto>> GetAllBonusRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<BonusRuleDto>> GetActiveBonusRulesAsync(Guid organizationId);
     Task<BonusRuleDto?> GetBonusRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<BonusRuleDto> CreateBonusRuleAsync(Guid organizationId, CreateBonusRuleDto dto);
     Task<BonusRuleDto?> UpdateBonusRuleAsync(Guid ruleId, Guid organizationId, UpdateBonusRuleDto dto);
@@ -105,65 +105,65 @@ public interface IPayRollRepository
     Task<bool> DeleteBonusEntryAsync(Guid bonusId, Guid organizationId);
 
     // Loan Rules
-    Task<IEnumerable<LoanRuleDto>> GetAllLoanRulesAsync(Guid organizationId);
-    Task<IEnumerable<LoanRuleDto>> GetActiveLoanRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<LoanRuleDto>> GetAllLoanRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<LoanRuleDto>> GetActiveLoanRulesAsync(Guid organizationId);
     Task<LoanRuleDto?> GetLoanRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<LoanRuleDto> CreateLoanRuleAsync(Guid organizationId, CreateLoanRuleDto dto);
     Task<LoanRuleDto?> UpdateLoanRuleAsync(Guid ruleId, Guid organizationId, UpdateLoanRuleDto dto);
     Task<bool> DeleteLoanRuleAsync(Guid ruleId, Guid organizationId);
 
     // Salary Advance Rules
-    Task<IEnumerable<SalaryAdvanceRuleDto>> GetAllSalaryAdvanceRulesAsync(Guid organizationId);
-    Task<IEnumerable<SalaryAdvanceRuleDto>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<SalaryAdvanceRuleDto>> GetAllSalaryAdvanceRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<SalaryAdvanceRuleDto>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId);
     Task<SalaryAdvanceRuleDto?> GetSalaryAdvanceRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<SalaryAdvanceRuleDto> CreateSalaryAdvanceRuleAsync(Guid organizationId, CreateSalaryAdvanceRuleDto dto);
     Task<SalaryAdvanceRuleDto?> UpdateSalaryAdvanceRuleAsync(Guid ruleId, Guid organizationId, UpdateSalaryAdvanceRuleDto dto);
     Task<bool> DeleteSalaryAdvanceRuleAsync(Guid ruleId, Guid organizationId);
 
     // Provident Fund Rules
-    Task<IEnumerable<ProvidentFundRuleDto>> GetAllProvidentFundRulesAsync(Guid organizationId);
-    Task<IEnumerable<ProvidentFundRuleDto>> GetActiveProvidentFundRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<ProvidentFundRuleDto>> GetAllProvidentFundRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<ProvidentFundRuleDto>> GetActiveProvidentFundRulesAsync(Guid organizationId);
     Task<ProvidentFundRuleDto?> GetProvidentFundRuleByIdAsync(Guid ruleId, Guid organizationId);
     Task<ProvidentFundRuleDto> CreateProvidentFundRuleAsync(Guid organizationId, CreateProvidentFundRuleDto dto);
     Task<ProvidentFundRuleDto?> UpdateProvidentFundRuleAsync(Guid ruleId, Guid organizationId, UpdateProvidentFundRuleDto dto);
     Task<bool> DeleteProvidentFundRuleAsync(Guid ruleId, Guid organizationId);
 
     // Tax Regimes
-    Task<IEnumerable<TaxRegimeDto>> GetAllTaxRegimesAsync(Guid organizationId);
-    Task<IEnumerable<TaxRegimeDto>> GetActiveTaxRegimesAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxRegimeDto>> GetAllTaxRegimesAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxRegimeDto>> GetActiveTaxRegimesAsync(Guid organizationId);
     Task<TaxRegimeDto?> GetTaxRegimeByIdAsync(Guid regimeId, Guid organizationId);
     Task<TaxRegimeDto> CreateTaxRegimeAsync(Guid organizationId, CreateTaxRegimeDto dto);
     Task<TaxRegimeDto?> UpdateTaxRegimeAsync(Guid regimeId, Guid organizationId, UpdateTaxRegimeDto dto);
     Task<bool> DeleteTaxRegimeAsync(Guid regimeId, Guid organizationId);
 
     // Tax Categories
-    Task<IEnumerable<TaxCategoryDto>> GetAllTaxCategoriesAsync(Guid organizationId);
-    Task<IEnumerable<TaxCategoryDto>> GetActiveTaxCategoriesAsync(Guid organizationId);
-    Task<IEnumerable<TaxCategoryDto>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId);
+    Task<IReadOnlyList<TaxCategoryDto>> GetAllTaxCategoriesAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxCategoryDto>> GetActiveTaxCategoriesAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxCategoryDto>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId);
     Task<TaxCategoryDto?> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId);
     Task<TaxCategoryDto> CreateTaxCategoryAsync(Guid organizationId, CreateTaxCategoryDto dto);
     Task<TaxCategoryDto?> UpdateTaxCategoryAsync(Guid categoryId, Guid organizationId, UpdateTaxCategoryDto dto);
     Task<bool> DeleteTaxCategoryAsync(Guid categoryId, Guid organizationId);
 
     // Tax Slabs
-    Task<IEnumerable<TaxSlabDto>> GetAllTaxSlabsAsync(Guid organizationId);
-    Task<IEnumerable<TaxSlabDto>> GetActiveTaxSlabsAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxSlabDto>> GetAllTaxSlabsAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxSlabDto>> GetActiveTaxSlabsAsync(Guid organizationId);
     Task<TaxSlabDto?> GetTaxSlabByIdAsync(Guid slabId, Guid organizationId);
     Task<TaxSlabDto> CreateTaxSlabAsync(Guid organizationId, CreateTaxSlabDto dto);
     Task<TaxSlabDto?> UpdateTaxSlabAsync(Guid slabId, Guid organizationId, UpdateTaxSlabDto dto);
     Task<bool> DeleteTaxSlabAsync(Guid slabId, Guid organizationId);
 
     // Tax Component Rules
-    Task<IEnumerable<TaxComponentRuleDto>> GetAllTaxComponentRulesAsync(Guid organizationId);
-    Task<IEnumerable<TaxComponentRuleDto>> GetActiveTaxComponentRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxComponentRuleDto>> GetAllTaxComponentRulesAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxComponentRuleDto>> GetActiveTaxComponentRulesAsync(Guid organizationId);
     Task<TaxComponentRuleDto?> GetTaxComponentRuleByIdAsync(Guid componentRuleId, Guid organizationId);
     Task<TaxComponentRuleDto> CreateTaxComponentRuleAsync(Guid organizationId, CreateTaxComponentRuleDto dto);
     Task<TaxComponentRuleDto?> UpdateTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId, UpdateTaxComponentRuleDto dto);
     Task<bool> DeleteTaxComponentRuleAsync(Guid componentRuleId, Guid organizationId);
 
     // Tax Transactions
-    Task<IEnumerable<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId);
-    Task<IEnumerable<TaxTransactionDto>> GetActiveTaxTransactionsAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId);
+    Task<IReadOnlyList<TaxTransactionDto>> GetActiveTaxTransactionsAsync(Guid organizationId);
     Task<TaxTransactionDto?> GetTaxTransactionByIdAsync(Guid id, Guid organizationId);
     Task<TaxTransactionDto> CreateTaxTransactionAsync(Guid organizationId, CreateTaxTransactionDto dto);
     Task<TaxTransactionDto?> UpdateTaxTransactionAsync(Guid id, Guid organizationId, UpdateTaxTransactionDto dto);
@@ -200,10 +200,10 @@ public interface IPayRollRepository
     Task<bool> DisburseSalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid disbursedBy, DisburseSalaryAdvanceDto dto);
 
     // Social Security Config
-    Task<IEnumerable<SocialSecurityJurisdictionDto>> GetSocialSecurityJurisdictionsAsync(Guid organizationId);
-    Task<IEnumerable<SocialSecurityAuthorityDto>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId);
-    Task<IEnumerable<SocialSecuritySchemeDto>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId);
-    Task<IEnumerable<SocialSecurityRuleDto>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId);
+    Task<IReadOnlyList<SocialSecurityJurisdictionDto>> GetSocialSecurityJurisdictionsAsync(Guid organizationId);
+    Task<IReadOnlyList<SocialSecurityAuthorityDto>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId);
+    Task<IReadOnlyList<SocialSecuritySchemeDto>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId);
+    Task<IReadOnlyList<SocialSecurityRuleDto>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId);
     Task<SocialSecurityJurisdictionDto> CreateSocialSecurityJurisdictionAsync(Guid organizationId, CreateSocialSecurityJurisdictionDto dto);
     Task<SocialSecurityJurisdictionDto?> UpdateSocialSecurityJurisdictionAsync(Guid id, Guid organizationId, UpdateSocialSecurityJurisdictionDto dto);
     Task<bool> DeleteSocialSecurityJurisdictionAsync(Guid id, Guid organizationId);
@@ -217,7 +217,7 @@ public interface IPayRollRepository
     Task<SocialSecurityRuleDto?> UpdateSocialSecurityRuleAsync(Guid id, Guid organizationId, UpdateSocialSecurityRuleDto dto);
     Task<bool> DeleteSocialSecurityRuleAsync(Guid id, Guid organizationId);
     Task<PagedResult<SocialSecurityConfigDto>> GetAllSocialSecurityConfigsAsync(Guid organizationId, SocialSecurityConfigFilterDto filter);
-    Task<IEnumerable<SocialSecurityConfigDto>> GetActiveSocialSecurityConfigsAsync(Guid organizationId);
+    Task<IReadOnlyList<SocialSecurityConfigDto>> GetActiveSocialSecurityConfigsAsync(Guid organizationId);
     Task<SocialSecurityConfigDto?> GetSocialSecurityConfigByIdAsync(Guid id, Guid organizationId);
     Task<SocialSecurityConfigDto> CreateSocialSecurityConfigAsync(Guid organizationId, CreateSocialSecurityConfigDto dto);
     Task<SocialSecurityConfigDto?> UpdateSocialSecurityConfigAsync(Guid id, Guid organizationId, UpdateSocialSecurityConfigDto dto);
@@ -238,8 +238,8 @@ public interface IPayRollRepository
     Task<LoanDto?> UpdateLoanStatusAsync(Guid organizationId, Guid approvedBy, UpdateLoanStatusDto dto);
     Task<PagedResult<LoanDto>> GetAllLoansAsync(Guid organizationId, LoanFilterDto filter);
     Task<LoanDto?> DisburseLoanAsync(Guid organizationId, Guid createdBy, DisburseLoanDto dto);
-    Task<IEnumerable<MyActiveLoanDto>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId);
-    Task<IEnumerable<MyActiveLoanDto>> GetMyPendingLoansAsync(Guid organizationId, Guid employeeId);
+    Task<IReadOnlyList<MyActiveLoanDto>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId);
+    Task<IReadOnlyList<MyActiveLoanDto>> GetMyPendingLoansAsync(Guid organizationId, Guid employeeId);
     Task<PagedResult<MyActiveLoanDto>> GetDisbursedLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter);
     Task<PagedResult<MyActiveLoanDto>> GetDisbursedActiveLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter);
     Task<PagedResult<RepaymentHistoryDto>> GetAllRepaymentsAsync(Guid organizationId, RepaymentFilterDto filter);
@@ -253,14 +253,14 @@ public interface IPayRollRepository
     Task<LoanDto?> UpdateLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId, CreateLoanRequestDto dto);
     Task<bool> DeleteLoanRequestAsync(Guid loanId, Guid organizationId, Guid employeeId);
     Task<PagedResult<MyLoanPaymentDto>> GetLoanHistoryAsync(Guid organizationId, Guid employeeId, MyLoanHistoryFilterDto filter);
-    Task<IEnumerable<LoanReferenceDto>> GetMyLoanReferencesAsync(Guid organizationId, Guid employeeId);
+    Task<IReadOnlyList<LoanReferenceDto>> GetMyLoanReferencesAsync(Guid organizationId, Guid employeeId);
 
     // Overview
     Task<PayrollOverviewDto> GetPayrollOverviewAsync(Guid organizationId);
 
     // Gratuity Config
-    Task<IEnumerable<GratuityConfigDto>> GetAllGratuityConfigsAsync(Guid organizationId);
-    Task<IEnumerable<GratuityConfigDto>> GetActiveGratuityConfigsAsync(Guid organizationId);
+    Task<IReadOnlyList<GratuityConfigDto>> GetAllGratuityConfigsAsync(Guid organizationId);
+    Task<IReadOnlyList<GratuityConfigDto>> GetActiveGratuityConfigsAsync(Guid organizationId);
     Task<GratuityConfigDto?> GetGratuityConfigByIdAsync(Guid id, Guid organizationId);
     Task<GratuityConfigDto> CreateGratuityConfigAsync(Guid organizationId, CreateGratuityConfigDto dto);
     Task<GratuityConfigDto?> UpdateGratuityConfigAsync(Guid id, Guid organizationId, UpdateGratuityConfigDto dto);
@@ -292,7 +292,7 @@ public interface IPayRollRepository
     Task<bool> RejectSocialSecurityClaimAsync(Guid organizationId, Guid claimId, Guid rejectedByUserId, RejectSocialSecurityClaimDto dto);
     Task<bool> MarkSocialSecurityClaimPaidAsync(Guid organizationId, Guid claimId, MarkSocialSecurityClaimPaidDto dto);
 
-    Task<IEnumerable<SocialSecurityRequestDocumentDto>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId);
+    Task<IReadOnlyList<SocialSecurityRequestDocumentDto>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId);
     Task<bool> VerifySocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid verifiedByUserId, VerifySocialSecurityRequestDocumentDto dto);
     Task<bool> DeleteSocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid employeeId);
     Task<PagedResult<PayrollResultItemDto>> GetPayrollResultsAsync(Guid organizationId, PayrollResultsFilterDto filter);
