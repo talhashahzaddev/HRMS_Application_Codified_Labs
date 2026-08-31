@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
 using HRMS.API.Services;
@@ -24,13 +24,13 @@ public class IpAddressController : ControllerBase
     }
 
     [HttpGet("office-ips")]
-    public async Task<ActionResult<ServiceResponse<List<IpAddress>>>> GetAll()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<IpAddress>>>> GetAll()
     {
         try
         {
             var ips = await _ipAddressService.GetAllIpAddressesAsync();
 
-            return Ok(new ServiceResponse<List<IpAddress>>
+            return Ok(new ServiceResponse<IReadOnlyList<IpAddress>>
             {
                 Success = true,
                 Message = "IP addresses retrieved successfully.",
@@ -40,7 +40,7 @@ public class IpAddressController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving IP addresses");
-            return StatusCode(500, new ServiceResponse<List<IpAddress>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<IpAddress>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving IP addresses."

@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -26,18 +26,18 @@ public class GeoFenceController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<GeoFenceDto>>>> GetAll()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<GeoFenceDto>>>> GetAll()
     {
         try
         {
             var orgId = GetCurrentOrganizationId();
             var fences = await _service.GetAllGeoFencesAsync(orgId);
-            return Ok(new ServiceResponse<IEnumerable<GeoFenceDto>> { Success = true, Data = fences });
+            return Ok(new ServiceResponse<IReadOnlyList<GeoFenceDto>> { Success = true, Data = fences });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting geo-fences");
-            return StatusCode(500, new ServiceResponse<IEnumerable<GeoFenceDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<GeoFenceDto>>
             { Success = false, Message = "An error occurred." });
         }
     }
@@ -114,32 +114,56 @@ public class GeoFenceController : ControllerBase
     [HttpPatch("{id}/toggle")]
     public async Task<ActionResult<ServiceResponse<bool>>> Toggle(Guid id, [FromBody] bool isActive)
     {
-        var orgId = GetCurrentOrganizationId();
-        var result = await _service.ToggleActiveAsync(id, orgId, isActive);
-        return Ok(result);
+        try
+        {
+            var orgId = GetCurrentOrganizationId();
+            var result = await _service.ToggleActiveAsync(id, orgId, isActive);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error toggling geo-fence {Id}", id);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred." });
+        }
     }
 
     // ── Shift ↔ Geo-Fence ─────────────────────────────────────────────────
 
     [HttpGet("shift/{shiftId}")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<ShiftGeoFenceDto>>>> GetByShift(Guid shiftId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ShiftGeoFenceDto>>>> GetByShift(Guid shiftId)
     {
         var fences = await _service.GetGeoFencesByShiftAsync(shiftId);
-        return Ok(new ServiceResponse<IEnumerable<ShiftGeoFenceDto>> { Success = true, Data = fences });
+        return Ok(new ServiceResponse<IReadOnlyList<ShiftGeoFenceDto>> { Success = true, Data = fences });
     }
 
     [HttpPost("shift/{shiftId}/link/{geoFenceId}")]
     public async Task<ActionResult<ServiceResponse<bool>>> LinkToShift(Guid shiftId, Guid geoFenceId)
     {
-        var result = await _service.LinkGeoFenceToShiftAsync(shiftId, geoFenceId);
-        return Ok(result);
+        try
+        {
+            var result = await _service.LinkGeoFenceToShiftAsync(shiftId, geoFenceId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error linking geo-fence {GeoFenceId} to shift {ShiftId}", geoFenceId, shiftId);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred." });
+        }
     }
 
     [HttpDelete("shift/{shiftId}/unlink/{geoFenceId}")]
     public async Task<ActionResult<ServiceResponse<bool>>> UnlinkFromShift(Guid shiftId, Guid geoFenceId)
     {
-        var result = await _service.UnlinkGeoFenceFromShiftAsync(shiftId, geoFenceId);
-        return Ok(result);
+        try
+        {
+            var result = await _service.UnlinkGeoFenceFromShiftAsync(shiftId, geoFenceId);
+            return Ok(result);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error unlinking geo-fence {GeoFenceId} from shift {ShiftId}", geoFenceId, shiftId);
+            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "An error occurred." });
+        }
     }
 
     // ── Face Recognition ──────────────────────────────────────────────────
@@ -198,24 +222,24 @@ public class GeoFenceController : ControllerBase
     // ── Dashboard & Reports ────────────────────────────────────────────────
 
     [HttpGet("team-live-stream")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TeamLiveStreamDto>>>> GetTeamLiveStream()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TeamLiveStreamDto>>>> GetTeamLiveStream()
     {
         try
         {
             var orgId = GetCurrentOrganizationId();
             var data = await _service.GetTeamLiveStreamAsync(orgId);
-            return Ok(new ServiceResponse<IEnumerable<TeamLiveStreamDto>> { Success = true, Data = data });
+            return Ok(new ServiceResponse<IReadOnlyList<TeamLiveStreamDto>> { Success = true, Data = data });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting team live stream");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TeamLiveStreamDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TeamLiveStreamDto>>
             { Success = false, Message = "An error occurred." });
         }
     }
 
     [HttpGet("violations")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<GeoFenceViolationReportDto>>>> GetViolations(
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<GeoFenceViolationReportDto>>>> GetViolations(
         [FromQuery] string startDate,
         [FromQuery] string endDate,
         [FromQuery] Guid? shiftId = null)
@@ -226,20 +250,20 @@ public class GeoFenceController : ControllerBase
 
             // Parse as local date to avoid UTC midnight shifting to previous day
             if (!DateTime.TryParse(startDate, out var parsedStart))
-                return BadRequest(new ServiceResponse<IEnumerable<GeoFenceViolationReportDto>>
+                return BadRequest(new ServiceResponse<IReadOnlyList<GeoFenceViolationReportDto>>
                 { Success = false, Message = "Invalid startDate format. Use yyyy-MM-dd." });
 
             if (!DateTime.TryParse(endDate, out var parsedEnd))
-                return BadRequest(new ServiceResponse<IEnumerable<GeoFenceViolationReportDto>>
+                return BadRequest(new ServiceResponse<IReadOnlyList<GeoFenceViolationReportDto>>
                 { Success = false, Message = "Invalid endDate format. Use yyyy-MM-dd." });
 
             var data = await _service.GetViolationsReportAsync(orgId, parsedStart, parsedEnd, shiftId);
-            return Ok(new ServiceResponse<IEnumerable<GeoFenceViolationReportDto>> { Success = true, Data = data });
+            return Ok(new ServiceResponse<IReadOnlyList<GeoFenceViolationReportDto>> { Success = true, Data = data });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting violations report");
-            return StatusCode(500, new ServiceResponse<IEnumerable<GeoFenceViolationReportDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<GeoFenceViolationReportDto>>
             { Success = false, Message = "An error occurred." });
         }
     }

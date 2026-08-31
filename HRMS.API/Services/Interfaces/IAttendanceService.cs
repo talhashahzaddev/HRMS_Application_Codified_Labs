@@ -38,7 +38,7 @@ public interface IAttendanceService
     // New missing methods
     Task<TimeTrackingSessionDto?> GetCurrentSessionAsync(Guid employeeId);
     Task<AttendanceDto?> GetAttendanceByIdAsync(Guid attendanceId);
-    Task<AttendanceDto> CreateManualAttendanceAsync(ManualAttendanceRequest request);
+    Task<AttendanceDto> CreateManualAttendanceAsync(ManualAttendanceRequest request, Guid organizationId);
     Task<AttendanceDto> UpdateAttendanceAsync(Guid attendanceId, ManualAttendanceRequest request);
     Task<bool> DeleteAttendanceAsync(Guid attendanceId);
     Task<List<AttendanceDto>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate);
@@ -82,4 +82,7 @@ public interface IAttendanceService
     Task<ServiceResponse<TimesheetPayrollSummaryDto?>> GetTimesheetPayrollSummaryAsync(Guid timesheetId);
     Task<ServiceResponse<bool>> LockTimesheetAsync(Guid timesheetId, Guid lockedBy, Guid? payrollPeriodId);
     Task<OvertimeRequestDto?> GetEmployeeTodayOvertimeRequestsAsync(Guid organizationId, Guid employeeId);
+
+    // CR6: Admin/HR check for authorization
+    Task<bool> IsAdminOrHRAsync(Guid employeeId, Guid organizationId);
 }

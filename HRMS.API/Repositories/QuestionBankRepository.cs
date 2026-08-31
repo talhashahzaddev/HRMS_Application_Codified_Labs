@@ -9,7 +9,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
     public QuestionBankRepository(IDatabaseConnectionFactory connectionFactory) : base(connectionFactory) { }
 
     // ==================== Categories ====================
-    public async Task<IEnumerable<QuestionCategoryDto>> GetCategoriesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<QuestionCategoryDto>> GetCategoriesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT c.categoryid AS CategoryId, c.organizationid AS OrganizationId, c.name AS Name,
@@ -18,7 +18,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
             FROM jobs.questioncategories c
             WHERE c.organizationid = @organizationId AND c.isdeleted = false
             ORDER BY c.createdat DESC";
-        return await QueryAsync<QuestionCategoryDto>(sql, new { organizationId });
+        return (await QueryAsync<QuestionCategoryDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<QuestionCategoryDto?> GetCategoryByIdAsync(Guid categoryId)
@@ -62,7 +62,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
     }
 
     // ==================== Questions ====================
-    public async Task<IEnumerable<QuestionDto>> GetQuestionsByCategoryAsync(Guid categoryId)
+    public async Task<IReadOnlyList<QuestionDto>> GetQuestionsByCategoryAsync(Guid categoryId)
     {
         var sql = @"
             SELECT q.questionid AS QuestionId, q.categoryid AS CategoryId, c.name AS CategoryName,
@@ -74,10 +74,10 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
             LEFT JOIN jobs.questioncategories c ON q.categoryid = c.categoryid
             WHERE q.categoryid = @categoryId AND q.isdeleted = false
             ORDER BY q.createdat ASC";
-        return await QueryAsync<QuestionDto>(sql, new { categoryId });
+        return (await QueryAsync<QuestionDto>(sql, new { categoryId })).ToArray();
     }
 
-    public async Task<IEnumerable<QuestionDto>> GetQuestionsByOrganizationAsync(Guid organizationId)
+    public async Task<IReadOnlyList<QuestionDto>> GetQuestionsByOrganizationAsync(Guid organizationId)
     {
         var sql = @"
             SELECT q.questionid AS QuestionId, q.categoryid AS CategoryId, c.name AS CategoryName,
@@ -89,7 +89,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
             LEFT JOIN jobs.questioncategories c ON q.categoryid = c.categoryid
             WHERE q.organizationid = @organizationId AND q.isdeleted = false
             ORDER BY c.name, q.createdat ASC";
-        return await QueryAsync<QuestionDto>(sql, new { organizationId });
+        return (await QueryAsync<QuestionDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<QuestionDto?> GetQuestionByIdAsync(Guid questionId)
@@ -159,7 +159,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
     }
 
     // ==================== Job-Question Mapping ====================
-    public async Task<IEnumerable<JobQuestionDto>> GetJobQuestionsAsync(Guid jobId)
+    public async Task<IReadOnlyList<JobQuestionDto>> GetJobQuestionsAsync(Guid jobId)
     {
         var sql = @"
             SELECT jq.jobquestionid AS JobQuestionId, jq.jobid AS JobId, jq.questionid AS QuestionId,
@@ -171,7 +171,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
             LEFT JOIN jobs.questioncategories c ON q.categoryid = c.categoryid
             WHERE jq.jobid = @jobId AND q.isdeleted = false
             ORDER BY q.createdat ASC";
-        return await QueryAsync<JobQuestionDto>(sql, new { jobId });
+        return (await QueryAsync<JobQuestionDto>(sql, new { jobId })).ToArray();
     }
 
     public async Task AttachQuestionsToJobAsync(Guid jobId, List<Guid> questionIds)
@@ -219,7 +219,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
         }
     }
 
-    public async Task<IEnumerable<CandidateAnswerDto>> GetCandidateAnswersAsync(Guid jobApplyId)
+    public async Task<IReadOnlyList<CandidateAnswerDto>> GetCandidateAnswersAsync(Guid jobApplyId)
     {
         var sql = @"
             SELECT ca.answerid AS AnswerId, ca.jobapplyid AS JobApplyId, ca.questionid AS QuestionId,
@@ -230,7 +230,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
             INNER JOIN jobs.questions q ON ca.questionid = q.questionid
             WHERE ca.jobapplyid = @jobApplyId
             ORDER BY q.createdat ASC";
-        return await QueryAsync<CandidateAnswerDto>(sql, new { jobApplyId });
+        return (await QueryAsync<CandidateAnswerDto>(sql, new { jobApplyId })).ToArray();
     }
 
     // ==================== Parsed Resumes ====================
@@ -274,7 +274,7 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
         return await QuerySingleOrDefaultAsync<ParsedResumeDto>(sql, new { jobApplyId });
     }
 
-    public async Task<IEnumerable<ParsedResumeDto>> GetParsedResumesAsync(IEnumerable<Guid> jobApplyIds)
+    public async Task<IReadOnlyList<ParsedResumeDto>> GetParsedResumesAsync(IEnumerable<Guid> jobApplyIds)
     {
         if (jobApplyIds == null || !jobApplyIds.Any()) return new List<ParsedResumeDto>();
         var sql = @"
@@ -285,6 +285,6 @@ public class QuestionBankRepository : BaseRepository, IQuestionBankRepository
                    createdat AS CreatedAt, updatedat AS UpdatedAt
             FROM jobs.parsedresumes
             WHERE jobapplyid = ANY(@ids)";
-        return await QueryAsync<ParsedResumeDto>(sql, new { ids = jobApplyIds.ToArray() });
+        return (await QueryAsync<ParsedResumeDto>(sql, new { ids = jobApplyIds.ToArray() })).ToArray();
     }
 }

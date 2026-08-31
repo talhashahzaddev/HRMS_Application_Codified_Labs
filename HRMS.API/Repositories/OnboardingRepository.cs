@@ -172,7 +172,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
 
     // ── EDUCATION ─────────────────────────────────────────────────────────────
 
-    public async Task<List<OnboardingEducation>> GetEducationBySessionAsync(Guid onboardingId)
+    public async Task<IReadOnlyList<OnboardingEducation>> GetEducationBySessionAsync(Guid onboardingId)
     {
         const string sql = @"
             SELECT educationid, onboardingid, degree, institution, field,
@@ -181,8 +181,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             WHERE  onboardingid = @OnboardingId
             ORDER BY createdat";
 
-        var results = await QueryAsync<OnboardingEducation>(sql, new { OnboardingId = onboardingId });
-        return results.ToList();
+        return await QueryAsync<OnboardingEducation>(sql, new { OnboardingId = onboardingId });
     }
 
     public async Task<OnboardingEducation> AddEducationAsync(OnboardingEducation record)
@@ -254,7 +253,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
 
     // ── WORK EXPERIENCE ───────────────────────────────────────────────────────
 
-    public async Task<List<OnboardingWorkExperience>> GetWorkExperienceBySessionAsync(Guid onboardingId)
+    public async Task<IReadOnlyList<OnboardingWorkExperience>> GetWorkExperienceBySessionAsync(Guid onboardingId)
     {
         const string sql = @"
             SELECT experienceid, onboardingid, jobtitle, company, employmenttype,
@@ -264,8 +263,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             WHERE  onboardingid = @OnboardingId
             ORDER BY createdat";
 
-        var results = await QueryAsync<OnboardingWorkExperience>(sql, new { OnboardingId = onboardingId });
-        return results.ToList();
+        return await QueryAsync<OnboardingWorkExperience>(sql, new { OnboardingId = onboardingId });
     }
 
     public async Task<OnboardingWorkExperience> AddWorkExperienceAsync(OnboardingWorkExperience record)
@@ -413,7 +411,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                 FileName = e.FileName,
                 FileUrl = e.FileUrl,
                 Description = e.Description
-            }).ToList(),
+            }).ToArray(),
             WorkExperienceList = experience.Select(w => new OnboardingWorkExperienceDto
             {
                 ExperienceId = w.ExperienceId,
@@ -428,7 +426,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
                 Responsibilities = w.Responsibilities,
                 FileName = w.FileName,
                 FileUrl = w.FileUrl
-            }).ToList()
+            }).ToArray()
         };
     }
     // ── BANK DETAILS ──────────────────────────────────────────────────────────────
@@ -504,7 +502,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
 
         // ── SELECT helpers ────────────────────────────────────────────────────────
 
-        public async Task<List<PolicyDto>> GetAllAsync(Guid organizationId)
+        public async Task<IReadOnlyList<PolicyDto>> GetAllAsync(Guid organizationId)
         {
             const string sql = @"
             SELECT policyid, organizationid, policyname, category,
@@ -514,11 +512,10 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
             WHERE  organizationid = @OrganizationId
             ORDER  BY createdat DESC";
 
-            var results = await QueryAsync<PolicyDto>(sql, new { OrganizationId = organizationId });
-            return results.ToList();
+            return await QueryAsync<PolicyDto>(sql, new { OrganizationId = organizationId });
         }
 
-        public async Task<List<PolicyDto>> GetPublishedAsync(Guid organizationId)
+        public async Task<IReadOnlyList<PolicyDto>> GetPublishedAsync(Guid organizationId)
         {
             const string sql = @"
             SELECT policyid, organizationid, policyname, category,
@@ -529,8 +526,7 @@ public class OnboardingRepository : BaseRepository, IOnboardingRepository
               AND  ispublished    = true
             ORDER  BY createdat DESC";
 
-            var results = await QueryAsync<PolicyDto>(sql, new { OrganizationId = organizationId });
-            return results.ToList();
+            return await QueryAsync<PolicyDto>(sql, new { OrganizationId = organizationId });
         }
 
         public async Task<PolicyDto?> GetByIdAsync(Guid policyId, Guid organizationId)

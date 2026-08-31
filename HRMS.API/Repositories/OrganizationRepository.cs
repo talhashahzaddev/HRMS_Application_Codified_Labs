@@ -73,10 +73,10 @@ namespace HRMS.API.Repositories
             return await QuerySingleOrDefaultAsync<Organization>(sql, new { domain });
         }
 
-        public async Task<IEnumerable<Organization>> GetAllOrganizationsAsync()
+        public async Task<IReadOnlyList<Organization>> GetAllOrganizationsAsync()
         {
             var sql = "SELECT * FROM auth.organizations";
-            return await QueryAsync<Organization>(sql);
+            return (await QueryAsync<Organization>(sql)).ToArray();
         }
     }
 }

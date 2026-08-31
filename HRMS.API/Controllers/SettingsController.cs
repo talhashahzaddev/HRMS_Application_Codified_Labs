@@ -169,7 +169,7 @@ public class SettingsController : ControllerBase
     }
 
     [HttpGet("policies")]
-    public async Task<ActionResult<ServiceResponse<List<CompanyPolicyDto>>>> GetPolicies()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<CompanyPolicyDto>>>> GetPolicies()
     {
         try
         {
@@ -180,7 +180,7 @@ public class SettingsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving company policies");
-            return StatusCode(500, new ServiceResponse<List<CompanyPolicyDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<CompanyPolicyDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving company policies"

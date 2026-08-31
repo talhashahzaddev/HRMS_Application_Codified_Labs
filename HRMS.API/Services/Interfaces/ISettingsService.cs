@@ -9,7 +9,7 @@ public interface ISettingsService
     Task<ServiceResponse<bool>> UpdateCareerPageAsync(Guid organizationId, UpdateCareerPageRequest request);
     Task<ServiceResponse<CareerPageDto>> GetCareerPageAsync(Guid organizationId);
     Task<ServiceResponse<bool>> UpdateLocalizationAsync(Guid organizationId,string currency,string timeZone,string culture);
-    Task<ServiceResponse<List<CompanyPolicyDto>>> GetPoliciesAsync(Guid organizationId);
+    Task<ServiceResponse<IReadOnlyList<CompanyPolicyDto>>> GetPoliciesAsync(Guid organizationId);
     Task<ServiceResponse<CompanyPolicyDto>> GetPolicyByIdAsync(Guid organizationId, Guid policyId);
     Task<ServiceResponse<CompanyPolicyDto>> CreatePolicyAsync(Guid organizationId, CreateCompanyPolicyRequest request, string createdBy);
     Task<ServiceResponse<CompanyPolicyDto>> UpdatePolicyAsync(Guid organizationId, Guid policyId, UpdateCompanyPolicyRequest request, string updatedBy);

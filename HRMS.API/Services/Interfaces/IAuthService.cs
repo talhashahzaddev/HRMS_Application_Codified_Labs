@@ -20,12 +20,12 @@ public interface IAuthService
     Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);// bool changoe in response
     Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
     Task<RoleDto> CreateRoleAsync(CreateRoleRequest request, Guid organizationId);
-    Task<List<RoleDto>> GetOrganizationRolesAsync(Guid organizationId);
-    Task<List<MenuDto>> GetMenusAsync();
+    Task<IReadOnlyList<RoleDto>> GetOrganizationRolesAsync(Guid organizationId);
+    Task<IReadOnlyList<MenuDto>> GetMenusAsync();
     Task<CreateRoleResponse> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId);
     Task<UpdateRoleResponse> UpdateRoleAsync(UpdateRoleRequest request, Guid? organizationId);
     Task<DeleteRoleResponse> DeleteRoleAsync(Guid roleId, Guid? organizationId);
-    Task<List<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId);
+    Task<IReadOnlyList<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId);
     Task<UserPermissionResponse> GetUserPermissionsAsync(Guid userId);
     Task<bool> UpdateUserRoleAsync(Guid userId, Guid roleId);
     

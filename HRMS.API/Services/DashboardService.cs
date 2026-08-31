@@ -173,7 +173,7 @@ public class DashboardService : IDashboardService
         }
     }
 
-    public async Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId)
     {
         try
         {

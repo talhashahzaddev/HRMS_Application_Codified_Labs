@@ -63,7 +63,7 @@ public class PayRollController : ControllerBase
 
     [HttpGet("overtime-rules")]
     [PermissionAuthorize("overtime_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<OvertimeRuleDto>>>> GetAllOvertimeRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<OvertimeRuleDto>>>> GetAllOvertimeRules()
     {
         try
         {
@@ -78,13 +78,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving overtime rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<OvertimeRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("overtime-rules/active")]
     [PermissionAuthorize("overtime_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<OvertimeRuleDto>>>> GetActiveOvertimeRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<OvertimeRuleDto>>>> GetActiveOvertimeRules()
     {
         try
         {
@@ -99,7 +99,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active overtime rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<OvertimeRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -393,7 +393,7 @@ public class PayRollController : ControllerBase
     // Attendance Deduction Rules
     [HttpGet("attendance-deduction-rules")]
     [PermissionAuthorize("attendance_deduction_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>>> GetAllAttendanceDeductionRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>>>> GetAllAttendanceDeductionRules()
     {
         try
         {
@@ -405,13 +405,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving attendance deduction rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("attendance-deduction-rules/active")]
     [PermissionAuthorize("attendance_deduction_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>>> GetActiveAttendanceDeductionRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>>>> GetActiveAttendanceDeductionRules()
     {
         try
         {
@@ -423,7 +423,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active attendance deduction rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -502,7 +502,7 @@ public class PayRollController : ControllerBase
     // Late Arrival Rules
     [HttpGet("late-arrival-rules")]
     [PermissionAuthorize("late_arrival_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<LateArrivalRuleDto>>>> GetAllLateArrivalRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<LateArrivalRuleDto>>>> GetAllLateArrivalRules()
     {
         try
         {
@@ -514,13 +514,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving late arrival rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<LateArrivalRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("late-arrival-rules/active")]
     [PermissionAuthorize("late_arrival_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<LateArrivalRuleDto>>>> GetActiveLateArrivalRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<LateArrivalRuleDto>>>> GetActiveLateArrivalRules()
     {
         try
         {
@@ -532,7 +532,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active late arrival rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<LateArrivalRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -611,7 +611,7 @@ public class PayRollController : ControllerBase
     // Leave Rules
     [HttpGet("leave-rules")]
     [PermissionAuthorize("leave_deduction_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveRuleDto>>>> GetAllLeaveRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<LeaveRuleDto>>>> GetAllLeaveRules()
     {
         try
         {
@@ -623,13 +623,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<LeaveRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("leave-rules/active")]
     [PermissionAuthorize("leave_deduction_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveRuleDto>>>> GetActiveLeaveRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<LeaveRuleDto>>>> GetActiveLeaveRules()
     {
         try
         {
@@ -641,7 +641,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active leave rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<LeaveRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -994,7 +994,7 @@ public class PayRollController : ControllerBase
     // Performance Rules
     [HttpGet("performance-rules")]
     [PermissionAuthorize("performance_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<PerformanceRuleDto>>>> GetAllPerformanceRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PerformanceRuleDto>>>> GetAllPerformanceRules()
     {
         try
         {
@@ -1006,13 +1006,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving performance rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PerformanceRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("performance-rules/active")]
     [PermissionAuthorize("performance_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<PerformanceRuleDto>>>> GetActivePerformanceRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PerformanceRuleDto>>>> GetActivePerformanceRules()
     {
         try
         {
@@ -1024,7 +1024,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active performance rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PerformanceRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1103,7 +1103,7 @@ public class PayRollController : ControllerBase
     // Bonus Rules
     [HttpGet("bonus-rules")]
     [PermissionAuthorize("bonus_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<BonusRuleDto>>>> GetAllBonusRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<BonusRuleDto>>>> GetAllBonusRules()
     {
         try
         {
@@ -1115,13 +1115,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving bonus rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<BonusRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("bonus-rules/active")]
     [PermissionAuthorize("bonus_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<BonusRuleDto>>>> GetActiveBonusRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<BonusRuleDto>>>> GetActiveBonusRules()
     {
         try
         {
@@ -1133,7 +1133,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active bonus rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<BonusRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1394,7 +1394,7 @@ public class PayRollController : ControllerBase
     // Loan Rules
     [HttpGet("loan-rules")]
     [PermissionAuthorize("loan_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<LoanRuleDto>>>> GetAllLoanRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<LoanRuleDto>>>> GetAllLoanRules()
     {
         try
         {
@@ -1406,13 +1406,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving loan rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<LoanRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("loan-rules/active")]
     [PermissionAuthorize("loan_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<LoanRuleDto>>>> GetActiveLoanRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<LoanRuleDto>>>> GetActiveLoanRules()
     {
         try
         {
@@ -1424,7 +1424,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active loan rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<LoanRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1503,7 +1503,7 @@ public class PayRollController : ControllerBase
     // Salary Advance Rules
     [HttpGet("salary-advance-rules")]
     [PermissionAuthorize("salary_advance_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>>> GetAllSalaryAdvanceRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>>>> GetAllSalaryAdvanceRules()
     {
         try
         {
@@ -1515,13 +1515,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving salary advance rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("salary-advance-rules/active")]
     [PermissionAuthorize("salary_advance_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>>> GetActiveSalaryAdvanceRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>>>> GetActiveSalaryAdvanceRules()
     {
         try
         {
@@ -1533,7 +1533,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active salary advance rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1612,7 +1612,7 @@ public class PayRollController : ControllerBase
     // Provident Fund Rules
     [HttpGet("provident-fund-rules")]
     [PermissionAuthorize("provident_fund_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<ProvidentFundRuleDto>>>> GetAllProvidentFundRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>>>> GetAllProvidentFundRules()
     {
         try
         {
@@ -1624,13 +1624,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving provident fund rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<ProvidentFundRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("provident-fund-rules/active")]
     [PermissionAuthorize("provident_fund_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<ProvidentFundRuleDto>>>> GetActiveProvidentFundRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>>>> GetActiveProvidentFundRules()
     {
         try
         {
@@ -1642,7 +1642,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active provident fund rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<ProvidentFundRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1721,7 +1721,7 @@ public class PayRollController : ControllerBase
     // Tax Regimes
     [HttpGet("tax-regimes")]
     [PermissionAuthorize("tax_regime_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxRegimeDto>>>> GetAllTaxRegimes()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxRegimeDto>>>> GetAllTaxRegimes()
     {
         try
         {
@@ -1733,13 +1733,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tax regimes");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxRegimeDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("tax-regimes/active")]
     [PermissionAuthorize("tax_regime_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxRegimeDto>>>> GetActiveTaxRegimes()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxRegimeDto>>>> GetActiveTaxRegimes()
     {
         try
         {
@@ -1751,7 +1751,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active tax regimes");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxRegimeDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1830,7 +1830,7 @@ public class PayRollController : ControllerBase
     // Tax Categories
     [HttpGet("tax-categories")]
     [PermissionAuthorize("tax_category_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetAllTaxCategories()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxCategoryDto>>>> GetAllTaxCategories()
     {
         try
         {
@@ -1842,13 +1842,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tax categories");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("tax-categories/active")]
     [PermissionAuthorize("tax_category_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetActiveTaxCategories()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxCategoryDto>>>> GetActiveTaxCategories()
     {
         try
         {
@@ -1860,7 +1860,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active tax categories");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1884,7 +1884,7 @@ public class PayRollController : ControllerBase
 
     [HttpGet("tax-categories/regime/{regimeId}")]
     [PermissionAuthorize("tax_category_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxCategoryDto>>>> GetTaxCategoriesByRegimeId(Guid regimeId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxCategoryDto>>>> GetTaxCategoriesByRegimeId(Guid regimeId)
     {
         try
         {
@@ -1896,7 +1896,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tax categories by regime ID: {RegimeId}", regimeId);
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -1957,7 +1957,7 @@ public class PayRollController : ControllerBase
     // Tax Slabs
     [HttpGet("tax-slabs")]
     [PermissionAuthorize("tax_slab_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxSlabDto>>>> GetAllTaxSlabs()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxSlabDto>>>> GetAllTaxSlabs()
     {
         try
         {
@@ -1969,13 +1969,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tax slabs");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxSlabDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("tax-slabs/active")]
     [PermissionAuthorize("tax_slab_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxSlabDto>>>> GetActiveTaxSlabs()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxSlabDto>>>> GetActiveTaxSlabs()
     {
         try
         {
@@ -1987,7 +1987,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active tax slabs");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxSlabDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -2066,7 +2066,7 @@ public class PayRollController : ControllerBase
     // Tax Component Rules
     [HttpGet("tax-component-rules")]
     [PermissionAuthorize("tax_component_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxComponentRuleDto>>>> GetAllTaxComponentRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxComponentRuleDto>>>> GetAllTaxComponentRules()
     {
         try
         {
@@ -2078,13 +2078,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tax component rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxComponentRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("tax-component-rules/active")]
     [PermissionAuthorize("tax_component_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxComponentRuleDto>>>> GetActiveTaxComponentRules()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxComponentRuleDto>>>> GetActiveTaxComponentRules()
     {
         try
         {
@@ -2096,7 +2096,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active tax component rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxComponentRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -2175,7 +2175,7 @@ public class PayRollController : ControllerBase
     // Tax Transactions
     [HttpGet("tax-transactions")]
     [PermissionAuthorize("get_transaction_ledger")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxTransactionDto>>>> GetAllTaxTransactions()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxTransactionDto>>>> GetAllTaxTransactions()
     {
         try
         {
@@ -2187,13 +2187,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving tax transactions");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("tax-transactions/active")]
     [PermissionAuthorize("get_transaction_ledger")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<TaxTransactionDto>>>> GetActiveTaxTransactions()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TaxTransactionDto>>>> GetActiveTaxTransactions()
     {
         try
         {
@@ -2205,7 +2205,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active tax transactions");
-            return StatusCode(500, new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TaxTransactionDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -2851,7 +2851,7 @@ public class PayRollController : ControllerBase
 
     [HttpGet("loans/my-active-loans")]
     [PermissionAuthorize("loan_employee_active")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<MyActiveLoanDto>>>> GetMyActiveLoans()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<MyActiveLoanDto>>>> GetMyActiveLoans()
     {
         try
         {
@@ -2864,13 +2864,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving personal active loans");
-            return StatusCode(500, new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<MyActiveLoanDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("loans/my-pending-loans")]
     [PermissionAuthorize("loan_employee_pending")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<MyActiveLoanDto>>>> GetMyPendingLoans()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<MyActiveLoanDto>>>> GetMyPendingLoans()
     {
         try
         {
@@ -2883,7 +2883,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving personal pending loans");
-            return StatusCode(500, new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<MyActiveLoanDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -2908,7 +2908,7 @@ public class PayRollController : ControllerBase
 
     [HttpGet("loans/my-references")]
     [PermissionAuthorize("loan_employee_references")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<LoanReferenceDto>>>> GetMyLoanReferences()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<LoanReferenceDto>>>> GetMyLoanReferences()
     {
         try
         {
@@ -2921,7 +2921,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving loan references");
-            return StatusCode(500, new ServiceResponse<IEnumerable<LoanReferenceDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<LoanReferenceDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -3184,7 +3184,7 @@ public class PayRollController : ControllerBase
     // ─── Social Security Config ──────────────────────────────────────────────
 
     [HttpGet("social-security/jurisdictions")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>>>> GetSocialSecurityJurisdictions()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SocialSecurityJurisdictionDto>>>> GetSocialSecurityJurisdictions()
     {
         try
         {
@@ -3196,7 +3196,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving social security jurisdictions");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SocialSecurityJurisdictionDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -3252,7 +3252,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("social-security/authorities")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>>>> GetSocialSecurityAuthorities([FromQuery] Guid? jurisdictionId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SocialSecurityAuthorityDto>>>> GetSocialSecurityAuthorities([FromQuery] Guid? jurisdictionId)
     {
         try
         {
@@ -3264,7 +3264,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving social security authorities");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SocialSecurityAuthorityDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -3320,7 +3320,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("social-security/schemes")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecuritySchemeDto>>>> GetSocialSecuritySchemes([FromQuery] Guid? jurisdictionId, [FromQuery] Guid? authorityId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SocialSecuritySchemeDto>>>> GetSocialSecuritySchemes([FromQuery] Guid? jurisdictionId, [FromQuery] Guid? authorityId)
     {
         try
         {
@@ -3332,7 +3332,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving social security schemes");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecuritySchemeDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SocialSecuritySchemeDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -3388,7 +3388,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("social-security/rules")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityRuleDto>>>> GetSocialSecurityRules([FromQuery] Guid? schemeId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SocialSecurityRuleDto>>>> GetSocialSecurityRules([FromQuery] Guid? schemeId)
     {
         try
         {
@@ -3400,7 +3400,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving social security rules");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityRuleDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SocialSecurityRuleDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -3473,7 +3473,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("social-security-configs/active")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityConfigDto>>>> GetActiveSocialSecurityConfigs()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SocialSecurityConfigDto>>>> GetActiveSocialSecurityConfigs()
     {
         try
         {
@@ -3485,7 +3485,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active social security configs");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityConfigDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SocialSecurityConfigDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -3666,7 +3666,7 @@ public class PayRollController : ControllerBase
 
     [HttpGet("gratuity-configs")]
     [PermissionAuthorize("gratuity_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<GratuityConfigDto>>>> GetAllGratuityConfigs()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<GratuityConfigDto>>>> GetAllGratuityConfigs()
     {
         try
         {
@@ -3678,13 +3678,13 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving gratuity configs");
-            return StatusCode(500, new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<GratuityConfigDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
     [HttpGet("gratuity-configs/active")]
     [PermissionAuthorize("gratuity_rule_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<GratuityConfigDto>>>> GetActiveGratuityConfigs()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<GratuityConfigDto>>>> GetActiveGratuityConfigs()
     {
         try
         {
@@ -3696,7 +3696,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active gratuity configs");
-            return StatusCode(500, new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<GratuityConfigDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -4438,7 +4438,7 @@ public class PayRollController : ControllerBase
     // ── Documents ───────────────────────────────────────────────────────────────
 
     [HttpGet("social-security/requests/{requestId:guid}/documents")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>>>> GetSocialSecurityRequestDocuments(Guid requestId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SocialSecurityRequestDocumentDto>>>> GetSocialSecurityRequestDocuments(Guid requestId)
     {
         try
         {
@@ -4450,7 +4450,7 @@ public class PayRollController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching social security request documents {RequestId}", requestId);
-            return StatusCode(500, new ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SocialSecurityRequestDocumentDto>> { Success = false, Message = "An error occurred" });
         }
     }
 

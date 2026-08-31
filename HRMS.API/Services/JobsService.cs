@@ -35,7 +35,7 @@ public class JobsService : IJobsService
     }
 
     // ==================== StageMaster ====================
-    public async Task<IEnumerable<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId)
+    public async Task<IReadOnlyList<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId)
     {
         return await _jobsRepository.GetAllStageMastersAsync(organizationId);
     }
@@ -78,7 +78,7 @@ public class JobsService : IJobsService
     }
 
     // ==================== JobOpenings ====================
-    public async Task<IEnumerable<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId)
     {
         return await _jobsRepository.GetAllJobOpeningsAsync(organizationId);
     }
@@ -210,7 +210,7 @@ public class JobsService : IJobsService
     }
 
     // ==================== JobApplications ====================
-    public async Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId)
     {
         var apps = await _jobsRepository.GetAllJobApplicationsAsync(organizationId);
         await CalculateMatchScoresAsync(apps);
@@ -238,7 +238,7 @@ public class JobsService : IJobsService
         return app;
     }
 
-    public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId)
+    public async Task<IReadOnlyList<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId)
     {
         var apps = await _jobsRepository.GetJobApplicationsByEmployeeIdAsync(employeeId);
         await CalculateMatchScoresAsync(apps);
@@ -287,7 +287,7 @@ public class JobsService : IJobsService
         return await _jobsRepository.UpdateEnteredToStageAsync(jobApplyId);
     }
 
-    public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
+    public async Task<IReadOnlyList<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
     {
         var apps = await _jobsRepository.GetJobApplicationsByJobIdAsync(jobId);
         await CalculateMatchScoresAsync(apps);
@@ -453,7 +453,7 @@ public class JobsService : IJobsService
     }
 
     // ==================== ApplicationStages ====================
-    public async Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId)
     {
         return await _jobsRepository.GetAllApplicationStagesAsync(organizationId);
     }
@@ -463,7 +463,7 @@ public class JobsService : IJobsService
         return await _jobsRepository.GetApplicationStageByIdAsync(applicationStageId);
     }
 
-    public async Task<IEnumerable<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId)
+    public async Task<IReadOnlyList<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId)
     {
         return await _jobsRepository.GetApplicationStagesByJobApplyIdAsync(jobApplyId);
     }
@@ -538,7 +538,7 @@ public class JobsService : IJobsService
         return await _jobsRepository.DeleteApplicationStageAsync(applicationStageId);
     }
 
-    private async Task CalculateMatchScoresAsync(IEnumerable<JobApplicationDto> apps)
+    private async Task CalculateMatchScoresAsync(IReadOnlyList<JobApplicationDto> apps)
     {
         if (apps == null || !apps.Any()) return;
 

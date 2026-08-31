@@ -189,7 +189,7 @@ public class EmployeeService : IEmployeeService
         return _mapper.Map<EmployeeDto>(employee);
 
     }
-    public async Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid userId,Guid organizationid)
+    public async Task<IReadOnlyList<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid userId,Guid organizationid)
     {
         if (userId == Guid.Empty)
             throw new ArgumentException("User ID cannot be empty", nameof(userId));
@@ -282,7 +282,7 @@ public class EmployeeService : IEmployeeService
     }
 
 
-    public async Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null)
+    public async Task<IReadOnlyList<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
@@ -300,7 +300,7 @@ public class EmployeeService : IEmployeeService
             IsActive = d.IsActive,
             EmployeeCount = d.EmployeeCount,
             CreatedAt = d.CreatedAt
-        }).ToList();
+        }).ToArray();
     }
 
     public async Task<bool> UpdatePositionStatusAsync(
@@ -473,7 +473,7 @@ public class EmployeeService : IEmployeeService
                             {
                                 var notification = new NotificationCreateDto
                                 {
-                                    Receiveruserid = userIds,                // all users holding the old role
+                                    Receiveruserid = userIds?.ToList(),               // all users holding the old role
                                     Senderuserid = Guid.Empty,              // system-generated
                                     Title = "Role Updated",
                                     Message = "Your position has been changed. Your role and permissions have been updated accordingly.",
@@ -514,8 +514,8 @@ public class EmployeeService : IEmployeeService
         if (string.IsNullOrWhiteSpace(request.DepartmentName))
             throw new ArgumentException("Department name is required", nameof(request));
 
-        var existing = await _employeeRepository.GetDepartmentsAsync(organizationId, request.DepartmentName, null);
-        if (existing.Any(d => string.Equals(d.DepartmentName?.Trim(), request.DepartmentName.Trim(), StringComparison.OrdinalIgnoreCase)))
+        var nameExists = await _employeeRepository.DepartmentNameExistsAsync(organizationId, request.DepartmentName);
+        if (nameExists)
             throw new InvalidOperationException($"Department with name '{request.DepartmentName}' already exists");
 
         var department = _mapper.Map<Models.Entities.Department>(request);
@@ -525,27 +525,27 @@ public class EmployeeService : IEmployeeService
         return _mapper.Map<DepartmentDto>(createdDepartment);
     }
 
-    public async Task<List<Employee>> GetSelectedEmployeesByIdsAsync(List<Guid> employeeIds)
+    public async Task<IReadOnlyList<Employee>> GetSelectedEmployeesByIdsAsync(List<Guid> employeeIds)
     {
-       
         var employee = await _employeeRepository.GeSelectedtEmployeesByIdsAsync(employeeIds);
         return employee;
     }
 
-    public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,
+    public async Task<IReadOnlyList<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,
     string? status = null)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
 
         var positions = await _employeeRepository.GetPositionsAsync(organizationId, departmentId, search, status);
+
+        // Build a lookup to avoid O(n*m) FirstOrDefault scan in a foreach loop
+        var countLookup = positions.ToDictionary(p => p.PositionId, p => p.EmploymentDetails?.Count ?? 0);
+
         var positionDtos = _mapper.Map<List<PositionDto>>(positions);
-
-
-        foreach (var positionDto in positionDtos)
+        foreach (var dto in positionDtos)
         {
-            var position = positions.FirstOrDefault(p => p.PositionId == positionDto.PositionId);
-            positionDto.EmployeeCount = position?.EmploymentDetails?.Count ?? 0;
+            dto.EmployeeCount = countLookup.TryGetValue(dto.PositionId, out var count) ? count : 0;
         }
 
         return positionDtos;
@@ -566,19 +566,19 @@ public class EmployeeService : IEmployeeService
             PositionId = positionId,
             PositionTitle = employees.FirstOrDefault()?.PositionTitle ?? string.Empty,
             EmployeeCount = employees.Count,
-            Employees = employees
+            Employees = employees.ToList()
         };
 
         return result;
     }
 
-    public async Task<List<PositionDto>> GetPositionsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<PositionDto>> GetPositionsAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
 
         var positions = await _employeeRepository.GetPositionsAsync(organizationId, null);
-        return _mapper.Map<List<PositionDto>>(positions);
+        return _mapper.Map<IReadOnlyList<PositionDto>>(positions);
     }
 
     public async Task<PositionDto> CreatePositionAsync(CreatePositionRequest request, Guid organizationId)
@@ -626,9 +626,9 @@ public class EmployeeService : IEmployeeService
         if (department == null)
             throw new KeyNotFoundException($"Department with ID {departmentId} not found");
 
-        var existing = await _employeeRepository.GetDepartmentsAsync(department.OrganizationId, request.DepartmentName, null);
-        if (existing.Any(d => d.DepartmentId != departmentId &&
-                              string.Equals(d.DepartmentName?.Trim(), request.DepartmentName.Trim(), StringComparison.OrdinalIgnoreCase)))
+        var nameExists = await _employeeRepository.DepartmentNameExistsAsync(
+            department.OrganizationId, request.DepartmentName, excludeDepartmentId: departmentId);
+        if (nameExists)
             throw new InvalidOperationException($"Department with name '{request.DepartmentName}' already exists");
 
         _mapper.Map(request, department);
@@ -818,10 +818,10 @@ public class EmployeeService : IEmployeeService
         return statistics;
     }
 
-    public async Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)
+    public async Task<IReadOnlyList<EmployeeDto>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)
     {
         var managers = await _employeeRepository.GetManagersAsync(organizationId, departmentId);
-        return _mapper.Map<List<EmployeeDto>>(managers);
+        return _mapper.Map<IReadOnlyList<EmployeeDto>>(managers);
     }
 
     public async Task<bool> BulkActivateEmployeesAsync(List<Guid> employeeIds)
@@ -981,7 +981,7 @@ public class EmployeeService : IEmployeeService
     }
 
 
-    public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
+    public async Task<IReadOnlyList<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
     {
         if (managerEmployeeId == Guid.Empty)
             throw new ArgumentException("Manager Employee ID cannot be empty", nameof(managerEmployeeId));
@@ -1003,7 +1003,7 @@ public class EmployeeService : IEmployeeService
         return res.ToString();
     }
 
-    public async Task<List<EmployeeDto>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId)
+    public async Task<IReadOnlyList<EmployeeDto>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
@@ -1013,6 +1013,6 @@ public class EmployeeService : IEmployeeService
         _logger.LogInformation("Retrieving department employees and admins for org {OrganizationId}, dept {DepartmentId}", organizationId, departmentId);
 
         var employees = await _employeeRepository.GetDepartmentEmployeesAndAdminsAsync(organizationId, departmentId);
-        return _mapper.Map<List<EmployeeDto>>(employees);
+        return _mapper.Map<IReadOnlyList<EmployeeDto>>(employees);
     }
 }

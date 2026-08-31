@@ -297,7 +297,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return NormalizeGratuityPaymentMethod(paymentMethod);
     }
 
-    public async Task<IEnumerable<OvertimeRuleDto>> GetAllOvertimeRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<OvertimeRuleDto>> GetAllOvertimeRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -316,10 +316,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted=false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<OvertimeRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<OvertimeRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<OvertimeRuleDto>> GetActiveOvertimeRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<OvertimeRuleDto>> GetActiveOvertimeRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -338,7 +338,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<OvertimeRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<OvertimeRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<OvertimeRuleDto?> GetOvertimeRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -796,7 +796,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Attendance Deduction Rules
-    public async Task<IEnumerable<AttendanceDeductionRuleDto>> GetAllAttendanceDeductionRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<AttendanceDeductionRuleDto>> GetAllAttendanceDeductionRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -815,10 +815,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<AttendanceDeductionRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<AttendanceDeductionRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<AttendanceDeductionRuleDto>> GetActiveAttendanceDeductionRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<AttendanceDeductionRuleDto>> GetActiveAttendanceDeductionRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -837,7 +837,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<AttendanceDeductionRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<AttendanceDeductionRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<AttendanceDeductionRuleDto?> GetAttendanceDeductionRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -936,7 +936,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Late Arrival Rules
-    public async Task<IEnumerable<LateArrivalRuleDto>> GetAllLateArrivalRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LateArrivalRuleDto>> GetAllLateArrivalRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -955,10 +955,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<LateArrivalRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<LateArrivalRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<LateArrivalRuleDto>> GetActiveLateArrivalRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LateArrivalRuleDto>> GetActiveLateArrivalRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -977,7 +977,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<LateArrivalRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<LateArrivalRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<LateArrivalRuleDto?> GetLateArrivalRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -1076,7 +1076,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Leave Rules
-    public async Task<IEnumerable<LeaveRuleDto>> GetAllLeaveRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LeaveRuleDto>> GetAllLeaveRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -1094,10 +1094,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<LeaveRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<LeaveRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<LeaveRuleDto>> GetActiveLeaveRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LeaveRuleDto>> GetActiveLeaveRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -1115,7 +1115,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<LeaveRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<LeaveRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<LeaveRuleDto?> GetLeaveRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -1731,7 +1731,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
 
 
     // Performance Rules
-    public async Task<IEnumerable<PerformanceRuleDto>> GetAllPerformanceRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<PerformanceRuleDto>> GetAllPerformanceRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -1751,10 +1751,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<PerformanceRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<PerformanceRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<PerformanceRuleDto>> GetActivePerformanceRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<PerformanceRuleDto>> GetActivePerformanceRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -1774,7 +1774,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<PerformanceRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<PerformanceRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<PerformanceRuleDto?> GetPerformanceRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -1877,7 +1877,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Bonus Rules
-    public async Task<IEnumerable<BonusRuleDto>> GetAllBonusRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<BonusRuleDto>> GetAllBonusRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -1896,10 +1896,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<BonusRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<BonusRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<BonusRuleDto>> GetActiveBonusRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<BonusRuleDto>> GetActiveBonusRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -1918,7 +1918,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<BonusRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<BonusRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<BonusRuleDto?> GetBonusRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -2343,7 +2343,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Loan Rules
-    public async Task<IEnumerable<LoanRuleDto>> GetAllLoanRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LoanRuleDto>> GetAllLoanRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2362,10 +2362,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<LoanRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<LoanRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<LoanRuleDto>> GetActiveLoanRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LoanRuleDto>> GetActiveLoanRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2384,7 +2384,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<LoanRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<LoanRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<LoanRuleDto?> GetLoanRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -2483,7 +2483,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Salary Advance Rules
-    public async Task<IEnumerable<SalaryAdvanceRuleDto>> GetAllSalaryAdvanceRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<SalaryAdvanceRuleDto>> GetAllSalaryAdvanceRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2500,10 +2500,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<SalaryAdvanceRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<SalaryAdvanceRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<SalaryAdvanceRuleDto>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<SalaryAdvanceRuleDto>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2520,7 +2520,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<SalaryAdvanceRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<SalaryAdvanceRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<SalaryAdvanceRuleDto?> GetSalaryAdvanceRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -2609,7 +2609,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Provident Fund Rules
-    public async Task<IEnumerable<ProvidentFundRuleDto>> GetAllProvidentFundRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<ProvidentFundRuleDto>> GetAllProvidentFundRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2631,10 +2631,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<ProvidentFundRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<ProvidentFundRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<ProvidentFundRuleDto>> GetActiveProvidentFundRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<ProvidentFundRuleDto>> GetActiveProvidentFundRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2656,7 +2656,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<ProvidentFundRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<ProvidentFundRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<ProvidentFundRuleDto?> GetProvidentFundRuleByIdAsync(Guid ruleId, Guid organizationId)
@@ -2767,7 +2767,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Tax Regimes
-    public async Task<IEnumerable<TaxRegimeDto>> GetAllTaxRegimesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxRegimeDto>> GetAllTaxRegimesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2783,10 +2783,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<TaxRegimeDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxRegimeDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<TaxRegimeDto>> GetActiveTaxRegimesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxRegimeDto>> GetActiveTaxRegimesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2802,7 +2802,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE organizationid = @organizationId AND isactive = true AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<TaxRegimeDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxRegimeDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<TaxRegimeDto?> GetTaxRegimeByIdAsync(Guid regimeId, Guid organizationId)
@@ -2892,7 +2892,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Tax Categories
-    public async Task<IEnumerable<TaxCategoryDto>> GetAllTaxCategoriesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxCategoryDto>> GetAllTaxCategoriesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2910,10 +2910,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND tc.isdeleted = false
             ORDER BY tc.createdat DESC;";
 
-        return await QueryAsync<TaxCategoryDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxCategoryDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<TaxCategoryDto>> GetActiveTaxCategoriesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxCategoryDto>> GetActiveTaxCategoriesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2932,10 +2932,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND tc.isdeleted = false
             ORDER BY tc.createdat DESC;";
 
-        return await QueryAsync<TaxCategoryDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxCategoryDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<TaxCategoryDto>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId)
+    public async Task<IReadOnlyList<TaxCategoryDto>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -2954,7 +2954,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND tc.isdeleted = false
             ORDER BY tc.createdat DESC;";
 
-        return await QueryAsync<TaxCategoryDto>(sql, new { regimeId, organizationId });
+        return (await QueryAsync<TaxCategoryDto>(sql, new { regimeId, organizationId })).ToArray();
     }
 
     public async Task<TaxCategoryDto?> GetTaxCategoryByIdAsync(Guid categoryId, Guid organizationId)
@@ -3067,7 +3067,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Tax Slabs
-    public async Task<IEnumerable<TaxSlabDto>> GetAllTaxSlabsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxSlabDto>> GetAllTaxSlabsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -3090,10 +3090,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND ts.isdeleted = false
             ORDER BY ts.createdat DESC, ts.slaborder ASC;";
 
-        return await QueryAsync<TaxSlabDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxSlabDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<TaxSlabDto>> GetActiveTaxSlabsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxSlabDto>> GetActiveTaxSlabsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -3118,7 +3118,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND ts.isdeleted = false
             ORDER BY ts.createdat DESC, ts.slaborder ASC;";
 
-        return await QueryAsync<TaxSlabDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxSlabDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<TaxSlabDto?> GetTaxSlabByIdAsync(Guid slabId, Guid organizationId)
@@ -3253,7 +3253,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Tax Component Rules
-    public async Task<IEnumerable<TaxComponentRuleDto>> GetAllTaxComponentRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxComponentRuleDto>> GetAllTaxComponentRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -3276,10 +3276,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND tcr.isdeleted = false
             ORDER BY tcr.createdat DESC;";
 
-        return await QueryAsync<TaxComponentRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxComponentRuleDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<TaxComponentRuleDto>> GetActiveTaxComponentRulesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxComponentRuleDto>> GetActiveTaxComponentRulesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -3303,7 +3303,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND tcr.isdeleted = false
             ORDER BY tcr.createdat DESC;";
 
-        return await QueryAsync<TaxComponentRuleDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxComponentRuleDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<TaxComponentRuleDto?> GetTaxComponentRuleByIdAsync(Guid componentRuleId, Guid organizationId)
@@ -3418,7 +3418,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
     }
 
     // Tax Transactions
-    public async Task<IEnumerable<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxTransactionDto>> GetAllTaxTransactionsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -3442,10 +3442,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
             WHERE tt.organizationid = @organizationId
             ORDER BY tt.createdat DESC;";
 
-        return await QueryAsync<TaxTransactionDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxTransactionDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<TaxTransactionDto>> GetActiveTaxTransactionsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TaxTransactionDto>> GetActiveTaxTransactionsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -3473,7 +3473,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND (tt.categoryid IS NULL OR (tc.isactive = true AND tc.isdeleted = false))
             ORDER BY tt.createdat DESC;";
 
-        return await QueryAsync<TaxTransactionDto>(sql, new { organizationId });
+        return (await QueryAsync<TaxTransactionDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<TaxTransactionDto?> GetTaxTransactionByIdAsync(Guid id, Guid organizationId)
@@ -5509,7 +5509,7 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
         return await GetLoanByIdAsync(loanId.Value, organizationId);
     }
 
-    public async Task<IEnumerable<MyActiveLoanDto>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<MyActiveLoanDto>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId)
     {
         var sql = @"
             SELECT 
@@ -5554,10 +5554,10 @@ public class PayRollRepository : BaseRepository, IPayRollRepository
               AND l.loanstatus = 'active' 
             ORDER BY l.createdat DESC;";
 
-        return await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId });
+        return (await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId })).ToArray();
     }
 
-    public async Task<IEnumerable<MyActiveLoanDto>> GetMyPendingLoansAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<MyActiveLoanDto>> GetMyPendingLoansAsync(Guid organizationId, Guid employeeId)
     {
         var sql = @"
             SELECT 
@@ -5603,7 +5603,7 @@ WHERE l.organizationid = @organizationId
   AND LOWER(TRIM(l.disbursementstatus)) = 'pending'
 ORDER BY l.createdat DESC;";
 
-        return await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId });
+        return (await QueryAsync<MyActiveLoanDto>(sql, new { organizationId, employeeId })).ToArray();
     }
 
     public async Task<PagedResult<MyActiveLoanDto>> GetDisbursedLoansAsync(Guid organizationId, DisbursedLoanFilterDto filter)
@@ -7436,7 +7436,7 @@ ORDER BY l.createdat DESC;";
         };
     }
 
-    public async Task<IEnumerable<LoanReferenceDto>> GetMyLoanReferencesAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<LoanReferenceDto>> GetMyLoanReferencesAsync(Guid organizationId, Guid employeeId)
     {
         var sql = @"
             SELECT 
@@ -7449,12 +7449,12 @@ ORDER BY l.createdat DESC;";
               AND disbursementstatus != 'pending'
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<LoanReferenceDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
+        return (await QueryAsync<LoanReferenceDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId })).ToArray();
     }
 
     // ─── Social Security Config ──────────────────────────────────────────────
 
-    public async Task<IEnumerable<SocialSecurityJurisdictionDto>> GetSocialSecurityJurisdictionsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<SocialSecurityJurisdictionDto>> GetSocialSecurityJurisdictionsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -7473,10 +7473,10 @@ ORDER BY l.createdat DESC;";
               AND isdeleted = false
             ORDER BY isdefault DESC, jurisdictionname ASC;";
 
-        return await QueryAsync<SocialSecurityJurisdictionDto>(sql, new { organizationId });
+        return (await QueryAsync<SocialSecurityJurisdictionDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<SocialSecurityAuthorityDto>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId)
+    public async Task<IReadOnlyList<SocialSecurityAuthorityDto>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId)
     {
         var sql = @"
             SELECT
@@ -7498,10 +7498,10 @@ ORDER BY l.createdat DESC;";
               AND (@jurisdictionId IS NULL OR jurisdictionid = @jurisdictionId)
             ORDER BY authorityname ASC;";
 
-        return await QueryAsync<SocialSecurityAuthorityDto>(sql, new { organizationId, jurisdictionId });
+        return (await QueryAsync<SocialSecurityAuthorityDto>(sql, new { organizationId, jurisdictionId })).ToArray();
     }
 
-    public async Task<IEnumerable<SocialSecuritySchemeDto>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId)
+    public async Task<IReadOnlyList<SocialSecuritySchemeDto>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId)
     {
         var sql = @"
             SELECT
@@ -7528,10 +7528,10 @@ ORDER BY l.createdat DESC;";
               AND (@authorityId IS NULL OR authorityid = @authorityId)
             ORDER BY schemename ASC, versionstartdate DESC;";
 
-        return await QueryAsync<SocialSecuritySchemeDto>(sql, new { organizationId, jurisdictionId, authorityId });
+        return (await QueryAsync<SocialSecuritySchemeDto>(sql, new { organizationId, jurisdictionId, authorityId })).ToArray();
     }
 
-    public async Task<IEnumerable<SocialSecurityRuleDto>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId)
+    public async Task<IReadOnlyList<SocialSecurityRuleDto>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId)
     {
         var sql = @"
             SELECT
@@ -7557,7 +7557,7 @@ ORDER BY l.createdat DESC;";
               AND (@schemeId IS NULL OR schemeid = @schemeId)
             ORDER BY rulename ASC, effectivefrom DESC;";
 
-        return await QueryAsync<SocialSecurityRuleDto>(sql, new { organizationId, schemeId });
+        return (await QueryAsync<SocialSecurityRuleDto>(sql, new { organizationId, schemeId })).ToArray();
     }
 
     public async Task<SocialSecurityJurisdictionDto> CreateSocialSecurityJurisdictionAsync(Guid organizationId, CreateSocialSecurityJurisdictionDto dto)
@@ -8314,7 +8314,7 @@ ORDER BY l.createdat DESC;";
         };
     }
 
-    public async Task<IEnumerable<SocialSecurityConfigDto>> GetActiveSocialSecurityConfigsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<SocialSecurityConfigDto>> GetActiveSocialSecurityConfigsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -8362,7 +8362,7 @@ ORDER BY l.createdat DESC;";
                             AND sc.isdeleted = false
                         ORDER BY sc.createdat DESC;";
 
-        return await QueryAsync<SocialSecurityConfigDto>(sql, new { organizationId });
+        return (await QueryAsync<SocialSecurityConfigDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<SocialSecurityConfigDto?> GetSocialSecurityConfigByIdAsync(Guid id, Guid organizationId)
@@ -9295,7 +9295,7 @@ ORDER BY l.createdat DESC;";
 
     // ─── Gratuity Config ─────────────────────────────────────────────────────
 
-    public async Task<IEnumerable<GratuityConfigDto>> GetAllGratuityConfigsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<GratuityConfigDto>> GetAllGratuityConfigsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -9314,10 +9314,10 @@ ORDER BY l.createdat DESC;";
             WHERE organizationid = @organizationId AND isdeleted = false
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<GratuityConfigDto>(sql, new { organizationId });
+        return (await QueryAsync<GratuityConfigDto>(sql, new { organizationId })).ToArray();
     }
 
-    public async Task<IEnumerable<GratuityConfigDto>> GetActiveGratuityConfigsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<GratuityConfigDto>> GetActiveGratuityConfigsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT
@@ -9336,7 +9336,7 @@ ORDER BY l.createdat DESC;";
             WHERE organizationid = @organizationId AND isdeleted = false AND isactive = true
             ORDER BY createdat DESC;";
 
-        return await QueryAsync<GratuityConfigDto>(sql, new { organizationId });
+        return (await QueryAsync<GratuityConfigDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<GratuityConfigDto?> GetGratuityConfigByIdAsync(Guid id, Guid organizationId)
@@ -10654,7 +10654,7 @@ ORDER BY l.createdat DESC;";
     //  SOCIAL SECURITY — Documents
     // ============================================================================
 
-    public async Task<IEnumerable<SocialSecurityRequestDocumentDto>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId)
+    public async Task<IReadOnlyList<SocialSecurityRequestDocumentDto>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId)
     {
         var sql = @"
             SELECT
@@ -10680,7 +10680,7 @@ ORDER BY l.createdat DESC;";
               AND d.organizationid  = @organizationId
             ORDER BY d.createdat DESC;";
 
-        return await QueryAsync<SocialSecurityRequestDocumentDto>(sql, new { requestId, organizationId });
+        return (await QueryAsync<SocialSecurityRequestDocumentDto>(sql, new { requestId, organizationId })).ToArray();
     }
 
     public async Task<bool> VerifySocialSecurityRequestDocumentAsync(Guid organizationId, Guid documentId, Guid verifiedByUserId, VerifySocialSecurityRequestDocumentDto dto)

@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace HRMS.API.Models.DTOs;
 
 public class AttendanceDto
@@ -65,7 +67,9 @@ public class IpAddress
 }
 public class CreateAttendanceRequest
 {
+    [Required(ErrorMessage = "Employee ID is required")]
     public Guid EmployeeId { get; set; }
+    [Required(ErrorMessage = "Work date is required")]
     public DateTime WorkDate { get; set; }
     public DateTimeOffset? CheckInTime { get; set; }
     public DateTimeOffset? CheckOutTime { get; set; }
@@ -74,6 +78,7 @@ public class CreateAttendanceRequest
 
 public class ClockInOutRequest
 {
+    [Required(ErrorMessage = "Action is required")]
     public string Action { get; set; } = string.Empty; // "in" or "out"
     public Dictionary<string, object>? Location { get; set; }
     public string? Notes { get; set; }
@@ -142,6 +147,7 @@ public class AttendanceSessionDto
 
 public class CreateShiftDto
 {
+    [Required(ErrorMessage = "Shift name is required")]
     public string ShiftName { get; set; }                 // Name of the shift e.g., "Morning", "Evening"
     public TimeSpan? StartTime { get; set; }              // Start time of the shift
     public TimeSpan? EndTime { get; set; }                // End time of the shift
@@ -173,6 +179,7 @@ public class CreateShiftDto
 
 public class UpdateShiftDto
 {
+    [Required(ErrorMessage = "Shift name is required")]
     public string ShiftName { get; set; }                   // Name of the shift e.g., "Morning", "Evening"
     public TimeSpan? StartTime { get; set; }               // Start time of the shift
     public TimeSpan? EndTime { get; set; }                 // End time of the shift
@@ -249,8 +256,10 @@ public class ShiftDto
 
 public class CreateShiftSwapRequestDto
 {
+    [Required(ErrorMessage = "Employee ID is required")]
     public Guid EmployeeId { get; set; }
     public Guid? CurrentShiftId { get; set; }
+    [Required(ErrorMessage = "Requested shift ID is required")]
     public Guid RequestedShiftId { get; set; }
     public string? Reason { get; set; }
 }
@@ -265,6 +274,7 @@ public class ShiftSwapRequestCreatedDto
 
 public class ApproveShiftSwapRequestDto
 {
+    [Required(ErrorMessage = "Request ID is required")]
     public Guid RequestId { get; set; }
     public Guid ApprovedBy { get; set; }
     public bool IsApproved { get; set; }
@@ -321,12 +331,13 @@ public class ShiftSwapRequestDto
 }
 public class FinalizeBatchRequestDto
 {
+    [Required(ErrorMessage = "Timesheet ID is required")]
     public Guid TimesheetId { get; set; }
     /// <summary>
     /// Optional. When provided, finalization is scoped to a single employee.
     /// When null, the entire timesheet (all employees) is finalized.
     /// </summary>
-    public Guid EmployeeId { get; set; }
+    public Guid? EmployeeId { get; set; }
 }
 
 public class FinalizedTimesheetRecordDto
@@ -384,10 +395,13 @@ public class EmployeeTimesheetDto
 }
 public class MonthlyTimesheetCreateDto
 {
+    [Required(ErrorMessage = "Timesheet name is required")]
     public string TimesheetName { get; set; }
     /// <summary>Period start (inclusive). Replaces Month/Year.</summary>
+    [Required(ErrorMessage = "Start date is required")]
     public DateTime StartDate { get; set; }
     /// <summary>Period end (inclusive). Replaces Month/Year.</summary>
+    [Required(ErrorMessage = "End date is required")]
     public DateTime EndDate { get; set; }
 
     /// <summary>Legacy. Optional; ignored if StartDate/EndDate are provided.</summary>
@@ -427,10 +441,13 @@ public class AttendanceUpdateRequestDto
 {
     public Guid? AttendanceId { get; set; }
     public Guid? EmployeeId { get; set; }
+    [Required(ErrorMessage = "Work date is required")]
     public DateTime WorkDate { get; set; }
     public DateTime? RequestedCheckIn { get; set; }
     public DateTime? RequestedCheckOut { get; set; }
+    [Required(ErrorMessage = "Requested status is required")]
     public string RequestedStatus { get; set; }
+    [Required(ErrorMessage = "Reason for edit is required")]
     public string ReasonForEdit { get; set; }
     public string? RequestedNotes { get; set; }
     public Guid? TimesheetId { get; set; }
@@ -453,6 +470,7 @@ public class AttendanceUpdateRequestDto
 
 public class ProcessAttendanceRequestDto
 {
+    [Required(ErrorMessage = "Request ID is required")]
     public Guid RequestId { get; set; }
     public bool IsApproved { get; set; }
     public string? RejectionReason { get; set; }
@@ -513,6 +531,7 @@ public class PendingAttendanceRequest
 }
 public class ApproveAllRequestDto
 {
+    [Required(ErrorMessage = "Timesheet ID is required")]
     public Guid TimesheetId { get; set; }
     public Guid? EmployeeId { get; set; }
 }
@@ -562,7 +581,9 @@ public class ReviewAttendanceRecord : DailyAttendanceRecord
 }
 public class ManualAttendanceRequest
 {
+    [Required(ErrorMessage = "Employee ID is required")]
     public Guid EmployeeId { get; set; }
+    [Required(ErrorMessage = "Work date is required")]
     public DateTime WorkDate { get; set; }
     public DateTime Date { get; set; }
     public DateTimeOffset CheckInTime { get; set; }
@@ -656,18 +677,22 @@ public class AttendanceReportDto
 
 public class BulkAttendanceRequest
 {
+    [Required(ErrorMessage = "Attendance IDs are required")]
     public List<Guid> AttendanceIds { get; set; } = new();
 }
 
 public class BulkAttendanceRejectRequest
 {
+    [Required(ErrorMessage = "Attendance IDs are required")]
     public List<Guid> AttendanceIds { get; set; } = new();
     public string? Reason { get; set; }
 }
 
 public class ManualAttendanceSearchDto
 {
+    [Required(ErrorMessage = "Start date is required")]
     public DateTime StartDate { get; set; }
+    [Required(ErrorMessage = "End date is required")]
     public DateTime EndDate { get; set; }
     public Guid? EmployeeId { get; set; }
 }
@@ -675,10 +700,13 @@ public class ManualAttendanceSearchDto
 public class ManualAttendanceUpdateDto
 {
     public Guid? AttendanceId { get; set; }
+    [Required(ErrorMessage = "Timesheet ID is required")]
     public Guid TimesheetId { get; set; }
     public DateTimeOffset? CheckInTime { get; set; }
     public DateTimeOffset? CheckOutTime { get; set; }
+    [Required(ErrorMessage = "Work date is required")]
     public DateTime WorkDate { get; set; }
+    [Required(ErrorMessage = "Status is required")]
     public string Status { get; set; }
     public string? Notes { get; set; }
     public string? Reason { get; set; }
@@ -713,8 +741,11 @@ public class DepartmentAttendanceStatsDto
 
 public class CreateEmployeeOvertimeDto
 {
+    [Required(ErrorMessage = "Overtime date is required")]
     public DateTime OverTimeDate { get; set; }
+    [Required(ErrorMessage = "Overtime type is required")]
     public string OvertimeType { get; set; }
+    [Required(ErrorMessage = "Reason is required")]
     public string Reason { get; set; }
     public TimeSpan OvertimeStartTime { get; set; }  // ✅ Changed
     public TimeSpan OvertimeEndTime { get; set; }    // ✅ Changed
@@ -722,9 +753,13 @@ public class CreateEmployeeOvertimeDto
 
 public class ManagerOvertimeRequestDto
 {
+    [Required(ErrorMessage = "Employee ID is required")]
     public Guid EmployeeId { get; set; }
+    [Required(ErrorMessage = "Overtime date is required")]
     public DateTime OvertimeDate { get; set; }
+    [Required(ErrorMessage = "Overtime type is required")]
     public string OvertimeType { get; set; }
+    [Required(ErrorMessage = "Reason is required")]
     public string Reason { get; set; }
     public TimeSpan OvertimeStartTime { get; set; }  // ✅ Changed
     public TimeSpan OvertimeEndTime { get; set; }    // ✅ Changed

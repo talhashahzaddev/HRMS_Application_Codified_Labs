@@ -5,14 +5,14 @@ namespace HRMS.API.Services.Interfaces;
 public interface IJobsService
 {
     // StageMaster
-    Task<IEnumerable<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId);
+    Task<IReadOnlyList<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId);
     Task<StageMasterDto?> GetStageMasterByIdAsync(Guid stageId);
     Task<StageMasterDto> CreateStageMasterAsync(Guid organizationId, CreateStageMasterRequest request);
     Task<StageMasterDto?> UpdateStageMasterAsync(Guid stageId, UpdateStageMasterRequest request);
     Task<bool> DeleteStageMasterAsync(Guid stageId);
 
     // JobOpenings
-    Task<IEnumerable<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId);
+    Task<IReadOnlyList<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId);
     Task<JobOpeningStatsDto> GetOpeningOverallDetailsAsync(Guid organizationId);
     Task<PagedResult<JobOpeningDto>> GetJobOpeningsPagedAsync(Guid organizationId, string? search, string? status, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize);
     Task<PagedResult<JobOpeningDto>> GetExternalJobOpeningsPagedAsync(Guid organizationId, string? search, string? employmentType, DateTime? lastDateFrom, DateTime? lastDateTo, int pageNumber, int pageSize);
@@ -22,14 +22,14 @@ public interface IJobsService
     Task<bool> DeleteJobOpeningAsync(Guid jobId);
 
     // JobApplications
-    Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);
+    Task<IReadOnlyList<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId);
     Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize);
     Task<PagedResult<JobApplicationDto>> GetJobApplicationsPostedByMePagedAsync(Guid employeeId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize);
     Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId);
-    Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId);
+    Task<IReadOnlyList<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId);
     Task<PagedResult<JobApplicationDto>> GetMyJobApplicationsPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize);
     Task<PagedResult<JobApplicationDto>> GetMySelfJobApplicationsPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize);
-    Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId);
+    Task<IReadOnlyList<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId);
     Task<JobApplicationDto> CreateJobApplicationAsync(Guid organizationId, Guid employeeId, CreateJobApplicationRequest request);
     Task<JobApplicationDto> ApplyForMySelfAsync(Guid organizationId, Guid employeeId, ApplyForMySelfRequest request);
     Task<JobApplicationDto?> UpdateJobApplicationAsync(Guid jobApplyId, UpdateJobApplicationRequest request);
@@ -38,9 +38,9 @@ public interface IJobsService
     Task<bool> EnterToStageAsync(Guid jobApplyId);
 
     // ApplicationStages
-    Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId);
+    Task<IReadOnlyList<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId);
     Task<ApplicationStageDto?> GetApplicationStageByIdAsync(Guid applicationStageId);
-    Task<IEnumerable<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId);
+    Task<IReadOnlyList<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId);
     Task<ApplicationStageDto> CreateApplicationStageAsync(Guid updatedByEmployeeId, CreateApplicationStageRequest request);
     Task<ApplicationStageDto?> UpdateApplicationStageAsync(Guid applicationStageId, Guid updatedByEmployeeId, UpdateApplicationStageRequest request);
     Task<bool> DeleteApplicationStageAsync(Guid applicationStageId);

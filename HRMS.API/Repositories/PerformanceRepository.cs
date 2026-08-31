@@ -92,7 +92,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
             UpdatedAt = DateTime.UtcNow
         };
     }
-    public async Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId)
     {
         var sql = @"
        SELECT 
@@ -301,7 +301,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
         }
     }
 
-    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId)
+    public async Task<IReadOnlyList<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId)
     {
         var sql = @"
     SELECT 
@@ -618,11 +618,11 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
         var emp = await QuerySingleOrDefaultAsync<EmployeeSkillFullDetailDto>(empSql, new { employeeId });
         if (emp == null) return new EmployeeSkillFullDetailDto();
 
-        emp.Skills = await GetEmployeeSkillsAsync(employeeId);
+        emp.Skills = (await GetEmployeeSkillsAsync(employeeId)).ToList();
         return emp;
     }
 
-    public async Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
     {
         try
         {
@@ -831,7 +831,7 @@ RETURNING
     //            throw;
     //        }
     //    }
-    public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid? employeeId)
+    public async Task<IReadOnlyList<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid? employeeId)
     {
         try
         {
@@ -881,7 +881,7 @@ ORDER BY s.category, s.skillname;
         }
     }
 
-    public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsByOrganizationAsync(Guid organizationId, EmployeeSkillFilterRequest filter)
+    public async Task<IReadOnlyList<EmployeeSkillDto>> GetEmployeeSkillsByOrganizationAsync(Guid organizationId, EmployeeSkillFilterRequest filter)
     {
         var sql = @"
             SELECT 
@@ -912,7 +912,7 @@ ORDER BY s.category, s.skillname;
         return results.ToList();
     }
 
-    public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsByManagerAsync(Guid managerEmployeeId, EmployeeSkillFilterRequest filter)
+    public async Task<IReadOnlyList<EmployeeSkillDto>> GetEmployeeSkillsByManagerAsync(Guid managerEmployeeId, EmployeeSkillFilterRequest filter)
     {
         var whereConditions = new List<string> { "ed.reportingmanagerid = @ManagerEmployeeId", "ed.iscurrent = true" };
         var parameters = new Dictionary<string, object> { { "ManagerEmployeeId", managerEmployeeId } };
@@ -1244,7 +1244,7 @@ WHERE es.employeeskillid = @employeeSkillId";
         return affected > 0;
     }
 
-    public async Task<List<TopPerformerDto>> GetTopPerformersAsync(
+    public async Task<IReadOnlyList<TopPerformerDto>> GetTopPerformersAsync(
     Guid organizationId,
     int count = 10)
     {
@@ -1321,7 +1321,7 @@ WHERE es.employeeskillid = @employeeSkillId";
         return result!;
     }
 
-    public async Task<List<KRADto>> GetKRAsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<KRADto>> GetKRAsAsync(Guid organizationId)
     {
         const string sql = @"
 SELECT
@@ -1519,7 +1519,7 @@ RETURNING
         return result!;
     }
 
-    public async Task<List<GoalDto>> GetCompletedGoalsByKRAAsync(Guid kraId)
+    public async Task<IReadOnlyList<GoalDto>> GetCompletedGoalsByKRAAsync(Guid kraId)
     {
         var sql = @"
 SELECT 
@@ -1567,7 +1567,7 @@ WHERE kraid = @KRAId;
         return rowsAffected > 0;
     }
   
-    public async Task<List<GoalDto>> GetAllGoalsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<GoalDto>> GetAllGoalsAsync(Guid organizationId)
     {
         var sql = @"
 SELECT
@@ -1618,7 +1618,7 @@ ORDER BY g.createdat DESC;";
         return result.ToList();
     }
 
-    public async Task<List<GoalDto>> GetEmployeeAssignedGoalAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<GoalDto>> GetEmployeeAssignedGoalAsync(Guid organizationId, Guid employeeId)
     {
         var sql = @"
 SELECT
@@ -1817,7 +1817,7 @@ RETURNING selfassessmentid, employeeid, goalid, kraid, organizationid, selfratin
 
 
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsByEmployeeAsync(Guid employeeId, Guid organizationId)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetSelfAssessmentsByEmployeeAsync(Guid employeeId, Guid organizationId)
     {
         var sql = @"
     SELECT 
@@ -1868,10 +1868,10 @@ RETURNING selfassessmentid, employeeid, goalid, kraid, organizationid, selfratin
     //mm
 
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsByEmployeesAsync(List<Guid> employeeIds, Guid organizationId)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetSelfAssessmentsByEmployeesAsync(List<Guid> employeeIds, Guid organizationId)
     {
         if (employeeIds == null || !employeeIds.Any())
-            return Enumerable.Empty<SelfAssessmentDto>();
+            return Array.Empty<SelfAssessmentDto>();
 
         var sql = @"
 SELECT 
@@ -1923,7 +1923,7 @@ ORDER BY sa.createdat DESC;
         );
     }
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
     {
         var sql = @"
             SELECT
@@ -1944,7 +1944,7 @@ ORDER BY sa.createdat DESC;
         return await QueryAsync<SelfAssessmentDto>(sql, new { EmployeeId = employeeId, CycleId = cycleId });
     }
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
     {
         var whereConditions = new List<string> { "sa.employeeid = @EmployeeId" };
         var parameters = new Dictionary<string, object> { { "EmployeeId", employeeId } };
@@ -2023,7 +2023,7 @@ ORDER BY sa.createdat DESC;
         return rowsAffected > 0;
     }
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId)
     {
         var sql = @"
         SELECT
@@ -2048,7 +2048,7 @@ ORDER BY sa.createdat DESC;
         return await QueryAsync<SelfAssessmentDto>(sql, new { ManagerId = managerId, CycleId = cycleId });
     }
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
     {
         var whereConditions = new List<string> { "e.organizationid = @OrganizationId" };
         var parameters = new Dictionary<string, object> { { "OrganizationId", organizationId } };
@@ -2110,7 +2110,7 @@ ORDER BY sa.createdat DESC;
         return results;
     }
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetMyTeamSelfAssessmentsAsync(Guid managerEmployeeId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetMyTeamSelfAssessmentsAsync(Guid managerEmployeeId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
     {
         var whereConditions = new List<string> { "ed.reportingmanagerid = @ManagerEmployeeId", "ed.iscurrent = true" };
         var parameters = new Dictionary<string, object> { { "ManagerEmployeeId", managerEmployeeId } };
@@ -2244,7 +2244,7 @@ ORDER BY sa.createdat DESC;
     //
 
     // Get reviews created by manager for their employees
-    public async Task<List<ManagerReviewDto>> GetManagerReviewsAsync(
+    public async Task<IReadOnlyList<ManagerReviewDto>> GetManagerReviewsAsync(
         Guid organizationId,
         Guid managerId)
     {
@@ -2288,7 +2288,7 @@ ORDER BY sa.createdat DESC;
     }
 
     //Getting all manager review from manager table
-    public async Task<List<ManagerReviewDto>> GetAllManagerReviewsAsync(
+    public async Task<IReadOnlyList<ManagerReviewDto>> GetAllManagerReviewsAsync(
      Guid organizationId,
      SearchManagersDto search)
     {
@@ -2352,7 +2352,7 @@ ORDER BY sa.createdat DESC;
     }
 
     // Get reviews received by employee from their manager
-    public async Task<List<ManagerReviewDto>> GetEmployeeReviewsAsync(
+    public async Task<IReadOnlyList<ManagerReviewDto>> GetEmployeeReviewsAsync(
         Guid organizationId,
         Guid employeeId)
     {
@@ -2563,7 +2563,7 @@ ORDER BY sa.createdat DESC;
 
     // Get all HR Reviews given to other employees
     // Get all HR Reviews created by the current HR employee
-    public async Task<List<HrReviewDto>> GetHrReviewsAsync(Guid organizationId, Guid CurrentEmpid)
+    public async Task<IReadOnlyList<HrReviewDto>> GetHrReviewsAsync(Guid organizationId, Guid CurrentEmpid)
     {
         var sql = @"
     SELECT 
@@ -2609,7 +2609,7 @@ ORDER BY sa.createdat DESC;
     // Get HR own given Reviews by there hr
     // Get all HR Reviews received by the current employee
 
-    public async Task<List<HrReviewDto>> GetHrReviewsByEmployeeAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<HrReviewDto>> GetHrReviewsByEmployeeAsync(Guid organizationId, Guid employeeId)
     {
         var sql = @"
     SELECT 
@@ -2647,7 +2647,7 @@ ORDER BY sa.createdat DESC;
     }
 
     //Getting all hr appraisal from table
-    public async Task<List<HrReviewDto>> GetAllAppraisalAsync(
+    public async Task<IReadOnlyList<HrReviewDto>> GetAllAppraisalAsync(
     Guid organizationId,
     Guid? employeeId,
     SearchAppraisalDto search)
@@ -2707,7 +2707,7 @@ ORDER BY sa.createdat DESC;
     }
 
 
-    public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null)
+    public async Task<IReadOnlyList<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null)
     {
         var whereConditions = new List<string> { "ea.employeeid = @EmployeeId" };
         var parameters = new Dictionary<string, object> { { "EmployeeId", employeeId } };
@@ -3082,7 +3082,7 @@ WHERE cycleid = @cycleId";
         {
             EmployeeId = employeeId,
             EmployeeName = employeeName,
-            Appraisals = appraisals,
+            Appraisals = appraisals.ToList(),
             AverageRating = averageRating,
             TotalAppraisals = appraisals.Count,
             CompletedAppraisals = appraisals.Count(a => a.Status == "completed"),
@@ -3090,7 +3090,7 @@ WHERE cycleid = @cycleId";
         };
     }
 
-    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId)
+    public async Task<IReadOnlyList<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId)
     {
         var sql = @"
             SELECT ea.appraisalid, ea.employeeid, ea.reviewerid, ea.reviewtype, ea.cycleid,
@@ -3136,7 +3136,7 @@ WHERE cycleid = @cycleId";
         return affected > 0;
     }
 
-    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit)
+    public async Task<IReadOnlyList<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit)
     {
         try
         {
@@ -3262,7 +3262,7 @@ LIMIT @limit OFFSET @offset;
         return count;
     }
 
-    public async Task<List<DepartmentPerformanceDto>> GetDepartmentPerformanceBreakdownAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
+    public async Task<IReadOnlyList<DepartmentPerformanceDto>> GetDepartmentPerformanceBreakdownAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
     {
         var sql = @"
             SELECT 

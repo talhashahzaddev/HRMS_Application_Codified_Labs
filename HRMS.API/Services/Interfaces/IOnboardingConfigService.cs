@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 
 namespace HRMS.API.Services.Interfaces;
 
@@ -12,6 +12,6 @@ public interface IOnboardingConfigService
     //Task<OnboardingConfiguration?> GetConfigurationAsync(string orgId);
     //Task SaveConfigAsync(Guid orgId, OnboardingFieldConfigRequest request);
     //Task<OnboardingConfiguration> SaveConfigurationAsync(string orgId, OnboardingConfiguration config);
-    Task<List<FieldConfigRecord>> GetConfigAsync(Guid orgId);
+    Task<IReadOnlyList<FieldConfigRecord>> GetConfigAsync(Guid orgId);
     Task<bool> UpdateConfigAsync(Guid organizationId, UpdateOnBoardingConfigurationRequest request);
 }

@@ -13,18 +13,18 @@ public interface IEmployeeService
     Task<bool> UpdatePositionStatusAsync(Guid organizationId,Guid positionId,bool isActive);
     Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId);
     Task<EmployeeDto?> GetEmployeeByIdAsync(Guid userId);
-    Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid userId, Guid organizationid);
+    Task<IReadOnlyList<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid userId, Guid organizationid);
     /// <summary>Gets employee by employee ID (no userId lookup). Use when you already have the employee ID.</summary>
     Task<EmployeeDto?> GetEmployeeByEmployeeIdAsync(Guid employeeId);
     Task<PagedResult<EmployeeListItemDto>> GetEmployeesAsync(EmployeeSearchViewModel searchModel, Guid organizationId);
     Task<bool> UpdateEmployeeAsync(Guid employeeId, UpdateEmployeeRequest request);
     Task<bool> DeleteEmployeeAsync(Guid employeeId,string status);
-    Task<List<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null);
+    Task<IReadOnlyList<DepartmentDto>> GetDepartmentsAsync(Guid organizationId, string? searchQuery = null, bool? status = null);
     Task<DepartmentDto> CreateDepartmentAsync(CreateDepartmentRequest request, Guid organizationId);
     Task<DepartmentDto> UpdateDepartmentAsync(Guid departmentId, CreateDepartmentRequest request);
     Task<bool> DeleteDepartmentAsync(Guid departmentId);
-    Task<List<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
-    Task<List<PositionDto>> GetPositionsAsync(Guid organizationId);
+    Task<IReadOnlyList<PositionDto>> GetPositionsAsync(Guid organizationId, Guid? departmentId = null, string? search = null,string? status = null);
+    Task<IReadOnlyList<PositionDto>> GetPositionsAsync(Guid organizationId);
     Task<PositionDto> CreatePositionAsync(CreatePositionRequest request, Guid organizationId);
     Task<PositionDto> UpdatePositionAsync(Guid positionId, CreatePositionRequest request);
     Task<bool> DeletePositionAsync(Guid positionId);
@@ -35,11 +35,11 @@ public interface IEmployeeService
     Task<DepartmentDto?> GetDepartmentByIdAsync(Guid departmentId);
     Task<PositionDto?> GetPositionByIdAsync(Guid positionId);
     Task<EmployeeStatisticsDto> GetEmployeeStatisticsAsync(Guid organizationId);
-    Task<List<EmployeeDto>> GetManagersAsync(Guid organizationId, Guid? departmentId = null);
+    Task<IReadOnlyList<EmployeeDto>> GetManagersAsync(Guid organizationId, Guid? departmentId = null);
     Task<bool> BulkActivateEmployeesAsync(List<Guid> employeeIds);
     Task<bool> BulkDeactivateEmployeesAsync(List<Guid> employeeIds);
     Task<byte[]> ExportEmployeesAsync(Guid organizationId, string format);
-    Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
-    Task<List<Employee>> GetSelectedEmployeesByIdsAsync(List<Guid> employeeIds);
-    Task<List<EmployeeDto>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId);
+    Task<IReadOnlyList<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId);
+    Task<IReadOnlyList<Employee>> GetSelectedEmployeesByIdsAsync(List<Guid> employeeIds);
+    Task<IReadOnlyList<EmployeeDto>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId);
 }

@@ -89,11 +89,11 @@ namespace HRMS.API.Services
             return new ServiceResponse<OrganizationDTO> { Data = organizationDTO, Success = true };
         }
 
-        public async Task<ServiceResponse<IEnumerable<OrganizationDTO>>> GetAllOrganizationsAsync()
+        public async Task<ServiceResponse<IReadOnlyList<OrganizationDTO>>> GetAllOrganizationsAsync()
         {
             var organizations = await _organizationRepository.GetAllOrganizationsAsync();
-            var organizationDTOs = _mapper.Map<IEnumerable<OrganizationDTO>>(organizations);
-            return new ServiceResponse<IEnumerable<OrganizationDTO>> { Data = organizationDTOs, Success = true };
+            var organizationDTOs = _mapper.Map<IReadOnlyList<OrganizationDTO>>(organizations);
+            return new ServiceResponse<IReadOnlyList<OrganizationDTO>> { Data = organizationDTOs, Success = true };
         }
     }
 

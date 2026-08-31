@@ -12,7 +12,7 @@ namespace HRMS.API.Repositories
         public OnboardingConfigRepository(IDatabaseConnectionFactory connectionFactory)
             : base(connectionFactory) { }
 
-        public async Task<List<FieldConfigRecord>> GetByOrganizationAsync(Guid organizationId)
+        public async Task<IReadOnlyList<FieldConfigRecord>> GetByOrganizationAsync(Guid organizationId)
         {
             const string sql = @"
             SELECT organizationid, section, fieldkey, enabled, required
@@ -20,11 +20,13 @@ namespace HRMS.API.Repositories
             WHERE  organizationid = @OrganizationId";
 
             var results = await QueryAsync<FieldConfigRecord>(sql, new { OrganizationId = organizationId });
-            return results.ToList();
+            return results;
         }
 
-        public async Task<bool> BulkUpsertAsync(Guid organizationId, List<FieldConfigRecord> records)
+        public async Task<bool> BulkUpsertAsync(Guid organizationId, IReadOnlyList<FieldConfigRecord> records)
         {
+            if (records == null || !records.Any()) return true;
+
             const string sql = @"
             INSERT INTO onboarding.field_configurations
                 (organizationid, section, fieldkey, enabled, required, updatedat)
@@ -36,17 +38,16 @@ namespace HRMS.API.Repositories
                 required  = EXCLUDED.required,
                 updatedat = CURRENT_TIMESTAMP";
 
-            foreach (var record in records)
+            var parameters = records.Select(record => new
             {
-                await ExecuteAsync(sql, new
-                {
-                    OrganizationId = organizationId,
-                    record.Section,
-                    record.FieldKey,
-                    record.Enabled,
-                    record.Required
-                });
-            }
+                OrganizationId = organizationId,
+                record.Section,
+                record.FieldKey,
+                record.Enabled,
+                record.Required
+            });
+
+            await ExecuteAsync(sql, parameters);
             return true;
         }
 
@@ -77,9 +78,9 @@ namespace HRMS.API.Repositories
         public async Task<bool> UpsertConfigAsync(Guid organizationId, string section,
             string fieldKey, bool enabled, bool required)
         {
-            return await BulkUpsertAsync(organizationId, new List<FieldConfigRecord>
+            return await BulkUpsertAsync(organizationId, new[]
         {
-            new() { OrganizationId = organizationId, Section = section,
+            new FieldConfigRecord { OrganizationId = organizationId, Section = section,
                     FieldKey = fieldKey, Enabled = enabled, Required = required }
         });
         }

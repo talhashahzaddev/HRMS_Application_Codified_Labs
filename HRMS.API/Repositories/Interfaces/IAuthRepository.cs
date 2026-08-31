@@ -39,19 +39,19 @@ public interface IAuthRepository
     Task<bool> adminIntoEmployeeAsync(User createUser);
     //Task<string> GenerateEmployeeCodeAsync()
     Task<Role?> GetRoleByNameAsync(Guid? organizationId, string roleName);
-    Task<List<Role>> GetOrganizationRolesAsync(Guid? organizationId);
+    Task<IReadOnlyList<Role>> GetOrganizationRolesAsync(Guid? organizationId);
     Task<IEnumerable<dynamic>> GetMenusAsync();
     Task<Guid> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId);
     Task<bool> UpdateRoleAsync(UpdateRoleRequest request, Guid? organizationId);
     Task<int> GetUserCountByRoleIdAsync(Guid roleId, Guid? organizationId);
-    Task<List<Guid>> GetUserIdsByRoleIdAsync(Guid roleId, Guid? organizationId);
+    Task<IReadOnlyList<Guid>> GetUserIdsByRoleIdAsync(Guid roleId, Guid? organizationId);
     Task<bool> DeleteRoleAsync(Guid roleId, Guid? organizationId);
     Task<Role> GetRoleByNameforTokenAsync(string roleName, Guid? organizationId);
     Task<bool> MenuExistsAsync(Guid menuId);
     Task<bool> SubMenuExistsAsync(Guid subMenuId, Guid menuId);
     Task<bool> ActionExistsAsync(Guid actionId, Guid subMenuId);
-    Task<List<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId);
-    Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId);
+    Task<IReadOnlyList<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId);
+    Task<IReadOnlyList<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId);
     Task<Role> GetRoleByIdAsync(Guid roleId);
     Task<(User user, Guid? roleId)> GetUserWithRoleAsync(Guid userId);
     Task<Role> CreateRoleAsync(Role role);

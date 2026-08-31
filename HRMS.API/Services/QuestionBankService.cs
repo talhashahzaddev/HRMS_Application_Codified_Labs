@@ -18,7 +18,7 @@ public class QuestionBankService : IQuestionBankService
     }
 
     // ==================== Categories ====================
-    public async Task<IEnumerable<QuestionCategoryDto>> GetCategoriesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<QuestionCategoryDto>> GetCategoriesAsync(Guid organizationId)
         => await _repository.GetCategoriesAsync(organizationId);
 
     public async Task<QuestionCategoryDto?> GetCategoryByIdAsync(Guid categoryId)
@@ -48,10 +48,10 @@ public class QuestionBankService : IQuestionBankService
         => await _repository.DeleteCategoryAsync(categoryId);
 
     // ==================== Questions ====================
-    public async Task<IEnumerable<QuestionDto>> GetQuestionsByCategoryAsync(Guid categoryId)
+    public async Task<IReadOnlyList<QuestionDto>> GetQuestionsByCategoryAsync(Guid categoryId)
         => await _repository.GetQuestionsByCategoryAsync(categoryId);
 
-    public async Task<IEnumerable<QuestionDto>> GetQuestionsByOrganizationAsync(Guid organizationId)
+    public async Task<IReadOnlyList<QuestionDto>> GetQuestionsByOrganizationAsync(Guid organizationId)
         => await _repository.GetQuestionsByOrganizationAsync(organizationId);
 
     public async Task<QuestionDto?> GetQuestionByIdAsync(Guid questionId)
@@ -81,7 +81,7 @@ public class QuestionBankService : IQuestionBankService
         => await _repository.DeleteQuestionAsync(questionId);
 
     // ==================== Job-Question Mapping ====================
-    public async Task<IEnumerable<JobQuestionDto>> GetJobQuestionsAsync(Guid jobId)
+    public async Task<IReadOnlyList<JobQuestionDto>> GetJobQuestionsAsync(Guid jobId)
         => await _repository.GetJobQuestionsAsync(jobId);
 
     public async Task AttachQuestionsToJobAsync(AttachQuestionsToJobRequest request)
@@ -112,13 +112,12 @@ public class QuestionBankService : IQuestionBankService
         await _repository.SaveCandidateAnswersAsync(jobApplyId, answers);
     }
 
-    public async Task<IEnumerable<CandidateAnswerDto>> GetCandidateAnswersAsync(Guid jobApplyId)
+    public async Task<IReadOnlyList<CandidateAnswerDto>> GetCandidateAnswersAsync(Guid jobApplyId)
     {
         var answers = await _repository.GetCandidateAnswersAsync(jobApplyId);
-        var answerList = answers.ToList();
 
         // Calculate pass/fail for each answer
-        foreach (var answer in answerList)
+        foreach (var answer in answers)
         {
             if (answer.IsKnockout && !string.IsNullOrWhiteSpace(answer.ExpectedAnswer))
             {
@@ -126,7 +125,7 @@ public class QuestionBankService : IQuestionBankService
             }
         }
 
-        return answerList;
+        return answers;
     }
 
     /// <summary>
@@ -135,14 +134,29 @@ public class QuestionBankService : IQuestionBankService
     /// </summary>
     public async Task<bool> EvaluateKnockoutAsync(Guid jobApplyId)
     {
-        var answers = (await GetCandidateAnswersAsync(jobApplyId)).ToList();
-        var knockoutAnswers = answers.Where(a => a.IsKnockout).ToList();
+        var answers = await GetCandidateAnswersAsync(jobApplyId);
+        
+        bool hasKnockouts = false;
+        bool allPassed = true;
+
+        foreach(var a in answers)
+        {
+            if (a.IsKnockout)
+            {
+                hasKnockouts = true;
+                if (a.Passed != true)
+                {
+                    allPassed = false;
+                    break;
+                }
+            }
+        }
 
         // If no knockout questions, candidate passes by default
-        if (!knockoutAnswers.Any())
+        if (!hasKnockouts)
             return true;
 
-        var passed = knockoutAnswers.All(a => a.Passed == true);
+        var passed = allPassed;
 
         // Update the jobapplication record via the existing jobs repository
         await _jobsRepository.UpdatePassedKnockoutAsync(jobApplyId, passed);

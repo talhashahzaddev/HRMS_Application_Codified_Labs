@@ -252,6 +252,18 @@ CREATE TRIGGER trg_audit_recurringexpenses
 -- SCHEMA: attendance
 -- ============================================================
 
+-- attendance.attendance (PK: attendanceid) — M21: Core attendance table was missing audit trigger
+DROP TRIGGER IF EXISTS trg_audit_attendance ON attendance.attendance;
+CREATE TRIGGER trg_audit_attendance
+    AFTER INSERT OR UPDATE OR DELETE ON attendance.attendance
+    FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('attendanceid');
+
+-- attendance.attendancesessions (PK: sessionid)
+DROP TRIGGER IF EXISTS trg_audit_attendancesessions ON attendance.attendancesessions;
+CREATE TRIGGER trg_audit_attendancesessions
+    AFTER INSERT OR UPDATE OR DELETE ON attendance.attendancesessions
+    FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('sessionid');
+
 -- attendance.attendance_update_requests (PK: request_id)
 DROP TRIGGER IF EXISTS trg_audit_attendance_update_requests ON attendance.attendance_update_requests;
 CREATE TRIGGER trg_audit_attendance_update_requests
@@ -644,6 +656,27 @@ DROP TRIGGER IF EXISTS trg_audit_payrollresults ON payroll.payrollresults;
 CREATE TRIGGER trg_audit_payrollresults
     AFTER INSERT OR UPDATE OR DELETE ON payroll.payrollresults
     FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('resultid');
+
+
+-- ============================================================
+-- SCHEMA: admin — M22: Make auditlogs immutable
+-- UPDATE and DELETE on auditlogs are blocked to preserve audit trail integrity.
+-- ============================================================
+
+-- Block UPDATE on admin.auditlogs
+CREATE OR REPLACE FUNCTION admin.fn_auditlogs_immutable()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'auditlogs table is immutable: % operations are not allowed', TG_OP
+        USING ERRCODE = 'P0001';
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_auditlogs_immutable ON admin.auditlogs;
+CREATE TRIGGER trg_auditlogs_immutable
+    BEFORE UPDATE OR DELETE ON admin.auditlogs
+    FOR EACH ROW EXECUTE FUNCTION admin.fn_auditlogs_immutable();
 
 
 -- ============================================================

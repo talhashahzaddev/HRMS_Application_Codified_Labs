@@ -690,7 +690,7 @@ namespace HRMS.API.Services
             try
             {
                 var verifyUrl = BuildVerifyLink(baseUrl, "/assets/create");
-                var assignments = (await _assetRepository.GetAssetAssignmentHistoryAsync(organizationId, null, employeeId)).ToList();
+                var assignments = await _assetRepository.GetAssetAssignmentHistoryAsync(organizationId, null, employeeId);
                 if (!assignments.Any())
                 {
                     return new ChatResponseDto
