@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories;
 using HRMS.API.Repositories.Interfaces;
@@ -132,14 +132,14 @@ namespace HRMS.API.Services
             return ticketDto;
         }
 
-        public async Task<List<TicketDto>> GetAllTicketsAsync(Guid organizationId, Guid employeeId, TicketSearchModel searchModel)
+        public async Task<IReadOnlyList<TicketDto>> GetAllTicketsAsync(Guid organizationId, Guid employeeId, TicketSearchModel searchModel)
         {
             if (organizationId == Guid.Empty)
                 throw new ArgumentException("OrganizationId cannot be empty", nameof(organizationId));
             if (employeeId == Guid.Empty)
                 throw new ArgumentException("EmployeeId cannot be empty", nameof(employeeId));
             var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(employeeId, organizationId);
-            List<TicketDto> tickets;
+            IReadOnlyList<TicketDto> tickets;
             if (isAdminOrHR)
             {
                 // Admin/HR → all tickets
@@ -150,7 +150,7 @@ namespace HRMS.API.Services
                 // Employee → only their tickets
                 tickets = await _helpDeskRepository.GetAllTicketsCreatedByEmployeeAsync(organizationId, employeeId, searchModel);
             }
-            return tickets ?? new List<TicketDto>();
+            return tickets ?? Array.Empty<TicketDto>();
         }
         public async Task<bool> UpdateTicketAsync(UpdateTicketRequest request, Guid organizationId, Guid currentEmployeeId)
         {
@@ -234,7 +234,7 @@ namespace HRMS.API.Services
           var result=  await _helpDeskRepository.UpdateGroupEmployeesAsync(request.GroupId, request.EmployeeIds,oldGroupEmployeeIds);
             return true ;
         }
-        public async Task<List<TicketDto>> GetAllAssignedTicket(Guid organizationId, Guid employeeId, TicketSearchModel searchModel)
+        public async Task<IReadOnlyList<TicketDto>> GetAllAssignedTicket(Guid organizationId, Guid employeeId, TicketSearchModel searchModel)
         {
             // Validation
             if (organizationId == Guid.Empty)
@@ -243,7 +243,7 @@ namespace HRMS.API.Services
                 throw new ArgumentException("EmployeeId cannot be empty", nameof(employeeId));
             // Check role
             var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(employeeId, organizationId);
-            List<TicketDto> tickets;
+            IReadOnlyList<TicketDto> tickets;
 
             if (isAdminOrHR)
             {
@@ -253,7 +253,7 @@ namespace HRMS.API.Services
             {
                 tickets = await _helpDeskRepository.GetAllEmployeeAssignedTickets(organizationId, employeeId, searchModel);
             }
-            return tickets ?? new List<TicketDto>();
+            return tickets ?? Array.Empty<TicketDto>();
         }
         public async Task<TicketDto?> GetTicketByIdAsync(Guid organizationId, Guid employeeId, Guid ticketId)
         {
@@ -313,7 +313,7 @@ namespace HRMS.API.Services
             return group;
         }
         //Get all Agents/Ticket Group
-        public async Task<List<TicketGroupDto>> GetAllTicketGroupsAsync(Guid organizationId, string? search, Guid? departmentId,Guid? categoryId)
+        public async Task<IReadOnlyList<TicketGroupDto>> GetAllTicketGroupsAsync(Guid organizationId, string? search, Guid? departmentId,Guid? categoryId)
         {
             try
             {
@@ -368,7 +368,7 @@ namespace HRMS.API.Services
             // Remove old group employees from ticket_assigned_employees
             if (oldGroupEmployeeIds.Any())
             {
-                await _helpDeskRepository.DeleteOldGroupEmployeesFromAssignmentsAsync(oldGroupEmployeeIds, AssignmentidsBelongtoGroupId);
+                await _helpDeskRepository.DeleteOldGroupEmployeesFromAssignmentsAsync(oldGroupEmployeeIds, AssignmentidsBelongtoGroupId.ToList());
             }
             return true;
         }
@@ -468,7 +468,7 @@ namespace HRMS.API.Services
 
         }
 
-        public async Task<List<TicketMessageDto>> GetMessagesByEmployeeIdAsync(Guid organizationId, Guid employeeId, Guid ticketId)
+        public async Task<IReadOnlyList<TicketMessageDto>> GetMessagesByEmployeeIdAsync(Guid organizationId, Guid employeeId, Guid ticketId)
         {
             if (organizationId == Guid.Empty)
                 throw new ArgumentException("OrganizationId cannot be empty", nameof(organizationId));
@@ -487,7 +487,7 @@ namespace HRMS.API.Services
             return categories;
         }
 
-        public async Task<List<CategoryDto>> GetCategoriesAsync(Guid organizationId, searchCateogry? search)
+        public async Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync(Guid organizationId, searchCateogry? search)
         {
             if (organizationId == Guid.Empty)
                 throw new ArgumentException("OrganizationId cannot be empty", nameof(organizationId));

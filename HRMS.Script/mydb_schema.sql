@@ -2,10 +2,10 @@
 -- PostgreSQL database dump
 --
 
--- Dumped from database version 17.7 (Debian 17.7-3.pgdg13+1)
+-- Dumped from database version 17.10 (Debian 17.10-1.pgdg13+1)
 -- Dumped by pg_dump version 17.2
 
--- Started on 2026-07-17 17:20:43
+-- Started on 2026-08-12 15:42:34
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -20,7 +20,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- TOC entry 9 (class 2615 OID 24696)
+-- TOC entry 8 (class 2615 OID 19963)
 -- Name: admin; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -30,7 +30,7 @@ CREATE SCHEMA admin;
 ALTER SCHEMA admin OWNER TO postgres;
 
 --
--- TOC entry 21 (class 2615 OID 32923)
+-- TOC entry 9 (class 2615 OID 19964)
 -- Name: assets; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -40,7 +40,7 @@ CREATE SCHEMA assets;
 ALTER SCHEMA assets OWNER TO postgres;
 
 --
--- TOC entry 10 (class 2615 OID 24697)
+-- TOC entry 10 (class 2615 OID 19965)
 -- Name: attendance; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -50,7 +50,7 @@ CREATE SCHEMA attendance;
 ALTER SCHEMA attendance OWNER TO postgres;
 
 --
--- TOC entry 11 (class 2615 OID 24698)
+-- TOC entry 11 (class 2615 OID 19966)
 -- Name: auth; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -60,7 +60,7 @@ CREATE SCHEMA auth;
 ALTER SCHEMA auth OWNER TO postgres;
 
 --
--- TOC entry 16 (class 2615 OID 25130)
+-- TOC entry 12 (class 2615 OID 19967)
 -- Name: chatboard; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -70,7 +70,7 @@ CREATE SCHEMA chatboard;
 ALTER SCHEMA chatboard OWNER TO postgres;
 
 --
--- TOC entry 12 (class 2615 OID 24699)
+-- TOC entry 13 (class 2615 OID 19968)
 -- Name: employee; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -80,7 +80,7 @@ CREATE SCHEMA employee;
 ALTER SCHEMA employee OWNER TO postgres;
 
 --
--- TOC entry 18 (class 2615 OID 32778)
+-- TOC entry 14 (class 2615 OID 19969)
 -- Name: expense; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -90,7 +90,7 @@ CREATE SCHEMA expense;
 ALTER SCHEMA expense OWNER TO postgres;
 
 --
--- TOC entry 24 (class 2615 OID 36025)
+-- TOC entry 15 (class 2615 OID 19970)
 -- Name: hangfire; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -100,7 +100,7 @@ CREATE SCHEMA hangfire;
 ALTER SCHEMA hangfire OWNER TO postgres;
 
 --
--- TOC entry 22 (class 2615 OID 34058)
+-- TOC entry 16 (class 2615 OID 19971)
 -- Name: helpdesk; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -110,7 +110,7 @@ CREATE SCHEMA helpdesk;
 ALTER SCHEMA helpdesk OWNER TO postgres;
 
 --
--- TOC entry 19 (class 2615 OID 32820)
+-- TOC entry 17 (class 2615 OID 19972)
 -- Name: jobs; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -120,7 +120,7 @@ CREATE SCHEMA jobs;
 ALTER SCHEMA jobs OWNER TO postgres;
 
 --
--- TOC entry 20 (class 2615 OID 32870)
+-- TOC entry 18 (class 2615 OID 19973)
 -- Name: news; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -130,7 +130,7 @@ CREATE SCHEMA news;
 ALTER SCHEMA news OWNER TO postgres;
 
 --
--- TOC entry 13 (class 2615 OID 24700)
+-- TOC entry 19 (class 2615 OID 19974)
 -- Name: notification; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -140,7 +140,7 @@ CREATE SCHEMA notification;
 ALTER SCHEMA notification OWNER TO postgres;
 
 --
--- TOC entry 23 (class 2615 OID 35912)
+-- TOC entry 20 (class 2615 OID 19975)
 -- Name: onboarding; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -150,7 +150,7 @@ CREATE SCHEMA onboarding;
 ALTER SCHEMA onboarding OWNER TO postgres;
 
 --
--- TOC entry 17 (class 2615 OID 25153)
+-- TOC entry 21 (class 2615 OID 19976)
 -- Name: payment; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -160,7 +160,7 @@ CREATE SCHEMA payment;
 ALTER SCHEMA payment OWNER TO postgres;
 
 --
--- TOC entry 14 (class 2615 OID 24701)
+-- TOC entry 22 (class 2615 OID 19977)
 -- Name: payroll; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -170,7 +170,7 @@ CREATE SCHEMA payroll;
 ALTER SCHEMA payroll OWNER TO postgres;
 
 --
--- TOC entry 15 (class 2615 OID 24702)
+-- TOC entry 23 (class 2615 OID 19978)
 -- Name: performance; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -180,7 +180,7 @@ CREATE SCHEMA performance;
 ALTER SCHEMA performance OWNER TO postgres;
 
 --
--- TOC entry 8 (class 2615 OID 24695)
+-- TOC entry 24 (class 2615 OID 19961)
 -- Name: public; Type: SCHEMA; Schema: -; Owner: postgres
 --
 
@@ -190,8 +190,8 @@ ALTER SCHEMA performance OWNER TO postgres;
 ALTER SCHEMA public OWNER TO postgres;
 
 --
--- TOC entry 5922 (class 0 OID 0)
--- Dependencies: 8
+-- TOC entry 5993 (class 0 OID 0)
+-- Dependencies: 24
 -- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: postgres
 --
 
@@ -199,7 +199,7 @@ COMMENT ON SCHEMA public IS '';
 
 
 --
--- TOC entry 3 (class 3079 OID 34373)
+-- TOC entry 4 (class 3079 OID 19979)
 -- Name: cube; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -207,8 +207,8 @@ CREATE EXTENSION IF NOT EXISTS cube WITH SCHEMA public;
 
 
 --
--- TOC entry 5924 (class 0 OID 0)
--- Dependencies: 3
+-- TOC entry 5995 (class 0 OID 0)
+-- Dependencies: 4
 -- Name: EXTENSION cube; Type: COMMENT; Schema: -; Owner: 
 --
 
@@ -216,7 +216,7 @@ COMMENT ON EXTENSION cube IS 'data type for multidimensional cubes';
 
 
 --
--- TOC entry 4 (class 3079 OID 34462)
+-- TOC entry 3 (class 3079 OID 20068)
 -- Name: earthdistance; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -224,8 +224,8 @@ CREATE EXTENSION IF NOT EXISTS earthdistance WITH SCHEMA public;
 
 
 --
--- TOC entry 5925 (class 0 OID 0)
--- Dependencies: 4
+-- TOC entry 5996 (class 0 OID 0)
+-- Dependencies: 3
 -- Name: EXTENSION earthdistance; Type: COMMENT; Schema: -; Owner: 
 --
 
@@ -233,7 +233,7 @@ COMMENT ON EXTENSION earthdistance IS 'calculate great-circle distances on the s
 
 
 --
--- TOC entry 2 (class 3079 OID 24703)
+-- TOC entry 2 (class 3079 OID 20084)
 -- Name: uuid-ossp; Type: EXTENSION; Schema: -; Owner: -
 --
 
@@ -241,7 +241,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public;
 
 
 --
--- TOC entry 5926 (class 0 OID 0)
+-- TOC entry 5997 (class 0 OID 0)
 -- Dependencies: 2
 -- Name: EXTENSION "uuid-ossp"; Type: COMMENT; Schema: -; Owner: 
 --
@@ -250,7 +250,185 @@ COMMENT ON EXTENSION "uuid-ossp" IS 'generate universally unique identifiers (UU
 
 
 --
--- TOC entry 523 (class 1255 OID 24714)
+-- TOC entry 429 (class 1255 OID 20095)
+-- Name: fn_audit_trigger(); Type: FUNCTION; Schema: admin; Owner: postgres
+--
+
+CREATE FUNCTION admin.fn_audit_trigger() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_user_id    UUID;
+    v_org_id     UUID;
+    v_useragent  TEXT;
+    v_old_values JSONB;
+    v_new_values JSONB;
+    v_pk_column  TEXT;
+    v_record_id  UUID;
+BEGIN
+    v_pk_column := TG_ARGV[0];
+
+    -- Read User ID injected by C# DatabaseConnectionFactory
+    BEGIN
+        v_user_id := current_setting('hrms.current_user_id', true)::UUID;
+    EXCEPTION WHEN OTHERS THEN
+        v_user_id := NULL;
+    END;
+
+    -- Read Organization ID injected by C# DatabaseConnectionFactory
+    BEGIN
+        v_org_id := current_setting('hrms.current_org_id', true)::UUID;
+    EXCEPTION WHEN OTHERS THEN
+        v_org_id := NULL;
+    END;
+
+    -- Read User-Agent injected by C# DatabaseConnectionFactory
+    BEGIN
+        v_useragent := current_setting('hrms.current_useragent', true);
+        IF v_useragent = '' THEN v_useragent := NULL; END IF;
+    EXCEPTION WHEN OTHERS THEN
+        v_useragent := NULL;
+    END;
+
+    IF (TG_OP = 'UPDATE') THEN
+        v_old_values := to_jsonb(OLD);
+        v_new_values := to_jsonb(NEW);
+    ELSIF (TG_OP = 'DELETE') THEN
+        v_old_values := to_jsonb(OLD);
+        v_new_values := NULL;
+    ELSIF (TG_OP = 'INSERT') THEN
+        v_old_values := NULL;
+        v_new_values := to_jsonb(NEW);
+    END IF;
+
+    IF v_new_values IS NOT NULL THEN
+        v_record_id := (v_new_values ->> v_pk_column)::UUID;
+    ELSE
+        v_record_id := (v_old_values ->> v_pk_column)::UUID;
+    END IF;
+
+    INSERT INTO admin.auditlogs (
+        organizationid,
+        userid,
+        tablename,
+        recordid,
+        action,
+        oldvalues,
+        newvalues,
+        useragent
+    )
+    VALUES (
+        v_org_id,
+        v_user_id,
+        TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME,
+        v_record_id,
+        TG_OP,
+        v_old_values,
+        v_new_values,
+        v_useragent
+    );
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION admin.fn_audit_trigger() OWNER TO postgres;
+
+--
+-- TOC entry 506 (class 1255 OID 20096)
+-- Name: fn_audit_trigger_varchar(); Type: FUNCTION; Schema: admin; Owner: postgres
+--
+
+CREATE FUNCTION admin.fn_audit_trigger_varchar() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $_$
+DECLARE
+    v_user_id    UUID;
+    v_org_id     UUID;
+    v_useragent  TEXT;
+    v_old_values JSONB;
+    v_new_values JSONB;
+    v_pk_column  TEXT;
+    v_record_id  TEXT;
+BEGIN
+    v_pk_column := TG_ARGV[0];
+
+    BEGIN
+        v_user_id := current_setting('hrms.current_user_id', true)::UUID;
+    EXCEPTION WHEN OTHERS THEN
+        v_user_id := NULL;
+    END;
+
+    BEGIN
+        v_org_id := current_setting('hrms.current_org_id', true)::UUID;
+    EXCEPTION WHEN OTHERS THEN
+        v_org_id := NULL;
+    END;
+
+    BEGIN
+        v_useragent := current_setting('hrms.current_useragent', true);
+        IF v_useragent = '' THEN v_useragent := NULL; END IF;
+    EXCEPTION WHEN OTHERS THEN
+        v_useragent := NULL;
+    END;
+
+    IF (TG_OP = 'UPDATE') THEN
+        v_old_values := to_jsonb(OLD);
+        v_new_values := to_jsonb(NEW);
+    ELSIF (TG_OP = 'DELETE') THEN
+        v_old_values := to_jsonb(OLD);
+        v_new_values := NULL;
+    ELSIF (TG_OP = 'INSERT') THEN
+        v_old_values := NULL;
+        v_new_values := to_jsonb(NEW);
+    END IF;
+
+    IF v_new_values IS NOT NULL THEN
+        v_record_id := v_new_values ->> v_pk_column;
+    ELSE
+        v_record_id := v_old_values ->> v_pk_column;
+    END IF;
+
+    INSERT INTO admin.auditlogs (
+        organizationid,
+        userid,
+        tablename,
+        recordid,
+        action,
+        oldvalues,
+        newvalues,
+        useragent
+    )
+    VALUES (
+        v_org_id,
+        v_user_id,
+        TG_TABLE_SCHEMA || '.' || TG_TABLE_NAME,
+        CASE WHEN v_record_id ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+             THEN v_record_id::UUID
+             ELSE NULL
+        END,
+        TG_OP,
+        v_old_values,
+        v_new_values,
+        v_useragent
+    );
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
+    END IF;
+    RETURN NEW;
+END;
+$_$;
+
+
+ALTER FUNCTION admin.fn_audit_trigger_varchar() OWNER TO postgres;
+
+--
+-- TOC entry 515 (class 1255 OID 20097)
 -- Name: fn_get_dashboard_stats(uuid); Type: FUNCTION; Schema: admin; Owner: postgres
 --
 
@@ -300,7 +478,7 @@ $$;
 ALTER FUNCTION admin.fn_get_dashboard_stats(p_organization_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 509 (class 1255 OID 34670)
+-- TOC entry 512 (class 1255 OID 20098)
 -- Name: fn_get_dashboard_stats_v2(uuid); Type: FUNCTION; Schema: admin; Owner: postgres
 --
 
@@ -339,8 +517,8 @@ $$;
 ALTER FUNCTION admin.fn_get_dashboard_stats_v2(p_organization_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 5927 (class 0 OID 0)
--- Dependencies: 509
+-- TOC entry 5998 (class 0 OID 0)
+-- Dependencies: 512
 -- Name: FUNCTION fn_get_dashboard_stats_v2(p_organization_id uuid); Type: COMMENT; Schema: admin; Owner: postgres
 --
 
@@ -348,7 +526,7 @@ COMMENT ON FUNCTION admin.fn_get_dashboard_stats_v2(p_organization_id uuid) IS '
 
 
 --
--- TOC entry 452 (class 1255 OID 35243)
+-- TOC entry 510 (class 1255 OID 20099)
 -- Name: fn_aggregate_timesheet_payroll_summary(uuid, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -450,7 +628,7 @@ $$;
 ALTER FUNCTION attendance.fn_aggregate_timesheet_payroll_summary(p_timesheet_id uuid, p_employee_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 530 (class 1255 OID 37539)
+-- TOC entry 539 (class 1255 OID 20101)
 -- Name: fn_approve_all_pending_requests(uuid, uuid, uuid, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -498,7 +676,7 @@ $$;
 ALTER FUNCTION attendance.fn_approve_all_pending_requests(p_manager_id uuid, p_org_id uuid, p_timesheet_id uuid, p_employee_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 455 (class 1255 OID 33135)
+-- TOC entry 534 (class 1255 OID 20102)
 -- Name: fn_batch_finalize_month(uuid, uuid, integer, integer); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -583,7 +761,7 @@ $$;
 ALTER FUNCTION attendance.fn_batch_finalize_month(p_timesheet_id uuid, p_org_id uuid, p_month integer, p_year integer) OWNER TO postgres;
 
 --
--- TOC entry 482 (class 1255 OID 37540)
+-- TOC entry 443 (class 1255 OID 20103)
 -- Name: fn_batch_finalize_timesheet(uuid, uuid, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -839,7 +1017,7 @@ $$;
 ALTER FUNCTION attendance.fn_batch_finalize_timesheet(p_timesheet_id uuid, p_actioned_by uuid, p_employee_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 458 (class 1255 OID 35240)
+-- TOC entry 478 (class 1255 OID 20105)
 -- Name: fn_calculate_late_minutes(uuid, date, timestamp with time zone); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -892,8 +1070,8 @@ $$;
 ALTER FUNCTION attendance.fn_calculate_late_minutes(p_employee_id uuid, p_workdate date, p_checkin timestamp with time zone) OWNER TO postgres;
 
 --
--- TOC entry 5928 (class 0 OID 0)
--- Dependencies: 458
+-- TOC entry 5999 (class 0 OID 0)
+-- Dependencies: 478
 -- Name: FUNCTION fn_calculate_late_minutes(p_employee_id uuid, p_workdate date, p_checkin timestamp with time zone); Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -901,7 +1079,7 @@ COMMENT ON FUNCTION attendance.fn_calculate_late_minutes(p_employee_id uuid, p_w
 
 
 --
--- TOC entry 473 (class 1255 OID 32817)
+-- TOC entry 500 (class 1255 OID 20106)
 -- Name: fn_clock_in_out(uuid, character varying, timestamp with time zone, jsonb, character varying); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -981,7 +1159,7 @@ $$;
 ALTER FUNCTION attendance.fn_clock_in_out(p_employee_id uuid, p_action character varying, p_timestamp timestamp with time zone, p_location jsonb, p_notes character varying) OWNER TO postgres;
 
 --
--- TOC entry 488 (class 1255 OID 34668)
+-- TOC entry 474 (class 1255 OID 20107)
 -- Name: fn_clock_in_out_geo(uuid, character varying, timestamp with time zone, jsonb, character varying, uuid, numeric, numeric, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1149,8 +1327,8 @@ $$;
 ALTER FUNCTION attendance.fn_clock_in_out_geo(p_employee_id uuid, p_action character varying, p_timestamp timestamp with time zone, p_location jsonb, p_notes character varying, p_geofenceid uuid, p_latitude numeric, p_longitude numeric, p_face_log_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 5929 (class 0 OID 0)
--- Dependencies: 488
+-- TOC entry 6000 (class 0 OID 0)
+-- Dependencies: 474
 -- Name: FUNCTION fn_clock_in_out_geo(p_employee_id uuid, p_action character varying, p_timestamp timestamp with time zone, p_location jsonb, p_notes character varying, p_geofenceid uuid, p_latitude numeric, p_longitude numeric, p_face_log_id uuid); Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -1158,7 +1336,7 @@ COMMENT ON FUNCTION attendance.fn_clock_in_out_geo(p_employee_id uuid, p_action 
 
 
 --
--- TOC entry 437 (class 1255 OID 24716)
+-- TOC entry 524 (class 1255 OID 20109)
 -- Name: fn_create_leave_request(uuid, uuid, timestamp with time zone, timestamp with time zone, text); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1218,7 +1396,7 @@ $$;
 ALTER FUNCTION attendance.fn_create_leave_request(p_employee_id uuid, p_leave_type_id uuid, p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_reason text) OWNER TO postgres;
 
 --
--- TOC entry 475 (class 1255 OID 34666)
+-- TOC entry 418 (class 1255 OID 20110)
 -- Name: fn_distance_to_fence_meters(numeric, numeric, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1252,8 +1430,8 @@ $$;
 ALTER FUNCTION attendance.fn_distance_to_fence_meters(p_latitude numeric, p_longitude numeric, p_geofenceid uuid) OWNER TO postgres;
 
 --
--- TOC entry 5930 (class 0 OID 0)
--- Dependencies: 475
+-- TOC entry 6001 (class 0 OID 0)
+-- Dependencies: 418
 -- Name: FUNCTION fn_distance_to_fence_meters(p_latitude numeric, p_longitude numeric, p_geofenceid uuid); Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -1261,7 +1439,7 @@ COMMENT ON FUNCTION attendance.fn_distance_to_fence_meters(p_latitude numeric, p
 
 
 --
--- TOC entry 453 (class 1255 OID 37538)
+-- TOC entry 501 (class 1255 OID 20111)
 -- Name: fn_finalize_attendance_record(uuid, uuid, boolean, text); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1348,7 +1526,7 @@ $$;
 ALTER FUNCTION attendance.fn_finalize_attendance_record(p_request_id uuid, p_actioned_by uuid, p_is_approved boolean, p_rejection_reason text) OWNER TO postgres;
 
 --
--- TOC entry 471 (class 1255 OID 36498)
+-- TOC entry 527 (class 1255 OID 20112)
 -- Name: fn_get_attendance(character varying, uuid, uuid, uuid, character varying, timestamp with time zone, timestamp with time zone, integer, integer); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1476,7 +1654,7 @@ $$;
 ALTER FUNCTION attendance.fn_get_attendance(p_search_term character varying, p_employee_id uuid, p_organization_id uuid, p_department_id uuid, p_status character varying, p_start_date timestamp with time zone, p_end_date timestamp with time zone, p_limit integer, p_offset integer) OWNER TO postgres;
 
 --
--- TOC entry 512 (class 1255 OID 35246)
+-- TOC entry 440 (class 1255 OID 20113)
 -- Name: fn_get_finalized_timesheet_links(uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1503,7 +1681,7 @@ $$;
 ALTER FUNCTION attendance.fn_get_finalized_timesheet_links(p_org_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 522 (class 1255 OID 35245)
+-- TOC entry 488 (class 1255 OID 20114)
 -- Name: fn_get_timesheet_payroll_summary(uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1563,7 +1741,7 @@ $$;
 ALTER FUNCTION attendance.fn_get_timesheet_payroll_summary(p_timesheet_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 424 (class 1255 OID 24718)
+-- TOC entry 521 (class 1255 OID 20115)
 -- Name: fn_initialize_leave_entitlements(uuid, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1592,7 +1770,7 @@ $$;
 ALTER FUNCTION attendance.fn_initialize_leave_entitlements(p_employee_id uuid, p_organization_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 456 (class 1255 OID 24719)
+-- TOC entry 463 (class 1255 OID 20116)
 -- Name: fn_initialize_leave_entitlements_for_new_leavetype(uuid, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1638,7 +1816,7 @@ $$;
 ALTER FUNCTION attendance.fn_initialize_leave_entitlements_for_new_leavetype(p_leavetype_id uuid, p_organization_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 539 (class 1255 OID 34667)
+-- TOC entry 469 (class 1255 OID 20117)
 -- Name: fn_is_within_geo_fence(numeric, numeric, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1658,7 +1836,7 @@ $$;
 ALTER FUNCTION attendance.fn_is_within_geo_fence(p_latitude numeric, p_longitude numeric, p_geofenceid uuid) OWNER TO postgres;
 
 --
--- TOC entry 529 (class 1255 OID 35247)
+-- TOC entry 493 (class 1255 OID 20118)
 -- Name: fn_lock_timesheet(uuid, uuid, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1678,7 +1856,7 @@ $$;
 ALTER FUNCTION attendance.fn_lock_timesheet(p_timesheet_id uuid, p_locked_by uuid, p_payroll_period_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 460 (class 1255 OID 35238)
+-- TOC entry 435 (class 1255 OID 20119)
 -- Name: fn_submit_attendance_request(uuid, uuid, uuid, date, timestamp with time zone, timestamp with time zone, character varying, text, text, uuid, uuid, numeric, character varying, integer); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1710,7 +1888,7 @@ $$;
 ALTER FUNCTION attendance.fn_submit_attendance_request(p_employee_id uuid, p_organization_id uuid, p_attendance_id uuid, p_work_date date, p_checkin timestamp with time zone, p_checkout timestamp with time zone, p_status character varying, p_reason text, p_notes text, p_timesheet_id uuid, p_leave_type_id uuid, p_overtime_hours numeric, p_overtime_type character varying, p_late_minutes integer) OWNER TO postgres;
 
 --
--- TOC entry 444 (class 1255 OID 33138)
+-- TOC entry 541 (class 1255 OID 20120)
 -- Name: fn_submit_period_for_approval(uuid, uuid, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1732,7 +1910,7 @@ $$;
 ALTER FUNCTION attendance.fn_submit_period_for_approval(p_employee_id uuid, p_organization_id uuid, p_timesheet_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 517 (class 1255 OID 25147)
+-- TOC entry 483 (class 1255 OID 20121)
 -- Name: fn_sync_leave_entitlements_for_leavetype(uuid, uuid); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1788,7 +1966,7 @@ $$;
 ALTER FUNCTION attendance.fn_sync_leave_entitlements_for_leavetype(p_leavetype_id uuid, p_organization_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 474 (class 1255 OID 37542)
+-- TOC entry 455 (class 1255 OID 20122)
 -- Name: fn_timesheet_transition(uuid, character varying, uuid, text); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1862,7 +2040,7 @@ $$;
 ALTER FUNCTION attendance.fn_timesheet_transition(p_timesheet_id uuid, p_new_status character varying, p_actor_id uuid, p_reason text) OWNER TO postgres;
 
 --
--- TOC entry 431 (class 1255 OID 35894)
+-- TOC entry 509 (class 1255 OID 20123)
 -- Name: fn_tps_set_shift_id(); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1884,7 +2062,7 @@ $$;
 ALTER FUNCTION attendance.fn_tps_set_shift_id() OWNER TO postgres;
 
 --
--- TOC entry 421 (class 1255 OID 25239)
+-- TOC entry 430 (class 1255 OID 20124)
 -- Name: fn_update_leave_request_status(uuid, character varying, uuid, text); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1935,7 +2113,7 @@ $$;
 ALTER FUNCTION attendance.fn_update_leave_request_status(p_request_id uuid, p_status character varying, p_approved_by uuid, p_rejection_reason text) OWNER TO postgres;
 
 --
--- TOC entry 470 (class 1255 OID 37544)
+-- TOC entry 514 (class 1255 OID 20125)
 -- Name: fn_validate_correction_employee_match(); Type: FUNCTION; Schema: attendance; Owner: postgres
 --
 
@@ -1961,7 +2139,7 @@ $$;
 ALTER FUNCTION attendance.fn_validate_correction_employee_match() OWNER TO postgres;
 
 --
--- TOC entry 532 (class 1255 OID 25149)
+-- TOC entry 453 (class 1255 OID 20126)
 -- Name: fn_authenticate_user(character varying, character varying); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2022,7 +2200,7 @@ $$;
 ALTER FUNCTION auth.fn_authenticate_user(p_email character varying, p_password_hash character varying) OWNER TO postgres;
 
 --
--- TOC entry 528 (class 1255 OID 37559)
+-- TOC entry 472 (class 1255 OID 20127)
 -- Name: fn_create_onboarding(uuid); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2091,7 +2269,7 @@ $$;
 ALTER FUNCTION auth.fn_create_onboarding(p_organizationid uuid) OWNER TO postgres;
 
 --
--- TOC entry 441 (class 1255 OID 34219)
+-- TOC entry 448 (class 1255 OID 20128)
 -- Name: fn_create_organization(character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2101,15 +2279,15 @@ CREATE FUNCTION auth.fn_create_organization(p_name character varying, p_domain c
 DECLARE
     newOrgId UUID;
     insertedRolesCount INTEGER;
+    insertedPermissionsCount INTEGER;
 BEGIN
     -- Insert new organization
     INSERT INTO auth.organizations (name, domain, subscriptionType, currency)
     VALUES (p_name, p_domain, p_subscription_type, p_currency)
     RETURNING organizationId INTO newOrgId;
 
-	-- Global Roles Insertion
-    INSERT INTO auth.roles
-    (
+    -- Copy all active global roles into org-specific auth.roles
+    INSERT INTO auth.roles (
         roleid,
         organizationid,
         rolename,
@@ -2131,11 +2309,9 @@ BEGIN
 
     GET DIAGNOSTICS insertedRolesCount = ROW_COUNT;
 
-    -- =====================================================================
-    -- Copy global role permissions into org-specific auth.permissions table.
-    -- This ensures newly registered organizations inherit all permissions
-    -- that the Platform Admin has defined for each system role (e.g., Super Admin).
-    -- =====================================================================
+    -- Copy all global role permissions into org-specific auth.permissions.
+    -- This is the fix: every new org immediately gets the full permission set
+    -- as defined by the Platform Admin in auth.global_role_permissions.
     INSERT INTO auth.permissions (
         permissionid,
         roleid,
@@ -2154,30 +2330,33 @@ BEGIN
         CURRENT_TIMESTAMP,
         CURRENT_TIMESTAMP
     FROM auth.global_role_permissions grp
-    INNER JOIN auth.roles r ON grp.roleid = r.roleid
-    WHERE r.organizationid = newOrgId;
+    INNER JOIN auth.roles r
+        ON grp.roleid = r.roleid
+    WHERE r.organizationid = newOrgId
+    ON CONFLICT DO NOTHING;
 
-	INSERT INTO payment.companysubscriptions (
-		companyid,
-		planid,
-		status,
-		billingcycle,
-		startdate, --timestamp without time zone
-		enddate --timestamp without time zone
-	)
-	VALUES (
-		newOrgId,
-		'620212ec-cf42-4365-a4c1-f9c92c4250b9',
-		'active',
-		'monthly',
-		now(),
-		now() + interval '1 month'
-	);
+    GET DIAGNOSTICS insertedPermissionsCount = ROW_COUNT;
 
-	-- Log the creation
-    RAISE NOTICE
-    'Organization created successfully. Roles: %', insertedRolesCount;
-	
+    -- Create default payment subscription
+    INSERT INTO payment.companysubscriptions (
+        companyid,
+        planid,
+        status,
+        billingcycle,
+        startdate,
+        enddate
+    )
+    VALUES (
+        newOrgId,
+        '620212ec-cf42-4365-a4c1-f9c92c4250b9',
+        'active',
+        'monthly',
+        now(),
+        now() + interval '1 month'
+    );
+
+    RAISE NOTICE 'Organization % created. Roles: %. Permissions: %.', newOrgId, insertedRolesCount, insertedPermissionsCount;
+
     RETURN newOrgId;
 END;
 $$;
@@ -2186,7 +2365,7 @@ $$;
 ALTER FUNCTION auth.fn_create_organization(p_name character varying, p_domain character varying, p_subscription_type character varying, p_currency character varying) OWNER TO postgres;
 
 --
--- TOC entry 511 (class 1255 OID 33310)
+-- TOC entry 503 (class 1255 OID 23347)
 -- Name: fn_create_role(uuid, text, text, boolean, jsonb); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2198,63 +2377,30 @@ DECLARE
     menu_record jsonb;
     submenu_record jsonb;
     action_record jsonb;
-    menu_id uuid;
-    submenu_id uuid;
     action_id uuid;
     v_haspermission boolean;
+    seen_action_ids uuid[] := ARRAY[]::uuid[];
 BEGIN
-    -- Insert into auth.roles
-    INSERT INTO auth.roles (
-        roleid,
-        organizationid,
-        rolename,
-        description,
-        issystemrole,
-        createdat
-    )
-    VALUES (
-        uuid_generate_v4(),
-        p_organizationid,
-        p_rolename,
-        p_description,
-        p_issystemrole,
-        CURRENT_TIMESTAMP
-    )
+    INSERT INTO auth.roles (roleid, organizationid, rolename, description, issystemrole, createdat)
+    VALUES (uuid_generate_v4(), p_organizationid, p_rolename, p_description, p_issystemrole, CURRENT_TIMESTAMP)
     RETURNING roleid INTO new_role_id;
 
-    -- Loop through menus
     FOR menu_record IN SELECT * FROM jsonb_array_elements(p_menus)
     LOOP
-        menu_id := (menu_record->>'MenuId')::uuid;
-
-        -- Loop through submenus in each menu
         FOR submenu_record IN SELECT * FROM jsonb_array_elements(menu_record->'SubMenus')
         LOOP
-            submenu_id := (submenu_record->>'SubMenuId')::uuid;
-
-            -- Loop through actions in each submenu
             FOR action_record IN SELECT * FROM jsonb_array_elements(submenu_record->'Actions')
             LOOP
                 action_id := (action_record->>'ActionId')::uuid;
                 v_haspermission := COALESCE((action_record->>'HasPermission')::boolean, false);
 
-                -- Insert permissions into auth.permissions (UPDATED TABLE STRUCTURE)
-                INSERT INTO auth.permissions (
-                    permissionid,
-                    roleid,
-                    actionid,        -- Changed from menuid/submenuid
-                    organizationid,
-                    has_permission,   -- Changed from canview/canadd/canedit/candelete
-                    created_date
-                )
-                VALUES (
-                    uuid_generate_v4(),
-                    new_role_id,
-                    action_id,        -- Now storing actionid directly
-                    p_organizationid,
-                    v_haspermission,   -- Single permission flag
-                    CURRENT_TIMESTAMP
-                );
+                CONTINUE WHEN action_id = ANY(seen_action_ids);
+
+                INSERT INTO auth.permissions (permissionid, roleid, actionid, organizationid, has_permission, created_date)
+                VALUES (uuid_generate_v4(), new_role_id, action_id, p_organizationid, v_haspermission, CURRENT_TIMESTAMP)
+                ON CONFLICT (roleid, actionid, organizationid) DO NOTHING;
+
+                seen_action_ids := array_append(seen_action_ids, action_id);
             END LOOP;
         END LOOP;
     END LOOP;
@@ -2267,7 +2413,7 @@ $$;
 ALTER FUNCTION auth.fn_create_role(p_organizationid uuid, p_rolename text, p_description text, p_issystemrole boolean, p_menus jsonb) OWNER TO postgres;
 
 --
--- TOC entry 422 (class 1255 OID 25217)
+-- TOC entry 486 (class 1255 OID 20130)
 -- Name: fn_create_user(uuid, character varying, character varying, character varying, character varying, character varying); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2301,7 +2447,7 @@ $$;
 ALTER FUNCTION auth.fn_create_user(p_organization_id uuid, p_email character varying, p_password_hash character varying, p_first_name character varying, p_last_name character varying, p_role_name character varying) OWNER TO postgres;
 
 --
--- TOC entry 440 (class 1255 OID 25228)
+-- TOC entry 496 (class 1255 OID 20131)
 -- Name: fn_create_user(uuid, character varying, character varying, character varying, character varying, character varying, boolean, character varying, timestamp with time zone); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2335,7 +2481,7 @@ $$;
 ALTER FUNCTION auth.fn_create_user(p_organization_id uuid, p_email character varying, p_password_hash character varying, p_first_name character varying, p_last_name character varying, p_role_name character varying, p_email_verify boolean, p_email_verify_token character varying, p_email_verify_expiry timestamp with time zone) OWNER TO postgres;
 
 --
--- TOC entry 472 (class 1255 OID 34049)
+-- TOC entry 476 (class 1255 OID 20132)
 -- Name: fn_delete_role(uuid, uuid); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2383,7 +2529,249 @@ $$;
 ALTER FUNCTION auth.fn_delete_role(p_organizationid uuid, p_roleid uuid) OWNER TO postgres;
 
 --
--- TOC entry 484 (class 1255 OID 34048)
+-- TOC entry 432 (class 1255 OID 20133)
+-- Name: fn_grant_actions_to_role(text, text[], boolean); Type: FUNCTION; Schema: auth; Owner: postgres
+--
+
+CREATE FUNCTION auth.fn_grant_actions_to_role(p_role_name text, p_action_keys text[], p_has_permission boolean DEFAULT true) RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_role_id UUID;
+    v_granted INT := 0;
+BEGIN
+    SELECT roleid INTO v_role_id
+    FROM auth.global_roles WHERE LOWER(rolename) = LOWER(p_role_name) LIMIT 1;
+
+    IF v_role_id IS NULL THEN
+        RAISE WARNING 'Role not found: %', p_role_name;
+        RETURN 0;
+    END IF;
+
+    INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission, createdat, updatedat)
+    SELECT gen_random_uuid(), v_role_id, a.actionid, p_has_permission, NOW(), NOW()
+    FROM auth.actions a
+    WHERE a.actionkey = ANY(p_action_keys)
+      AND NOT EXISTS (
+          SELECT 1 FROM auth.global_role_permissions grp
+          WHERE grp.roleid = v_role_id AND grp.actionid = a.actionid
+      );
+
+    GET DIAGNOSTICS v_granted = ROW_COUNT;
+    RETURN v_granted;
+END;
+$$;
+
+
+ALTER FUNCTION auth.fn_grant_actions_to_role(p_role_name text, p_action_keys text[], p_has_permission boolean) OWNER TO postgres;
+
+--
+-- TOC entry 525 (class 1255 OID 20134)
+-- Name: fn_grant_menu_to_role(text, text, boolean); Type: FUNCTION; Schema: auth; Owner: postgres
+--
+
+CREATE FUNCTION auth.fn_grant_menu_to_role(p_role_name text, p_menu_name text, p_has_permission boolean DEFAULT true) RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_role_id UUID;
+    v_granted INT := 0;
+BEGIN
+    SELECT roleid INTO v_role_id
+    FROM auth.global_roles WHERE LOWER(rolename) = LOWER(p_role_name) LIMIT 1;
+
+    IF v_role_id IS NULL THEN
+        RAISE WARNING 'Role not found: %', p_role_name;
+        RETURN 0;
+    END IF;
+
+    INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission, createdat, updatedat)
+    SELECT gen_random_uuid(), v_role_id, a.actionid, p_has_permission, NOW(), NOW()
+    FROM auth.actions a
+    INNER JOIN auth.submenus sm ON a.submenuid = sm.submenuid
+    INNER JOIN auth.menus m ON sm.menuid = m.menuid
+    WHERE LOWER(m.menuname) = LOWER(p_menu_name)
+      AND NOT EXISTS (
+          SELECT 1 FROM auth.global_role_permissions grp
+          WHERE grp.roleid = v_role_id AND grp.actionid = a.actionid
+      );
+
+    GET DIAGNOSTICS v_granted = ROW_COUNT;
+    RETURN v_granted;
+END;
+$$;
+
+
+ALTER FUNCTION auth.fn_grant_menu_to_role(p_role_name text, p_menu_name text, p_has_permission boolean) OWNER TO postgres;
+
+--
+-- TOC entry 442 (class 1255 OID 20135)
+-- Name: fn_grant_submenus_to_role(text, text, text[], boolean); Type: FUNCTION; Schema: auth; Owner: postgres
+--
+
+CREATE FUNCTION auth.fn_grant_submenus_to_role(p_role_name text, p_menu_name text, p_submenu_names text[], p_has_permission boolean DEFAULT true) RETURNS integer
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+    v_role_id UUID;
+    v_granted INT := 0;
+BEGIN
+    SELECT roleid INTO v_role_id
+    FROM auth.global_roles WHERE LOWER(rolename) = LOWER(p_role_name) LIMIT 1;
+
+    IF v_role_id IS NULL THEN
+        RAISE WARNING 'Role not found: %', p_role_name;
+        RETURN 0;
+    END IF;
+
+    INSERT INTO auth.global_role_permissions (permissionid, roleid, actionid, has_permission, createdat, updatedat)
+    SELECT gen_random_uuid(), v_role_id, a.actionid, p_has_permission, NOW(), NOW()
+    FROM auth.actions a
+    INNER JOIN auth.submenus sm ON a.submenuid = sm.submenuid
+    INNER JOIN auth.menus m ON sm.menuid = m.menuid
+    WHERE LOWER(m.menuname) = LOWER(p_menu_name)
+      AND LOWER(sm.submenuname) = ANY(SELECT LOWER(unnest(p_submenu_names)))
+      AND NOT EXISTS (
+          SELECT 1 FROM auth.global_role_permissions grp
+          WHERE grp.roleid = v_role_id AND grp.actionid = a.actionid
+      );
+
+    GET DIAGNOSTICS v_granted = ROW_COUNT;
+    RETURN v_granted;
+END;
+$$;
+
+
+ALTER FUNCTION auth.fn_grant_submenus_to_role(p_role_name text, p_menu_name text, p_submenu_names text[], p_has_permission boolean) OWNER TO postgres;
+
+--
+-- TOC entry 490 (class 1255 OID 20136)
+-- Name: fn_seed_onboarding_permissions(); Type: FUNCTION; Schema: auth; Owner: postgres
+--
+
+CREATE FUNCTION auth.fn_seed_onboarding_permissions() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE
+  v_onboarding_actions uuid[];
+  v_config_actions uuid[];
+  v_all_actions uuid[];
+BEGIN
+  SELECT array_agg(actionid) INTO v_all_actions
+  FROM auth.actions
+  WHERE actionkey IN ('onboarding_view', 'onboarding_submit', 'onboarding_config_view', 'onboarding_config_edit');
+
+  IF v_all_actions IS NULL OR array_length(v_all_actions, 1) = 0 THEN
+    RETURN NEW;  -- onboarding actions don't exist yet, skip
+  END IF;
+
+  IF NEW.issystemrole = true THEN
+    -- System roles → auth.permissions (per-org)
+    -- The backend query falls back to auth.permissions when
+    -- global_role_permissions has no match.
+    -- Super Admin / HR Manager / Admin / HR → grant all 4
+    IF LOWER(NEW.rolename) IN ('super admin', 'hr manager', 'admin', 'hr') THEN
+      INSERT INTO auth.permissions (roleid, actionid, organizationid, has_permission, created_date, updated_date)
+      SELECT NEW.roleid, a, NEW.organizationid, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM unnest(v_all_actions) AS a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM auth.permissions p
+        WHERE p.roleid = NEW.roleid AND p.actionid = a AND p.organizationid = NEW.organizationid
+      );
+
+    -- Employee / Manager → grant view + submit, deny config
+    ELSIF LOWER(NEW.rolename) IN ('employee', 'manager') THEN
+      SELECT array_agg(actionid) INTO v_onboarding_actions
+      FROM auth.actions WHERE actionkey IN ('onboarding_view', 'onboarding_submit');
+
+      SELECT array_agg(actionid) INTO v_config_actions
+      FROM auth.actions WHERE actionkey IN ('onboarding_config_view', 'onboarding_config_edit');
+
+      INSERT INTO auth.permissions (roleid, actionid, organizationid, has_permission, created_date, updated_date)
+      SELECT NEW.roleid, a, NEW.organizationid, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM unnest(v_onboarding_actions) AS a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM auth.permissions p
+        WHERE p.roleid = NEW.roleid AND p.actionid = a AND p.organizationid = NEW.organizationid
+      );
+
+      INSERT INTO auth.permissions (roleid, actionid, organizationid, has_permission, created_date, updated_date)
+      SELECT NEW.roleid, a, NEW.organizationid, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM unnest(v_config_actions) AS a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM auth.permissions p
+        WHERE p.roleid = NEW.roleid AND p.actionid = a AND p.organizationid = NEW.organizationid
+      );
+
+    -- All other system roles → deny all 4
+    ELSE
+      INSERT INTO auth.permissions (roleid, actionid, organizationid, has_permission, created_date, updated_date)
+      SELECT NEW.roleid, a, NEW.organizationid, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM unnest(v_all_actions) AS a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM auth.permissions p
+        WHERE p.roleid = NEW.roleid AND p.actionid = a AND p.organizationid = NEW.organizationid
+      );
+    END IF;
+
+  ELSE
+    -- Non-system roles → auth.permissions (per-org)
+    -- HR Manager / Admin → grant all 4
+    IF LOWER(NEW.rolename) IN ('hr manager', 'admin') THEN
+      INSERT INTO auth.permissions (roleid, actionid, organizationid, has_permission, created_date, updated_date)
+      SELECT NEW.roleid, a, NEW.organizationid, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM unnest(v_all_actions) AS a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM auth.permissions p
+        WHERE p.roleid = NEW.roleid AND p.actionid = a AND p.organizationid = NEW.organizationid
+      );
+
+    -- Employee / Manager → grant view + submit only
+    ELSIF LOWER(NEW.rolename) IN ('employee', 'manager') THEN
+      SELECT array_agg(actionid) INTO v_onboarding_actions
+      FROM auth.actions WHERE actionkey IN ('onboarding_view', 'onboarding_submit');
+
+      INSERT INTO auth.permissions (roleid, actionid, organizationid, has_permission, created_date, updated_date)
+      SELECT NEW.roleid, a, NEW.organizationid, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM unnest(v_onboarding_actions) AS a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM auth.permissions p
+        WHERE p.roleid = NEW.roleid AND p.actionid = a AND p.organizationid = NEW.organizationid
+      );
+
+      -- Deny config for non-system Employee/Manager
+      SELECT array_agg(actionid) INTO v_config_actions
+      FROM auth.actions WHERE actionkey IN ('onboarding_config_view', 'onboarding_config_edit');
+
+      INSERT INTO auth.permissions (roleid, actionid, organizationid, has_permission, created_date, updated_date)
+      SELECT NEW.roleid, a, NEW.organizationid, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM unnest(v_config_actions) AS a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM auth.permissions p
+        WHERE p.roleid = NEW.roleid AND p.actionid = a AND p.organizationid = NEW.organizationid
+      );
+
+    -- All other non-system roles → deny all 4
+    ELSE
+      INSERT INTO auth.permissions (roleid, actionid, organizationid, has_permission, created_date, updated_date)
+      SELECT NEW.roleid, a, NEW.organizationid, false, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
+      FROM unnest(v_all_actions) AS a
+      WHERE NOT EXISTS (
+        SELECT 1 FROM auth.permissions p
+        WHERE p.roleid = NEW.roleid AND p.actionid = a AND p.organizationid = NEW.organizationid
+      );
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION auth.fn_seed_onboarding_permissions() OWNER TO postgres;
+
+--
+-- TOC entry 494 (class 1255 OID 20137)
 -- Name: fn_update_role(uuid, uuid, text, text, boolean, jsonb); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2461,7 +2849,7 @@ $$;
 ALTER FUNCTION auth.fn_update_role(p_organizationid uuid, p_roleid uuid, p_rolename text, p_description text, p_issystemrole boolean, p_menus jsonb) OWNER TO postgres;
 
 --
--- TOC entry 537 (class 1255 OID 25227)
+-- TOC entry 461 (class 1255 OID 20138)
 -- Name: fn_verify_email(character varying, timestamp with time zone); Type: FUNCTION; Schema: auth; Owner: postgres
 --
 
@@ -2494,7 +2882,7 @@ $$;
 ALTER FUNCTION auth.fn_verify_email(p_token character varying, p_verify_time timestamp with time zone) OWNER TO postgres;
 
 --
--- TOC entry 491 (class 1255 OID 35249)
+-- TOC entry 543 (class 1255 OID 20139)
 -- Name: fn_create_employee(uuid, uuid, character varying, character varying, character varying, character varying, character varying, timestamp with time zone, timestamp with time zone, uuid, uuid, numeric, jsonb, character varying, uuid, uuid, character varying, character varying, character varying, character varying, jsonb); Type: FUNCTION; Schema: employee; Owner: postgres
 --
 
@@ -2576,7 +2964,7 @@ $$;
 ALTER FUNCTION employee.fn_create_employee(p_organization_id uuid, p_user_id uuid, p_employee_code character varying, p_first_name character varying, p_last_name character varying, p_email character varying, p_phone character varying, p_date_of_birth timestamp with time zone, p_hire_date timestamp with time zone, p_department_id uuid, p_position_id uuid, p_basic_salary numeric, p_address jsonb, p_work_location character varying, p_tax_category_id uuid, p_reporting_manager_id uuid, p_employment_type character varying, p_nationality character varying, p_gender character varying, p_marital_status character varying, p_emergency_contact jsonb) OWNER TO postgres;
 
 --
--- TOC entry 513 (class 1255 OID 24725)
+-- TOC entry 497 (class 1255 OID 20140)
 -- Name: fn_get_employee_by_id(uuid); Type: FUNCTION; Schema: employee; Owner: postgres
 --
 
@@ -2620,7 +3008,7 @@ $$;
 ALTER FUNCTION employee.fn_get_employee_by_id(p_employee_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 505 (class 1255 OID 37613)
+-- TOC entry 438 (class 1255 OID 20141)
 -- Name: fn_get_employees(uuid, character varying, uuid, uuid, character varying, character varying, integer, integer); Type: FUNCTION; Schema: employee; Owner: postgres
 --
 
@@ -2714,7 +3102,7 @@ $$;
 ALTER FUNCTION employee.fn_get_employees(p_organization_id uuid, p_search_term character varying, p_department_id uuid, p_position_id uuid, p_employment_type character varying, p_status character varying, p_limit integer, p_offset integer) OWNER TO postgres;
 
 --
--- TOC entry 489 (class 1255 OID 34157)
+-- TOC entry 466 (class 1255 OID 20142)
 -- Name: fn_create_ticket(uuid, uuid, uuid, character varying, character varying, uuid, character varying, text, character varying, uuid); Type: FUNCTION; Schema: helpdesk; Owner: postgres
 --
 
@@ -2757,7 +3145,7 @@ $$;
 ALTER FUNCTION helpdesk.fn_create_ticket(p_organizationid uuid, p_employeeid uuid, p_departmentid uuid, p_title character varying, p_tickettype character varying, p_categoryid uuid, p_priority character varying, p_description text, p_attachment character varying, p_assignedgroup uuid) OWNER TO postgres;
 
 --
--- TOC entry 479 (class 1255 OID 32897)
+-- TOC entry 468 (class 1255 OID 20143)
 -- Name: fn_get_news_admin(uuid, uuid, character varying, character varying, integer, integer); Type: FUNCTION; Schema: news; Owner: postgres
 --
 
@@ -2809,7 +3197,7 @@ $$;
 ALTER FUNCTION news.fn_get_news_admin(p_employee_id uuid, p_organization_id uuid, p_search_term character varying, p_status character varying, p_limit integer, p_offset integer) OWNER TO postgres;
 
 --
--- TOC entry 461 (class 1255 OID 32898)
+-- TOC entry 518 (class 1255 OID 20144)
 -- Name: fn_get_news_employee(uuid, uuid, character varying, character varying, integer, integer); Type: FUNCTION; Schema: news; Owner: postgres
 --
 
@@ -2858,7 +3246,7 @@ $$;
 ALTER FUNCTION news.fn_get_news_employee(p_employee_id uuid, p_organization_id uuid, p_search_term character varying, p_status character varying, p_limit integer, p_offset integer) OWNER TO postgres;
 
 --
--- TOC entry 443 (class 1255 OID 35995)
+-- TOC entry 419 (class 1255 OID 20145)
 -- Name: fn_calculate_completion_rate(uuid); Type: FUNCTION; Schema: onboarding; Owner: postgres
 --
 
@@ -2947,7 +3335,7 @@ $$;
 ALTER FUNCTION onboarding.fn_calculate_completion_rate(p_onboarding_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 493 (class 1255 OID 35994)
+-- TOC entry 489 (class 1255 OID 20146)
 -- Name: fn_complete_onboarding(uuid); Type: FUNCTION; Schema: onboarding; Owner: postgres
 --
 
@@ -2994,7 +3382,7 @@ $$;
 ALTER FUNCTION onboarding.fn_complete_onboarding(p_onboarding_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 514 (class 1255 OID 35993)
+-- TOC entry 502 (class 1255 OID 20147)
 -- Name: fn_get_onboarding_full_summary(uuid); Type: FUNCTION; Schema: onboarding; Owner: postgres
 --
 
@@ -3035,7 +3423,7 @@ $$;
 ALTER FUNCTION onboarding.fn_get_onboarding_full_summary(p_onboarding_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 527 (class 1255 OID 37560)
+-- TOC entry 538 (class 1255 OID 20148)
 -- Name: update_field_configurations(uuid, jsonb); Type: FUNCTION; Schema: onboarding; Owner: postgres
 --
 
@@ -3076,7 +3464,7 @@ $$;
 ALTER FUNCTION onboarding.update_field_configurations(p_organizationid uuid, p_json jsonb) OWNER TO postgres;
 
 --
--- TOC entry 432 (class 1255 OID 33436)
+-- TOC entry 424 (class 1255 OID 20149)
 -- Name: generate_invoice_number(); Type: FUNCTION; Schema: payment; Owner: postgres
 --
 
@@ -3097,7 +3485,7 @@ $$;
 ALTER FUNCTION payment.generate_invoice_number() OWNER TO postgres;
 
 --
--- TOC entry 516 (class 1255 OID 33437)
+-- TOC entry 532 (class 1255 OID 20150)
 -- Name: update_updated_at_column(); Type: FUNCTION; Schema: payment; Owner: postgres
 --
 
@@ -3114,7 +3502,7 @@ $$;
 ALTER FUNCTION payment.update_updated_at_column() OWNER TO postgres;
 
 --
--- TOC entry 468 (class 1255 OID 24727)
+-- TOC entry 481 (class 1255 OID 20151)
 -- Name: fn_calculate_payroll(uuid); Type: FUNCTION; Schema: payroll; Owner: postgres
 --
 
@@ -3207,7 +3595,7 @@ $_$;
 ALTER FUNCTION payroll.fn_calculate_payroll(p_period_id uuid) OWNER TO postgres;
 
 --
--- TOC entry 466 (class 1255 OID 24728)
+-- TOC entry 473 (class 1255 OID 20152)
 -- Name: fn_create_payroll_period(uuid, character varying, date, date, date); Type: FUNCTION; Schema: payroll; Owner: postgres
 --
 
@@ -3249,7 +3637,7 @@ $$;
 ALTER FUNCTION payroll.fn_create_payroll_period(p_organization_id uuid, p_period_name character varying, p_start_date date, p_end_date date, p_pay_date date) OWNER TO postgres;
 
 --
--- TOC entry 526 (class 1255 OID 35035)
+-- TOC entry 454 (class 1255 OID 20153)
 -- Name: fn_create_appraisal_cycle(uuid, character varying, timestamp with time zone, timestamp with time zone, uuid, character varying, timestamp with time zone, timestamp with time zone, character varying, boolean, boolean, boolean, text); Type: FUNCTION; Schema: performance; Owner: postgres
 --
 
@@ -3307,7 +3695,7 @@ SET default_tablespace = '';
 SET default_table_access_method = heap;
 
 --
--- TOC entry 238 (class 1259 OID 24731)
+-- TOC entry 236 (class 1259 OID 20154)
 -- Name: auditlogs; Type: TABLE; Schema: admin; Owner: postgres
 --
 
@@ -3329,7 +3717,7 @@ CREATE TABLE admin.auditlogs (
 ALTER TABLE admin.auditlogs OWNER TO postgres;
 
 --
--- TOC entry 284 (class 1259 OID 33311)
+-- TOC entry 237 (class 1259 OID 20161)
 -- Name: demo_inquiries; Type: TABLE; Schema: admin; Owner: postgres
 --
 
@@ -3354,7 +3742,7 @@ CREATE TABLE admin.demo_inquiries (
 ALTER TABLE admin.demo_inquiries OWNER TO postgres;
 
 --
--- TOC entry 286 (class 1259 OID 33332)
+-- TOC entry 238 (class 1259 OID 20171)
 -- Name: platform_admins; Type: TABLE; Schema: admin; Owner: postgres
 --
 
@@ -3373,7 +3761,7 @@ CREATE TABLE admin.platform_admins (
 ALTER TABLE admin.platform_admins OWNER TO postgres;
 
 --
--- TOC entry 322 (class 1259 OID 34478)
+-- TOC entry 239 (class 1259 OID 20180)
 -- Name: schema_migrations_id_seq; Type: SEQUENCE; Schema: admin; Owner: postgres
 --
 
@@ -3389,7 +3777,7 @@ CREATE SEQUENCE admin.schema_migrations_id_seq
 ALTER SEQUENCE admin.schema_migrations_id_seq OWNER TO postgres;
 
 --
--- TOC entry 323 (class 1259 OID 34479)
+-- TOC entry 240 (class 1259 OID 20181)
 -- Name: schema_migrations; Type: TABLE; Schema: admin; Owner: postgres
 --
 
@@ -3405,7 +3793,7 @@ CREATE TABLE admin.schema_migrations (
 ALTER TABLE admin.schema_migrations OWNER TO postgres;
 
 --
--- TOC entry 258 (class 1259 OID 25140)
+-- TOC entry 241 (class 1259 OID 20188)
 -- Name: system_jobs; Type: TABLE; Schema: admin; Owner: postgres
 --
 
@@ -3420,7 +3808,7 @@ CREATE TABLE admin.system_jobs (
 ALTER TABLE admin.system_jobs OWNER TO postgres;
 
 --
--- TOC entry 273 (class 1259 OID 32924)
+-- TOC entry 242 (class 1259 OID 20193)
 -- Name: asset_assignments; Type: TABLE; Schema: assets; Owner: postgres
 --
 
@@ -3445,7 +3833,7 @@ CREATE TABLE assets.asset_assignments (
 ALTER TABLE assets.asset_assignments OWNER TO postgres;
 
 --
--- TOC entry 274 (class 1259 OID 32935)
+-- TOC entry 243 (class 1259 OID 20204)
 -- Name: assets; Type: TABLE; Schema: assets; Owner: postgres
 --
 
@@ -3467,7 +3855,7 @@ CREATE TABLE assets.assets (
 ALTER TABLE assets.assets OWNER TO postgres;
 
 --
--- TOC entry 275 (class 1259 OID 32943)
+-- TOC entry 244 (class 1259 OID 20212)
 -- Name: assettypes; Type: TABLE; Schema: assets; Owner: postgres
 --
 
@@ -3485,7 +3873,7 @@ CREATE TABLE assets.assettypes (
 ALTER TABLE assets.assettypes OWNER TO postgres;
 
 --
--- TOC entry 239 (class 1259 OID 24738)
+-- TOC entry 245 (class 1259 OID 20218)
 -- Name: attendance; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3526,16 +3914,16 @@ CREATE TABLE attendance.attendance (
     attendance_state character varying(20) DEFAULT 'not_started'::character varying NOT NULL,
     CONSTRAINT attendance_clock_in_location_status_check CHECK (((clock_in_location_status)::text = ANY (ARRAY[('in_zone'::character varying)::text, ('out_of_bounds'::character varying)::text, ('remote'::character varying)::text, ('unknown'::character varying)::text]))),
     CONSTRAINT attendance_clock_out_location_status_check CHECK (((clock_out_location_status)::text = ANY (ARRAY[('in_zone'::character varying)::text, ('out_of_bounds'::character varying)::text, ('remote'::character varying)::text, ('unknown'::character varying)::text]))),
-    CONSTRAINT chk_attendance_overtimetype CHECK (((overtimetype IS NULL) OR ((overtimetype)::text = ANY ((ARRAY['regular'::character varying, 'weekend'::character varying, 'holiday'::character varying])::text[])))),
-    CONSTRAINT chk_attendance_state CHECK (((attendance_state)::text = ANY ((ARRAY['not_started'::character varying, 'checked_in'::character varying, 'on_break'::character varying, 'checked_out'::character varying, 'absent'::character varying, 'on_leave'::character varying, 'holiday'::character varying])::text[])))
+    CONSTRAINT chk_attendance_overtimetype CHECK (((overtimetype IS NULL) OR ((overtimetype)::text = ANY (ARRAY[('regular'::character varying)::text, ('weekend'::character varying)::text, ('holiday'::character varying)::text])))),
+    CONSTRAINT chk_attendance_state CHECK (((attendance_state)::text = ANY (ARRAY[('not_started'::character varying)::text, ('checked_in'::character varying)::text, ('on_break'::character varying)::text, ('checked_out'::character varying)::text, ('absent'::character varying)::text, ('on_leave'::character varying)::text, ('holiday'::character varying)::text])))
 );
 
 
 ALTER TABLE attendance.attendance OWNER TO postgres;
 
 --
--- TOC entry 5931 (class 0 OID 0)
--- Dependencies: 239
+-- TOC entry 6002 (class 0 OID 0)
+-- Dependencies: 245
 -- Name: COLUMN attendance.leave_type_id; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3543,7 +3931,7 @@ COMMENT ON COLUMN attendance.attendance.leave_type_id IS 'When the day is classi
 
 
 --
--- TOC entry 277 (class 1259 OID 33180)
+-- TOC entry 246 (class 1259 OID 20240)
 -- Name: attendance_update_requests; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3569,15 +3957,15 @@ CREATE TABLE attendance.attendance_update_requests (
     requested_overtime_type character varying(20),
     requested_late_minutes integer,
     idempotency_key character varying(64),
-    CONSTRAINT chk_aur_requested_overtime_type CHECK (((requested_overtime_type IS NULL) OR ((requested_overtime_type)::text = ANY ((ARRAY['regular'::character varying, 'weekend'::character varying, 'holiday'::character varying])::text[]))))
+    CONSTRAINT chk_aur_requested_overtime_type CHECK (((requested_overtime_type IS NULL) OR ((requested_overtime_type)::text = ANY (ARRAY[('regular'::character varying)::text, ('weekend'::character varying)::text, ('holiday'::character varying)::text]))))
 );
 
 
 ALTER TABLE attendance.attendance_update_requests OWNER TO postgres;
 
 --
--- TOC entry 5932 (class 0 OID 0)
--- Dependencies: 277
+-- TOC entry 6003 (class 0 OID 0)
+-- Dependencies: 246
 -- Name: COLUMN attendance_update_requests.requested_leave_type_id; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3585,8 +3973,8 @@ COMMENT ON COLUMN attendance.attendance_update_requests.requested_leave_type_id 
 
 
 --
--- TOC entry 5933 (class 0 OID 0)
--- Dependencies: 277
+-- TOC entry 6004 (class 0 OID 0)
+-- Dependencies: 246
 -- Name: COLUMN attendance_update_requests.requested_overtime_hours; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3594,8 +3982,8 @@ COMMENT ON COLUMN attendance.attendance_update_requests.requested_overtime_hours
 
 
 --
--- TOC entry 5934 (class 0 OID 0)
--- Dependencies: 277
+-- TOC entry 6005 (class 0 OID 0)
+-- Dependencies: 246
 -- Name: COLUMN attendance_update_requests.requested_overtime_type; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3603,8 +3991,8 @@ COMMENT ON COLUMN attendance.attendance_update_requests.requested_overtime_type 
 
 
 --
--- TOC entry 5935 (class 0 OID 0)
--- Dependencies: 277
+-- TOC entry 6006 (class 0 OID 0)
+-- Dependencies: 246
 -- Name: COLUMN attendance_update_requests.requested_late_minutes; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3612,7 +4000,7 @@ COMMENT ON COLUMN attendance.attendance_update_requests.requested_late_minutes I
 
 
 --
--- TOC entry 272 (class 1259 OID 32905)
+-- TOC entry 247 (class 1259 OID 20249)
 -- Name: attendancesessions; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3639,7 +4027,7 @@ CREATE TABLE attendance.attendancesessions (
 ALTER TABLE attendance.attendancesessions OWNER TO postgres;
 
 --
--- TOC entry 292 (class 1259 OID 33461)
+-- TOC entry 248 (class 1259 OID 20259)
 -- Name: company_holidays; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3659,15 +4047,15 @@ CREATE TABLE attendance.company_holidays (
     isactive boolean DEFAULT true,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_applicable_to CHECK (((applicableto)::text = ANY ((ARRAY['all'::character varying, 'department'::character varying, 'location'::character varying, 'employee'::character varying])::text[]))),
-    CONSTRAINT chk_holiday_type CHECK (((holidaytype)::text = ANY ((ARRAY['mandatory'::character varying, 'restricted'::character varying, 'optional'::character varying])::text[])))
+    CONSTRAINT chk_applicable_to CHECK (((applicableto)::text = ANY (ARRAY[('all'::character varying)::text, ('department'::character varying)::text, ('location'::character varying)::text, ('employee'::character varying)::text]))),
+    CONSTRAINT chk_holiday_type CHECK (((holidaytype)::text = ANY (ARRAY[('mandatory'::character varying)::text, ('restricted'::character varying)::text, ('optional'::character varying)::text])))
 );
 
 
 ALTER TABLE attendance.company_holidays OWNER TO postgres;
 
 --
--- TOC entry 351 (class 1259 OID 35110)
+-- TOC entry 249 (class 1259 OID 20273)
 -- Name: employee_overtime_requests; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3693,7 +4081,7 @@ CREATE TABLE attendance.employee_overtime_requests (
 ALTER TABLE attendance.employee_overtime_requests OWNER TO postgres;
 
 --
--- TOC entry 419 (class 1259 OID 37571)
+-- TOC entry 250 (class 1259 OID 20282)
 -- Name: employee_rate_cards; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3713,7 +4101,7 @@ CREATE TABLE attendance.employee_rate_cards (
 ALTER TABLE attendance.employee_rate_cards OWNER TO postgres;
 
 --
--- TOC entry 293 (class 1259 OID 33491)
+-- TOC entry 251 (class 1259 OID 20292)
 -- Name: employee_restricted_holidays; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3725,14 +4113,14 @@ CREATE TABLE attendance.employee_restricted_holidays (
     status character varying(20) DEFAULT 'selected'::character varying NOT NULL,
     selectedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_erh_status CHECK (((status)::text = ANY ((ARRAY['selected'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT chk_erh_status CHECK (((status)::text = ANY (ARRAY[('selected'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
 ALTER TABLE attendance.employee_restricted_holidays OWNER TO postgres;
 
 --
--- TOC entry 326 (class 1259 OID 34529)
+-- TOC entry 252 (class 1259 OID 20300)
 -- Name: face_recognition_logs; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3763,8 +4151,8 @@ CREATE TABLE attendance.face_recognition_logs (
 ALTER TABLE attendance.face_recognition_logs OWNER TO postgres;
 
 --
--- TOC entry 5936 (class 0 OID 0)
--- Dependencies: 326
+-- TOC entry 6007 (class 0 OID 0)
+-- Dependencies: 252
 -- Name: TABLE face_recognition_logs; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3772,7 +4160,7 @@ COMMENT ON TABLE attendance.face_recognition_logs IS 'Every biometric verificati
 
 
 --
--- TOC entry 276 (class 1259 OID 33139)
+-- TOC entry 253 (class 1259 OID 20312)
 -- Name: finalized_timesheet_records; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3803,15 +4191,15 @@ CREATE TABLE attendance.finalized_timesheet_records (
     final_regular_overtime_hours numeric(5,2) DEFAULT 0 NOT NULL,
     final_weekend_overtime_hours numeric(5,2) DEFAULT 0 NOT NULL,
     final_holiday_overtime_hours numeric(5,2) DEFAULT 0 NOT NULL,
-    CONSTRAINT chk_ftr_leave_pay_type CHECK (((leave_pay_type IS NULL) OR ((leave_pay_type)::text = ANY ((ARRAY['paid'::character varying, 'unpaid'::character varying, 'half_paid'::character varying])::text[]))))
+    CONSTRAINT chk_ftr_leave_pay_type CHECK (((leave_pay_type IS NULL) OR ((leave_pay_type)::text = ANY (ARRAY[('paid'::character varying)::text, ('unpaid'::character varying)::text, ('half_paid'::character varying)::text]))))
 );
 
 
 ALTER TABLE attendance.finalized_timesheet_records OWNER TO postgres;
 
 --
--- TOC entry 5937 (class 0 OID 0)
--- Dependencies: 276
+-- TOC entry 6008 (class 0 OID 0)
+-- Dependencies: 253
 -- Name: COLUMN finalized_timesheet_records.final_regular_overtime_hours; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3819,8 +4207,8 @@ COMMENT ON COLUMN attendance.finalized_timesheet_records.final_regular_overtime_
 
 
 --
--- TOC entry 5938 (class 0 OID 0)
--- Dependencies: 276
+-- TOC entry 6009 (class 0 OID 0)
+-- Dependencies: 253
 -- Name: COLUMN finalized_timesheet_records.final_weekend_overtime_hours; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3828,8 +4216,8 @@ COMMENT ON COLUMN attendance.finalized_timesheet_records.final_weekend_overtime_
 
 
 --
--- TOC entry 5939 (class 0 OID 0)
--- Dependencies: 276
+-- TOC entry 6010 (class 0 OID 0)
+-- Dependencies: 253
 -- Name: COLUMN finalized_timesheet_records.final_holiday_overtime_hours; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3837,7 +4225,7 @@ COMMENT ON COLUMN attendance.finalized_timesheet_records.final_holiday_overtime_
 
 
 --
--- TOC entry 327 (class 1259 OID 34566)
+-- TOC entry 254 (class 1259 OID 20329)
 -- Name: geo_fence_violations; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3868,8 +4256,8 @@ CREATE TABLE attendance.geo_fence_violations (
 ALTER TABLE attendance.geo_fence_violations OWNER TO postgres;
 
 --
--- TOC entry 5940 (class 0 OID 0)
--- Dependencies: 327
+-- TOC entry 6011 (class 0 OID 0)
+-- Dependencies: 254
 -- Name: TABLE geo_fence_violations; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3877,7 +4265,7 @@ COMMENT ON TABLE attendance.geo_fence_violations IS 'Written on every out-of-zon
 
 
 --
--- TOC entry 324 (class 1259 OID 34490)
+-- TOC entry 255 (class 1259 OID 20341)
 -- Name: geo_fences; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3906,8 +4294,8 @@ CREATE TABLE attendance.geo_fences (
 ALTER TABLE attendance.geo_fences OWNER TO postgres;
 
 --
--- TOC entry 5941 (class 0 OID 0)
--- Dependencies: 324
+-- TOC entry 6012 (class 0 OID 0)
+-- Dependencies: 255
 -- Name: TABLE geo_fences; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -3915,7 +4303,7 @@ COMMENT ON TABLE attendance.geo_fences IS 'Named geographic boundary zones. Circ
 
 
 --
--- TOC entry 291 (class 1259 OID 33448)
+-- TOC entry 256 (class 1259 OID 20354)
 -- Name: holiday_catalogs; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3934,7 +4322,7 @@ CREATE TABLE attendance.holiday_catalogs (
 ALTER TABLE attendance.holiday_catalogs OWNER TO postgres;
 
 --
--- TOC entry 294 (class 1259 OID 33521)
+-- TOC entry 257 (class 1259 OID 20362)
 -- Name: holiday_employee_assignments; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3950,7 +4338,7 @@ CREATE TABLE attendance.holiday_employee_assignments (
 ALTER TABLE attendance.holiday_employee_assignments OWNER TO postgres;
 
 --
--- TOC entry 271 (class 1259 OID 32899)
+-- TOC entry 258 (class 1259 OID 20367)
 -- Name: ipaddresses; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3965,7 +4353,7 @@ CREATE TABLE attendance.ipaddresses (
 ALTER TABLE attendance.ipaddresses OWNER TO postgres;
 
 --
--- TOC entry 240 (class 1259 OID 24761)
+-- TOC entry 259 (class 1259 OID 20371)
 -- Name: leaveentitlements; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -3986,7 +4374,7 @@ CREATE TABLE attendance.leaveentitlements (
 ALTER TABLE attendance.leaveentitlements OWNER TO postgres;
 
 --
--- TOC entry 241 (class 1259 OID 24771)
+-- TOC entry 260 (class 1259 OID 20381)
 -- Name: leaverequests; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4012,7 +4400,7 @@ CREATE TABLE attendance.leaverequests (
 ALTER TABLE attendance.leaverequests OWNER TO postgres;
 
 --
--- TOC entry 242 (class 1259 OID 24781)
+-- TOC entry 261 (class 1259 OID 20391)
 -- Name: leavetypes; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4037,7 +4425,7 @@ CREATE TABLE attendance.leavetypes (
 ALTER TABLE attendance.leavetypes OWNER TO postgres;
 
 --
--- TOC entry 278 (class 1259 OID 33218)
+-- TOC entry 262 (class 1259 OID 20407)
 -- Name: monthly_timesheets; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4063,8 +4451,8 @@ CREATE TABLE attendance.monthly_timesheets (
     scope_label character varying(200),
     rejection_reason text,
     CONSTRAINT chk_monthly_timesheets_period_range CHECK ((period_end >= period_start)),
-    CONSTRAINT chk_timesheet_scope_type CHECK (((scope_type)::text = ANY ((ARRAY['all'::character varying, 'department'::character varying, 'employees'::character varying])::text[]))),
-    CONSTRAINT chk_timesheet_status CHECK (((status)::text = ANY ((ARRAY['Draft'::character varying, 'InProgress'::character varying, 'Submitted'::character varying, 'UnderReview'::character varying, 'Approved'::character varying, 'Finalized'::character varying, 'Locked'::character varying, 'Archived'::character varying])::text[]))),
+    CONSTRAINT chk_timesheet_scope_type CHECK (((scope_type)::text = ANY (ARRAY[('all'::character varying)::text, ('department'::character varying)::text, ('employees'::character varying)::text]))),
+    CONSTRAINT chk_timesheet_status CHECK (((status)::text = ANY (ARRAY[('Draft'::character varying)::text, ('InProgress'::character varying)::text, ('Submitted'::character varying)::text, ('UnderReview'::character varying)::text, ('Approved'::character varying)::text, ('Finalized'::character varying)::text, ('Locked'::character varying)::text, ('Archived'::character varying)::text]))),
     CONSTRAINT monthly_timesheets_month_check CHECK (((month >= 1) AND (month <= 12)))
 );
 
@@ -4072,7 +4460,7 @@ CREATE TABLE attendance.monthly_timesheets (
 ALTER TABLE attendance.monthly_timesheets OWNER TO postgres;
 
 --
--- TOC entry 349 (class 1259 OID 35091)
+-- TOC entry 263 (class 1259 OID 20420)
 -- Name: overtime; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4097,7 +4485,7 @@ CREATE TABLE attendance.overtime (
 ALTER TABLE attendance.overtime OWNER TO postgres;
 
 --
--- TOC entry 350 (class 1259 OID 35100)
+-- TOC entry 264 (class 1259 OID 20427)
 -- Name: overtime_requests; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4122,7 +4510,7 @@ CREATE TABLE attendance.overtime_requests (
 ALTER TABLE attendance.overtime_requests OWNER TO postgres;
 
 --
--- TOC entry 325 (class 1259 OID 34507)
+-- TOC entry 265 (class 1259 OID 20435)
 -- Name: shift_geo_fences; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4138,8 +4526,8 @@ CREATE TABLE attendance.shift_geo_fences (
 ALTER TABLE attendance.shift_geo_fences OWNER TO postgres;
 
 --
--- TOC entry 5942 (class 0 OID 0)
--- Dependencies: 325
+-- TOC entry 6013 (class 0 OID 0)
+-- Dependencies: 265
 -- Name: TABLE shift_geo_fences; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4147,7 +4535,7 @@ COMMENT ON TABLE attendance.shift_geo_fences IS 'Many-to-many: which geo-fence(s
 
 
 --
--- TOC entry 243 (class 1259 OID 24796)
+-- TOC entry 266 (class 1259 OID 20441)
 -- Name: shifts; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4178,8 +4566,8 @@ CREATE TABLE attendance.shifts (
 ALTER TABLE attendance.shifts OWNER TO postgres;
 
 --
--- TOC entry 5943 (class 0 OID 0)
--- Dependencies: 243
+-- TOC entry 6014 (class 0 OID 0)
+-- Dependencies: 266
 -- Name: COLUMN shifts.grace_minutes; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4187,7 +4575,7 @@ COMMENT ON COLUMN attendance.shifts.grace_minutes IS 'Per-shift grace period in 
 
 
 --
--- TOC entry 244 (class 1259 OID 24808)
+-- TOC entry 267 (class 1259 OID 20459)
 -- Name: shiftswaprequests; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4211,7 +4599,7 @@ CREATE TABLE attendance.shiftswaprequests (
 ALTER TABLE attendance.shiftswaprequests OWNER TO postgres;
 
 --
--- TOC entry 328 (class 1259 OID 34609)
+-- TOC entry 268 (class 1259 OID 20468)
 -- Name: system_health_snapshots; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4230,8 +4618,8 @@ CREATE TABLE attendance.system_health_snapshots (
 ALTER TABLE attendance.system_health_snapshots OWNER TO postgres;
 
 --
--- TOC entry 5944 (class 0 OID 0)
--- Dependencies: 328
+-- TOC entry 6015 (class 0 OID 0)
+-- Dependencies: 268
 -- Name: TABLE system_health_snapshots; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4239,7 +4627,7 @@ COMMENT ON TABLE attendance.system_health_snapshots IS 'Periodic KPI snapshots f
 
 
 --
--- TOC entry 410 (class 1259 OID 37454)
+-- TOC entry 269 (class 1259 OID 20476)
 -- Name: timesheet_approval_delegations; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4257,7 +4645,7 @@ CREATE TABLE attendance.timesheet_approval_delegations (
 ALTER TABLE attendance.timesheet_approval_delegations OWNER TO postgres;
 
 --
--- TOC entry 409 (class 1259 OID 37442)
+-- TOC entry 270 (class 1259 OID 20482)
 -- Name: timesheet_approval_progress; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4277,7 +4665,7 @@ CREATE TABLE attendance.timesheet_approval_progress (
 ALTER TABLE attendance.timesheet_approval_progress OWNER TO postgres;
 
 --
--- TOC entry 408 (class 1259 OID 37432)
+-- TOC entry 271 (class 1259 OID 20490)
 -- Name: timesheet_approval_steps; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4295,7 +4683,7 @@ CREATE TABLE attendance.timesheet_approval_steps (
 ALTER TABLE attendance.timesheet_approval_steps OWNER TO postgres;
 
 --
--- TOC entry 407 (class 1259 OID 37422)
+-- TOC entry 272 (class 1259 OID 20496)
 -- Name: timesheet_approval_workflows; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4313,7 +4701,7 @@ CREATE TABLE attendance.timesheet_approval_workflows (
 ALTER TABLE attendance.timesheet_approval_workflows OWNER TO postgres;
 
 --
--- TOC entry 405 (class 1259 OID 37392)
+-- TOC entry 273 (class 1259 OID 20504)
 -- Name: timesheet_audit_log; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4335,7 +4723,7 @@ CREATE TABLE attendance.timesheet_audit_log (
 ALTER TABLE attendance.timesheet_audit_log OWNER TO postgres;
 
 --
--- TOC entry 411 (class 1259 OID 37462)
+-- TOC entry 274 (class 1259 OID 20511)
 -- Name: timesheet_comp_time; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4356,7 +4744,7 @@ CREATE TABLE attendance.timesheet_comp_time (
 ALTER TABLE attendance.timesheet_comp_time OWNER TO postgres;
 
 --
--- TOC entry 404 (class 1259 OID 37365)
+-- TOC entry 275 (class 1259 OID 20520)
 -- Name: timesheet_config; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4386,7 +4774,7 @@ CREATE TABLE attendance.timesheet_config (
 ALTER TABLE attendance.timesheet_config OWNER TO postgres;
 
 --
--- TOC entry 412 (class 1259 OID 37475)
+-- TOC entry 276 (class 1259 OID 20543)
 -- Name: timesheet_cost_centers; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4404,7 +4792,7 @@ CREATE TABLE attendance.timesheet_cost_centers (
 ALTER TABLE attendance.timesheet_cost_centers OWNER TO postgres;
 
 --
--- TOC entry 352 (class 1259 OID 35155)
+-- TOC entry 277 (class 1259 OID 20549)
 -- Name: timesheet_payroll_summary; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4452,8 +4840,8 @@ CREATE TABLE attendance.timesheet_payroll_summary (
 ALTER TABLE attendance.timesheet_payroll_summary OWNER TO postgres;
 
 --
--- TOC entry 5945 (class 0 OID 0)
--- Dependencies: 352
+-- TOC entry 6016 (class 0 OID 0)
+-- Dependencies: 277
 -- Name: TABLE timesheet_payroll_summary; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4461,8 +4849,8 @@ COMMENT ON TABLE attendance.timesheet_payroll_summary IS 'Bridge between finaliz
 
 
 --
--- TOC entry 5946 (class 0 OID 0)
--- Dependencies: 352
+-- TOC entry 6017 (class 0 OID 0)
+-- Dependencies: 277
 -- Name: COLUMN timesheet_payroll_summary.effective_present_days; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4470,8 +4858,8 @@ COMMENT ON COLUMN attendance.timesheet_payroll_summary.effective_present_days IS
 
 
 --
--- TOC entry 5947 (class 0 OID 0)
--- Dependencies: 352
+-- TOC entry 6018 (class 0 OID 0)
+-- Dependencies: 277
 -- Name: COLUMN timesheet_payroll_summary.regular_overtime_hours; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4479,8 +4867,8 @@ COMMENT ON COLUMN attendance.timesheet_payroll_summary.regular_overtime_hours IS
 
 
 --
--- TOC entry 5948 (class 0 OID 0)
--- Dependencies: 352
+-- TOC entry 6019 (class 0 OID 0)
+-- Dependencies: 277
 -- Name: COLUMN timesheet_payroll_summary.weekend_overtime_hours; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4488,8 +4876,8 @@ COMMENT ON COLUMN attendance.timesheet_payroll_summary.weekend_overtime_hours IS
 
 
 --
--- TOC entry 5949 (class 0 OID 0)
--- Dependencies: 352
+-- TOC entry 6020 (class 0 OID 0)
+-- Dependencies: 277
 -- Name: COLUMN timesheet_payroll_summary.holiday_overtime_hours; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4497,7 +4885,7 @@ COMMENT ON COLUMN attendance.timesheet_payroll_summary.holiday_overtime_hours IS
 
 
 --
--- TOC entry 403 (class 1259 OID 37344)
+-- TOC entry 278 (class 1259 OID 20581)
 -- Name: timesheet_period_assignments; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4512,7 +4900,7 @@ CREATE TABLE attendance.timesheet_period_assignments (
 ALTER TABLE attendance.timesheet_period_assignments OWNER TO postgres;
 
 --
--- TOC entry 415 (class 1259 OID 37501)
+-- TOC entry 279 (class 1259 OID 20586)
 -- Name: timesheet_project_activities; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4529,7 +4917,7 @@ CREATE TABLE attendance.timesheet_project_activities (
 ALTER TABLE attendance.timesheet_project_activities OWNER TO postgres;
 
 --
--- TOC entry 414 (class 1259 OID 37493)
+-- TOC entry 280 (class 1259 OID 20593)
 -- Name: timesheet_project_tasks; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4546,7 +4934,7 @@ CREATE TABLE attendance.timesheet_project_tasks (
 ALTER TABLE attendance.timesheet_project_tasks OWNER TO postgres;
 
 --
--- TOC entry 413 (class 1259 OID 37483)
+-- TOC entry 281 (class 1259 OID 20599)
 -- Name: timesheet_projects; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4568,7 +4956,7 @@ CREATE TABLE attendance.timesheet_projects (
 ALTER TABLE attendance.timesheet_projects OWNER TO postgres;
 
 --
--- TOC entry 417 (class 1259 OID 37521)
+-- TOC entry 282 (class 1259 OID 20607)
 -- Name: timesheet_reopen_requests; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4588,7 +4976,7 @@ CREATE TABLE attendance.timesheet_reopen_requests (
 ALTER TABLE attendance.timesheet_reopen_requests OWNER TO postgres;
 
 --
--- TOC entry 416 (class 1259 OID 37510)
+-- TOC entry 283 (class 1259 OID 20615)
 -- Name: timesheet_time_allocations; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4612,7 +5000,7 @@ CREATE TABLE attendance.timesheet_time_allocations (
 ALTER TABLE attendance.timesheet_time_allocations OWNER TO postgres;
 
 --
--- TOC entry 406 (class 1259 OID 37407)
+-- TOC entry 284 (class 1259 OID 20624)
 -- Name: timesheet_transition_snapshots; Type: TABLE; Schema: attendance; Owner: postgres
 --
 
@@ -4628,7 +5016,7 @@ CREATE TABLE attendance.timesheet_transition_snapshots (
 ALTER TABLE attendance.timesheet_transition_snapshots OWNER TO postgres;
 
 --
--- TOC entry 250 (class 1259 OID 24867)
+-- TOC entry 285 (class 1259 OID 20631)
 -- Name: employees; Type: TABLE; Schema: employee; Owner: postgres
 --
 
@@ -4660,7 +5048,7 @@ CREATE TABLE employee.employees (
 ALTER TABLE employee.employees OWNER TO postgres;
 
 --
--- TOC entry 418 (class 1259 OID 37533)
+-- TOC entry 286 (class 1259 OID 20642)
 -- Name: vw_employee_timesheet_details; Type: VIEW; Schema: attendance; Owner: postgres
 --
 
@@ -4678,7 +5066,7 @@ CREATE VIEW attendance.vw_employee_timesheet_details AS
     a.leave_type_id AS leavetypeid,
     (EXISTS ( SELECT 1
            FROM attendance.finalized_timesheet_records f
-          WHERE (((f.attendance_id = a.attendanceid) OR ((f.employee_id = e.employeeid) AND (f.work_date = a.workdate) AND (f.attendance_id IS NULL))) AND ((f.record_status)::text = ANY ((ARRAY['finalized'::character varying, 'overridden'::character varying])::text[]))))) AS is_finalized,
+          WHERE (((f.attendance_id = a.attendanceid) OR ((f.employee_id = e.employeeid) AND (f.work_date = a.workdate) AND (f.attendance_id IS NULL))) AND ((f.record_status)::text = ANY (ARRAY[('finalized'::character varying)::text, ('overridden'::character varying)::text]))))) AS is_finalized,
     (EXISTS ( SELECT 1
            FROM attendance.finalized_timesheet_records f_ov
           WHERE (((f_ov.attendance_id = a.attendanceid) OR ((f_ov.employee_id = e.employeeid) AND (f_ov.work_date = a.workdate) AND (f_ov.attendance_id IS NULL))) AND ((f_ov.record_status)::text = 'overridden'::text)))) AS is_manager_override,
@@ -4693,22 +5081,22 @@ CREATE VIEW attendance.vw_employee_timesheet_details AS
           WHERE ((ra.attendance_id = a.attendanceid) AND ((ra.status)::text = 'approved'::text)))) AS has_approved_request,
     ( SELECT rl.requested_checkin
            FROM attendance.attendance_update_requests rl
-          WHERE ((rl.attendance_id = a.attendanceid) AND ((rl.status)::text = ANY ((ARRAY['pending'::character varying, 'draft'::character varying, 'approved'::character varying])::text[])))
+          WHERE ((rl.attendance_id = a.attendanceid) AND ((rl.status)::text = ANY (ARRAY[('pending'::character varying)::text, ('draft'::character varying)::text, ('approved'::character varying)::text])))
           ORDER BY rl.submitted_at DESC
          LIMIT 1) AS requested_checkin,
     ( SELECT rl.requested_checkout
            FROM attendance.attendance_update_requests rl
-          WHERE ((rl.attendance_id = a.attendanceid) AND ((rl.status)::text = ANY ((ARRAY['pending'::character varying, 'draft'::character varying, 'approved'::character varying])::text[])))
+          WHERE ((rl.attendance_id = a.attendanceid) AND ((rl.status)::text = ANY (ARRAY[('pending'::character varying)::text, ('draft'::character varying)::text, ('approved'::character varying)::text])))
           ORDER BY rl.submitted_at DESC
          LIMIT 1) AS requested_checkout,
     ( SELECT rl.requested_status
            FROM attendance.attendance_update_requests rl
-          WHERE ((rl.attendance_id = a.attendanceid) AND ((rl.status)::text = ANY ((ARRAY['pending'::character varying, 'draft'::character varying, 'approved'::character varying])::text[])))
+          WHERE ((rl.attendance_id = a.attendanceid) AND ((rl.status)::text = ANY (ARRAY[('pending'::character varying)::text, ('draft'::character varying)::text, ('approved'::character varying)::text])))
           ORDER BY rl.submitted_at DESC
          LIMIT 1) AS requested_status,
     ( SELECT rl.requested_leave_type_id
            FROM attendance.attendance_update_requests rl
-          WHERE ((rl.attendance_id = a.attendanceid) AND ((rl.status)::text = ANY ((ARRAY['pending'::character varying, 'draft'::character varying, 'approved'::character varying])::text[])))
+          WHERE ((rl.attendance_id = a.attendanceid) AND ((rl.status)::text = ANY (ARRAY[('pending'::character varying)::text, ('draft'::character varying)::text, ('approved'::character varying)::text])))
           ORDER BY rl.submitted_at DESC
          LIMIT 1) AS requested_leavetypeid
    FROM (employee.employees e
@@ -4719,7 +5107,7 @@ CREATE VIEW attendance.vw_employee_timesheet_details AS
 ALTER VIEW attendance.vw_employee_timesheet_details OWNER TO postgres;
 
 --
--- TOC entry 331 (class 1259 OID 34676)
+-- TOC entry 287 (class 1259 OID 20647)
 -- Name: vw_geo_fence_violations_report; Type: VIEW; Schema: attendance; Owner: postgres
 --
 
@@ -4757,8 +5145,8 @@ CREATE VIEW attendance.vw_geo_fence_violations_report AS
 ALTER VIEW attendance.vw_geo_fence_violations_report OWNER TO postgres;
 
 --
--- TOC entry 5950 (class 0 OID 0)
--- Dependencies: 331
+-- TOC entry 6021 (class 0 OID 0)
+-- Dependencies: 287
 -- Name: VIEW vw_geo_fence_violations_report; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4766,7 +5154,7 @@ COMMENT ON VIEW attendance.vw_geo_fence_violations_report IS 'Full violation det
 
 
 --
--- TOC entry 251 (class 1259 OID 24878)
+-- TOC entry 288 (class 1259 OID 20652)
 -- Name: employmentdetails; Type: TABLE; Schema: employee; Owner: postgres
 --
 
@@ -4792,7 +5180,7 @@ CREATE TABLE employee.employmentdetails (
 ALTER TABLE employee.employmentdetails OWNER TO postgres;
 
 --
--- TOC entry 330 (class 1259 OID 34671)
+-- TOC entry 289 (class 1259 OID 20661)
 -- Name: vw_team_live_stream; Type: VIEW; Schema: attendance; Owner: postgres
 --
 
@@ -4850,8 +5238,8 @@ CREATE VIEW attendance.vw_team_live_stream AS
 ALTER VIEW attendance.vw_team_live_stream OWNER TO postgres;
 
 --
--- TOC entry 5951 (class 0 OID 0)
--- Dependencies: 330
+-- TOC entry 6022 (class 0 OID 0)
+-- Dependencies: 289
 -- Name: VIEW vw_team_live_stream; Type: COMMENT; Schema: attendance; Owner: postgres
 --
 
@@ -4859,7 +5247,7 @@ COMMENT ON VIEW attendance.vw_team_live_stream IS 'Powers manager dashboard Team
 
 
 --
--- TOC entry 279 (class 1259 OID 33245)
+-- TOC entry 290 (class 1259 OID 20666)
 -- Name: vw_timesheet_consolidation; Type: VIEW; Schema: attendance; Owner: postgres
 --
 
@@ -4911,7 +5299,7 @@ UNION ALL
 ALTER VIEW attendance.vw_timesheet_consolidation OWNER TO postgres;
 
 --
--- TOC entry 283 (class 1259 OID 33297)
+-- TOC entry 291 (class 1259 OID 20671)
 -- Name: actions; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -4928,7 +5316,7 @@ CREATE TABLE auth.actions (
 ALTER TABLE auth.actions OWNER TO postgres;
 
 --
--- TOC entry 402 (class 1259 OID 36729)
+-- TOC entry 292 (class 1259 OID 20677)
 -- Name: global_role_permissions; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -4945,7 +5333,7 @@ CREATE TABLE auth.global_role_permissions (
 ALTER TABLE auth.global_role_permissions OWNER TO postgres;
 
 --
--- TOC entry 401 (class 1259 OID 36715)
+-- TOC entry 293 (class 1259 OID 20684)
 -- Name: global_roles; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -4963,7 +5351,7 @@ CREATE TABLE auth.global_roles (
 ALTER TABLE auth.global_roles OWNER TO postgres;
 
 --
--- TOC entry 280 (class 1259 OID 33271)
+-- TOC entry 294 (class 1259 OID 20694)
 -- Name: menus; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -4979,7 +5367,7 @@ CREATE TABLE auth.menus (
 ALTER TABLE auth.menus OWNER TO postgres;
 
 --
--- TOC entry 245 (class 1259 OID 24817)
+-- TOC entry 295 (class 1259 OID 20700)
 -- Name: organizations; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -5009,7 +5397,7 @@ CREATE TABLE auth.organizations (
 ALTER TABLE auth.organizations OWNER TO postgres;
 
 --
--- TOC entry 256 (class 1259 OID 25115)
+-- TOC entry 296 (class 1259 OID 20712)
 -- Name: password_reset_tokens; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -5026,7 +5414,7 @@ CREATE TABLE auth.password_reset_tokens (
 ALTER TABLE auth.password_reset_tokens OWNER TO postgres;
 
 --
--- TOC entry 282 (class 1259 OID 33290)
+-- TOC entry 297 (class 1259 OID 20720)
 -- Name: permissions; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -5046,7 +5434,7 @@ CREATE TABLE auth.permissions (
 ALTER TABLE auth.permissions OWNER TO postgres;
 
 --
--- TOC entry 246 (class 1259 OID 24829)
+-- TOC entry 298 (class 1259 OID 20727)
 -- Name: roles; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -5066,7 +5454,7 @@ CREATE TABLE auth.roles (
 ALTER TABLE auth.roles OWNER TO postgres;
 
 --
--- TOC entry 281 (class 1259 OID 33279)
+-- TOC entry 299 (class 1259 OID 20738)
 -- Name: submenus; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -5083,7 +5471,7 @@ CREATE TABLE auth.submenus (
 ALTER TABLE auth.submenus OWNER TO postgres;
 
 --
--- TOC entry 247 (class 1259 OID 24838)
+-- TOC entry 300 (class 1259 OID 20744)
 -- Name: users; Type: TABLE; Schema: auth; Owner: postgres
 --
 
@@ -5113,7 +5501,7 @@ CREATE TABLE auth.users (
 ALTER TABLE auth.users OWNER TO postgres;
 
 --
--- TOC entry 257 (class 1259 OID 25131)
+-- TOC entry 301 (class 1259 OID 20755)
 -- Name: chat_board_logs; Type: TABLE; Schema: chatboard; Owner: postgres
 --
 
@@ -5133,7 +5521,7 @@ CREATE TABLE chatboard.chat_board_logs (
 ALTER TABLE chatboard.chat_board_logs OWNER TO postgres;
 
 --
--- TOC entry 248 (class 1259 OID 24849)
+-- TOC entry 302 (class 1259 OID 20762)
 -- Name: departments; Type: TABLE; Schema: employee; Owner: postgres
 --
 
@@ -5154,7 +5542,7 @@ CREATE TABLE employee.departments (
 ALTER TABLE employee.departments OWNER TO postgres;
 
 --
--- TOC entry 249 (class 1259 OID 24858)
+-- TOC entry 303 (class 1259 OID 20771)
 -- Name: documents; Type: TABLE; Schema: employee; Owner: postgres
 --
 
@@ -5177,7 +5565,7 @@ CREATE TABLE employee.documents (
 ALTER TABLE employee.documents OWNER TO postgres;
 
 --
--- TOC entry 329 (class 1259 OID 34620)
+-- TOC entry 304 (class 1259 OID 20780)
 -- Name: employee_face_descriptors; Type: TABLE; Schema: employee; Owner: postgres
 --
 
@@ -5196,8 +5584,8 @@ CREATE TABLE employee.employee_face_descriptors (
 ALTER TABLE employee.employee_face_descriptors OWNER TO postgres;
 
 --
--- TOC entry 5952 (class 0 OID 0)
--- Dependencies: 329
+-- TOC entry 6023 (class 0 OID 0)
+-- Dependencies: 304
 -- Name: TABLE employee_face_descriptors; Type: COMMENT; Schema: employee; Owner: postgres
 --
 
@@ -5205,7 +5593,7 @@ COMMENT ON TABLE employee.employee_face_descriptors IS 'Reference face descripto
 
 
 --
--- TOC entry 252 (class 1259 OID 24887)
+-- TOC entry 305 (class 1259 OID 20788)
 -- Name: positions; Type: TABLE; Schema: employee; Owner: postgres
 --
 
@@ -5227,7 +5615,7 @@ CREATE TABLE employee.positions (
 ALTER TABLE employee.positions OWNER TO postgres;
 
 --
--- TOC entry 261 (class 1259 OID 32779)
+-- TOC entry 306 (class 1259 OID 20799)
 -- Name: expensecategories; Type: TABLE; Schema: expense; Owner: postgres
 --
 
@@ -5242,7 +5630,7 @@ CREATE TABLE expense.expensecategories (
 ALTER TABLE expense.expensecategories OWNER TO postgres;
 
 --
--- TOC entry 262 (class 1259 OID 32786)
+-- TOC entry 307 (class 1259 OID 20804)
 -- Name: expenses; Type: TABLE; Schema: expense; Owner: postgres
 --
 
@@ -5268,7 +5656,7 @@ CREATE TABLE expense.expenses (
 ALTER TABLE expense.expenses OWNER TO postgres;
 
 --
--- TOC entry 263 (class 1259 OID 32797)
+-- TOC entry 308 (class 1259 OID 20813)
 -- Name: recurringexpenses; Type: TABLE; Schema: expense; Owner: postgres
 --
 
@@ -5295,7 +5683,7 @@ CREATE TABLE expense.recurringexpenses (
 ALTER TABLE expense.recurringexpenses OWNER TO postgres;
 
 --
--- TOC entry 393 (class 1259 OID 36317)
+-- TOC entry 309 (class 1259 OID 20822)
 -- Name: aggregatedcounter; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5310,7 +5698,7 @@ CREATE TABLE hangfire.aggregatedcounter (
 ALTER TABLE hangfire.aggregatedcounter OWNER TO postgres;
 
 --
--- TOC entry 392 (class 1259 OID 36316)
+-- TOC entry 310 (class 1259 OID 20829)
 -- Name: aggregatedcounter_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5325,8 +5713,8 @@ CREATE SEQUENCE hangfire.aggregatedcounter_id_seq
 ALTER SEQUENCE hangfire.aggregatedcounter_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5953 (class 0 OID 0)
--- Dependencies: 392
+-- TOC entry 6024 (class 0 OID 0)
+-- Dependencies: 310
 -- Name: aggregatedcounter_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5334,7 +5722,7 @@ ALTER SEQUENCE hangfire.aggregatedcounter_id_seq OWNED BY hangfire.aggregatedcou
 
 
 --
--- TOC entry 375 (class 1259 OID 36032)
+-- TOC entry 311 (class 1259 OID 20830)
 -- Name: counter; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5349,7 +5737,7 @@ CREATE TABLE hangfire.counter (
 ALTER TABLE hangfire.counter OWNER TO postgres;
 
 --
--- TOC entry 374 (class 1259 OID 36031)
+-- TOC entry 312 (class 1259 OID 20835)
 -- Name: counter_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5364,8 +5752,8 @@ CREATE SEQUENCE hangfire.counter_id_seq
 ALTER SEQUENCE hangfire.counter_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5954 (class 0 OID 0)
--- Dependencies: 374
+-- TOC entry 6025 (class 0 OID 0)
+-- Dependencies: 312
 -- Name: counter_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5373,7 +5761,7 @@ ALTER SEQUENCE hangfire.counter_id_seq OWNED BY hangfire.counter.id;
 
 
 --
--- TOC entry 377 (class 1259 OID 36040)
+-- TOC entry 313 (class 1259 OID 20836)
 -- Name: hash; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5390,7 +5778,7 @@ CREATE TABLE hangfire.hash (
 ALTER TABLE hangfire.hash OWNER TO postgres;
 
 --
--- TOC entry 376 (class 1259 OID 36039)
+-- TOC entry 314 (class 1259 OID 20842)
 -- Name: hash_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5405,8 +5793,8 @@ CREATE SEQUENCE hangfire.hash_id_seq
 ALTER SEQUENCE hangfire.hash_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5955 (class 0 OID 0)
--- Dependencies: 376
+-- TOC entry 6026 (class 0 OID 0)
+-- Dependencies: 314
 -- Name: hash_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5414,7 +5802,7 @@ ALTER SEQUENCE hangfire.hash_id_seq OWNED BY hangfire.hash.id;
 
 
 --
--- TOC entry 379 (class 1259 OID 36051)
+-- TOC entry 315 (class 1259 OID 20843)
 -- Name: job; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5433,7 +5821,7 @@ CREATE TABLE hangfire.job (
 ALTER TABLE hangfire.job OWNER TO postgres;
 
 --
--- TOC entry 378 (class 1259 OID 36050)
+-- TOC entry 316 (class 1259 OID 20849)
 -- Name: job_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5448,8 +5836,8 @@ CREATE SEQUENCE hangfire.job_id_seq
 ALTER SEQUENCE hangfire.job_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5956 (class 0 OID 0)
--- Dependencies: 378
+-- TOC entry 6027 (class 0 OID 0)
+-- Dependencies: 316
 -- Name: job_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5457,7 +5845,7 @@ ALTER SEQUENCE hangfire.job_id_seq OWNED BY hangfire.job.id;
 
 
 --
--- TOC entry 390 (class 1259 OID 36111)
+-- TOC entry 317 (class 1259 OID 20850)
 -- Name: jobparameter; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5473,7 +5861,7 @@ CREATE TABLE hangfire.jobparameter (
 ALTER TABLE hangfire.jobparameter OWNER TO postgres;
 
 --
--- TOC entry 389 (class 1259 OID 36110)
+-- TOC entry 318 (class 1259 OID 20856)
 -- Name: jobparameter_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5488,8 +5876,8 @@ CREATE SEQUENCE hangfire.jobparameter_id_seq
 ALTER SEQUENCE hangfire.jobparameter_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5957 (class 0 OID 0)
--- Dependencies: 389
+-- TOC entry 6028 (class 0 OID 0)
+-- Dependencies: 318
 -- Name: jobparameter_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5497,7 +5885,7 @@ ALTER SEQUENCE hangfire.jobparameter_id_seq OWNED BY hangfire.jobparameter.id;
 
 
 --
--- TOC entry 383 (class 1259 OID 36076)
+-- TOC entry 319 (class 1259 OID 20857)
 -- Name: jobqueue; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5513,7 +5901,7 @@ CREATE TABLE hangfire.jobqueue (
 ALTER TABLE hangfire.jobqueue OWNER TO postgres;
 
 --
--- TOC entry 382 (class 1259 OID 36075)
+-- TOC entry 320 (class 1259 OID 20863)
 -- Name: jobqueue_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5528,8 +5916,8 @@ CREATE SEQUENCE hangfire.jobqueue_id_seq
 ALTER SEQUENCE hangfire.jobqueue_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5958 (class 0 OID 0)
--- Dependencies: 382
+-- TOC entry 6029 (class 0 OID 0)
+-- Dependencies: 320
 -- Name: jobqueue_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5537,7 +5925,7 @@ ALTER SEQUENCE hangfire.jobqueue_id_seq OWNED BY hangfire.jobqueue.id;
 
 
 --
--- TOC entry 385 (class 1259 OID 36084)
+-- TOC entry 321 (class 1259 OID 20864)
 -- Name: list; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5553,7 +5941,7 @@ CREATE TABLE hangfire.list (
 ALTER TABLE hangfire.list OWNER TO postgres;
 
 --
--- TOC entry 384 (class 1259 OID 36083)
+-- TOC entry 322 (class 1259 OID 20870)
 -- Name: list_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5568,8 +5956,8 @@ CREATE SEQUENCE hangfire.list_id_seq
 ALTER SEQUENCE hangfire.list_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5959 (class 0 OID 0)
--- Dependencies: 384
+-- TOC entry 6030 (class 0 OID 0)
+-- Dependencies: 322
 -- Name: list_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5577,7 +5965,7 @@ ALTER SEQUENCE hangfire.list_id_seq OWNED BY hangfire.list.id;
 
 
 --
--- TOC entry 391 (class 1259 OID 36125)
+-- TOC entry 323 (class 1259 OID 20871)
 -- Name: lock; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5591,7 +5979,7 @@ CREATE TABLE hangfire.lock (
 ALTER TABLE hangfire.lock OWNER TO postgres;
 
 --
--- TOC entry 373 (class 1259 OID 36026)
+-- TOC entry 324 (class 1259 OID 20877)
 -- Name: schema; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5603,7 +5991,7 @@ CREATE TABLE hangfire.schema (
 ALTER TABLE hangfire.schema OWNER TO postgres;
 
 --
--- TOC entry 386 (class 1259 OID 36092)
+-- TOC entry 325 (class 1259 OID 20880)
 -- Name: server; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5618,7 +6006,7 @@ CREATE TABLE hangfire.server (
 ALTER TABLE hangfire.server OWNER TO postgres;
 
 --
--- TOC entry 388 (class 1259 OID 36100)
+-- TOC entry 326 (class 1259 OID 20886)
 -- Name: set; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5635,7 +6023,7 @@ CREATE TABLE hangfire.set (
 ALTER TABLE hangfire.set OWNER TO postgres;
 
 --
--- TOC entry 387 (class 1259 OID 36099)
+-- TOC entry 327 (class 1259 OID 20892)
 -- Name: set_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5650,8 +6038,8 @@ CREATE SEQUENCE hangfire.set_id_seq
 ALTER SEQUENCE hangfire.set_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5960 (class 0 OID 0)
--- Dependencies: 387
+-- TOC entry 6031 (class 0 OID 0)
+-- Dependencies: 327
 -- Name: set_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5659,7 +6047,7 @@ ALTER SEQUENCE hangfire.set_id_seq OWNED BY hangfire.set.id;
 
 
 --
--- TOC entry 381 (class 1259 OID 36061)
+-- TOC entry 328 (class 1259 OID 20893)
 -- Name: state; Type: TABLE; Schema: hangfire; Owner: postgres
 --
 
@@ -5677,7 +6065,7 @@ CREATE TABLE hangfire.state (
 ALTER TABLE hangfire.state OWNER TO postgres;
 
 --
--- TOC entry 380 (class 1259 OID 36060)
+-- TOC entry 329 (class 1259 OID 20899)
 -- Name: state_id_seq; Type: SEQUENCE; Schema: hangfire; Owner: postgres
 --
 
@@ -5692,8 +6080,8 @@ CREATE SEQUENCE hangfire.state_id_seq
 ALTER SEQUENCE hangfire.state_id_seq OWNER TO postgres;
 
 --
--- TOC entry 5961 (class 0 OID 0)
--- Dependencies: 380
+-- TOC entry 6032 (class 0 OID 0)
+-- Dependencies: 329
 -- Name: state_id_seq; Type: SEQUENCE OWNED BY; Schema: hangfire; Owner: postgres
 --
 
@@ -5701,7 +6089,7 @@ ALTER SEQUENCE hangfire.state_id_seq OWNED BY hangfire.state.id;
 
 
 --
--- TOC entry 311 (class 1259 OID 34148)
+-- TOC entry 330 (class 1259 OID 20900)
 -- Name: categories; Type: TABLE; Schema: helpdesk; Owner: postgres
 --
 
@@ -5720,7 +6108,7 @@ CREATE TABLE helpdesk.categories (
 ALTER TABLE helpdesk.categories OWNER TO postgres;
 
 --
--- TOC entry 310 (class 1259 OID 34129)
+-- TOC entry 331 (class 1259 OID 20907)
 -- Name: ticket_assigned_employees; Type: TABLE; Schema: helpdesk; Owner: postgres
 --
 
@@ -5736,7 +6124,7 @@ CREATE TABLE helpdesk.ticket_assigned_employees (
 ALTER TABLE helpdesk.ticket_assigned_employees OWNER TO postgres;
 
 --
--- TOC entry 309 (class 1259 OID 34109)
+-- TOC entry 332 (class 1259 OID 20912)
 -- Name: ticket_assignments; Type: TABLE; Schema: helpdesk; Owner: postgres
 --
 
@@ -5755,7 +6143,7 @@ CREATE TABLE helpdesk.ticket_assignments (
 ALTER TABLE helpdesk.ticket_assignments OWNER TO postgres;
 
 --
--- TOC entry 308 (class 1259 OID 34098)
+-- TOC entry 333 (class 1259 OID 20920)
 -- Name: ticket_group; Type: TABLE; Schema: helpdesk; Owner: postgres
 --
 
@@ -5775,7 +6163,7 @@ CREATE TABLE helpdesk.ticket_group (
 ALTER TABLE helpdesk.ticket_group OWNER TO postgres;
 
 --
--- TOC entry 307 (class 1259 OID 34086)
+-- TOC entry 334 (class 1259 OID 20929)
 -- Name: ticket_message_recipients; Type: TABLE; Schema: helpdesk; Owner: postgres
 --
 
@@ -5791,7 +6179,7 @@ CREATE TABLE helpdesk.ticket_message_recipients (
 ALTER TABLE helpdesk.ticket_message_recipients OWNER TO postgres;
 
 --
--- TOC entry 306 (class 1259 OID 34072)
+-- TOC entry 335 (class 1259 OID 20934)
 -- Name: ticket_messages; Type: TABLE; Schema: helpdesk; Owner: postgres
 --
 
@@ -5811,7 +6199,7 @@ CREATE TABLE helpdesk.ticket_messages (
 ALTER TABLE helpdesk.ticket_messages OWNER TO postgres;
 
 --
--- TOC entry 305 (class 1259 OID 34059)
+-- TOC entry 336 (class 1259 OID 20941)
 -- Name: tickets; Type: TABLE; Schema: helpdesk; Owner: postgres
 --
 
@@ -5836,7 +6224,7 @@ CREATE TABLE helpdesk.tickets (
 ALTER TABLE helpdesk.tickets OWNER TO postgres;
 
 --
--- TOC entry 267 (class 1259 OID 32851)
+-- TOC entry 337 (class 1259 OID 20952)
 -- Name: applicationstages; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -5857,7 +6245,7 @@ CREATE TABLE jobs.applicationstages (
 ALTER TABLE jobs.applicationstages OWNER TO postgres;
 
 --
--- TOC entry 397 (class 1259 OID 36551)
+-- TOC entry 338 (class 1259 OID 20959)
 -- Name: candidateanswers; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -5873,7 +6261,7 @@ CREATE TABLE jobs.candidateanswers (
 ALTER TABLE jobs.candidateanswers OWNER TO postgres;
 
 --
--- TOC entry 265 (class 1259 OID 32833)
+-- TOC entry 339 (class 1259 OID 20966)
 -- Name: jobapplications; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -5904,8 +6292,8 @@ CREATE TABLE jobs.jobapplications (
 ALTER TABLE jobs.jobapplications OWNER TO postgres;
 
 --
--- TOC entry 5962 (class 0 OID 0)
--- Dependencies: 265
+-- TOC entry 6033 (class 0 OID 0)
+-- Dependencies: 339
 -- Name: COLUMN jobapplications.passedknockout; Type: COMMENT; Schema: jobs; Owner: postgres
 --
 
@@ -5913,7 +6301,7 @@ COMMENT ON COLUMN jobs.jobapplications.passedknockout IS 'Whether candidate pass
 
 
 --
--- TOC entry 264 (class 1259 OID 32821)
+-- TOC entry 340 (class 1259 OID 20978)
 -- Name: jobopenings; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -5950,8 +6338,8 @@ CREATE TABLE jobs.jobopenings (
 ALTER TABLE jobs.jobopenings OWNER TO postgres;
 
 --
--- TOC entry 5963 (class 0 OID 0)
--- Dependencies: 264
+-- TOC entry 6034 (class 0 OID 0)
+-- Dependencies: 340
 -- Name: COLUMN jobopenings.mandatoryskills; Type: COMMENT; Schema: jobs; Owner: postgres
 --
 
@@ -5959,7 +6347,7 @@ COMMENT ON COLUMN jobs.jobopenings.mandatoryskills IS 'JSON array of mandatory s
 
 
 --
--- TOC entry 396 (class 1259 OID 36529)
+-- TOC entry 341 (class 1259 OID 20988)
 -- Name: jobquestions; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -5975,7 +6363,7 @@ CREATE TABLE jobs.jobquestions (
 ALTER TABLE jobs.jobquestions OWNER TO postgres;
 
 --
--- TOC entry 398 (class 1259 OID 36572)
+-- TOC entry 342 (class 1259 OID 20994)
 -- Name: parsedresumes; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -5997,8 +6385,8 @@ CREATE TABLE jobs.parsedresumes (
 ALTER TABLE jobs.parsedresumes OWNER TO postgres;
 
 --
--- TOC entry 5964 (class 0 OID 0)
--- Dependencies: 398
+-- TOC entry 6035 (class 0 OID 0)
+-- Dependencies: 342
 -- Name: COLUMN parsedresumes.contactdetails; Type: COMMENT; Schema: jobs; Owner: postgres
 --
 
@@ -6006,8 +6394,8 @@ COMMENT ON COLUMN jobs.parsedresumes.contactdetails IS 'AI-extracted contact inf
 
 
 --
--- TOC entry 5965 (class 0 OID 0)
--- Dependencies: 398
+-- TOC entry 6036 (class 0 OID 0)
+-- Dependencies: 342
 -- Name: COLUMN parsedresumes.skills; Type: COMMENT; Schema: jobs; Owner: postgres
 --
 
@@ -6015,8 +6403,8 @@ COMMENT ON COLUMN jobs.parsedresumes.skills IS 'AI-extracted skills as JSON arra
 
 
 --
--- TOC entry 5966 (class 0 OID 0)
--- Dependencies: 398
+-- TOC entry 6037 (class 0 OID 0)
+-- Dependencies: 342
 -- Name: COLUMN parsedresumes.workexperience; Type: COMMENT; Schema: jobs; Owner: postgres
 --
 
@@ -6024,8 +6412,8 @@ COMMENT ON COLUMN jobs.parsedresumes.workexperience IS 'AI-extracted work histor
 
 
 --
--- TOC entry 5967 (class 0 OID 0)
--- Dependencies: 398
+-- TOC entry 6038 (class 0 OID 0)
+-- Dependencies: 342
 -- Name: COLUMN parsedresumes.education; Type: COMMENT; Schema: jobs; Owner: postgres
 --
 
@@ -6033,8 +6421,8 @@ COMMENT ON COLUMN jobs.parsedresumes.education IS 'AI-extracted education as JSO
 
 
 --
--- TOC entry 5968 (class 0 OID 0)
--- Dependencies: 398
+-- TOC entry 6039 (class 0 OID 0)
+-- Dependencies: 342
 -- Name: COLUMN parsedresumes.rawtext; Type: COMMENT; Schema: jobs; Owner: postgres
 --
 
@@ -6042,8 +6430,8 @@ COMMENT ON COLUMN jobs.parsedresumes.rawtext IS 'Raw text extracted from PDF/DOC
 
 
 --
--- TOC entry 5969 (class 0 OID 0)
--- Dependencies: 398
+-- TOC entry 6040 (class 0 OID 0)
+-- Dependencies: 342
 -- Name: COLUMN parsedresumes.parsestatus; Type: COMMENT; Schema: jobs; Owner: postgres
 --
 
@@ -6051,7 +6439,7 @@ COMMENT ON COLUMN jobs.parsedresumes.parsestatus IS 'Pending | Processing | Comp
 
 
 --
--- TOC entry 394 (class 1259 OID 36501)
+-- TOC entry 343 (class 1259 OID 21002)
 -- Name: questioncategories; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -6068,7 +6456,7 @@ CREATE TABLE jobs.questioncategories (
 ALTER TABLE jobs.questioncategories OWNER TO postgres;
 
 --
--- TOC entry 395 (class 1259 OID 36510)
+-- TOC entry 344 (class 1259 OID 21008)
 -- Name: questions; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -6090,7 +6478,7 @@ CREATE TABLE jobs.questions (
 ALTER TABLE jobs.questions OWNER TO postgres;
 
 --
--- TOC entry 266 (class 1259 OID 32844)
+-- TOC entry 345 (class 1259 OID 21018)
 -- Name: stagemaster; Type: TABLE; Schema: jobs; Owner: postgres
 --
 
@@ -6107,7 +6495,7 @@ CREATE TABLE jobs.stagemaster (
 ALTER TABLE jobs.stagemaster OWNER TO postgres;
 
 --
--- TOC entry 269 (class 1259 OID 32871)
+-- TOC entry 346 (class 1259 OID 21024)
 -- Name: news; Type: TABLE; Schema: news; Owner: postgres
 --
 
@@ -6132,7 +6520,7 @@ CREATE TABLE news.news (
 ALTER TABLE news.news OWNER TO postgres;
 
 --
--- TOC entry 270 (class 1259 OID 32887)
+-- TOC entry 347 (class 1259 OID 21038)
 -- Name: news_reads_count; Type: TABLE; Schema: news; Owner: postgres
 --
 
@@ -6146,7 +6534,7 @@ CREATE TABLE news.news_reads_count (
 ALTER TABLE news.news_reads_count OWNER TO postgres;
 
 --
--- TOC entry 268 (class 1259 OID 32860)
+-- TOC entry 348 (class 1259 OID 21042)
 -- Name: notifications; Type: TABLE; Schema: notification; Owner: postgres
 --
 
@@ -6171,7 +6559,7 @@ CREATE TABLE notification.notifications (
 ALTER TABLE notification.notifications OWNER TO postgres;
 
 --
--- TOC entry 372 (class 1259 OID 35996)
+-- TOC entry 349 (class 1259 OID 21051)
 -- Name: bank_details; Type: TABLE; Schema: onboarding; Owner: postgres
 --
 
@@ -6194,7 +6582,7 @@ CREATE TABLE onboarding.bank_details (
 ALTER TABLE onboarding.bank_details OWNER TO postgres;
 
 --
--- TOC entry 369 (class 1259 OID 35950)
+-- TOC entry 350 (class 1259 OID 21060)
 -- Name: education; Type: TABLE; Schema: onboarding; Owner: postgres
 --
 
@@ -6216,7 +6604,7 @@ CREATE TABLE onboarding.education (
 ALTER TABLE onboarding.education OWNER TO postgres;
 
 --
--- TOC entry 370 (class 1259 OID 35965)
+-- TOC entry 351 (class 1259 OID 21068)
 -- Name: field_configurations; Type: TABLE; Schema: onboarding; Owner: postgres
 --
 
@@ -6235,7 +6623,7 @@ CREATE TABLE onboarding.field_configurations (
 ALTER TABLE onboarding.field_configurations OWNER TO postgres;
 
 --
--- TOC entry 367 (class 1259 OID 35913)
+-- TOC entry 352 (class 1259 OID 21076)
 -- Name: policies; Type: TABLE; Schema: onboarding; Owner: postgres
 --
 
@@ -6258,7 +6646,7 @@ CREATE TABLE onboarding.policies (
 ALTER TABLE onboarding.policies OWNER TO postgres;
 
 --
--- TOC entry 368 (class 1259 OID 35934)
+-- TOC entry 353 (class 1259 OID 21085)
 -- Name: sessions; Type: TABLE; Schema: onboarding; Owner: postgres
 --
 
@@ -6285,7 +6673,7 @@ CREATE TABLE onboarding.sessions (
 ALTER TABLE onboarding.sessions OWNER TO postgres;
 
 --
--- TOC entry 371 (class 1259 OID 35977)
+-- TOC entry 354 (class 1259 OID 21097)
 -- Name: work_experience; Type: TABLE; Schema: onboarding; Owner: postgres
 --
 
@@ -6310,7 +6698,7 @@ CREATE TABLE onboarding.work_experience (
 ALTER TABLE onboarding.work_experience OWNER TO postgres;
 
 --
--- TOC entry 260 (class 1259 OID 25188)
+-- TOC entry 355 (class 1259 OID 21106)
 -- Name: companysubscriptions; Type: TABLE; Schema: payment; Owner: postgres
 --
 
@@ -6328,7 +6716,7 @@ CREATE TABLE payment.companysubscriptions (
 ALTER TABLE payment.companysubscriptions OWNER TO postgres;
 
 --
--- TOC entry 287 (class 1259 OID 33351)
+-- TOC entry 356 (class 1259 OID 21112)
 -- Name: invoice_number_seq; Type: SEQUENCE; Schema: payment; Owner: postgres
 --
 
@@ -6343,7 +6731,7 @@ CREATE SEQUENCE payment.invoice_number_seq
 ALTER SEQUENCE payment.invoice_number_seq OWNER TO postgres;
 
 --
--- TOC entry 289 (class 1259 OID 33386)
+-- TOC entry 357 (class 1259 OID 21113)
 -- Name: invoices; Type: TABLE; Schema: payment; Owner: postgres
 --
 
@@ -6374,7 +6762,7 @@ CREATE TABLE payment.invoices (
 ALTER TABLE payment.invoices OWNER TO postgres;
 
 --
--- TOC entry 290 (class 1259 OID 33416)
+-- TOC entry 358 (class 1259 OID 21124)
 -- Name: refunds; Type: TABLE; Schema: payment; Owner: postgres
 --
 
@@ -6396,7 +6784,7 @@ CREATE TABLE payment.refunds (
 ALTER TABLE payment.refunds OWNER TO postgres;
 
 --
--- TOC entry 285 (class 1259 OID 33323)
+-- TOC entry 359 (class 1259 OID 21134)
 -- Name: subscription_history; Type: TABLE; Schema: payment; Owner: postgres
 --
 
@@ -6418,7 +6806,7 @@ CREATE TABLE payment.subscription_history (
 ALTER TABLE payment.subscription_history OWNER TO postgres;
 
 --
--- TOC entry 259 (class 1259 OID 25154)
+-- TOC entry 360 (class 1259 OID 21141)
 -- Name: subscriptionplans; Type: TABLE; Schema: payment; Owner: postgres
 --
 
@@ -6437,7 +6825,7 @@ CREATE TABLE payment.subscriptionplans (
 ALTER TABLE payment.subscriptionplans OWNER TO postgres;
 
 --
--- TOC entry 288 (class 1259 OID 33352)
+-- TOC entry 361 (class 1259 OID 21149)
 -- Name: transactions; Type: TABLE; Schema: payment; Owner: postgres
 --
 
@@ -6467,7 +6855,7 @@ CREATE TABLE payment.transactions (
 ALTER TABLE payment.transactions OWNER TO postgres;
 
 --
--- TOC entry 318 (class 1259 OID 34304)
+-- TOC entry 362 (class 1259 OID 21160)
 -- Name: attendancedeductionrules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6489,7 +6877,7 @@ CREATE TABLE payroll.attendancedeductionrules (
 ALTER TABLE payroll.attendancedeductionrules OWNER TO postgres;
 
 --
--- TOC entry 319 (class 1259 OID 34317)
+-- TOC entry 363 (class 1259 OID 21171)
 -- Name: attendancesummary; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6518,7 +6906,7 @@ CREATE TABLE payroll.attendancesummary (
 ALTER TABLE payroll.attendancesummary OWNER TO postgres;
 
 --
--- TOC entry 314 (class 1259 OID 34196)
+-- TOC entry 364 (class 1259 OID 21186)
 -- Name: bonusentries; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6537,7 +6925,7 @@ CREATE TABLE payroll.bonusentries (
 ALTER TABLE payroll.bonusentries OWNER TO postgres;
 
 --
--- TOC entry 313 (class 1259 OID 34183)
+-- TOC entry 365 (class 1259 OID 21192)
 -- Name: bonusrules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6553,14 +6941,14 @@ CREATE TABLE payroll.bonusrules (
     isdeleted boolean DEFAULT false,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT bonusrules_bonustype_check CHECK (((bonustype)::text = ANY ((ARRAY['fixed'::character varying, 'percentage'::character varying])::text[])))
+    CONSTRAINT bonusrules_bonustype_check CHECK (((bonustype)::text = ANY (ARRAY[('fixed'::character varying)::text, ('percentage'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.bonusrules OWNER TO postgres;
 
 --
--- TOC entry 336 (class 1259 OID 34896)
+-- TOC entry 366 (class 1259 OID 21203)
 -- Name: gratuityconfig; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6583,7 +6971,7 @@ CREATE TABLE payroll.gratuityconfig (
 ALTER TABLE payroll.gratuityconfig OWNER TO postgres;
 
 --
--- TOC entry 337 (class 1259 OID 34912)
+-- TOC entry 367 (class 1259 OID 21215)
 -- Name: gratuitytransactions; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6617,7 +7005,7 @@ CREATE TABLE payroll.gratuitytransactions (
 ALTER TABLE payroll.gratuitytransactions OWNER TO postgres;
 
 --
--- TOC entry 301 (class 1259 OID 33767)
+-- TOC entry 368 (class 1259 OID 21229)
 -- Name: lateattendance; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6638,7 +7026,7 @@ CREATE TABLE payroll.lateattendance (
 ALTER TABLE payroll.lateattendance OWNER TO postgres;
 
 --
--- TOC entry 296 (class 1259 OID 33586)
+-- TOC entry 369 (class 1259 OID 21238)
 -- Name: lateattendancerules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6660,7 +7048,7 @@ CREATE TABLE payroll.lateattendancerules (
 ALTER TABLE payroll.lateattendancerules OWNER TO postgres;
 
 --
--- TOC entry 297 (class 1259 OID 33601)
+-- TOC entry 370 (class 1259 OID 21249)
 -- Name: leaverules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6681,7 +7069,7 @@ CREATE TABLE payroll.leaverules (
 ALTER TABLE payroll.leaverules OWNER TO postgres;
 
 --
--- TOC entry 317 (class 1259 OID 34268)
+-- TOC entry 371 (class 1259 OID 21261)
 -- Name: loanpayments; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6706,7 +7094,7 @@ CREATE TABLE payroll.loanpayments (
 ALTER TABLE payroll.loanpayments OWNER TO postgres;
 
 --
--- TOC entry 315 (class 1259 OID 34229)
+-- TOC entry 372 (class 1259 OID 21272)
 -- Name: loanrules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6728,7 +7116,7 @@ CREATE TABLE payroll.loanrules (
 ALTER TABLE payroll.loanrules OWNER TO postgres;
 
 --
--- TOC entry 316 (class 1259 OID 34244)
+-- TOC entry 373 (class 1259 OID 21283)
 -- Name: loans; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6766,7 +7154,7 @@ CREATE TABLE payroll.loans (
 ALTER TABLE payroll.loans OWNER TO postgres;
 
 --
--- TOC entry 300 (class 1259 OID 33726)
+-- TOC entry 374 (class 1259 OID 21301)
 -- Name: overtimeentries; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6782,14 +7170,14 @@ CREATE TABLE payroll.overtimeentries (
     overtimedate date NOT NULL,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT overtimeentries_entrystatus_check CHECK (((entrystatus)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying])::text[])))
+    CONSTRAINT overtimeentries_entrystatus_check CHECK (((entrystatus)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text, ('rejected'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.overtimeentries OWNER TO postgres;
 
 --
--- TOC entry 295 (class 1259 OID 33556)
+-- TOC entry 375 (class 1259 OID 21309)
 -- Name: overtimerules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6805,14 +7193,14 @@ CREATE TABLE payroll.overtimerules (
     isdeleted boolean DEFAULT false,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT overtimerules_overtimetype_check CHECK (((overtimetype)::text = ANY ((ARRAY['regular'::character varying, 'holiday'::character varying, 'weekend'::character varying])::text[])))
+    CONSTRAINT overtimerules_overtimetype_check CHECK (((overtimetype)::text = ANY (ARRAY[('regular'::character varying)::text, ('holiday'::character varying)::text, ('weekend'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.overtimerules OWNER TO postgres;
 
 --
--- TOC entry 302 (class 1259 OID 33785)
+-- TOC entry 376 (class 1259 OID 21320)
 -- Name: payrollleavesummary; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6836,7 +7224,7 @@ CREATE TABLE payroll.payrollleavesummary (
 ALTER TABLE payroll.payrollleavesummary OWNER TO postgres;
 
 --
--- TOC entry 312 (class 1259 OID 34159)
+-- TOC entry 377 (class 1259 OID 21332)
 -- Name: payrollperiods; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6860,7 +7248,7 @@ CREATE TABLE payroll.payrollperiods (
 ALTER TABLE payroll.payrollperiods OWNER TO postgres;
 
 --
--- TOC entry 353 (class 1259 OID 35254)
+-- TOC entry 378 (class 1259 OID 21343)
 -- Name: payrollresults; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6892,7 +7280,7 @@ CREATE TABLE payroll.payrollresults (
 ALTER TABLE payroll.payrollresults OWNER TO postgres;
 
 --
--- TOC entry 399 (class 1259 OID 36642)
+-- TOC entry 379 (class 1259 OID 21366)
 -- Name: paysliplayoutcatalog; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6914,7 +7302,7 @@ CREATE TABLE payroll.paysliplayoutcatalog (
 ALTER TABLE payroll.paysliplayoutcatalog OWNER TO postgres;
 
 --
--- TOC entry 354 (class 1259 OID 35285)
+-- TOC entry 380 (class 1259 OID 21377)
 -- Name: payslips; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6928,14 +7316,14 @@ CREATE TABLE payroll.payslips (
     mailsentby uuid,
     mailsentstatus character varying(20) DEFAULT 'pending'::character varying,
     payslipuploadurl text,
-    CONSTRAINT payslips_mailsentstatus_check CHECK (((mailsentstatus)::text = ANY ((ARRAY['pending'::character varying, 'sent'::character varying, 'failed'::character varying, 'bounced'::character varying])::text[])))
+    CONSTRAINT payslips_mailsentstatus_check CHECK (((mailsentstatus)::text = ANY (ARRAY[('pending'::character varying)::text, ('sent'::character varying)::text, ('failed'::character varying)::text, ('bounced'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.payslips OWNER TO postgres;
 
 --
--- TOC entry 400 (class 1259 OID 36655)
+-- TOC entry 381 (class 1259 OID 21385)
 -- Name: paysliptemplates; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6967,7 +7355,7 @@ CREATE TABLE payroll.paysliptemplates (
 ALTER TABLE payroll.paysliptemplates OWNER TO postgres;
 
 --
--- TOC entry 303 (class 1259 OID 33806)
+-- TOC entry 382 (class 1259 OID 21404)
 -- Name: performancepay; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -6986,7 +7374,7 @@ CREATE TABLE payroll.performancepay (
 ALTER TABLE payroll.performancepay OWNER TO postgres;
 
 --
--- TOC entry 298 (class 1259 OID 33617)
+-- TOC entry 383 (class 1259 OID 21410)
 -- Name: performancerules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7009,7 +7397,7 @@ CREATE TABLE payroll.performancerules (
 ALTER TABLE payroll.performancerules OWNER TO postgres;
 
 --
--- TOC entry 334 (class 1259 OID 34850)
+-- TOC entry 384 (class 1259 OID 21420)
 -- Name: pfrequests; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7032,16 +7420,16 @@ CREATE TABLE payroll.pfrequests (
     approvedat timestamp with time zone,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pfrequests_requesttype_check CHECK (((requesttype)::text = ANY ((ARRAY['enrollment'::character varying, 'update'::character varying, 'withdrawal'::character varying])::text[]))),
-    CONSTRAINT pfrequests_status_check CHECK (((status)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying])::text[]))),
-    CONSTRAINT pfrequests_withdrawaltype_check CHECK (((withdrawaltype)::text = ANY ((ARRAY['temporary'::character varying, 'permanent'::character varying])::text[])))
+    CONSTRAINT pfrequests_requesttype_check CHECK (((requesttype)::text = ANY (ARRAY[('enrollment'::character varying)::text, ('update'::character varying)::text, ('withdrawal'::character varying)::text]))),
+    CONSTRAINT pfrequests_status_check CHECK (((status)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text, ('rejected'::character varying)::text]))),
+    CONSTRAINT pfrequests_withdrawaltype_check CHECK (((withdrawaltype)::text = ANY (ARRAY[('temporary'::character varying)::text, ('permanent'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.pfrequests OWNER TO postgres;
 
 --
--- TOC entry 332 (class 1259 OID 34816)
+-- TOC entry 385 (class 1259 OID 21432)
 -- Name: pfrules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7060,14 +7448,14 @@ CREATE TABLE payroll.pfrules (
     isdeleted boolean DEFAULT false,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pfrules_contributionbasis_check CHECK (((contributionbasis)::text = ANY ((ARRAY['basic'::character varying, 'gross'::character varying, 'fixed'::character varying])::text[])))
+    CONSTRAINT pfrules_contributionbasis_check CHECK (((contributionbasis)::text = ANY (ARRAY[('basic'::character varying)::text, ('gross'::character varying)::text, ('fixed'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.pfrules OWNER TO postgres;
 
 --
--- TOC entry 335 (class 1259 OID 34874)
+-- TOC entry 386 (class 1259 OID 21446)
 -- Name: pftransactions; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7088,14 +7476,14 @@ CREATE TABLE payroll.pftransactions (
     transactiontype character varying(20) DEFAULT 'monthly'::character varying,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT pftransactions_transactiontype_check CHECK (((transactiontype)::text = ANY ((ARRAY['monthly'::character varying, 'profit'::character varying, 'withdrawal'::character varying, 'adjustment'::character varying, 'settlement'::character varying])::text[])))
+    CONSTRAINT pftransactions_transactiontype_check CHECK (((transactiontype)::text = ANY (ARRAY[('monthly'::character varying)::text, ('profit'::character varying)::text, ('withdrawal'::character varying)::text, ('adjustment'::character varying)::text, ('settlement'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.pftransactions OWNER TO postgres;
 
 --
--- TOC entry 333 (class 1259 OID 34832)
+-- TOC entry 387 (class 1259 OID 21455)
 -- Name: providentfund; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7111,14 +7499,14 @@ CREATE TABLE payroll.providentfund (
     isactive boolean DEFAULT true,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT providentfund_pfstatus_check CHECK (((pfstatus)::text = ANY ((ARRAY['active'::character varying, 'closed'::character varying, 'pending'::character varying])::text[])))
+    CONSTRAINT providentfund_pfstatus_check CHECK (((pfstatus)::text = ANY (ARRAY[('active'::character varying)::text, ('closed'::character varying)::text, ('pending'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.providentfund OWNER TO postgres;
 
 --
--- TOC entry 321 (class 1259 OID 34355)
+-- TOC entry 388 (class 1259 OID 21464)
 -- Name: salaryadvance; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7143,14 +7531,14 @@ CREATE TABLE payroll.salaryadvance (
     disbursedby uuid,
     disbursedat timestamp with time zone,
     disbursementnote text,
-    CONSTRAINT salaryadvance_advancestatus_check CHECK (((advancestatus)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'disbursed'::character varying, 'rejected'::character varying, 'deducted'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT salaryadvance_advancestatus_check CHECK (((advancestatus)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text, ('disbursed'::character varying)::text, ('rejected'::character varying)::text, ('deducted'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.salaryadvance OWNER TO postgres;
 
 --
--- TOC entry 320 (class 1259 OID 34341)
+-- TOC entry 389 (class 1259 OID 21474)
 -- Name: salaryadvancerules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7170,7 +7558,7 @@ CREATE TABLE payroll.salaryadvancerules (
 ALTER TABLE payroll.salaryadvancerules OWNER TO postgres;
 
 --
--- TOC entry 356 (class 1259 OID 35331)
+-- TOC entry 390 (class 1259 OID 21484)
 -- Name: socialsecurityauthorities; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7191,16 +7579,16 @@ CREATE TABLE payroll.socialsecurityauthorities (
     metadata jsonb DEFAULT '{}'::jsonb,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT socialsecurityauthorities_filingmode_check CHECK (((filingmode)::text = ANY ((ARRAY['online'::character varying, 'file_upload'::character varying, 'api'::character varying, 'manual'::character varying])::text[]))),
-    CONSTRAINT socialsecurityauthorities_paymentmode_check CHECK (((paymentmode)::text = ANY ((ARRAY['bank_transfer'::character varying, 'direct_debit'::character varying, 'wallet'::character varying, 'manual'::character varying])::text[]))),
-    CONSTRAINT socialsecurityauthorities_remittancefrequency_check CHECK (((remittancefrequency)::text = ANY ((ARRAY['weekly'::character varying, 'biweekly'::character varying, 'monthly'::character varying, 'quarterly'::character varying, 'yearly'::character varying, 'on_payday'::character varying])::text[])))
+    CONSTRAINT socialsecurityauthorities_filingmode_check CHECK (((filingmode)::text = ANY (ARRAY[('online'::character varying)::text, ('file_upload'::character varying)::text, ('api'::character varying)::text, ('manual'::character varying)::text]))),
+    CONSTRAINT socialsecurityauthorities_paymentmode_check CHECK (((paymentmode)::text = ANY (ARRAY[('bank_transfer'::character varying)::text, ('direct_debit'::character varying)::text, ('wallet'::character varying)::text, ('manual'::character varying)::text]))),
+    CONSTRAINT socialsecurityauthorities_remittancefrequency_check CHECK (((remittancefrequency)::text = ANY (ARRAY[('weekly'::character varying)::text, ('biweekly'::character varying)::text, ('monthly'::character varying)::text, ('quarterly'::character varying)::text, ('yearly'::character varying)::text, ('on_payday'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityauthorities OWNER TO postgres;
 
 --
--- TOC entry 363 (class 1259 OID 35592)
+-- TOC entry 391 (class 1259 OID 21502)
 -- Name: socialsecurityclaims; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7230,15 +7618,15 @@ CREATE TABLE payroll.socialsecurityclaims (
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_ss_claim_period CHECK (((periodto IS NULL) OR (periodfrom IS NULL) OR (periodto >= periodfrom))),
-    CONSTRAINT socialsecurityclaims_claimstatus_check CHECK (((claimstatus)::text = ANY ((ARRAY['draft'::character varying, 'submitted'::character varying, 'under_review'::character varying, 'approved'::character varying, 'rejected'::character varying, 'paid'::character varying, 'closed'::character varying])::text[]))),
-    CONSTRAINT socialsecurityclaims_claimtype_check CHECK (((claimtype)::text = ANY ((ARRAY['retirement'::character varying, 'disability'::character varying, 'survivor'::character varying, 'medical'::character varying, 'unemployment'::character varying, 'maternity'::character varying, 'injury'::character varying, 'other'::character varying])::text[])))
+    CONSTRAINT socialsecurityclaims_claimstatus_check CHECK (((claimstatus)::text = ANY (ARRAY[('draft'::character varying)::text, ('submitted'::character varying)::text, ('under_review'::character varying)::text, ('approved'::character varying)::text, ('rejected'::character varying)::text, ('paid'::character varying)::text, ('closed'::character varying)::text]))),
+    CONSTRAINT socialsecurityclaims_claimtype_check CHECK (((claimtype)::text = ANY (ARRAY[('retirement'::character varying)::text, ('disability'::character varying)::text, ('survivor'::character varying)::text, ('medical'::character varying)::text, ('unemployment'::character varying)::text, ('maternity'::character varying)::text, ('injury'::character varying)::text, ('other'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityclaims OWNER TO postgres;
 
 --
--- TOC entry 299 (class 1259 OID 33694)
+-- TOC entry 392 (class 1259 OID 21517)
 -- Name: socialsecurityconfig; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7281,7 +7669,7 @@ CREATE TABLE payroll.socialsecurityconfig (
 ALTER TABLE payroll.socialsecurityconfig OWNER TO postgres;
 
 --
--- TOC entry 360 (class 1259 OID 35484)
+-- TOC entry 393 (class 1259 OID 21538)
 -- Name: socialsecurityemployeeenrollments; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7311,15 +7699,15 @@ CREATE TABLE payroll.socialsecurityemployeeenrollments (
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_ss_enrollment_dates CHECK (((enddate IS NULL) OR (enddate >= effectivedate))),
     CONSTRAINT chk_ss_enrollment_pct CHECK ((((employeecustompct IS NULL) OR ((employeecustompct >= (0)::numeric) AND (employeecustompct <= (100)::numeric))) AND ((employercustompct IS NULL) OR ((employercustompct >= (0)::numeric) AND (employercustompct <= (100)::numeric))))),
-    CONSTRAINT socialsecurityemployeeenrollments_enrollmentstatus_check CHECK (((enrollmentstatus)::text = ANY ((ARRAY['pending'::character varying, 'active'::character varying, 'suspended'::character varying, 'withdrawn'::character varying, 'closed'::character varying, 'rejected'::character varying])::text[]))),
-    CONSTRAINT socialsecurityemployeeenrollments_enrollmenttype_check CHECK (((enrollmenttype)::text = ANY ((ARRAY['mandatory'::character varying, 'voluntary'::character varying, 'auto_enrolled'::character varying, 'opt_in'::character varying, 'opt_out'::character varying, 'exempt'::character varying])::text[])))
+    CONSTRAINT socialsecurityemployeeenrollments_enrollmentstatus_check CHECK (((enrollmentstatus)::text = ANY (ARRAY[('pending'::character varying)::text, ('active'::character varying)::text, ('suspended'::character varying)::text, ('withdrawn'::character varying)::text, ('closed'::character varying)::text, ('rejected'::character varying)::text]))),
+    CONSTRAINT socialsecurityemployeeenrollments_enrollmenttype_check CHECK (((enrollmenttype)::text = ANY (ARRAY[('mandatory'::character varying)::text, ('voluntary'::character varying)::text, ('auto_enrolled'::character varying)::text, ('opt_in'::character varying)::text, ('opt_out'::character varying)::text, ('exempt'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityemployeeenrollments OWNER TO postgres;
 
 --
--- TOC entry 355 (class 1259 OID 35311)
+-- TOC entry 394 (class 1259 OID 21556)
 -- Name: socialsecurityjurisdictions; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7343,7 +7731,7 @@ CREATE TABLE payroll.socialsecurityjurisdictions (
 ALTER TABLE payroll.socialsecurityjurisdictions OWNER TO postgres;
 
 --
--- TOC entry 366 (class 1259 OID 35812)
+-- TOC entry 395 (class 1259 OID 21571)
 -- Name: socialsecurityremittanceitems; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7362,14 +7750,14 @@ CREATE TABLE payroll.socialsecurityremittanceitems (
     notes text,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT socialsecurityremittanceitems_itemstatus_check CHECK (((itemstatus)::text = ANY ((ARRAY['included'::character varying, 'excluded'::character varying, 'adjusted'::character varying, 'paid'::character varying, 'reversed'::character varying])::text[])))
+    CONSTRAINT socialsecurityremittanceitems_itemstatus_check CHECK (((itemstatus)::text = ANY (ARRAY[('included'::character varying)::text, ('excluded'::character varying)::text, ('adjusted'::character varying)::text, ('paid'::character varying)::text, ('reversed'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityremittanceitems OWNER TO postgres;
 
 --
--- TOC entry 365 (class 1259 OID 35771)
+-- TOC entry 396 (class 1259 OID 21584)
 -- Name: socialsecurityremittances; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7395,14 +7783,14 @@ CREATE TABLE payroll.socialsecurityremittances (
     createdby uuid,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT socialsecurityremittances_remittancestatus_check CHECK (((remittancestatus)::text = ANY ((ARRAY['draft'::character varying, 'prepared'::character varying, 'filed'::character varying, 'paid'::character varying, 'partially_paid'::character varying, 'failed'::character varying, 'cancelled'::character varying])::text[])))
+    CONSTRAINT socialsecurityremittances_remittancestatus_check CHECK (((remittancestatus)::text = ANY (ARRAY[('draft'::character varying)::text, ('prepared'::character varying)::text, ('filed'::character varying)::text, ('paid'::character varying)::text, ('partially_paid'::character varying)::text, ('failed'::character varying)::text, ('cancelled'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityremittances OWNER TO postgres;
 
 --
--- TOC entry 362 (class 1259 OID 35569)
+-- TOC entry 397 (class 1259 OID 21601)
 -- Name: socialsecurityrequestdocuments; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7424,14 +7812,14 @@ CREATE TABLE payroll.socialsecurityrequestdocuments (
     verifiedat timestamp with time zone,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_ss_requestdoc_dates CHECK (((expirydate IS NULL) OR (issueddate IS NULL) OR (expirydate >= issueddate))),
-    CONSTRAINT socialsecurityrequestdocuments_verifiedstatus_check CHECK (((verifiedstatus)::text = ANY ((ARRAY['pending'::character varying, 'verified'::character varying, 'rejected'::character varying, 'expired'::character varying])::text[])))
+    CONSTRAINT socialsecurityrequestdocuments_verifiedstatus_check CHECK (((verifiedstatus)::text = ANY (ARRAY[('pending'::character varying)::text, ('verified'::character varying)::text, ('rejected'::character varying)::text, ('expired'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityrequestdocuments OWNER TO postgres;
 
 --
--- TOC entry 361 (class 1259 OID 35531)
+-- TOC entry 398 (class 1259 OID 21611)
 -- Name: socialsecurityrequests; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7457,15 +7845,15 @@ CREATE TABLE payroll.socialsecurityrequests (
     metadata jsonb DEFAULT '{}'::jsonb,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT socialsecurityrequests_requeststatus_check CHECK (((requeststatus)::text = ANY ((ARRAY['pending'::character varying, 'approved'::character varying, 'rejected'::character varying, 'cancelled'::character varying, 'processing'::character varying, 'completed'::character varying])::text[]))),
-    CONSTRAINT socialsecurityrequests_requesttype_check CHECK (((requesttype)::text = ANY ((ARRAY['enrollment'::character varying, 'update'::character varying, 'withdrawal'::character varying, 'suspension'::character varying, 'reactivation'::character varying, 'exemption'::character varying, 'benefit_claim'::character varying, 'correction'::character varying])::text[])))
+    CONSTRAINT socialsecurityrequests_requeststatus_check CHECK (((requeststatus)::text = ANY (ARRAY[('pending'::character varying)::text, ('approved'::character varying)::text, ('rejected'::character varying)::text, ('cancelled'::character varying)::text, ('processing'::character varying)::text, ('completed'::character varying)::text]))),
+    CONSTRAINT socialsecurityrequests_requesttype_check CHECK (((requesttype)::text = ANY (ARRAY[('enrollment'::character varying)::text, ('update'::character varying)::text, ('withdrawal'::character varying)::text, ('suspension'::character varying)::text, ('reactivation'::character varying)::text, ('exemption'::character varying)::text, ('benefit_claim'::character varying)::text, ('correction'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityrequests OWNER TO postgres;
 
 --
--- TOC entry 359 (class 1259 OID 35429)
+-- TOC entry 399 (class 1259 OID 21625)
 -- Name: socialsecurityrulecomponents; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7480,14 +7868,14 @@ CREATE TABLE payroll.socialsecurityrulecomponents (
     isactive boolean DEFAULT true,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT socialsecurityrulecomponents_treatment_check CHECK (((treatment)::text = ANY ((ARRAY['include'::character varying, 'exclude'::character varying, 'cap_only'::character varying, 'informational'::character varying])::text[])))
+    CONSTRAINT socialsecurityrulecomponents_treatment_check CHECK (((treatment)::text = ANY (ARRAY[('include'::character varying)::text, ('exclude'::character varying)::text, ('cap_only'::character varying)::text, ('informational'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityrulecomponents OWNER TO postgres;
 
 --
--- TOC entry 358 (class 1259 OID 35395)
+-- TOC entry 400 (class 1259 OID 21636)
 -- Name: socialsecurityrules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7517,17 +7905,17 @@ CREATE TABLE payroll.socialsecurityrules (
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_ss_rule_dates CHECK (((effectiveto IS NULL) OR (effectiveto >= effectivefrom))),
-    CONSTRAINT chk_ss_rule_pcts CHECK ((((employeedefaultpct >= (0)::numeric) AND (employeedefaultpct <= (100)::numeric)) AND ((employerdefaultpct >= (0)::numeric) AND (employerdefaultpct <= (100)::numeric)))),
+    CONSTRAINT chk_ss_rule_pcts CHECK (((employeedefaultpct >= (0)::numeric) AND (employeedefaultpct <= (100)::numeric) AND ((employerdefaultpct >= (0)::numeric) AND (employerdefaultpct <= (100)::numeric)))),
     CONSTRAINT chk_ss_rule_salary_range CHECK ((((minsalarylimit IS NULL) OR (minsalarylimit >= (0)::numeric)) AND ((maxsalarylimit IS NULL) OR (maxsalarylimit >= (0)::numeric)) AND ((annualsalarycap IS NULL) OR (annualsalarycap >= (0)::numeric)) AND ((maxsalarylimit IS NULL) OR (minsalarylimit IS NULL) OR (maxsalarylimit >= minsalarylimit)))),
-    CONSTRAINT socialsecurityrules_contributionbasis_check CHECK (((contributionbasis)::text = ANY ((ARRAY['basic'::character varying, 'gross'::character varying, 'fixed'::character varying, 'component'::character varying])::text[]))),
-    CONSTRAINT socialsecurityrules_roundingmode_check CHECK (((roundingmode)::text = ANY ((ARRAY['half_up'::character varying, 'half_even'::character varying, 'floor'::character varying, 'ceiling'::character varying])::text[])))
+    CONSTRAINT socialsecurityrules_contributionbasis_check CHECK (((contributionbasis)::text = ANY (ARRAY[('basic'::character varying)::text, ('gross'::character varying)::text, ('fixed'::character varying)::text, ('component'::character varying)::text]))),
+    CONSTRAINT socialsecurityrules_roundingmode_check CHECK (((roundingmode)::text = ANY (ARRAY[('half_up'::character varying)::text, ('half_even'::character varying)::text, ('floor'::character varying)::text, ('ceiling'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityrules OWNER TO postgres;
 
 --
--- TOC entry 357 (class 1259 OID 35359)
+-- TOC entry 401 (class 1259 OID 21662)
 -- Name: socialsecurityschemes; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7553,15 +7941,15 @@ CREATE TABLE payroll.socialsecurityschemes (
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_ss_scheme_dates CHECK (((versionenddate IS NULL) OR (versionenddate >= versionstartdate))),
-    CONSTRAINT socialsecurityschemes_mandatorymode_check CHECK (((mandatorymode)::text = ANY ((ARRAY['mandatory'::character varying, 'optional'::character varying, 'mixed'::character varying])::text[]))),
-    CONSTRAINT socialsecurityschemes_schemetype_check CHECK (((schemetype)::text = ANY ((ARRAY['social_insurance'::character varying, 'retirement_fund'::character varying, 'health_insurance'::character varying, 'unemployment_insurance'::character varying, 'mixed'::character varying])::text[])))
+    CONSTRAINT socialsecurityschemes_mandatorymode_check CHECK (((mandatorymode)::text = ANY (ARRAY[('mandatory'::character varying)::text, ('optional'::character varying)::text, ('mixed'::character varying)::text]))),
+    CONSTRAINT socialsecurityschemes_schemetype_check CHECK (((schemetype)::text = ANY (ARRAY[('social_insurance'::character varying)::text, ('retirement_fund'::character varying)::text, ('health_insurance'::character varying)::text, ('unemployment_insurance'::character varying)::text, ('mixed'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecurityschemes OWNER TO postgres;
 
 --
--- TOC entry 364 (class 1259 OID 35722)
+-- TOC entry 402 (class 1259 OID 21683)
 -- Name: socialsecuritytransactionlines; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7586,15 +7974,15 @@ CREATE TABLE payroll.socialsecuritytransactionlines (
     notes text,
     createdat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
     updatedat timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT socialsecuritytransactionlines_linekind_check CHECK (((linekind)::text = ANY ((ARRAY['regular'::character varying, 'adjustment'::character varying, 'arrears'::character varying, 'refund'::character varying])::text[]))),
-    CONSTRAINT socialsecuritytransactionlines_sourcetype_check CHECK (((sourcetype)::text = ANY ((ARRAY['system'::character varying, 'manual'::character varying, 'import'::character varying])::text[])))
+    CONSTRAINT socialsecuritytransactionlines_linekind_check CHECK (((linekind)::text = ANY (ARRAY[('regular'::character varying)::text, ('adjustment'::character varying)::text, ('arrears'::character varying)::text, ('refund'::character varying)::text]))),
+    CONSTRAINT socialsecuritytransactionlines_sourcetype_check CHECK (((sourcetype)::text = ANY (ARRAY[('system'::character varying)::text, ('manual'::character varying)::text, ('import'::character varying)::text])))
 );
 
 
 ALTER TABLE payroll.socialsecuritytransactionlines OWNER TO postgres;
 
 --
--- TOC entry 304 (class 1259 OID 33896)
+-- TOC entry 403 (class 1259 OID 21702)
 -- Name: socialsecuritytransactions; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7645,7 +8033,7 @@ CREATE TABLE payroll.socialsecuritytransactions (
 ALTER TABLE payroll.socialsecuritytransactions OWNER TO postgres;
 
 --
--- TOC entry 345 (class 1259 OID 35049)
+-- TOC entry 404 (class 1259 OID 21722)
 -- Name: taxcategories; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7662,7 +8050,7 @@ CREATE TABLE payroll.taxcategories (
 ALTER TABLE payroll.taxcategories OWNER TO postgres;
 
 --
--- TOC entry 347 (class 1259 OID 35068)
+-- TOC entry 405 (class 1259 OID 21729)
 -- Name: taxcomponentrules; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7683,7 +8071,7 @@ CREATE TABLE payroll.taxcomponentrules (
 ALTER TABLE payroll.taxcomponentrules OWNER TO postgres;
 
 --
--- TOC entry 344 (class 1259 OID 35040)
+-- TOC entry 406 (class 1259 OID 21737)
 -- Name: taxregimes; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7703,7 +8091,7 @@ CREATE TABLE payroll.taxregimes (
 ALTER TABLE payroll.taxregimes OWNER TO postgres;
 
 --
--- TOC entry 346 (class 1259 OID 35058)
+-- TOC entry 407 (class 1259 OID 21744)
 -- Name: taxslabs; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7723,7 +8111,7 @@ CREATE TABLE payroll.taxslabs (
 ALTER TABLE payroll.taxslabs OWNER TO postgres;
 
 --
--- TOC entry 348 (class 1259 OID 35078)
+-- TOC entry 408 (class 1259 OID 21752)
 -- Name: taxtransactions; Type: TABLE; Schema: payroll; Owner: postgres
 --
 
@@ -7744,7 +8132,7 @@ CREATE TABLE payroll.taxtransactions (
 ALTER TABLE payroll.taxtransactions OWNER TO postgres;
 
 --
--- TOC entry 338 (class 1259 OID 34936)
+-- TOC entry 409 (class 1259 OID 21757)
 -- Name: appraisal_cycle; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7771,7 +8159,7 @@ CREATE TABLE performance.appraisal_cycle (
 ALTER TABLE performance.appraisal_cycle OWNER TO postgres;
 
 --
--- TOC entry 253 (class 1259 OID 24963)
+-- TOC entry 410 (class 1259 OID 21763)
 -- Name: employeeappraisals; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7799,7 +8187,7 @@ CREATE TABLE performance.employeeappraisals (
 ALTER TABLE performance.employeeappraisals OWNER TO postgres;
 
 --
--- TOC entry 254 (class 1259 OID 24976)
+-- TOC entry 411 (class 1259 OID 21776)
 -- Name: employeeskills; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7819,7 +8207,7 @@ CREATE TABLE performance.employeeskills (
 ALTER TABLE performance.employeeskills OWNER TO postgres;
 
 --
--- TOC entry 340 (class 1259 OID 34965)
+-- TOC entry 412 (class 1259 OID 21785)
 -- Name: goals; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7845,7 +8233,7 @@ CREATE TABLE performance.goals (
 ALTER TABLE performance.goals OWNER TO postgres;
 
 --
--- TOC entry 343 (class 1259 OID 35024)
+-- TOC entry 413 (class 1259 OID 21794)
 -- Name: hrappraisals; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7868,7 +8256,7 @@ CREATE TABLE performance.hrappraisals (
 ALTER TABLE performance.hrappraisals OWNER TO postgres;
 
 --
--- TOC entry 339 (class 1259 OID 34946)
+-- TOC entry 414 (class 1259 OID 21803)
 -- Name: kra; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7890,7 +8278,7 @@ CREATE TABLE performance.kra (
 ALTER TABLE performance.kra OWNER TO postgres;
 
 --
--- TOC entry 342 (class 1259 OID 35003)
+-- TOC entry 415 (class 1259 OID 21813)
 -- Name: managerreviews; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7914,7 +8302,7 @@ CREATE TABLE performance.managerreviews (
 ALTER TABLE performance.managerreviews OWNER TO postgres;
 
 --
--- TOC entry 341 (class 1259 OID 34981)
+-- TOC entry 416 (class 1259 OID 21822)
 -- Name: selfassessments; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7936,7 +8324,7 @@ CREATE TABLE performance.selfassessments (
 ALTER TABLE performance.selfassessments OWNER TO postgres;
 
 --
--- TOC entry 255 (class 1259 OID 25013)
+-- TOC entry 417 (class 1259 OID 21832)
 -- Name: skillsets; Type: TABLE; Schema: performance; Owner: postgres
 --
 
@@ -7955,7 +8343,7 @@ CREATE TABLE performance.skillsets (
 ALTER TABLE performance.skillsets OWNER TO postgres;
 
 --
--- TOC entry 4858 (class 2604 OID 36320)
+-- TOC entry 4455 (class 2604 OID 21841)
 -- Name: aggregatedcounter id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -7963,7 +8351,7 @@ ALTER TABLE ONLY hangfire.aggregatedcounter ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
--- TOC entry 4841 (class 2604 OID 36158)
+-- TOC entry 4456 (class 2604 OID 21842)
 -- Name: counter id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -7971,7 +8359,7 @@ ALTER TABLE ONLY hangfire.counter ALTER COLUMN id SET DEFAULT nextval('hangfire.
 
 
 --
--- TOC entry 4842 (class 2604 OID 36167)
+-- TOC entry 4457 (class 2604 OID 21843)
 -- Name: hash id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -7979,7 +8367,7 @@ ALTER TABLE ONLY hangfire.hash ALTER COLUMN id SET DEFAULT nextval('hangfire.has
 
 
 --
--- TOC entry 4844 (class 2604 OID 36177)
+-- TOC entry 4459 (class 2604 OID 21844)
 -- Name: job id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -7987,7 +8375,7 @@ ALTER TABLE ONLY hangfire.job ALTER COLUMN id SET DEFAULT nextval('hangfire.job_
 
 
 --
--- TOC entry 4855 (class 2604 OID 36227)
+-- TOC entry 4461 (class 2604 OID 21845)
 -- Name: jobparameter id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -7995,7 +8383,7 @@ ALTER TABLE ONLY hangfire.jobparameter ALTER COLUMN id SET DEFAULT nextval('hang
 
 
 --
--- TOC entry 4848 (class 2604 OID 36250)
+-- TOC entry 4463 (class 2604 OID 21846)
 -- Name: jobqueue id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -8003,7 +8391,7 @@ ALTER TABLE ONLY hangfire.jobqueue ALTER COLUMN id SET DEFAULT nextval('hangfire
 
 
 --
--- TOC entry 4850 (class 2604 OID 36270)
+-- TOC entry 4465 (class 2604 OID 21847)
 -- Name: list id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -8011,7 +8399,7 @@ ALTER TABLE ONLY hangfire.list ALTER COLUMN id SET DEFAULT nextval('hangfire.lis
 
 
 --
--- TOC entry 4853 (class 2604 OID 36279)
+-- TOC entry 4469 (class 2604 OID 21848)
 -- Name: set id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -8019,7 +8407,7 @@ ALTER TABLE ONLY hangfire.set ALTER COLUMN id SET DEFAULT nextval('hangfire.set_
 
 
 --
--- TOC entry 4846 (class 2604 OID 36204)
+-- TOC entry 4471 (class 2604 OID 21849)
 -- Name: state id; Type: DEFAULT; Schema: hangfire; Owner: postgres
 --
 
@@ -8027,7 +8415,7 @@ ALTER TABLE ONLY hangfire.state ALTER COLUMN id SET DEFAULT nextval('hangfire.st
 
 
 --
--- TOC entry 5043 (class 2606 OID 25023)
+-- TOC entry 5047 (class 2606 OID 21896)
 -- Name: auditlogs auditlogs_pkey; Type: CONSTRAINT; Schema: admin; Owner: postgres
 --
 
@@ -8036,7 +8424,7 @@ ALTER TABLE ONLY admin.auditlogs
 
 
 --
--- TOC entry 5173 (class 2606 OID 33322)
+-- TOC entry 5049 (class 2606 OID 21898)
 -- Name: demo_inquiries demo_inquiries_pkey; Type: CONSTRAINT; Schema: admin; Owner: postgres
 --
 
@@ -8045,7 +8433,7 @@ ALTER TABLE ONLY admin.demo_inquiries
 
 
 --
--- TOC entry 5177 (class 2606 OID 33344)
+-- TOC entry 5051 (class 2606 OID 21900)
 -- Name: platform_admins platform_admins_email_key; Type: CONSTRAINT; Schema: admin; Owner: postgres
 --
 
@@ -8054,7 +8442,7 @@ ALTER TABLE ONLY admin.platform_admins
 
 
 --
--- TOC entry 5179 (class 2606 OID 33342)
+-- TOC entry 5053 (class 2606 OID 21902)
 -- Name: platform_admins platform_admins_pkey; Type: CONSTRAINT; Schema: admin; Owner: postgres
 --
 
@@ -8063,7 +8451,7 @@ ALTER TABLE ONLY admin.platform_admins
 
 
 --
--- TOC entry 5316 (class 2606 OID 34487)
+-- TOC entry 5055 (class 2606 OID 21904)
 -- Name: schema_migrations schema_migrations_pkey; Type: CONSTRAINT; Schema: admin; Owner: postgres
 --
 
@@ -8072,7 +8460,7 @@ ALTER TABLE ONLY admin.schema_migrations
 
 
 --
--- TOC entry 5318 (class 2606 OID 34489)
+-- TOC entry 5057 (class 2606 OID 21906)
 -- Name: schema_migrations schema_migrations_version_key; Type: CONSTRAINT; Schema: admin; Owner: postgres
 --
 
@@ -8081,7 +8469,7 @@ ALTER TABLE ONLY admin.schema_migrations
 
 
 --
--- TOC entry 5107 (class 2606 OID 25146)
+-- TOC entry 5059 (class 2606 OID 21908)
 -- Name: system_jobs system_jobs_pkey; Type: CONSTRAINT; Schema: admin; Owner: postgres
 --
 
@@ -8090,7 +8478,7 @@ ALTER TABLE ONLY admin.system_jobs
 
 
 --
--- TOC entry 5141 (class 2606 OID 32950)
+-- TOC entry 5061 (class 2606 OID 21910)
 -- Name: assettypes assettypes_pkey; Type: CONSTRAINT; Schema: assets; Owner: postgres
 --
 
@@ -8099,7 +8487,7 @@ ALTER TABLE ONLY assets.assettypes
 
 
 --
--- TOC entry 5045 (class 2606 OID 25025)
+-- TOC entry 5063 (class 2606 OID 21912)
 -- Name: attendance attendance_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8108,7 +8496,7 @@ ALTER TABLE ONLY attendance.attendance
 
 
 --
--- TOC entry 5152 (class 2606 OID 33189)
+-- TOC entry 5067 (class 2606 OID 21914)
 -- Name: attendance_update_requests attendance_update_requests_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8117,7 +8505,7 @@ ALTER TABLE ONLY attendance.attendance_update_requests
 
 
 --
--- TOC entry 5138 (class 2606 OID 32915)
+-- TOC entry 5073 (class 2606 OID 21916)
 -- Name: attendancesessions attendancesessions_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8126,7 +8514,7 @@ ALTER TABLE ONLY attendance.attendancesessions
 
 
 --
--- TOC entry 5208 (class 2606 OID 33476)
+-- TOC entry 5076 (class 2606 OID 21918)
 -- Name: company_holidays company_holidays_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8135,7 +8523,7 @@ ALTER TABLE ONLY attendance.company_holidays
 
 
 --
--- TOC entry 5394 (class 2606 OID 35120)
+-- TOC entry 5082 (class 2606 OID 21920)
 -- Name: employee_overtime_requests employee_overtime_requests_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8144,7 +8532,7 @@ ALTER TABLE ONLY attendance.employee_overtime_requests
 
 
 --
--- TOC entry 5608 (class 2606 OID 37582)
+-- TOC entry 5084 (class 2606 OID 21922)
 -- Name: employee_rate_cards employee_rate_cards_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8153,7 +8541,7 @@ ALTER TABLE ONLY attendance.employee_rate_cards
 
 
 --
--- TOC entry 5214 (class 2606 OID 33500)
+-- TOC entry 5088 (class 2606 OID 21924)
 -- Name: employee_restricted_holidays employee_restricted_holidays_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8162,7 +8550,7 @@ ALTER TABLE ONLY attendance.employee_restricted_holidays
 
 
 --
--- TOC entry 5330 (class 2606 OID 34542)
+-- TOC entry 5094 (class 2606 OID 21926)
 -- Name: face_recognition_logs face_recognition_logs_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8171,7 +8559,7 @@ ALTER TABLE ONLY attendance.face_recognition_logs
 
 
 --
--- TOC entry 5143 (class 2606 OID 33148)
+-- TOC entry 5099 (class 2606 OID 21928)
 -- Name: finalized_timesheet_records finalized_timesheet_records_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8180,7 +8568,7 @@ ALTER TABLE ONLY attendance.finalized_timesheet_records
 
 
 --
--- TOC entry 5335 (class 2606 OID 34579)
+-- TOC entry 5108 (class 2606 OID 21930)
 -- Name: geo_fence_violations geo_fence_violations_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8189,7 +8577,7 @@ ALTER TABLE ONLY attendance.geo_fence_violations
 
 
 --
--- TOC entry 5320 (class 2606 OID 34504)
+-- TOC entry 5114 (class 2606 OID 21932)
 -- Name: geo_fences geo_fences_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8198,7 +8586,7 @@ ALTER TABLE ONLY attendance.geo_fences
 
 
 --
--- TOC entry 5203 (class 2606 OID 33457)
+-- TOC entry 5118 (class 2606 OID 21934)
 -- Name: holiday_catalogs holiday_catalogs_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8207,7 +8595,7 @@ ALTER TABLE ONLY attendance.holiday_catalogs
 
 
 --
--- TOC entry 5220 (class 2606 OID 33527)
+-- TOC entry 5123 (class 2606 OID 21936)
 -- Name: holiday_employee_assignments holiday_employee_assignments_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8216,7 +8604,7 @@ ALTER TABLE ONLY attendance.holiday_employee_assignments
 
 
 --
--- TOC entry 5136 (class 2606 OID 32904)
+-- TOC entry 5129 (class 2606 OID 21938)
 -- Name: ipaddresses ipaddresses_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8225,7 +8613,7 @@ ALTER TABLE ONLY attendance.ipaddresses
 
 
 --
--- TOC entry 5049 (class 2606 OID 25030)
+-- TOC entry 5131 (class 2606 OID 21940)
 -- Name: leaveentitlements leaveentitlements_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8234,7 +8622,7 @@ ALTER TABLE ONLY attendance.leaveentitlements
 
 
 --
--- TOC entry 5053 (class 2606 OID 25032)
+-- TOC entry 5135 (class 2606 OID 21942)
 -- Name: leaverequests leaverequests_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8243,7 +8631,7 @@ ALTER TABLE ONLY attendance.leaverequests
 
 
 --
--- TOC entry 5055 (class 2606 OID 25034)
+-- TOC entry 5137 (class 2606 OID 21944)
 -- Name: leavetypes leavetypes_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8252,7 +8640,7 @@ ALTER TABLE ONLY attendance.leavetypes
 
 
 --
--- TOC entry 5159 (class 2606 OID 33227)
+-- TOC entry 5142 (class 2606 OID 21946)
 -- Name: monthly_timesheets monthly_timesheets_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8261,7 +8649,7 @@ ALTER TABLE ONLY attendance.monthly_timesheets
 
 
 --
--- TOC entry 5390 (class 2606 OID 35099)
+-- TOC entry 5146 (class 2606 OID 21948)
 -- Name: overtime overtime_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8270,7 +8658,7 @@ ALTER TABLE ONLY attendance.overtime
 
 
 --
--- TOC entry 5392 (class 2606 OID 35109)
+-- TOC entry 5148 (class 2606 OID 21950)
 -- Name: overtime_requests overtime_requests_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8279,7 +8667,7 @@ ALTER TABLE ONLY attendance.overtime_requests
 
 
 --
--- TOC entry 5326 (class 2606 OID 34514)
+-- TOC entry 5152 (class 2606 OID 21952)
 -- Name: shift_geo_fences shift_geo_fences_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8288,7 +8676,7 @@ ALTER TABLE ONLY attendance.shift_geo_fences
 
 
 --
--- TOC entry 5059 (class 2606 OID 25036)
+-- TOC entry 5156 (class 2606 OID 21954)
 -- Name: shifts shifts_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8297,7 +8685,7 @@ ALTER TABLE ONLY attendance.shifts
 
 
 --
--- TOC entry 5063 (class 2606 OID 25038)
+-- TOC entry 5160 (class 2606 OID 21956)
 -- Name: shiftswaprequests shiftswaprequests_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8306,7 +8694,7 @@ ALTER TABLE ONLY attendance.shiftswaprequests
 
 
 --
--- TOC entry 5342 (class 2606 OID 34618)
+-- TOC entry 5163 (class 2606 OID 21958)
 -- Name: system_health_snapshots system_health_snapshots_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8315,7 +8703,7 @@ ALTER TABLE ONLY attendance.system_health_snapshots
 
 
 --
--- TOC entry 5590 (class 2606 OID 37461)
+-- TOC entry 5165 (class 2606 OID 21960)
 -- Name: timesheet_approval_delegations timesheet_approval_delegations_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8324,7 +8712,7 @@ ALTER TABLE ONLY attendance.timesheet_approval_delegations
 
 
 --
--- TOC entry 5586 (class 2606 OID 37451)
+-- TOC entry 5167 (class 2606 OID 21962)
 -- Name: timesheet_approval_progress timesheet_approval_progress_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8333,7 +8721,7 @@ ALTER TABLE ONLY attendance.timesheet_approval_progress
 
 
 --
--- TOC entry 5588 (class 2606 OID 37453)
+-- TOC entry 5169 (class 2606 OID 21964)
 -- Name: timesheet_approval_progress timesheet_approval_progress_timesheet_id_employee_id_step_i_key; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8342,7 +8730,7 @@ ALTER TABLE ONLY attendance.timesheet_approval_progress
 
 
 --
--- TOC entry 5582 (class 2606 OID 37439)
+-- TOC entry 5171 (class 2606 OID 21966)
 -- Name: timesheet_approval_steps timesheet_approval_steps_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8351,7 +8739,7 @@ ALTER TABLE ONLY attendance.timesheet_approval_steps
 
 
 --
--- TOC entry 5584 (class 2606 OID 37441)
+-- TOC entry 5173 (class 2606 OID 21968)
 -- Name: timesheet_approval_steps timesheet_approval_steps_workflow_id_step_order_key; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8360,7 +8748,7 @@ ALTER TABLE ONLY attendance.timesheet_approval_steps
 
 
 --
--- TOC entry 5580 (class 2606 OID 37431)
+-- TOC entry 5175 (class 2606 OID 21970)
 -- Name: timesheet_approval_workflows timesheet_approval_workflows_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8369,7 +8757,7 @@ ALTER TABLE ONLY attendance.timesheet_approval_workflows
 
 
 --
--- TOC entry 5575 (class 2606 OID 37400)
+-- TOC entry 5181 (class 2606 OID 21972)
 -- Name: timesheet_audit_log timesheet_audit_log_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8378,7 +8766,7 @@ ALTER TABLE ONLY attendance.timesheet_audit_log
 
 
 --
--- TOC entry 5592 (class 2606 OID 37474)
+-- TOC entry 5183 (class 2606 OID 21974)
 -- Name: timesheet_comp_time timesheet_comp_time_employee_id_organization_id_year_key; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8387,7 +8775,7 @@ ALTER TABLE ONLY attendance.timesheet_comp_time
 
 
 --
--- TOC entry 5594 (class 2606 OID 37472)
+-- TOC entry 5185 (class 2606 OID 21976)
 -- Name: timesheet_comp_time timesheet_comp_time_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8396,7 +8784,7 @@ ALTER TABLE ONLY attendance.timesheet_comp_time
 
 
 --
--- TOC entry 5567 (class 2606 OID 37391)
+-- TOC entry 5187 (class 2606 OID 21978)
 -- Name: timesheet_config timesheet_config_organization_id_key; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8405,7 +8793,7 @@ ALTER TABLE ONLY attendance.timesheet_config
 
 
 --
--- TOC entry 5569 (class 2606 OID 37389)
+-- TOC entry 5189 (class 2606 OID 21980)
 -- Name: timesheet_config timesheet_config_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8414,7 +8802,7 @@ ALTER TABLE ONLY attendance.timesheet_config
 
 
 --
--- TOC entry 5596 (class 2606 OID 37482)
+-- TOC entry 5191 (class 2606 OID 21982)
 -- Name: timesheet_cost_centers timesheet_cost_centers_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8423,7 +8811,7 @@ ALTER TABLE ONLY attendance.timesheet_cost_centers
 
 
 --
--- TOC entry 5400 (class 2606 OID 35184)
+-- TOC entry 5197 (class 2606 OID 21984)
 -- Name: timesheet_payroll_summary timesheet_payroll_summary_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8432,7 +8820,7 @@ ALTER TABLE ONLY attendance.timesheet_payroll_summary
 
 
 --
--- TOC entry 5563 (class 2606 OID 37350)
+-- TOC entry 5203 (class 2606 OID 21986)
 -- Name: timesheet_period_assignments timesheet_period_assignments_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8441,7 +8829,7 @@ ALTER TABLE ONLY attendance.timesheet_period_assignments
 
 
 --
--- TOC entry 5565 (class 2606 OID 37352)
+-- TOC entry 5205 (class 2606 OID 21988)
 -- Name: timesheet_period_assignments timesheet_period_assignments_timesheet_id_employee_id_key; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8450,7 +8838,7 @@ ALTER TABLE ONLY attendance.timesheet_period_assignments
 
 
 --
--- TOC entry 5602 (class 2606 OID 37509)
+-- TOC entry 5207 (class 2606 OID 21990)
 -- Name: timesheet_project_activities timesheet_project_activities_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8459,7 +8847,7 @@ ALTER TABLE ONLY attendance.timesheet_project_activities
 
 
 --
--- TOC entry 5600 (class 2606 OID 37500)
+-- TOC entry 5209 (class 2606 OID 21992)
 -- Name: timesheet_project_tasks timesheet_project_tasks_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8468,7 +8856,7 @@ ALTER TABLE ONLY attendance.timesheet_project_tasks
 
 
 --
--- TOC entry 5598 (class 2606 OID 37492)
+-- TOC entry 5211 (class 2606 OID 21994)
 -- Name: timesheet_projects timesheet_projects_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8477,7 +8865,7 @@ ALTER TABLE ONLY attendance.timesheet_projects
 
 
 --
--- TOC entry 5606 (class 2606 OID 37530)
+-- TOC entry 5213 (class 2606 OID 21996)
 -- Name: timesheet_reopen_requests timesheet_reopen_requests_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8486,7 +8874,7 @@ ALTER TABLE ONLY attendance.timesheet_reopen_requests
 
 
 --
--- TOC entry 5604 (class 2606 OID 37520)
+-- TOC entry 5215 (class 2606 OID 21998)
 -- Name: timesheet_time_allocations timesheet_time_allocations_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8495,7 +8883,7 @@ ALTER TABLE ONLY attendance.timesheet_time_allocations
 
 
 --
--- TOC entry 5578 (class 2606 OID 37415)
+-- TOC entry 5218 (class 2606 OID 22000)
 -- Name: timesheet_transition_snapshots timesheet_transition_snapshots_pkey; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8504,7 +8892,7 @@ ALTER TABLE ONLY attendance.timesheet_transition_snapshots
 
 
 --
--- TOC entry 5047 (class 2606 OID 25040)
+-- TOC entry 5065 (class 2606 OID 22002)
 -- Name: attendance uq_attendance; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8513,7 +8901,7 @@ ALTER TABLE ONLY attendance.attendance
 
 
 --
--- TOC entry 5212 (class 2606 OID 33478)
+-- TOC entry 5080 (class 2606 OID 22004)
 -- Name: company_holidays uq_company_holiday; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8522,7 +8910,7 @@ ALTER TABLE ONLY attendance.company_holidays
 
 
 --
--- TOC entry 5218 (class 2606 OID 33502)
+-- TOC entry 5092 (class 2606 OID 22006)
 -- Name: employee_restricted_holidays uq_employee_restricted; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8531,7 +8919,7 @@ ALTER TABLE ONLY attendance.employee_restricted_holidays
 
 
 --
--- TOC entry 5150 (class 2606 OID 33150)
+-- TOC entry 5106 (class 2606 OID 22008)
 -- Name: finalized_timesheet_records uq_ftr_timesheet_employee_workdate; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8540,7 +8928,7 @@ ALTER TABLE ONLY attendance.finalized_timesheet_records
 
 
 --
--- TOC entry 5206 (class 2606 OID 33459)
+-- TOC entry 5121 (class 2606 OID 22010)
 -- Name: holiday_catalogs uq_holiday_catalog; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8549,7 +8937,7 @@ ALTER TABLE ONLY attendance.holiday_catalogs
 
 
 --
--- TOC entry 5224 (class 2606 OID 33529)
+-- TOC entry 5127 (class 2606 OID 22012)
 -- Name: holiday_employee_assignments uq_holiday_employee; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8558,7 +8946,7 @@ ALTER TABLE ONLY attendance.holiday_employee_assignments
 
 
 --
--- TOC entry 5051 (class 2606 OID 25042)
+-- TOC entry 5133 (class 2606 OID 22014)
 -- Name: leaveentitlements uq_leaveentitlements; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8567,7 +8955,7 @@ ALTER TABLE ONLY attendance.leaveentitlements
 
 
 --
--- TOC entry 5057 (class 2606 OID 25044)
+-- TOC entry 5139 (class 2606 OID 22016)
 -- Name: leavetypes uq_leavetypes; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8576,7 +8964,7 @@ ALTER TABLE ONLY attendance.leavetypes
 
 
 --
--- TOC entry 5161 (class 2606 OID 35146)
+-- TOC entry 5144 (class 2606 OID 22018)
 -- Name: monthly_timesheets uq_org_period_name; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8585,7 +8973,7 @@ ALTER TABLE ONLY attendance.monthly_timesheets
 
 
 --
--- TOC entry 5328 (class 2606 OID 34516)
+-- TOC entry 5154 (class 2606 OID 22020)
 -- Name: shift_geo_fences uq_shift_geo_fence; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8594,7 +8982,7 @@ ALTER TABLE ONLY attendance.shift_geo_fences
 
 
 --
--- TOC entry 5061 (class 2606 OID 25046)
+-- TOC entry 5158 (class 2606 OID 22022)
 -- Name: shifts uq_shifts; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8603,7 +8991,7 @@ ALTER TABLE ONLY attendance.shifts
 
 
 --
--- TOC entry 5402 (class 2606 OID 35186)
+-- TOC entry 5199 (class 2606 OID 22024)
 -- Name: timesheet_payroll_summary uq_timesheet_payroll_summary_emp; Type: CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -8612,7 +9000,7 @@ ALTER TABLE ONLY attendance.timesheet_payroll_summary
 
 
 --
--- TOC entry 5171 (class 2606 OID 33304)
+-- TOC entry 5228 (class 2606 OID 22026)
 -- Name: actions actions_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8621,7 +9009,7 @@ ALTER TABLE ONLY auth.actions
 
 
 --
--- TOC entry 5557 (class 2606 OID 36737)
+-- TOC entry 5230 (class 2606 OID 22028)
 -- Name: global_role_permissions global_role_permissions_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8630,7 +9018,7 @@ ALTER TABLE ONLY auth.global_role_permissions
 
 
 --
--- TOC entry 5553 (class 2606 OID 36726)
+-- TOC entry 5234 (class 2606 OID 22030)
 -- Name: global_roles global_roles_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8639,7 +9027,7 @@ ALTER TABLE ONLY auth.global_roles
 
 
 --
--- TOC entry 5163 (class 2606 OID 33278)
+-- TOC entry 5238 (class 2606 OID 22032)
 -- Name: menus menus_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8648,7 +9036,7 @@ ALTER TABLE ONLY auth.menus
 
 
 --
--- TOC entry 5065 (class 2606 OID 25048)
+-- TOC entry 5240 (class 2606 OID 22034)
 -- Name: organizations organizations_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8657,7 +9045,7 @@ ALTER TABLE ONLY auth.organizations
 
 
 --
--- TOC entry 5103 (class 2606 OID 25124)
+-- TOC entry 5242 (class 2606 OID 22036)
 -- Name: password_reset_tokens password_reset_tokens_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8666,7 +9054,7 @@ ALTER TABLE ONLY auth.password_reset_tokens
 
 
 --
--- TOC entry 5067 (class 2606 OID 36705)
+-- TOC entry 5248 (class 2606 OID 22038)
 -- Name: roles roles_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8675,7 +9063,7 @@ ALTER TABLE ONLY auth.roles
 
 
 --
--- TOC entry 5165 (class 2606 OID 33286)
+-- TOC entry 5252 (class 2606 OID 22040)
 -- Name: submenus sub_menus_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8684,7 +9072,7 @@ ALTER TABLE ONLY auth.submenus
 
 
 --
--- TOC entry 5559 (class 2606 OID 36739)
+-- TOC entry 5232 (class 2606 OID 22042)
 -- Name: global_role_permissions uq_global_role_action; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8693,7 +9081,7 @@ ALTER TABLE ONLY auth.global_role_permissions
 
 
 --
--- TOC entry 5555 (class 2606 OID 36728)
+-- TOC entry 5236 (class 2606 OID 22044)
 -- Name: global_roles uq_global_roles; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8702,7 +9090,7 @@ ALTER TABLE ONLY auth.global_roles
 
 
 --
--- TOC entry 5167 (class 2606 OID 36707)
+-- TOC entry 5244 (class 2606 OID 22046)
 -- Name: permissions uq_permissions; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8711,7 +9099,7 @@ ALTER TABLE ONLY auth.permissions
 
 
 --
--- TOC entry 5169 (class 2606 OID 36709)
+-- TOC entry 5246 (class 2606 OID 22048)
 -- Name: permissions uq_permissions_role_action_org; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8720,7 +9108,7 @@ ALTER TABLE ONLY auth.permissions
 
 
 --
--- TOC entry 5069 (class 2606 OID 25052)
+-- TOC entry 5250 (class 2606 OID 22050)
 -- Name: roles uq_roles; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8729,7 +9117,7 @@ ALTER TABLE ONLY auth.roles
 
 
 --
--- TOC entry 5071 (class 2606 OID 25054)
+-- TOC entry 5254 (class 2606 OID 22052)
 -- Name: users users_email_key; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8738,7 +9126,7 @@ ALTER TABLE ONLY auth.users
 
 
 --
--- TOC entry 5073 (class 2606 OID 25056)
+-- TOC entry 5256 (class 2606 OID 22054)
 -- Name: users users_pkey; Type: CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -8747,7 +9135,7 @@ ALTER TABLE ONLY auth.users
 
 
 --
--- TOC entry 5105 (class 2606 OID 25139)
+-- TOC entry 5258 (class 2606 OID 22056)
 -- Name: chat_board_logs chat_board_logs_pkey; Type: CONSTRAINT; Schema: chatboard; Owner: postgres
 --
 
@@ -8756,7 +9144,7 @@ ALTER TABLE ONLY chatboard.chat_board_logs
 
 
 --
--- TOC entry 5075 (class 2606 OID 25058)
+-- TOC entry 5260 (class 2606 OID 22058)
 -- Name: departments departments_pkey; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8765,7 +9153,7 @@ ALTER TABLE ONLY employee.departments
 
 
 --
--- TOC entry 5079 (class 2606 OID 25060)
+-- TOC entry 5264 (class 2606 OID 22060)
 -- Name: documents documents_pkey; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8774,7 +9162,7 @@ ALTER TABLE ONLY employee.documents
 
 
 --
--- TOC entry 5344 (class 2606 OID 34629)
+-- TOC entry 5266 (class 2606 OID 22062)
 -- Name: employee_face_descriptors employee_face_descriptors_pkey; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8783,7 +9171,7 @@ ALTER TABLE ONLY employee.employee_face_descriptors
 
 
 --
--- TOC entry 5081 (class 2606 OID 25062)
+-- TOC entry 5220 (class 2606 OID 22064)
 -- Name: employees employees_pkey; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8792,7 +9180,7 @@ ALTER TABLE ONLY employee.employees
 
 
 --
--- TOC entry 5087 (class 2606 OID 25064)
+-- TOC entry 5226 (class 2606 OID 22066)
 -- Name: employmentdetails employmentdetails_pkey; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8801,7 +9189,7 @@ ALTER TABLE ONLY employee.employmentdetails
 
 
 --
--- TOC entry 5089 (class 2606 OID 25066)
+-- TOC entry 5269 (class 2606 OID 22068)
 -- Name: positions positions_pkey; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8810,7 +9198,7 @@ ALTER TABLE ONLY employee.positions
 
 
 --
--- TOC entry 5077 (class 2606 OID 25068)
+-- TOC entry 5262 (class 2606 OID 22070)
 -- Name: departments uq_departments; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8819,7 +9207,7 @@ ALTER TABLE ONLY employee.departments
 
 
 --
--- TOC entry 5083 (class 2606 OID 25070)
+-- TOC entry 5222 (class 2606 OID 22072)
 -- Name: employees uq_employeecode; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8828,7 +9216,7 @@ ALTER TABLE ONLY employee.employees
 
 
 --
--- TOC entry 5085 (class 2606 OID 25072)
+-- TOC entry 5224 (class 2606 OID 22074)
 -- Name: employees uq_employeeemail; Type: CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -8837,7 +9225,7 @@ ALTER TABLE ONLY employee.employees
 
 
 --
--- TOC entry 5115 (class 2606 OID 32785)
+-- TOC entry 5271 (class 2606 OID 22076)
 -- Name: expensecategories expensecategories_pkey; Type: CONSTRAINT; Schema: expense; Owner: postgres
 --
 
@@ -8846,7 +9234,7 @@ ALTER TABLE ONLY expense.expensecategories
 
 
 --
--- TOC entry 5117 (class 2606 OID 32796)
+-- TOC entry 5273 (class 2606 OID 22078)
 -- Name: expenses expenses_pkey; Type: CONSTRAINT; Schema: expense; Owner: postgres
 --
 
@@ -8855,7 +9243,7 @@ ALTER TABLE ONLY expense.expenses
 
 
 --
--- TOC entry 5119 (class 2606 OID 32807)
+-- TOC entry 5275 (class 2606 OID 22080)
 -- Name: recurringexpenses recurringexpenses_pkey; Type: CONSTRAINT; Schema: expense; Owner: postgres
 --
 
@@ -8864,7 +9252,7 @@ ALTER TABLE ONLY expense.recurringexpenses
 
 
 --
--- TOC entry 5520 (class 2606 OID 36326)
+-- TOC entry 5277 (class 2606 OID 22082)
 -- Name: aggregatedcounter aggregatedcounter_key_key; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8873,7 +9261,7 @@ ALTER TABLE ONLY hangfire.aggregatedcounter
 
 
 --
--- TOC entry 5522 (class 2606 OID 36324)
+-- TOC entry 5279 (class 2606 OID 22084)
 -- Name: aggregatedcounter aggregatedcounter_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8882,7 +9270,7 @@ ALTER TABLE ONLY hangfire.aggregatedcounter
 
 
 --
--- TOC entry 5482 (class 2606 OID 36160)
+-- TOC entry 5281 (class 2606 OID 22086)
 -- Name: counter counter_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8891,7 +9279,7 @@ ALTER TABLE ONLY hangfire.counter
 
 
 --
--- TOC entry 5486 (class 2606 OID 36295)
+-- TOC entry 5285 (class 2606 OID 22088)
 -- Name: hash hash_key_field_key; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8900,7 +9288,7 @@ ALTER TABLE ONLY hangfire.hash
 
 
 --
--- TOC entry 5488 (class 2606 OID 36169)
+-- TOC entry 5287 (class 2606 OID 22090)
 -- Name: hash hash_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8909,7 +9297,7 @@ ALTER TABLE ONLY hangfire.hash
 
 
 --
--- TOC entry 5494 (class 2606 OID 36179)
+-- TOC entry 5293 (class 2606 OID 22092)
 -- Name: job job_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8918,7 +9306,7 @@ ALTER TABLE ONLY hangfire.job
 
 
 --
--- TOC entry 5516 (class 2606 OID 36229)
+-- TOC entry 5296 (class 2606 OID 22094)
 -- Name: jobparameter jobparameter_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8927,7 +9315,7 @@ ALTER TABLE ONLY hangfire.jobparameter
 
 
 --
--- TOC entry 5502 (class 2606 OID 36252)
+-- TOC entry 5301 (class 2606 OID 22096)
 -- Name: jobqueue jobqueue_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8936,7 +9324,7 @@ ALTER TABLE ONLY hangfire.jobqueue
 
 
 --
--- TOC entry 5505 (class 2606 OID 36272)
+-- TOC entry 5304 (class 2606 OID 22098)
 -- Name: list list_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8945,7 +9333,7 @@ ALTER TABLE ONLY hangfire.list
 
 
 --
--- TOC entry 5518 (class 2606 OID 36151)
+-- TOC entry 5306 (class 2606 OID 22100)
 -- Name: lock lock_resource_key; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8956,7 +9344,7 @@ ALTER TABLE ONLY hangfire.lock REPLICA IDENTITY USING INDEX lock_resource_key;
 
 
 --
--- TOC entry 5480 (class 2606 OID 36030)
+-- TOC entry 5308 (class 2606 OID 22102)
 -- Name: schema schema_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8965,7 +9353,7 @@ ALTER TABLE ONLY hangfire.schema
 
 
 --
--- TOC entry 5507 (class 2606 OID 36298)
+-- TOC entry 5310 (class 2606 OID 22104)
 -- Name: server server_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8974,7 +9362,7 @@ ALTER TABLE ONLY hangfire.server
 
 
 --
--- TOC entry 5511 (class 2606 OID 36300)
+-- TOC entry 5314 (class 2606 OID 22106)
 -- Name: set set_key_value_key; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8983,7 +9371,7 @@ ALTER TABLE ONLY hangfire.set
 
 
 --
--- TOC entry 5513 (class 2606 OID 36281)
+-- TOC entry 5316 (class 2606 OID 22108)
 -- Name: set set_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -8992,7 +9380,7 @@ ALTER TABLE ONLY hangfire.set
 
 
 --
--- TOC entry 5497 (class 2606 OID 36206)
+-- TOC entry 5319 (class 2606 OID 22110)
 -- Name: state state_pkey; Type: CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -9001,7 +9389,7 @@ ALTER TABLE ONLY hangfire.state
 
 
 --
--- TOC entry 5287 (class 2606 OID 34156)
+-- TOC entry 5321 (class 2606 OID 22112)
 -- Name: categories categories_pkey; Type: CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -9010,7 +9398,7 @@ ALTER TABLE ONLY helpdesk.categories
 
 
 --
--- TOC entry 5283 (class 2606 OID 34135)
+-- TOC entry 5323 (class 2606 OID 22114)
 -- Name: ticket_assigned_employees ticket_assigned_employees_pkey; Type: CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -9019,7 +9407,7 @@ ALTER TABLE ONLY helpdesk.ticket_assigned_employees
 
 
 --
--- TOC entry 5281 (class 2606 OID 34118)
+-- TOC entry 5327 (class 2606 OID 22116)
 -- Name: ticket_assignments ticket_assignments_pkey; Type: CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -9028,7 +9416,7 @@ ALTER TABLE ONLY helpdesk.ticket_assignments
 
 
 --
--- TOC entry 5279 (class 2606 OID 34108)
+-- TOC entry 5329 (class 2606 OID 22118)
 -- Name: ticket_group ticket_group_pkey; Type: CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -9037,7 +9425,7 @@ ALTER TABLE ONLY helpdesk.ticket_group
 
 
 --
--- TOC entry 5277 (class 2606 OID 34092)
+-- TOC entry 5331 (class 2606 OID 22120)
 -- Name: ticket_message_recipients ticket_message_recipients_pkey; Type: CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -9046,7 +9434,7 @@ ALTER TABLE ONLY helpdesk.ticket_message_recipients
 
 
 --
--- TOC entry 5275 (class 2606 OID 34080)
+-- TOC entry 5333 (class 2606 OID 22122)
 -- Name: ticket_messages ticket_messages_pkey; Type: CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -9055,7 +9443,7 @@ ALTER TABLE ONLY helpdesk.ticket_messages
 
 
 --
--- TOC entry 5273 (class 2606 OID 34071)
+-- TOC entry 5335 (class 2606 OID 22124)
 -- Name: tickets tickets_pkey; Type: CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -9064,7 +9452,7 @@ ALTER TABLE ONLY helpdesk.tickets
 
 
 --
--- TOC entry 5285 (class 2606 OID 34137)
+-- TOC entry 5325 (class 2606 OID 22126)
 -- Name: ticket_assigned_employees uq_ticket_employee; Type: CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -9073,7 +9461,7 @@ ALTER TABLE ONLY helpdesk.ticket_assigned_employees
 
 
 --
--- TOC entry 5128 (class 2606 OID 32859)
+-- TOC entry 5337 (class 2606 OID 22128)
 -- Name: applicationstages applicationstages_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9082,7 +9470,7 @@ ALTER TABLE ONLY jobs.applicationstages
 
 
 --
--- TOC entry 5537 (class 2606 OID 36559)
+-- TOC entry 5339 (class 2606 OID 22130)
 -- Name: candidateanswers candidateanswers_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9091,7 +9479,7 @@ ALTER TABLE ONLY jobs.candidateanswers
 
 
 --
--- TOC entry 5124 (class 2606 OID 32843)
+-- TOC entry 5344 (class 2606 OID 22132)
 -- Name: jobapplications jobapplications_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9100,7 +9488,7 @@ ALTER TABLE ONLY jobs.jobapplications
 
 
 --
--- TOC entry 5121 (class 2606 OID 32832)
+-- TOC entry 5346 (class 2606 OID 22134)
 -- Name: jobopenings jobopenings_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9109,7 +9497,7 @@ ALTER TABLE ONLY jobs.jobopenings
 
 
 --
--- TOC entry 5533 (class 2606 OID 36536)
+-- TOC entry 5350 (class 2606 OID 22136)
 -- Name: jobquestions jobquestions_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9118,7 +9506,7 @@ ALTER TABLE ONLY jobs.jobquestions
 
 
 --
--- TOC entry 5543 (class 2606 OID 36581)
+-- TOC entry 5356 (class 2606 OID 22138)
 -- Name: parsedresumes parsedresumes_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9127,7 +9515,7 @@ ALTER TABLE ONLY jobs.parsedresumes
 
 
 --
--- TOC entry 5525 (class 2606 OID 36508)
+-- TOC entry 5361 (class 2606 OID 22140)
 -- Name: questioncategories questioncategories_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9136,7 +9524,7 @@ ALTER TABLE ONLY jobs.questioncategories
 
 
 --
--- TOC entry 5529 (class 2606 OID 36521)
+-- TOC entry 5365 (class 2606 OID 22142)
 -- Name: questions questions_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9145,7 +9533,7 @@ ALTER TABLE ONLY jobs.questions
 
 
 --
--- TOC entry 5126 (class 2606 OID 32850)
+-- TOC entry 5367 (class 2606 OID 22144)
 -- Name: stagemaster stagemaster_pkey; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9154,7 +9542,7 @@ ALTER TABLE ONLY jobs.stagemaster
 
 
 --
--- TOC entry 5535 (class 2606 OID 36548)
+-- TOC entry 5352 (class 2606 OID 22146)
 -- Name: jobquestions uq_jobquestions_job_question; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9163,7 +9551,7 @@ ALTER TABLE ONLY jobs.jobquestions
 
 
 --
--- TOC entry 5545 (class 2606 OID 36588)
+-- TOC entry 5358 (class 2606 OID 22148)
 -- Name: parsedresumes uq_parsedresumes_jobapply; Type: CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -9172,7 +9560,7 @@ ALTER TABLE ONLY jobs.parsedresumes
 
 
 --
--- TOC entry 5132 (class 2606 OID 32886)
+-- TOC entry 5369 (class 2606 OID 22150)
 -- Name: news news_pkey; Type: CONSTRAINT; Schema: news; Owner: postgres
 --
 
@@ -9181,7 +9569,7 @@ ALTER TABLE ONLY news.news
 
 
 --
--- TOC entry 5134 (class 2606 OID 32892)
+-- TOC entry 5371 (class 2606 OID 22152)
 -- Name: news_reads_count pk_news_reads; Type: CONSTRAINT; Schema: news; Owner: postgres
 --
 
@@ -9190,7 +9578,7 @@ ALTER TABLE ONLY news.news_reads_count
 
 
 --
--- TOC entry 5130 (class 2606 OID 32869)
+-- TOC entry 5373 (class 2606 OID 22154)
 -- Name: notifications notifications_pkey; Type: CONSTRAINT; Schema: notification; Owner: postgres
 --
 
@@ -9199,7 +9587,7 @@ ALTER TABLE ONLY notification.notifications
 
 
 --
--- TOC entry 5476 (class 2606 OID 36006)
+-- TOC entry 5375 (class 2606 OID 22156)
 -- Name: bank_details bank_details_pkey; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9208,7 +9596,7 @@ ALTER TABLE ONLY onboarding.bank_details
 
 
 --
--- TOC entry 5468 (class 2606 OID 35959)
+-- TOC entry 5379 (class 2606 OID 22158)
 -- Name: education pk_onboarding_education; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9217,7 +9605,7 @@ ALTER TABLE ONLY onboarding.education
 
 
 --
--- TOC entry 5470 (class 2606 OID 35974)
+-- TOC entry 5381 (class 2606 OID 22160)
 -- Name: field_configurations pk_onboarding_field_configurations; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9226,7 +9614,7 @@ ALTER TABLE ONLY onboarding.field_configurations
 
 
 --
--- TOC entry 5464 (class 2606 OID 35947)
+-- TOC entry 5387 (class 2606 OID 22162)
 -- Name: sessions pk_onboarding_sessions; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9235,7 +9623,7 @@ ALTER TABLE ONLY onboarding.sessions
 
 
 --
--- TOC entry 5474 (class 2606 OID 35987)
+-- TOC entry 5391 (class 2606 OID 22164)
 -- Name: work_experience pk_onboarding_work_experience; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9244,7 +9632,7 @@ ALTER TABLE ONLY onboarding.work_experience
 
 
 --
--- TOC entry 5462 (class 2606 OID 35923)
+-- TOC entry 5385 (class 2606 OID 22166)
 -- Name: policies pk_policies; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9253,7 +9641,7 @@ ALTER TABLE ONLY onboarding.policies
 
 
 --
--- TOC entry 5478 (class 2606 OID 36008)
+-- TOC entry 5377 (class 2606 OID 22168)
 -- Name: bank_details uq_bank_details_onboarding; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9262,7 +9650,7 @@ ALTER TABLE ONLY onboarding.bank_details
 
 
 --
--- TOC entry 5466 (class 2606 OID 35949)
+-- TOC entry 5389 (class 2606 OID 22170)
 -- Name: sessions uq_onboarding_employee; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9271,7 +9659,7 @@ ALTER TABLE ONLY onboarding.sessions
 
 
 --
--- TOC entry 5472 (class 2606 OID 35976)
+-- TOC entry 5383 (class 2606 OID 22172)
 -- Name: field_configurations uq_org_section_field; Type: CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -9280,7 +9668,7 @@ ALTER TABLE ONLY onboarding.field_configurations
 
 
 --
--- TOC entry 5111 (class 2606 OID 25195)
+-- TOC entry 5393 (class 2606 OID 22174)
 -- Name: companysubscriptions companysubscriptions_pkey; Type: CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -9289,7 +9677,7 @@ ALTER TABLE ONLY payment.companysubscriptions
 
 
 --
--- TOC entry 5194 (class 2606 OID 33400)
+-- TOC entry 5402 (class 2606 OID 22176)
 -- Name: invoices invoices_invoice_number_key; Type: CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -9298,7 +9686,7 @@ ALTER TABLE ONLY payment.invoices
 
 
 --
--- TOC entry 5196 (class 2606 OID 33398)
+-- TOC entry 5404 (class 2606 OID 22178)
 -- Name: invoices invoices_pkey; Type: CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -9307,7 +9695,7 @@ ALTER TABLE ONLY payment.invoices
 
 
 --
--- TOC entry 5201 (class 2606 OID 33427)
+-- TOC entry 5409 (class 2606 OID 22180)
 -- Name: refunds refunds_pkey; Type: CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -9316,7 +9704,7 @@ ALTER TABLE ONLY payment.refunds
 
 
 --
--- TOC entry 5175 (class 2606 OID 33331)
+-- TOC entry 5411 (class 2606 OID 22182)
 -- Name: subscription_history subscription_history_pkey; Type: CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -9325,7 +9713,7 @@ ALTER TABLE ONLY payment.subscription_history
 
 
 --
--- TOC entry 5109 (class 2606 OID 25163)
+-- TOC entry 5413 (class 2606 OID 22184)
 -- Name: subscriptionplans subscriptionplans_pkey; Type: CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -9334,7 +9722,7 @@ ALTER TABLE ONLY payment.subscriptionplans
 
 
 --
--- TOC entry 5187 (class 2606 OID 33364)
+-- TOC entry 5421 (class 2606 OID 22186)
 -- Name: transactions transactions_pkey; Type: CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -9343,7 +9731,7 @@ ALTER TABLE ONLY payment.transactions
 
 
 --
--- TOC entry 5305 (class 2606 OID 34316)
+-- TOC entry 5423 (class 2606 OID 22188)
 -- Name: attendancedeductionrules attendancedeductionrules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9352,7 +9740,7 @@ ALTER TABLE ONLY payroll.attendancedeductionrules
 
 
 --
--- TOC entry 5307 (class 2606 OID 34333)
+-- TOC entry 5425 (class 2606 OID 22190)
 -- Name: attendancesummary attendancesummary_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9361,7 +9749,7 @@ ALTER TABLE ONLY payroll.attendancesummary
 
 
 --
--- TOC entry 5293 (class 2606 OID 34203)
+-- TOC entry 5430 (class 2606 OID 22192)
 -- Name: bonusentries bonusentries_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9370,7 +9758,7 @@ ALTER TABLE ONLY payroll.bonusentries
 
 
 --
--- TOC entry 5291 (class 2606 OID 34195)
+-- TOC entry 5434 (class 2606 OID 22194)
 -- Name: bonusrules bonusrules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9379,16 +9767,16 @@ ALTER TABLE ONLY payroll.bonusrules
 
 
 --
--- TOC entry 4988 (class 2606 OID 35460)
+-- TOC entry 5018 (class 2606 OID 22195)
 -- Name: socialsecurityconfig chk_ssconfig_contributionbasis; Type: CHECK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
 ALTER TABLE payroll.socialsecurityconfig
-    ADD CONSTRAINT chk_ssconfig_contributionbasis CHECK (((contributionbasis)::text = ANY ((ARRAY['basic'::character varying, 'gross'::character varying, 'fixed'::character varying, 'component'::character varying])::text[]))) NOT VALID;
+    ADD CONSTRAINT chk_ssconfig_contributionbasis CHECK (((contributionbasis)::text = ANY (ARRAY[('basic'::character varying)::text, ('gross'::character varying)::text, ('fixed'::character varying)::text, ('component'::character varying)::text]))) NOT VALID;
 
 
 --
--- TOC entry 4989 (class 2606 OID 35461)
+-- TOC entry 5019 (class 2606 OID 22196)
 -- Name: socialsecurityconfig chk_ssconfig_salary_range; Type: CHECK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9397,34 +9785,34 @@ ALTER TABLE payroll.socialsecurityconfig
 
 
 --
--- TOC entry 4991 (class 2606 OID 35632)
+-- TOC entry 5041 (class 2606 OID 22197)
 -- Name: socialsecuritytransactions chk_sstrx_contributionbasis; Type: CHECK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
 ALTER TABLE payroll.socialsecuritytransactions
-    ADD CONSTRAINT chk_sstrx_contributionbasis CHECK (((contributionbasis)::text = ANY ((ARRAY['basic'::character varying, 'gross'::character varying, 'fixed'::character varying, 'component'::character varying])::text[]))) NOT VALID;
+    ADD CONSTRAINT chk_sstrx_contributionbasis CHECK (((contributionbasis)::text = ANY (ARRAY[('basic'::character varying)::text, ('gross'::character varying)::text, ('fixed'::character varying)::text, ('component'::character varying)::text]))) NOT VALID;
 
 
 --
--- TOC entry 4992 (class 2606 OID 35634)
+-- TOC entry 5042 (class 2606 OID 22198)
 -- Name: socialsecuritytransactions chk_sstrx_sourcetype; Type: CHECK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
 ALTER TABLE payroll.socialsecuritytransactions
-    ADD CONSTRAINT chk_sstrx_sourcetype CHECK (((sourcetype)::text = ANY ((ARRAY['system'::character varying, 'manual'::character varying, 'import'::character varying])::text[]))) NOT VALID;
+    ADD CONSTRAINT chk_sstrx_sourcetype CHECK (((sourcetype)::text = ANY (ARRAY[('system'::character varying)::text, ('manual'::character varying)::text, ('import'::character varying)::text]))) NOT VALID;
 
 
 --
--- TOC entry 4993 (class 2606 OID 35633)
+-- TOC entry 5043 (class 2606 OID 22199)
 -- Name: socialsecuritytransactions chk_sstrx_transactiontype; Type: CHECK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
 ALTER TABLE payroll.socialsecuritytransactions
-    ADD CONSTRAINT chk_sstrx_transactiontype CHECK (((transactiontype)::text = ANY ((ARRAY['monthly'::character varying, 'adjustment'::character varying, 'arrears'::character varying, 'refund'::character varying, 'settlement'::character varying, 'manual'::character varying])::text[]))) NOT VALID;
+    ADD CONSTRAINT chk_sstrx_transactiontype CHECK (((transactiontype)::text = ANY (ARRAY[('monthly'::character varying)::text, ('adjustment'::character varying)::text, ('arrears'::character varying)::text, ('refund'::character varying)::text, ('settlement'::character varying)::text, ('manual'::character varying)::text]))) NOT VALID;
 
 
 --
--- TOC entry 5357 (class 2606 OID 34909)
+-- TOC entry 5436 (class 2606 OID 22201)
 -- Name: gratuityconfig gratuityconfig_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9433,7 +9821,7 @@ ALTER TABLE ONLY payroll.gratuityconfig
 
 
 --
--- TOC entry 5361 (class 2606 OID 34927)
+-- TOC entry 5440 (class 2606 OID 22203)
 -- Name: gratuitytransactions gratuitytransactions_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9442,7 +9830,7 @@ ALTER TABLE ONLY payroll.gratuitytransactions
 
 
 --
--- TOC entry 5252 (class 2606 OID 33777)
+-- TOC entry 5443 (class 2606 OID 22205)
 -- Name: lateattendance lateattendance_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9451,7 +9839,7 @@ ALTER TABLE ONLY payroll.lateattendance
 
 
 --
--- TOC entry 5230 (class 2606 OID 33598)
+-- TOC entry 5445 (class 2606 OID 22207)
 -- Name: lateattendancerules lateattendancerules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9460,7 +9848,7 @@ ALTER TABLE ONLY payroll.lateattendancerules
 
 
 --
--- TOC entry 5234 (class 2606 OID 33614)
+-- TOC entry 5449 (class 2606 OID 22209)
 -- Name: leaverules leaverules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9469,7 +9857,7 @@ ALTER TABLE ONLY payroll.leaverules
 
 
 --
--- TOC entry 5303 (class 2606 OID 34280)
+-- TOC entry 5453 (class 2606 OID 22211)
 -- Name: loanpayments loanpayments_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9478,7 +9866,7 @@ ALTER TABLE ONLY payroll.loanpayments
 
 
 --
--- TOC entry 5297 (class 2606 OID 34241)
+-- TOC entry 5455 (class 2606 OID 22213)
 -- Name: loanrules loanrules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9487,7 +9875,7 @@ ALTER TABLE ONLY payroll.loanrules
 
 
 --
--- TOC entry 5301 (class 2606 OID 34262)
+-- TOC entry 5459 (class 2606 OID 22215)
 -- Name: loans loans_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9496,7 +9884,7 @@ ALTER TABLE ONLY payroll.loans
 
 
 --
--- TOC entry 5248 (class 2606 OID 33735)
+-- TOC entry 5461 (class 2606 OID 22217)
 -- Name: overtimeentries overtimeentries_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9505,7 +9893,7 @@ ALTER TABLE ONLY payroll.overtimeentries
 
 
 --
--- TOC entry 5226 (class 2606 OID 33568)
+-- TOC entry 5465 (class 2606 OID 22219)
 -- Name: overtimerules overtimerules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9514,7 +9902,7 @@ ALTER TABLE ONLY payroll.overtimerules
 
 
 --
--- TOC entry 5254 (class 2606 OID 33798)
+-- TOC entry 5469 (class 2606 OID 22221)
 -- Name: payrollleavesummary payrollleavesummary_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9523,7 +9911,7 @@ ALTER TABLE ONLY payroll.payrollleavesummary
 
 
 --
--- TOC entry 5289 (class 2606 OID 34171)
+-- TOC entry 5473 (class 2606 OID 22223)
 -- Name: payrollperiods payrollperiods_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9532,7 +9920,7 @@ ALTER TABLE ONLY payroll.payrollperiods
 
 
 --
--- TOC entry 5404 (class 2606 OID 35277)
+-- TOC entry 5475 (class 2606 OID 22225)
 -- Name: payrollresults payrollresults_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9541,7 +9929,7 @@ ALTER TABLE ONLY payroll.payrollresults
 
 
 --
--- TOC entry 5547 (class 2606 OID 36654)
+-- TOC entry 5479 (class 2606 OID 22227)
 -- Name: paysliplayoutcatalog paysliplayoutcatalog_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9550,7 +9938,7 @@ ALTER TABLE ONLY payroll.paysliplayoutcatalog
 
 
 --
--- TOC entry 5408 (class 2606 OID 35294)
+-- TOC entry 5481 (class 2606 OID 22229)
 -- Name: payslips payslips_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9559,7 +9947,7 @@ ALTER TABLE ONLY payroll.payslips
 
 
 --
--- TOC entry 5550 (class 2606 OID 36675)
+-- TOC entry 5484 (class 2606 OID 22231)
 -- Name: paysliptemplates paysliptemplates_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9568,7 +9956,7 @@ ALTER TABLE ONLY payroll.paysliptemplates
 
 
 --
--- TOC entry 5258 (class 2606 OID 33813)
+-- TOC entry 5487 (class 2606 OID 22233)
 -- Name: performancepay performancepay_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9577,7 +9965,7 @@ ALTER TABLE ONLY payroll.performancepay
 
 
 --
--- TOC entry 5238 (class 2606 OID 33628)
+-- TOC entry 5491 (class 2606 OID 22235)
 -- Name: performancerules performancerules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9586,7 +9974,7 @@ ALTER TABLE ONLY payroll.performancerules
 
 
 --
--- TOC entry 5353 (class 2606 OID 34863)
+-- TOC entry 5495 (class 2606 OID 22237)
 -- Name: pfrequests pfrequests_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9595,7 +9983,7 @@ ALTER TABLE ONLY payroll.pfrequests
 
 
 --
--- TOC entry 5347 (class 2606 OID 34831)
+-- TOC entry 5497 (class 2606 OID 22239)
 -- Name: pfrules pfrules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9604,7 +9992,7 @@ ALTER TABLE ONLY payroll.pfrules
 
 
 --
--- TOC entry 5355 (class 2606 OID 34884)
+-- TOC entry 5499 (class 2606 OID 22241)
 -- Name: pftransactions pftransactions_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9613,7 +10001,7 @@ ALTER TABLE ONLY payroll.pftransactions
 
 
 --
--- TOC entry 5349 (class 2606 OID 34842)
+-- TOC entry 5501 (class 2606 OID 22243)
 -- Name: providentfund providentfund_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9622,7 +10010,7 @@ ALTER TABLE ONLY payroll.providentfund
 
 
 --
--- TOC entry 5314 (class 2606 OID 34366)
+-- TOC entry 5505 (class 2606 OID 22245)
 -- Name: salaryadvance salaryadvance_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9631,7 +10019,7 @@ ALTER TABLE ONLY payroll.salaryadvance
 
 
 --
--- TOC entry 5312 (class 2606 OID 34352)
+-- TOC entry 5507 (class 2606 OID 22247)
 -- Name: salaryadvancerules salaryadvancerules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9640,7 +10028,7 @@ ALTER TABLE ONLY payroll.salaryadvancerules
 
 
 --
--- TOC entry 5416 (class 2606 OID 35350)
+-- TOC entry 5510 (class 2606 OID 22249)
 -- Name: socialsecurityauthorities socialsecurityauthorities_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9649,7 +10037,7 @@ ALTER TABLE ONLY payroll.socialsecurityauthorities
 
 
 --
--- TOC entry 5447 (class 2606 OID 35608)
+-- TOC entry 5515 (class 2606 OID 22251)
 -- Name: socialsecurityclaims socialsecurityclaims_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9658,7 +10046,7 @@ ALTER TABLE ONLY payroll.socialsecurityclaims
 
 
 --
--- TOC entry 5244 (class 2606 OID 33707)
+-- TOC entry 5519 (class 2606 OID 22253)
 -- Name: socialsecurityconfig socialsecurityconfig_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9667,7 +10055,7 @@ ALTER TABLE ONLY payroll.socialsecurityconfig
 
 
 --
--- TOC entry 5436 (class 2606 OID 35503)
+-- TOC entry 5524 (class 2606 OID 22255)
 -- Name: socialsecurityemployeeenrollments socialsecurityemployeeenrollments_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9676,7 +10064,7 @@ ALTER TABLE ONLY payroll.socialsecurityemployeeenrollments
 
 
 --
--- TOC entry 5411 (class 2606 OID 35327)
+-- TOC entry 5528 (class 2606 OID 22257)
 -- Name: socialsecurityjurisdictions socialsecurityjurisdictions_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9685,7 +10073,7 @@ ALTER TABLE ONLY payroll.socialsecurityjurisdictions
 
 
 --
--- TOC entry 5460 (class 2606 OID 35826)
+-- TOC entry 5534 (class 2606 OID 22259)
 -- Name: socialsecurityremittanceitems socialsecurityremittanceitems_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9694,7 +10082,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittanceitems
 
 
 --
--- TOC entry 5455 (class 2606 OID 35789)
+-- TOC entry 5537 (class 2606 OID 22261)
 -- Name: socialsecurityremittances socialsecurityremittances_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9703,7 +10091,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittances
 
 
 --
--- TOC entry 5444 (class 2606 OID 35580)
+-- TOC entry 5541 (class 2606 OID 22263)
 -- Name: socialsecurityrequestdocuments socialsecurityrequestdocuments_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9712,7 +10100,7 @@ ALTER TABLE ONLY payroll.socialsecurityrequestdocuments
 
 
 --
--- TOC entry 5441 (class 2606 OID 35546)
+-- TOC entry 5545 (class 2606 OID 22265)
 -- Name: socialsecurityrequests socialsecurityrequests_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9721,7 +10109,7 @@ ALTER TABLE ONLY payroll.socialsecurityrequests
 
 
 --
--- TOC entry 5431 (class 2606 OID 35441)
+-- TOC entry 5548 (class 2606 OID 22267)
 -- Name: socialsecurityrulecomponents socialsecurityrulecomponents_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9730,7 +10118,7 @@ ALTER TABLE ONLY payroll.socialsecurityrulecomponents
 
 
 --
--- TOC entry 5426 (class 2606 OID 35420)
+-- TOC entry 5553 (class 2606 OID 22269)
 -- Name: socialsecurityrules socialsecurityrules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9739,7 +10127,7 @@ ALTER TABLE ONLY payroll.socialsecurityrules
 
 
 --
--- TOC entry 5421 (class 2606 OID 35381)
+-- TOC entry 5558 (class 2606 OID 22271)
 -- Name: socialsecurityschemes socialsecurityschemes_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9748,7 +10136,7 @@ ALTER TABLE ONLY payroll.socialsecurityschemes
 
 
 --
--- TOC entry 5452 (class 2606 OID 35742)
+-- TOC entry 5565 (class 2606 OID 22273)
 -- Name: socialsecuritytransactionlines socialsecuritytransactionlines_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9757,7 +10145,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactionlines
 
 
 --
--- TOC entry 5269 (class 2606 OID 33909)
+-- TOC entry 5574 (class 2606 OID 22275)
 -- Name: socialsecuritytransactions socialsecuritytransactions_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9766,7 +10154,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5380 (class 2606 OID 35057)
+-- TOC entry 5578 (class 2606 OID 22277)
 -- Name: taxcategories taxcategories_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9775,7 +10163,7 @@ ALTER TABLE ONLY payroll.taxcategories
 
 
 --
--- TOC entry 5384 (class 2606 OID 35077)
+-- TOC entry 5580 (class 2606 OID 22279)
 -- Name: taxcomponentrules taxcomponentrules_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9784,7 +10172,7 @@ ALTER TABLE ONLY payroll.taxcomponentrules
 
 
 --
--- TOC entry 5378 (class 2606 OID 35048)
+-- TOC entry 5584 (class 2606 OID 22281)
 -- Name: taxregimes taxregimes_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9793,7 +10181,7 @@ ALTER TABLE ONLY payroll.taxregimes
 
 
 --
--- TOC entry 5382 (class 2606 OID 35067)
+-- TOC entry 5586 (class 2606 OID 22283)
 -- Name: taxslabs taxslabs_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9802,7 +10190,7 @@ ALTER TABLE ONLY payroll.taxslabs
 
 
 --
--- TOC entry 5388 (class 2606 OID 35084)
+-- TOC entry 5588 (class 2606 OID 22285)
 -- Name: taxtransactions taxtransactions_pkey; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9811,7 +10199,7 @@ ALTER TABLE ONLY payroll.taxtransactions
 
 
 --
--- TOC entry 5386 (class 2606 OID 36468)
+-- TOC entry 5582 (class 2606 OID 22287)
 -- Name: taxcomponentrules unique_org_applystage; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9820,7 +10208,7 @@ ALTER TABLE ONLY payroll.taxcomponentrules
 
 
 --
--- TOC entry 5406 (class 2606 OID 35279)
+-- TOC entry 5477 (class 2606 OID 22289)
 -- Name: payrollresults uq_payrollresults; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9829,7 +10217,7 @@ ALTER TABLE ONLY payroll.payrollresults
 
 
 --
--- TOC entry 5351 (class 2606 OID 34844)
+-- TOC entry 5503 (class 2606 OID 22291)
 -- Name: providentfund uq_pf_employee; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9838,7 +10226,7 @@ ALTER TABLE ONLY payroll.providentfund
 
 
 --
--- TOC entry 5418 (class 2606 OID 35352)
+-- TOC entry 5512 (class 2606 OID 22293)
 -- Name: socialsecurityauthorities uq_ss_authority; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9847,7 +10235,7 @@ ALTER TABLE ONLY payroll.socialsecurityauthorities
 
 
 --
--- TOC entry 5413 (class 2606 OID 35329)
+-- TOC entry 5530 (class 2606 OID 22295)
 -- Name: socialsecurityjurisdictions uq_ss_jurisdiction; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9856,7 +10244,7 @@ ALTER TABLE ONLY payroll.socialsecurityjurisdictions
 
 
 --
--- TOC entry 5428 (class 2606 OID 35422)
+-- TOC entry 5555 (class 2606 OID 22297)
 -- Name: socialsecurityrules uq_ss_rule; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9865,7 +10253,7 @@ ALTER TABLE ONLY payroll.socialsecurityrules
 
 
 --
--- TOC entry 5433 (class 2606 OID 35443)
+-- TOC entry 5550 (class 2606 OID 22299)
 -- Name: socialsecurityrulecomponents uq_ss_rule_component; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9874,7 +10262,7 @@ ALTER TABLE ONLY payroll.socialsecurityrulecomponents
 
 
 --
--- TOC entry 5423 (class 2606 OID 35383)
+-- TOC entry 5560 (class 2606 OID 22301)
 -- Name: socialsecurityschemes uq_ss_scheme; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9883,7 +10271,7 @@ ALTER TABLE ONLY payroll.socialsecurityschemes
 
 
 --
--- TOC entry 5310 (class 2606 OID 34335)
+-- TOC entry 5428 (class 2606 OID 22303)
 -- Name: attendancesummary uqattendance; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9892,7 +10280,7 @@ ALTER TABLE ONLY payroll.attendancesummary
 
 
 --
--- TOC entry 5295 (class 2606 OID 34205)
+-- TOC entry 5432 (class 2606 OID 22305)
 -- Name: bonusentries uqbonusentry; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9901,7 +10289,7 @@ ALTER TABLE ONLY payroll.bonusentries
 
 
 --
--- TOC entry 5359 (class 2606 OID 34911)
+-- TOC entry 5438 (class 2606 OID 22307)
 -- Name: gratuityconfig uqgratuityconfig; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9910,7 +10298,7 @@ ALTER TABLE ONLY payroll.gratuityconfig
 
 
 --
--- TOC entry 5256 (class 2606 OID 33800)
+-- TOC entry 5471 (class 2606 OID 22309)
 -- Name: payrollleavesummary uqleavesummary; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9919,7 +10307,7 @@ ALTER TABLE ONLY payroll.payrollleavesummary
 
 
 --
--- TOC entry 5232 (class 2606 OID 33600)
+-- TOC entry 5447 (class 2606 OID 22311)
 -- Name: lateattendancerules uqorglaterule; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9928,7 +10316,7 @@ ALTER TABLE ONLY payroll.lateattendancerules
 
 
 --
--- TOC entry 5236 (class 2606 OID 33616)
+-- TOC entry 5451 (class 2606 OID 22313)
 -- Name: leaverules uqorgleaverule; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9937,7 +10325,7 @@ ALTER TABLE ONLY payroll.leaverules
 
 
 --
--- TOC entry 5299 (class 2606 OID 34243)
+-- TOC entry 5457 (class 2606 OID 22315)
 -- Name: loanrules uqorgloanrule; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9946,7 +10334,7 @@ ALTER TABLE ONLY payroll.loanrules
 
 
 --
--- TOC entry 5250 (class 2606 OID 33737)
+-- TOC entry 5463 (class 2606 OID 22317)
 -- Name: overtimeentries uqovertime; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9955,7 +10343,7 @@ ALTER TABLE ONLY payroll.overtimeentries
 
 
 --
--- TOC entry 5240 (class 2606 OID 33630)
+-- TOC entry 5493 (class 2606 OID 22319)
 -- Name: performancerules uqperformancebracket; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9964,7 +10352,7 @@ ALTER TABLE ONLY payroll.performancerules
 
 
 --
--- TOC entry 5260 (class 2606 OID 33815)
+-- TOC entry 5489 (class 2606 OID 22321)
 -- Name: performancepay uqperformancepay; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9973,7 +10361,7 @@ ALTER TABLE ONLY payroll.performancepay
 
 
 --
--- TOC entry 5228 (class 2606 OID 33570)
+-- TOC entry 5467 (class 2606 OID 22323)
 -- Name: overtimerules uqruletype; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9982,7 +10370,7 @@ ALTER TABLE ONLY payroll.overtimerules
 
 
 --
--- TOC entry 5246 (class 2606 OID 33709)
+-- TOC entry 5521 (class 2606 OID 22325)
 -- Name: socialsecurityconfig uqssconfig; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -9991,7 +10379,7 @@ ALTER TABLE ONLY payroll.socialsecurityconfig
 
 
 --
--- TOC entry 5271 (class 2606 OID 33911)
+-- TOC entry 5576 (class 2606 OID 22327)
 -- Name: socialsecuritytransactions uqsstransaction; Type: CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -10000,7 +10388,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5364 (class 2606 OID 34943)
+-- TOC entry 5590 (class 2606 OID 22329)
 -- Name: appraisal_cycle appraisal_cycle_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10009,7 +10397,7 @@ ALTER TABLE ONLY performance.appraisal_cycle
 
 
 --
--- TOC entry 5091 (class 2606 OID 25090)
+-- TOC entry 5592 (class 2606 OID 22331)
 -- Name: employeeappraisals employeeappraisals_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10018,7 +10406,7 @@ ALTER TABLE ONLY performance.employeeappraisals
 
 
 --
--- TOC entry 5095 (class 2606 OID 25092)
+-- TOC entry 5596 (class 2606 OID 22333)
 -- Name: employeeskills employeeskills_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10027,7 +10415,7 @@ ALTER TABLE ONLY performance.employeeskills
 
 
 --
--- TOC entry 5370 (class 2606 OID 34975)
+-- TOC entry 5600 (class 2606 OID 22335)
 -- Name: goals goals_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10036,7 +10424,7 @@ ALTER TABLE ONLY performance.goals
 
 
 --
--- TOC entry 5376 (class 2606 OID 35034)
+-- TOC entry 5602 (class 2606 OID 22337)
 -- Name: hrappraisals hrreviews_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10045,7 +10433,7 @@ ALTER TABLE ONLY performance.hrappraisals
 
 
 --
--- TOC entry 5366 (class 2606 OID 34959)
+-- TOC entry 5604 (class 2606 OID 22339)
 -- Name: kra kra_kraname_key; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10054,7 +10442,7 @@ ALTER TABLE ONLY performance.kra
 
 
 --
--- TOC entry 5368 (class 2606 OID 34957)
+-- TOC entry 5606 (class 2606 OID 22341)
 -- Name: kra kra_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10063,7 +10451,7 @@ ALTER TABLE ONLY performance.kra
 
 
 --
--- TOC entry 5374 (class 2606 OID 35013)
+-- TOC entry 5608 (class 2606 OID 22343)
 -- Name: managerreviews managerreviews_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10072,7 +10460,7 @@ ALTER TABLE ONLY performance.managerreviews
 
 
 --
--- TOC entry 5372 (class 2606 OID 34992)
+-- TOC entry 5610 (class 2606 OID 22345)
 -- Name: selfassessments selfassessments_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10081,7 +10469,7 @@ ALTER TABLE ONLY performance.selfassessments
 
 
 --
--- TOC entry 5099 (class 2606 OID 25100)
+-- TOC entry 5612 (class 2606 OID 22347)
 -- Name: skillsets skillsets_pkey; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10090,7 +10478,7 @@ ALTER TABLE ONLY performance.skillsets
 
 
 --
--- TOC entry 5093 (class 2606 OID 25104)
+-- TOC entry 5594 (class 2606 OID 22349)
 -- Name: employeeappraisals uq_employeeappraisals; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10099,7 +10487,7 @@ ALTER TABLE ONLY performance.employeeappraisals
 
 
 --
--- TOC entry 5097 (class 2606 OID 25106)
+-- TOC entry 5598 (class 2606 OID 22351)
 -- Name: employeeskills uq_employeeskills; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10108,7 +10496,7 @@ ALTER TABLE ONLY performance.employeeskills
 
 
 --
--- TOC entry 5101 (class 2606 OID 25108)
+-- TOC entry 5614 (class 2606 OID 22353)
 -- Name: skillsets uq_skillsets; Type: CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -10117,7 +10505,7 @@ ALTER TABLE ONLY performance.skillsets
 
 
 --
--- TOC entry 5570 (class 1259 OID 37401)
+-- TOC entry 5176 (class 1259 OID 22354)
 -- Name: idx_audit_actor; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10125,7 +10513,7 @@ CREATE INDEX idx_audit_actor ON attendance.timesheet_audit_log USING btree (acto
 
 
 --
--- TOC entry 5571 (class 1259 OID 37402)
+-- TOC entry 5177 (class 1259 OID 22355)
 -- Name: idx_audit_entity; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10133,7 +10521,7 @@ CREATE INDEX idx_audit_entity ON attendance.timesheet_audit_log USING btree (ent
 
 
 --
--- TOC entry 5572 (class 1259 OID 37403)
+-- TOC entry 5178 (class 1259 OID 22356)
 -- Name: idx_audit_timesheet; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10141,7 +10529,7 @@ CREATE INDEX idx_audit_timesheet ON attendance.timesheet_audit_log USING btree (
 
 
 --
--- TOC entry 5153 (class 1259 OID 37531)
+-- TOC entry 5068 (class 1259 OID 22357)
 -- Name: idx_aur_idempotency; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10149,7 +10537,7 @@ CREATE INDEX idx_aur_idempotency ON attendance.attendance_update_requests USING 
 
 
 --
--- TOC entry 5209 (class 1259 OID 33490)
+-- TOC entry 5077 (class 1259 OID 22358)
 -- Name: idx_company_holidays_date; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10157,7 +10545,7 @@ CREATE INDEX idx_company_holidays_date ON attendance.company_holidays USING btre
 
 
 --
--- TOC entry 5210 (class 1259 OID 33489)
+-- TOC entry 5078 (class 1259 OID 22359)
 -- Name: idx_company_holidays_org_year; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10165,7 +10553,7 @@ CREATE INDEX idx_company_holidays_org_year ON attendance.company_holidays USING 
 
 
 --
--- TOC entry 5609 (class 1259 OID 37593)
+-- TOC entry 5085 (class 1259 OID 22360)
 -- Name: idx_erc_employee; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10173,7 +10561,7 @@ CREATE INDEX idx_erc_employee ON attendance.employee_rate_cards USING btree (emp
 
 
 --
--- TOC entry 5610 (class 1259 OID 37594)
+-- TOC entry 5086 (class 1259 OID 22361)
 -- Name: idx_erc_org; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10181,7 +10569,7 @@ CREATE INDEX idx_erc_org ON attendance.employee_rate_cards USING btree (organiza
 
 
 --
--- TOC entry 5215 (class 1259 OID 33518)
+-- TOC entry 5089 (class 1259 OID 22362)
 -- Name: idx_erh_employee; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10189,7 +10577,7 @@ CREATE INDEX idx_erh_employee ON attendance.employee_restricted_holidays USING b
 
 
 --
--- TOC entry 5216 (class 1259 OID 33519)
+-- TOC entry 5090 (class 1259 OID 22363)
 -- Name: idx_erh_org_year; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10197,7 +10585,7 @@ CREATE INDEX idx_erh_org_year ON attendance.employee_restricted_holidays USING b
 
 
 --
--- TOC entry 5331 (class 1259 OID 34564)
+-- TOC entry 5095 (class 1259 OID 22364)
 -- Name: idx_frl_attempttime; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10205,7 +10593,7 @@ CREATE INDEX idx_frl_attempttime ON attendance.face_recognition_logs USING btree
 
 
 --
--- TOC entry 5332 (class 1259 OID 34563)
+-- TOC entry 5096 (class 1259 OID 22365)
 -- Name: idx_frl_employee; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10213,7 +10601,7 @@ CREATE INDEX idx_frl_employee ON attendance.face_recognition_logs USING btree (e
 
 
 --
--- TOC entry 5333 (class 1259 OID 34565)
+-- TOC entry 5097 (class 1259 OID 22366)
 -- Name: idx_frl_result; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10221,7 +10609,7 @@ CREATE INDEX idx_frl_result ON attendance.face_recognition_logs USING btree (mat
 
 
 --
--- TOC entry 5321 (class 1259 OID 34506)
+-- TOC entry 5115 (class 1259 OID 22367)
 -- Name: idx_geo_fences_active; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10229,7 +10617,7 @@ CREATE INDEX idx_geo_fences_active ON attendance.geo_fences USING btree (isactiv
 
 
 --
--- TOC entry 5322 (class 1259 OID 34505)
+-- TOC entry 5116 (class 1259 OID 22368)
 -- Name: idx_geo_fences_org; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10237,7 +10625,7 @@ CREATE INDEX idx_geo_fences_org ON attendance.geo_fences USING btree (organizati
 
 
 --
--- TOC entry 5336 (class 1259 OID 34605)
+-- TOC entry 5109 (class 1259 OID 22369)
 -- Name: idx_gfv_employee; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10245,7 +10633,7 @@ CREATE INDEX idx_gfv_employee ON attendance.geo_fence_violations USING btree (em
 
 
 --
--- TOC entry 5337 (class 1259 OID 34606)
+-- TOC entry 5110 (class 1259 OID 22370)
 -- Name: idx_gfv_org; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10253,7 +10641,7 @@ CREATE INDEX idx_gfv_org ON attendance.geo_fence_violations USING btree (organiz
 
 
 --
--- TOC entry 5338 (class 1259 OID 34608)
+-- TOC entry 5111 (class 1259 OID 22371)
 -- Name: idx_gfv_unresolved; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10261,7 +10649,7 @@ CREATE INDEX idx_gfv_unresolved ON attendance.geo_fence_violations USING btree (
 
 
 --
--- TOC entry 5339 (class 1259 OID 34607)
+-- TOC entry 5112 (class 1259 OID 22372)
 -- Name: idx_gfv_violatedat; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10269,7 +10657,7 @@ CREATE INDEX idx_gfv_violatedat ON attendance.geo_fence_violations USING btree (
 
 
 --
--- TOC entry 5204 (class 1259 OID 33460)
+-- TOC entry 5119 (class 1259 OID 22373)
 -- Name: idx_holiday_catalogs_country; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10277,7 +10665,7 @@ CREATE INDEX idx_holiday_catalogs_country ON attendance.holiday_catalogs USING b
 
 
 --
--- TOC entry 5221 (class 1259 OID 33541)
+-- TOC entry 5124 (class 1259 OID 22374)
 -- Name: idx_holiday_emp_assign_employee; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10285,7 +10673,7 @@ CREATE INDEX idx_holiday_emp_assign_employee ON attendance.holiday_employee_assi
 
 
 --
--- TOC entry 5222 (class 1259 OID 33540)
+-- TOC entry 5125 (class 1259 OID 22375)
 -- Name: idx_holiday_emp_assign_holiday; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10293,7 +10681,7 @@ CREATE INDEX idx_holiday_emp_assign_holiday ON attendance.holiday_employee_assig
 
 
 --
--- TOC entry 5323 (class 1259 OID 34528)
+-- TOC entry 5149 (class 1259 OID 22376)
 -- Name: idx_sgf_fence; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10301,7 +10689,7 @@ CREATE INDEX idx_sgf_fence ON attendance.shift_geo_fences USING btree (geofencei
 
 
 --
--- TOC entry 5324 (class 1259 OID 34527)
+-- TOC entry 5150 (class 1259 OID 22377)
 -- Name: idx_sgf_shift; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10309,7 +10697,7 @@ CREATE INDEX idx_sgf_shift ON attendance.shift_geo_fences USING btree (shiftid);
 
 
 --
--- TOC entry 5340 (class 1259 OID 34619)
+-- TOC entry 5161 (class 1259 OID 22378)
 -- Name: idx_shs_org_at; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10317,7 +10705,7 @@ CREATE INDEX idx_shs_org_at ON attendance.system_health_snapshots USING btree (o
 
 
 --
--- TOC entry 5560 (class 1259 OID 37364)
+-- TOC entry 5200 (class 1259 OID 22379)
 -- Name: idx_tpa_employee; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10325,7 +10713,7 @@ CREATE INDEX idx_tpa_employee ON attendance.timesheet_period_assignments USING b
 
 
 --
--- TOC entry 5561 (class 1259 OID 37363)
+-- TOC entry 5201 (class 1259 OID 22380)
 -- Name: idx_tpa_timesheet; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10333,7 +10721,7 @@ CREATE INDEX idx_tpa_timesheet ON attendance.timesheet_period_assignments USING 
 
 
 --
--- TOC entry 5576 (class 1259 OID 37421)
+-- TOC entry 5216 (class 1259 OID 22381)
 -- Name: idx_tts_timesheet; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10341,7 +10729,7 @@ CREATE INDEX idx_tts_timesheet ON attendance.timesheet_transition_snapshots USIN
 
 
 --
--- TOC entry 5154 (class 1259 OID 33215)
+-- TOC entry 5069 (class 1259 OID 22382)
 -- Name: idx_unique_draft_request; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10349,7 +10737,7 @@ CREATE UNIQUE INDEX idx_unique_draft_request ON attendance.attendance_update_req
 
 
 --
--- TOC entry 5573 (class 1259 OID 37404)
+-- TOC entry 5179 (class 1259 OID 22383)
 -- Name: ix_audit_log_timesheet; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10357,7 +10745,7 @@ CREATE INDEX ix_audit_log_timesheet ON attendance.timesheet_audit_log USING btre
 
 
 --
--- TOC entry 5144 (class 1259 OID 35154)
+-- TOC entry 5100 (class 1259 OID 22384)
 -- Name: ix_ftr_timesheet_employee; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10365,7 +10753,7 @@ CREATE INDEX ix_ftr_timesheet_employee ON attendance.finalized_timesheet_records
 
 
 --
--- TOC entry 5157 (class 1259 OID 35147)
+-- TOC entry 5140 (class 1259 OID 22385)
 -- Name: ix_monthly_timesheets_org_period; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10373,7 +10761,7 @@ CREATE INDEX ix_monthly_timesheets_org_period ON attendance.monthly_timesheets U
 
 
 --
--- TOC entry 5395 (class 1259 OID 35203)
+-- TOC entry 5192 (class 1259 OID 22386)
 -- Name: ix_tps_employee; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10381,7 +10769,7 @@ CREATE INDEX ix_tps_employee ON attendance.timesheet_payroll_summary USING btree
 
 
 --
--- TOC entry 5396 (class 1259 OID 35202)
+-- TOC entry 5193 (class 1259 OID 22387)
 -- Name: ix_tps_org_period; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10389,7 +10777,7 @@ CREATE INDEX ix_tps_org_period ON attendance.timesheet_payroll_summary USING btr
 
 
 --
--- TOC entry 5397 (class 1259 OID 35893)
+-- TOC entry 5194 (class 1259 OID 22388)
 -- Name: ix_tps_org_period_shift; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10397,7 +10785,7 @@ CREATE INDEX ix_tps_org_period_shift ON attendance.timesheet_payroll_summary USI
 
 
 --
--- TOC entry 5398 (class 1259 OID 35204)
+-- TOC entry 5195 (class 1259 OID 22389)
 -- Name: ix_tps_payroll_period; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10405,7 +10793,7 @@ CREATE INDEX ix_tps_payroll_period ON attendance.timesheet_payroll_summary USING
 
 
 --
--- TOC entry 5155 (class 1259 OID 33216)
+-- TOC entry 5070 (class 1259 OID 22390)
 -- Name: uq_active_request_per_date; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10413,7 +10801,7 @@ CREATE UNIQUE INDEX uq_active_request_per_date ON attendance.attendance_update_r
 
 
 --
--- TOC entry 5145 (class 1259 OID 33176)
+-- TOC entry 5101 (class 1259 OID 22391)
 -- Name: uq_finalized_absence_emp_date; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10421,7 +10809,7 @@ CREATE UNIQUE INDEX uq_finalized_absence_emp_date ON attendance.finalized_timesh
 
 
 --
--- TOC entry 5146 (class 1259 OID 33177)
+-- TOC entry 5102 (class 1259 OID 22392)
 -- Name: uq_finalized_attendance_id; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10429,7 +10817,7 @@ CREATE UNIQUE INDEX uq_finalized_attendance_id ON attendance.finalized_timesheet
 
 
 --
--- TOC entry 5147 (class 1259 OID 33178)
+-- TOC entry 5103 (class 1259 OID 22393)
 -- Name: uq_ftr_attendance_id; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10437,7 +10825,7 @@ CREATE UNIQUE INDEX uq_ftr_attendance_id ON attendance.finalized_timesheet_recor
 
 
 --
--- TOC entry 5148 (class 1259 OID 33179)
+-- TOC entry 5104 (class 1259 OID 22394)
 -- Name: uq_ftr_emp_workdate_null; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10445,7 +10833,7 @@ CREATE UNIQUE INDEX uq_ftr_emp_workdate_null ON attendance.finalized_timesheet_r
 
 
 --
--- TOC entry 5139 (class 1259 OID 37532)
+-- TOC entry 5074 (class 1259 OID 22395)
 -- Name: uq_one_open_session; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10453,7 +10841,7 @@ CREATE UNIQUE INDEX uq_one_open_session ON attendance.attendancesessions USING b
 
 
 --
--- TOC entry 5156 (class 1259 OID 33217)
+-- TOC entry 5071 (class 1259 OID 22396)
 -- Name: uq_pending_attendance_request; Type: INDEX; Schema: attendance; Owner: postgres
 --
 
@@ -10461,7 +10849,7 @@ CREATE UNIQUE INDEX uq_pending_attendance_request ON attendance.attendance_updat
 
 
 --
--- TOC entry 5345 (class 1259 OID 34635)
+-- TOC entry 5267 (class 1259 OID 22397)
 -- Name: uq_face_descriptor_active_employee; Type: INDEX; Schema: employee; Owner: postgres
 --
 
@@ -10469,7 +10857,7 @@ CREATE UNIQUE INDEX uq_face_descriptor_active_employee ON employee.employee_face
 
 
 --
--- TOC entry 5483 (class 1259 OID 36327)
+-- TOC entry 5282 (class 1259 OID 22398)
 -- Name: ix_hangfire_counter_expireat; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10477,7 +10865,7 @@ CREATE INDEX ix_hangfire_counter_expireat ON hangfire.counter USING btree (expir
 
 
 --
--- TOC entry 5484 (class 1259 OID 36289)
+-- TOC entry 5283 (class 1259 OID 22399)
 -- Name: ix_hangfire_counter_key; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10485,7 +10873,7 @@ CREATE INDEX ix_hangfire_counter_key ON hangfire.counter USING btree (key);
 
 
 --
--- TOC entry 5489 (class 1259 OID 36328)
+-- TOC entry 5288 (class 1259 OID 22400)
 -- Name: ix_hangfire_hash_expireat; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10493,7 +10881,7 @@ CREATE INDEX ix_hangfire_hash_expireat ON hangfire.hash USING btree (expireat);
 
 
 --
--- TOC entry 5490 (class 1259 OID 36329)
+-- TOC entry 5289 (class 1259 OID 22401)
 -- Name: ix_hangfire_job_expireat; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10501,7 +10889,7 @@ CREATE INDEX ix_hangfire_job_expireat ON hangfire.job USING btree (expireat);
 
 
 --
--- TOC entry 5491 (class 1259 OID 36296)
+-- TOC entry 5290 (class 1259 OID 22402)
 -- Name: ix_hangfire_job_statename; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10509,7 +10897,7 @@ CREATE INDEX ix_hangfire_job_statename ON hangfire.job USING btree (statename);
 
 
 --
--- TOC entry 5492 (class 1259 OID 36364)
+-- TOC entry 5291 (class 1259 OID 22403)
 -- Name: ix_hangfire_job_statename_is_not_null; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10517,7 +10905,7 @@ CREATE INDEX ix_hangfire_job_statename_is_not_null ON hangfire.job USING btree (
 
 
 --
--- TOC entry 5514 (class 1259 OID 36301)
+-- TOC entry 5294 (class 1259 OID 22404)
 -- Name: ix_hangfire_jobparameter_jobidandname; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10525,7 +10913,7 @@ CREATE INDEX ix_hangfire_jobparameter_jobidandname ON hangfire.jobparameter USIN
 
 
 --
--- TOC entry 5498 (class 1259 OID 36363)
+-- TOC entry 5297 (class 1259 OID 22406)
 -- Name: ix_hangfire_jobqueue_fetchedat_queue_jobid; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10533,7 +10921,7 @@ CREATE INDEX ix_hangfire_jobqueue_fetchedat_queue_jobid ON hangfire.jobqueue USI
 
 
 --
--- TOC entry 5499 (class 1259 OID 36261)
+-- TOC entry 5298 (class 1259 OID 22407)
 -- Name: ix_hangfire_jobqueue_jobidandqueue; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10541,7 +10929,7 @@ CREATE INDEX ix_hangfire_jobqueue_jobidandqueue ON hangfire.jobqueue USING btree
 
 
 --
--- TOC entry 5500 (class 1259 OID 36330)
+-- TOC entry 5299 (class 1259 OID 22408)
 -- Name: ix_hangfire_jobqueue_queueandfetchedat; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10549,7 +10937,7 @@ CREATE INDEX ix_hangfire_jobqueue_queueandfetchedat ON hangfire.jobqueue USING b
 
 
 --
--- TOC entry 5503 (class 1259 OID 36332)
+-- TOC entry 5302 (class 1259 OID 22409)
 -- Name: ix_hangfire_list_expireat; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10557,7 +10945,7 @@ CREATE INDEX ix_hangfire_list_expireat ON hangfire.list USING btree (expireat);
 
 
 --
--- TOC entry 5508 (class 1259 OID 36333)
+-- TOC entry 5311 (class 1259 OID 22410)
 -- Name: ix_hangfire_set_expireat; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10565,7 +10953,7 @@ CREATE INDEX ix_hangfire_set_expireat ON hangfire.set USING btree (expireat);
 
 
 --
--- TOC entry 5509 (class 1259 OID 36315)
+-- TOC entry 5312 (class 1259 OID 22411)
 -- Name: ix_hangfire_set_key_score; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10573,7 +10961,7 @@ CREATE INDEX ix_hangfire_set_key_score ON hangfire.set USING btree (key, score);
 
 
 --
--- TOC entry 5495 (class 1259 OID 36214)
+-- TOC entry 5317 (class 1259 OID 22412)
 -- Name: ix_hangfire_state_jobid; Type: INDEX; Schema: hangfire; Owner: postgres
 --
 
@@ -10581,7 +10969,7 @@ CREATE INDEX ix_hangfire_state_jobid ON hangfire.state USING btree (jobid);
 
 
 --
--- TOC entry 5538 (class 1259 OID 36570)
+-- TOC entry 5340 (class 1259 OID 22413)
 -- Name: idx_candidateanswers_jobapply; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10589,7 +10977,7 @@ CREATE INDEX idx_candidateanswers_jobapply ON jobs.candidateanswers USING btree 
 
 
 --
--- TOC entry 5539 (class 1259 OID 36571)
+-- TOC entry 5341 (class 1259 OID 22414)
 -- Name: idx_candidateanswers_question; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10597,7 +10985,7 @@ CREATE INDEX idx_candidateanswers_question ON jobs.candidateanswers USING btree 
 
 
 --
--- TOC entry 5122 (class 1259 OID 36592)
+-- TOC entry 5342 (class 1259 OID 22415)
 -- Name: idx_jobapplications_enteredtostage; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10605,7 +10993,7 @@ CREATE INDEX idx_jobapplications_enteredtostage ON jobs.jobapplications USING bt
 
 
 --
--- TOC entry 5530 (class 1259 OID 36549)
+-- TOC entry 5347 (class 1259 OID 22416)
 -- Name: idx_jobquestions_job; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10613,7 +11001,7 @@ CREATE INDEX idx_jobquestions_job ON jobs.jobquestions USING btree (jobid);
 
 
 --
--- TOC entry 5531 (class 1259 OID 36550)
+-- TOC entry 5348 (class 1259 OID 22417)
 -- Name: idx_jobquestions_question; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10621,7 +11009,7 @@ CREATE INDEX idx_jobquestions_question ON jobs.jobquestions USING btree (questio
 
 
 --
--- TOC entry 5540 (class 1259 OID 36589)
+-- TOC entry 5353 (class 1259 OID 22418)
 -- Name: idx_parsedresumes_jobapply; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10629,7 +11017,7 @@ CREATE INDEX idx_parsedresumes_jobapply ON jobs.parsedresumes USING btree (jobap
 
 
 --
--- TOC entry 5541 (class 1259 OID 36590)
+-- TOC entry 5354 (class 1259 OID 22419)
 -- Name: idx_parsedresumes_status; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10637,7 +11025,7 @@ CREATE INDEX idx_parsedresumes_status ON jobs.parsedresumes USING btree (parsest
 
 
 --
--- TOC entry 5523 (class 1259 OID 36509)
+-- TOC entry 5359 (class 1259 OID 22420)
 -- Name: idx_questioncategories_org; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10645,7 +11033,7 @@ CREATE INDEX idx_questioncategories_org ON jobs.questioncategories USING btree (
 
 
 --
--- TOC entry 5526 (class 1259 OID 36527)
+-- TOC entry 5362 (class 1259 OID 22421)
 -- Name: idx_questions_category; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10653,7 +11041,7 @@ CREATE INDEX idx_questions_category ON jobs.questions USING btree (categoryid);
 
 
 --
--- TOC entry 5527 (class 1259 OID 36528)
+-- TOC entry 5363 (class 1259 OID 22422)
 -- Name: idx_questions_org; Type: INDEX; Schema: jobs; Owner: postgres
 --
 
@@ -10661,7 +11049,7 @@ CREATE INDEX idx_questions_org ON jobs.questions USING btree (organizationid);
 
 
 --
--- TOC entry 5112 (class 1259 OID 33439)
+-- TOC entry 5394 (class 1259 OID 22423)
 -- Name: idx_companysubscriptions_company_id; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10669,7 +11057,7 @@ CREATE INDEX idx_companysubscriptions_company_id ON payment.companysubscriptions
 
 
 --
--- TOC entry 5113 (class 1259 OID 33440)
+-- TOC entry 5395 (class 1259 OID 22424)
 -- Name: idx_companysubscriptions_status; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10677,7 +11065,7 @@ CREATE INDEX idx_companysubscriptions_status ON payment.companysubscriptions USI
 
 
 --
--- TOC entry 5188 (class 1259 OID 33411)
+-- TOC entry 5396 (class 1259 OID 22425)
 -- Name: idx_invoices_company_id; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10685,7 +11073,7 @@ CREATE INDEX idx_invoices_company_id ON payment.invoices USING btree (company_id
 
 
 --
--- TOC entry 5189 (class 1259 OID 33415)
+-- TOC entry 5397 (class 1259 OID 22426)
 -- Name: idx_invoices_invoice_number; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10693,7 +11081,7 @@ CREATE INDEX idx_invoices_invoice_number ON payment.invoices USING btree (invoic
 
 
 --
--- TOC entry 5190 (class 1259 OID 33414)
+-- TOC entry 5398 (class 1259 OID 22427)
 -- Name: idx_invoices_issued_at; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10701,7 +11089,7 @@ CREATE INDEX idx_invoices_issued_at ON payment.invoices USING btree (issued_at D
 
 
 --
--- TOC entry 5191 (class 1259 OID 33413)
+-- TOC entry 5399 (class 1259 OID 22428)
 -- Name: idx_invoices_status; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10709,7 +11097,7 @@ CREATE INDEX idx_invoices_status ON payment.invoices USING btree (status);
 
 
 --
--- TOC entry 5192 (class 1259 OID 33412)
+-- TOC entry 5400 (class 1259 OID 22429)
 -- Name: idx_invoices_transaction_id; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10717,7 +11105,7 @@ CREATE INDEX idx_invoices_transaction_id ON payment.invoices USING btree (transa
 
 
 --
--- TOC entry 5197 (class 1259 OID 33435)
+-- TOC entry 5405 (class 1259 OID 22430)
 -- Name: idx_refunds_created_at; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10725,7 +11113,7 @@ CREATE INDEX idx_refunds_created_at ON payment.refunds USING btree (created_at D
 
 
 --
--- TOC entry 5198 (class 1259 OID 33434)
+-- TOC entry 5406 (class 1259 OID 22431)
 -- Name: idx_refunds_status; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10733,7 +11121,7 @@ CREATE INDEX idx_refunds_status ON payment.refunds USING btree (status);
 
 
 --
--- TOC entry 5199 (class 1259 OID 33433)
+-- TOC entry 5407 (class 1259 OID 22432)
 -- Name: idx_refunds_transaction_id; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10741,7 +11129,7 @@ CREATE INDEX idx_refunds_transaction_id ON payment.refunds USING btree (transact
 
 
 --
--- TOC entry 5180 (class 1259 OID 33380)
+-- TOC entry 5414 (class 1259 OID 22433)
 -- Name: idx_transactions_company_id; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10749,7 +11137,7 @@ CREATE INDEX idx_transactions_company_id ON payment.transactions USING btree (co
 
 
 --
--- TOC entry 5181 (class 1259 OID 33383)
+-- TOC entry 5415 (class 1259 OID 22434)
 -- Name: idx_transactions_created_at; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10757,7 +11145,7 @@ CREATE INDEX idx_transactions_created_at ON payment.transactions USING btree (cr
 
 
 --
--- TOC entry 5182 (class 1259 OID 33382)
+-- TOC entry 5416 (class 1259 OID 22435)
 -- Name: idx_transactions_gateway; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10765,7 +11153,7 @@ CREATE INDEX idx_transactions_gateway ON payment.transactions USING btree (gatew
 
 
 --
--- TOC entry 5183 (class 1259 OID 33385)
+-- TOC entry 5417 (class 1259 OID 22436)
 -- Name: idx_transactions_gateway_order; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10773,7 +11161,7 @@ CREATE INDEX idx_transactions_gateway_order ON payment.transactions USING btree 
 
 
 --
--- TOC entry 5184 (class 1259 OID 33384)
+-- TOC entry 5418 (class 1259 OID 22437)
 -- Name: idx_transactions_gateway_txn_id; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10781,7 +11169,7 @@ CREATE INDEX idx_transactions_gateway_txn_id ON payment.transactions USING btree
 
 
 --
--- TOC entry 5185 (class 1259 OID 33381)
+-- TOC entry 5419 (class 1259 OID 22438)
 -- Name: idx_transactions_status; Type: INDEX; Schema: payment; Owner: postgres
 --
 
@@ -10789,7 +11177,7 @@ CREATE INDEX idx_transactions_status ON payment.transactions USING btree (status
 
 
 --
--- TOC entry 5362 (class 1259 OID 34933)
+-- TOC entry 5441 (class 1259 OID 22439)
 -- Name: idx_gratuitytransactions_periodid; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10797,7 +11185,7 @@ CREATE INDEX idx_gratuitytransactions_periodid ON payroll.gratuitytransactions U
 
 
 --
--- TOC entry 5548 (class 1259 OID 36687)
+-- TOC entry 5482 (class 1259 OID 22440)
 -- Name: idx_paysliptemplatesorg; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10805,7 +11193,7 @@ CREATE INDEX idx_paysliptemplatesorg ON payroll.paysliptemplates USING btree (or
 
 
 --
--- TOC entry 5414 (class 1259 OID 35358)
+-- TOC entry 5508 (class 1259 OID 22441)
 -- Name: idx_ss_authorities_org; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10813,7 +11201,7 @@ CREATE INDEX idx_ss_authorities_org ON payroll.socialsecurityauthorities USING b
 
 
 --
--- TOC entry 5445 (class 1259 OID 35624)
+-- TOC entry 5513 (class 1259 OID 22442)
 -- Name: idx_ss_claims_org_emp; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10821,7 +11209,7 @@ CREATE INDEX idx_ss_claims_org_emp ON payroll.socialsecurityclaims USING btree (
 
 
 --
--- TOC entry 5434 (class 1259 OID 35530)
+-- TOC entry 5522 (class 1259 OID 22443)
 -- Name: idx_ss_enrollments_org_emp; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10829,7 +11217,7 @@ CREATE INDEX idx_ss_enrollments_org_emp ON payroll.socialsecurityemployeeenrollm
 
 
 --
--- TOC entry 5409 (class 1259 OID 35330)
+-- TOC entry 5526 (class 1259 OID 22444)
 -- Name: idx_ss_jurisdictions_org; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10837,7 +11225,7 @@ CREATE INDEX idx_ss_jurisdictions_org ON payroll.socialsecurityjurisdictions USI
 
 
 --
--- TOC entry 5457 (class 1259 OID 35852)
+-- TOC entry 5531 (class 1259 OID 22445)
 -- Name: idx_ss_remit_items_remittance; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10845,7 +11233,7 @@ CREATE INDEX idx_ss_remit_items_remittance ON payroll.socialsecurityremittanceit
 
 
 --
--- TOC entry 5458 (class 1259 OID 35853)
+-- TOC entry 5532 (class 1259 OID 22446)
 -- Name: idx_ss_remit_items_txn; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10853,7 +11241,7 @@ CREATE INDEX idx_ss_remit_items_txn ON payroll.socialsecurityremittanceitems USI
 
 
 --
--- TOC entry 5453 (class 1259 OID 35810)
+-- TOC entry 5535 (class 1259 OID 22447)
 -- Name: idx_ss_remit_org_period; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10861,7 +11249,7 @@ CREATE INDEX idx_ss_remit_org_period ON payroll.socialsecurityremittances USING 
 
 
 --
--- TOC entry 5442 (class 1259 OID 35591)
+-- TOC entry 5539 (class 1259 OID 22448)
 -- Name: idx_ss_request_docs_request; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10869,7 +11257,7 @@ CREATE INDEX idx_ss_request_docs_request ON payroll.socialsecurityrequestdocumen
 
 
 --
--- TOC entry 5438 (class 1259 OID 35568)
+-- TOC entry 5542 (class 1259 OID 22449)
 -- Name: idx_ss_requests_enrollment; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10877,7 +11265,7 @@ CREATE INDEX idx_ss_requests_enrollment ON payroll.socialsecurityrequests USING 
 
 
 --
--- TOC entry 5439 (class 1259 OID 35567)
+-- TOC entry 5543 (class 1259 OID 22450)
 -- Name: idx_ss_requests_org_emp; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10885,7 +11273,7 @@ CREATE INDEX idx_ss_requests_org_emp ON payroll.socialsecurityrequests USING btr
 
 
 --
--- TOC entry 5429 (class 1259 OID 35449)
+-- TOC entry 5546 (class 1259 OID 22451)
 -- Name: idx_ss_rule_components_org; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10893,7 +11281,7 @@ CREATE INDEX idx_ss_rule_components_org ON payroll.socialsecurityrulecomponents 
 
 
 --
--- TOC entry 5424 (class 1259 OID 35428)
+-- TOC entry 5551 (class 1259 OID 22452)
 -- Name: idx_ss_rules_org; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10901,7 +11289,7 @@ CREATE INDEX idx_ss_rules_org ON payroll.socialsecurityrules USING btree (organi
 
 
 --
--- TOC entry 5419 (class 1259 OID 35394)
+-- TOC entry 5556 (class 1259 OID 22453)
 -- Name: idx_ss_schemes_org; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10909,7 +11297,7 @@ CREATE INDEX idx_ss_schemes_org ON payroll.socialsecurityschemes USING btree (or
 
 
 --
--- TOC entry 5241 (class 1259 OID 35482)
+-- TOC entry 5516 (class 1259 OID 22454)
 -- Name: idx_ssconfig_org_scheme; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10917,7 +11305,7 @@ CREATE INDEX idx_ssconfig_org_scheme ON payroll.socialsecurityconfig USING btree
 
 
 --
--- TOC entry 5242 (class 1259 OID 35483)
+-- TOC entry 5517 (class 1259 OID 22455)
 -- Name: idx_ssconfig_rule; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10925,7 +11313,7 @@ CREATE INDEX idx_ssconfig_rule ON payroll.socialsecurityconfig USING btree (rule
 
 
 --
--- TOC entry 5261 (class 1259 OID 35721)
+-- TOC entry 5566 (class 1259 OID 22456)
 -- Name: idx_sstrx_enrollment; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10933,7 +11321,7 @@ CREATE INDEX idx_sstrx_enrollment ON payroll.socialsecuritytransactions USING bt
 
 
 --
--- TOC entry 5448 (class 1259 OID 35769)
+-- TOC entry 5561 (class 1259 OID 22457)
 -- Name: idx_sstrx_lines_org_emp_period; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10941,7 +11329,7 @@ CREATE INDEX idx_sstrx_lines_org_emp_period ON payroll.socialsecuritytransaction
 
 
 --
--- TOC entry 5449 (class 1259 OID 35770)
+-- TOC entry 5562 (class 1259 OID 22458)
 -- Name: idx_sstrx_lines_rule_scheme; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10949,7 +11337,7 @@ CREATE INDEX idx_sstrx_lines_rule_scheme ON payroll.socialsecuritytransactionlin
 
 
 --
--- TOC entry 5450 (class 1259 OID 35768)
+-- TOC entry 5563 (class 1259 OID 22459)
 -- Name: idx_sstrx_lines_txn; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10957,7 +11345,7 @@ CREATE INDEX idx_sstrx_lines_txn ON payroll.socialsecuritytransactionlines USING
 
 
 --
--- TOC entry 5262 (class 1259 OID 35719)
+-- TOC entry 5567 (class 1259 OID 22460)
 -- Name: idx_sstrx_org_emp_period; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10965,7 +11353,7 @@ CREATE INDEX idx_sstrx_org_emp_period ON payroll.socialsecuritytransactions USIN
 
 
 --
--- TOC entry 5263 (class 1259 OID 35717)
+-- TOC entry 5568 (class 1259 OID 22461)
 -- Name: idx_sstrx_org_rule_period; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10973,7 +11361,7 @@ CREATE INDEX idx_sstrx_org_rule_period ON payroll.socialsecuritytransactions USI
 
 
 --
--- TOC entry 5264 (class 1259 OID 35718)
+-- TOC entry 5569 (class 1259 OID 22462)
 -- Name: idx_sstrx_org_scheme_period; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10981,7 +11369,7 @@ CREATE INDEX idx_sstrx_org_scheme_period ON payroll.socialsecuritytransactions U
 
 
 --
--- TOC entry 5265 (class 1259 OID 35883)
+-- TOC entry 5570 (class 1259 OID 22463)
 -- Name: idx_sstrx_payroll_lookup; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10989,7 +11377,7 @@ CREATE INDEX idx_sstrx_payroll_lookup ON payroll.socialsecuritytransactions USIN
 
 
 --
--- TOC entry 5266 (class 1259 OID 35859)
+-- TOC entry 5571 (class 1259 OID 22464)
 -- Name: idx_sstrx_remittanceitem; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -10997,7 +11385,7 @@ CREATE INDEX idx_sstrx_remittanceitem ON payroll.socialsecuritytransactions USIN
 
 
 --
--- TOC entry 5267 (class 1259 OID 35720)
+-- TOC entry 5572 (class 1259 OID 22465)
 -- Name: idx_sstrx_request; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -11005,7 +11393,7 @@ CREATE INDEX idx_sstrx_request ON payroll.socialsecuritytransactions USING btree
 
 
 --
--- TOC entry 5308 (class 1259 OID 35217)
+-- TOC entry 5426 (class 1259 OID 22466)
 -- Name: ix_attendancesummary_source_timesheet; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -11013,7 +11401,7 @@ CREATE INDEX ix_attendancesummary_source_timesheet ON payroll.attendancesummary 
 
 
 --
--- TOC entry 5551 (class 1259 OID 36686)
+-- TOC entry 5485 (class 1259 OID 22467)
 -- Name: uq_paysliptemplatesorgactive; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -11021,7 +11409,7 @@ CREATE UNIQUE INDEX uq_paysliptemplatesorgactive ON payroll.paysliptemplates USI
 
 
 --
--- TOC entry 5437 (class 1259 OID 35529)
+-- TOC entry 5525 (class 1259 OID 22468)
 -- Name: uq_ss_enrollment_current; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -11029,7 +11417,7 @@ CREATE UNIQUE INDEX uq_ss_enrollment_current ON payroll.socialsecurityemployeeen
 
 
 --
--- TOC entry 5456 (class 1259 OID 35811)
+-- TOC entry 5538 (class 1259 OID 22469)
 -- Name: uq_ss_remit_period_scheme; Type: INDEX; Schema: payroll; Owner: postgres
 --
 
@@ -11037,7 +11425,7 @@ CREATE UNIQUE INDEX uq_ss_remit_period_scheme ON payroll.socialsecurityremittanc
 
 
 --
--- TOC entry 5914 (class 2618 OID 37405)
+-- TOC entry 5986 (class 2618 OID 22470)
 -- Name: timesheet_audit_log no_delete_audit; Type: RULE; Schema: attendance; Owner: postgres
 --
 
@@ -11046,7 +11434,7 @@ CREATE RULE no_delete_audit AS
 
 
 --
--- TOC entry 5915 (class 2618 OID 37406)
+-- TOC entry 5987 (class 2618 OID 22471)
 -- Name: timesheet_audit_log no_update_audit; Type: RULE; Schema: attendance; Owner: postgres
 --
 
@@ -11055,7 +11443,159 @@ CREATE RULE no_update_audit AS
 
 
 --
--- TOC entry 5765 (class 2620 OID 37546)
+-- TOC entry 5767 (class 2620 OID 22472)
+-- Name: asset_assignments trg_audit_asset_assignments; Type: TRIGGER; Schema: assets; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_asset_assignments AFTER INSERT OR DELETE OR UPDATE ON assets.asset_assignments FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('assignment_id');
+
+
+--
+-- TOC entry 5768 (class 2620 OID 22473)
+-- Name: assets trg_audit_assets; Type: TRIGGER; Schema: assets; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_assets AFTER INSERT OR DELETE OR UPDATE ON assets.assets FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger_varchar('id');
+
+
+--
+-- TOC entry 5769 (class 2620 OID 22474)
+-- Name: attendance_update_requests trg_audit_attendance_update_requests; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_attendance_update_requests AFTER INSERT OR DELETE OR UPDATE ON attendance.attendance_update_requests FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('request_id');
+
+
+--
+-- TOC entry 5771 (class 2620 OID 22475)
+-- Name: company_holidays trg_audit_company_holidays; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_company_holidays AFTER INSERT OR DELETE OR UPDATE ON attendance.company_holidays FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('holidayid');
+
+
+--
+-- TOC entry 5772 (class 2620 OID 22476)
+-- Name: employee_overtime_requests trg_audit_employee_overtime_requests; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_employee_overtime_requests AFTER INSERT OR DELETE OR UPDATE ON attendance.employee_overtime_requests FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('requestid');
+
+
+--
+-- TOC entry 5773 (class 2620 OID 22477)
+-- Name: employee_restricted_holidays trg_audit_employee_restricted_holidays; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_employee_restricted_holidays AFTER INSERT OR DELETE OR UPDATE ON attendance.employee_restricted_holidays FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('id');
+
+
+--
+-- TOC entry 5774 (class 2620 OID 22478)
+-- Name: face_recognition_logs trg_audit_face_recognition_logs; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_face_recognition_logs AFTER INSERT OR DELETE OR UPDATE ON attendance.face_recognition_logs FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('logid');
+
+
+--
+-- TOC entry 5775 (class 2620 OID 22479)
+-- Name: finalized_timesheet_records trg_audit_finalized_timesheet_records; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_finalized_timesheet_records AFTER INSERT OR DELETE OR UPDATE ON attendance.finalized_timesheet_records FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('record_id');
+
+
+--
+-- TOC entry 5776 (class 2620 OID 22480)
+-- Name: geo_fence_violations trg_audit_geo_fence_violations; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_geo_fence_violations AFTER INSERT OR DELETE OR UPDATE ON attendance.geo_fence_violations FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('violationid');
+
+
+--
+-- TOC entry 5777 (class 2620 OID 22481)
+-- Name: geo_fences trg_audit_geo_fences; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_geo_fences AFTER INSERT OR DELETE OR UPDATE ON attendance.geo_fences FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('geofenceid');
+
+
+--
+-- TOC entry 5778 (class 2620 OID 22482)
+-- Name: holiday_employee_assignments trg_audit_holiday_employee_assignments; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_holiday_employee_assignments AFTER INSERT OR DELETE OR UPDATE ON attendance.holiday_employee_assignments FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('id');
+
+
+--
+-- TOC entry 5779 (class 2620 OID 22483)
+-- Name: leaveentitlements trg_audit_leaveentitlements; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_leaveentitlements AFTER INSERT OR DELETE OR UPDATE ON attendance.leaveentitlements FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('entitlementid');
+
+
+--
+-- TOC entry 5780 (class 2620 OID 22484)
+-- Name: leaverequests trg_audit_leaverequests; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_leaverequests AFTER INSERT OR DELETE OR UPDATE ON attendance.leaverequests FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('requestid');
+
+
+--
+-- TOC entry 5781 (class 2620 OID 22485)
+-- Name: leavetypes trg_audit_leavetypes; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_leavetypes AFTER INSERT OR DELETE OR UPDATE ON attendance.leavetypes FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('leavetypeid');
+
+
+--
+-- TOC entry 5782 (class 2620 OID 22486)
+-- Name: monthly_timesheets trg_audit_monthly_timesheets; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_monthly_timesheets AFTER INSERT OR DELETE OR UPDATE ON attendance.monthly_timesheets FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('timesheet_id');
+
+
+--
+-- TOC entry 5783 (class 2620 OID 22487)
+-- Name: overtime trg_audit_overtime; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_overtime AFTER INSERT OR DELETE OR UPDATE ON attendance.overtime FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('overtimeid');
+
+
+--
+-- TOC entry 5784 (class 2620 OID 22488)
+-- Name: shifts trg_audit_shifts; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_shifts AFTER INSERT OR DELETE OR UPDATE ON attendance.shifts FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('shiftid');
+
+
+--
+-- TOC entry 5785 (class 2620 OID 22489)
+-- Name: shiftswaprequests trg_audit_shiftswaprequests; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_shiftswaprequests AFTER INSERT OR DELETE OR UPDATE ON attendance.shiftswaprequests FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('requestid');
+
+
+--
+-- TOC entry 5786 (class 2620 OID 22490)
+-- Name: timesheet_payroll_summary trg_audit_timesheet_payroll_summary; Type: TRIGGER; Schema: attendance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_timesheet_payroll_summary AFTER INSERT OR DELETE OR UPDATE ON attendance.timesheet_payroll_summary FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('summary_id');
+
+
+--
+-- TOC entry 5787 (class 2620 OID 22491)
 -- Name: timesheet_payroll_summary trg_tps_set_shift_id; Type: TRIGGER; Schema: attendance; Owner: postgres
 --
 
@@ -11063,7 +11603,7 @@ CREATE TRIGGER trg_tps_set_shift_id BEFORE INSERT ON attendance.timesheet_payrol
 
 
 --
--- TOC entry 5763 (class 2620 OID 37545)
+-- TOC entry 5770 (class 2620 OID 22492)
 -- Name: attendance_update_requests trg_validate_correction_employee; Type: TRIGGER; Schema: attendance; Owner: postgres
 --
 
@@ -11071,7 +11611,135 @@ CREATE TRIGGER trg_validate_correction_employee BEFORE INSERT OR UPDATE ON atten
 
 
 --
--- TOC entry 5764 (class 2620 OID 33438)
+-- TOC entry 5790 (class 2620 OID 22493)
+-- Name: roles trg_seed_onboarding_permissions; Type: TRIGGER; Schema: auth; Owner: postgres
+--
+
+CREATE TRIGGER trg_seed_onboarding_permissions AFTER INSERT ON auth.roles FOR EACH ROW EXECUTE FUNCTION auth.fn_seed_onboarding_permissions();
+
+
+--
+-- TOC entry 5791 (class 2620 OID 22494)
+-- Name: departments trg_audit_departments; Type: TRIGGER; Schema: employee; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_departments AFTER INSERT OR DELETE OR UPDATE ON employee.departments FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('departmentid');
+
+
+--
+-- TOC entry 5788 (class 2620 OID 22495)
+-- Name: employees trg_audit_employees; Type: TRIGGER; Schema: employee; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_employees AFTER INSERT OR DELETE OR UPDATE ON employee.employees FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('employeeid');
+
+
+--
+-- TOC entry 5789 (class 2620 OID 22496)
+-- Name: employmentdetails trg_audit_employmentdetails; Type: TRIGGER; Schema: employee; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_employmentdetails AFTER INSERT OR DELETE OR UPDATE ON employee.employmentdetails FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('detailid');
+
+
+--
+-- TOC entry 5792 (class 2620 OID 22497)
+-- Name: positions trg_audit_positions; Type: TRIGGER; Schema: employee; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_positions AFTER INSERT OR DELETE OR UPDATE ON employee.positions FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('positionid');
+
+
+--
+-- TOC entry 5793 (class 2620 OID 22498)
+-- Name: expenses trg_audit_expenses; Type: TRIGGER; Schema: expense; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_expenses AFTER INSERT OR DELETE OR UPDATE ON expense.expenses FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('expenseid');
+
+
+--
+-- TOC entry 5794 (class 2620 OID 22499)
+-- Name: recurringexpenses trg_audit_recurringexpenses; Type: TRIGGER; Schema: expense; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_recurringexpenses AFTER INSERT OR DELETE OR UPDATE ON expense.recurringexpenses FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('recurringexpenseid');
+
+
+--
+-- TOC entry 5795 (class 2620 OID 22500)
+-- Name: ticket_assignments trg_audit_ticket_assignments; Type: TRIGGER; Schema: helpdesk; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_ticket_assignments AFTER INSERT OR DELETE OR UPDATE ON helpdesk.ticket_assignments FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('assignmentid');
+
+
+--
+-- TOC entry 5796 (class 2620 OID 22501)
+-- Name: tickets trg_audit_tickets; Type: TRIGGER; Schema: helpdesk; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_tickets AFTER INSERT OR DELETE OR UPDATE ON helpdesk.tickets FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ticketid');
+
+
+--
+-- TOC entry 5797 (class 2620 OID 22502)
+-- Name: applicationstages trg_audit_applicationstages; Type: TRIGGER; Schema: jobs; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_applicationstages AFTER INSERT OR DELETE OR UPDATE ON jobs.applicationstages FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('applicationstageid');
+
+
+--
+-- TOC entry 5798 (class 2620 OID 22503)
+-- Name: jobopenings trg_audit_jobopenings; Type: TRIGGER; Schema: jobs; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_jobopenings AFTER INSERT OR DELETE OR UPDATE ON jobs.jobopenings FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('jobid');
+
+
+--
+-- TOC entry 5799 (class 2620 OID 22504)
+-- Name: news trg_audit_news; Type: TRIGGER; Schema: news; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_news AFTER INSERT OR DELETE OR UPDATE ON news.news FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('newsid');
+
+
+--
+-- TOC entry 5800 (class 2620 OID 22505)
+-- Name: field_configurations trg_audit_field_configurations; Type: TRIGGER; Schema: onboarding; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_field_configurations AFTER INSERT OR DELETE OR UPDATE ON onboarding.field_configurations FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('configid');
+
+
+--
+-- TOC entry 5801 (class 2620 OID 22506)
+-- Name: companysubscriptions trg_audit_companysubscriptions; Type: TRIGGER; Schema: payment; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_companysubscriptions AFTER INSERT OR DELETE OR UPDATE ON payment.companysubscriptions FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('subscriptionid');
+
+
+--
+-- TOC entry 5802 (class 2620 OID 22507)
+-- Name: subscriptionplans trg_audit_subscriptionplans; Type: TRIGGER; Schema: payment; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_subscriptionplans AFTER INSERT OR DELETE OR UPDATE ON payment.subscriptionplans FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('planid');
+
+
+--
+-- TOC entry 5803 (class 2620 OID 22508)
+-- Name: transactions trg_audit_transactions; Type: TRIGGER; Schema: payment; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_transactions AFTER INSERT OR DELETE OR UPDATE ON payment.transactions FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('transaction_id');
+
+
+--
+-- TOC entry 5804 (class 2620 OID 22509)
 -- Name: transactions trg_transactions_updated_at; Type: TRIGGER; Schema: payment; Owner: postgres
 --
 
@@ -11079,7 +11747,263 @@ CREATE TRIGGER trg_transactions_updated_at BEFORE UPDATE ON payment.transactions
 
 
 --
--- TOC entry 5611 (class 2606 OID 35231)
+-- TOC entry 5805 (class 2620 OID 22510)
+-- Name: attendancedeductionrules trg_audit_attendancedeductionrules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_attendancedeductionrules AFTER INSERT OR DELETE OR UPDATE ON payroll.attendancedeductionrules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5806 (class 2620 OID 22511)
+-- Name: bonusentries trg_audit_bonusentries; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_bonusentries AFTER INSERT OR DELETE OR UPDATE ON payroll.bonusentries FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('bonusid');
+
+
+--
+-- TOC entry 5807 (class 2620 OID 22512)
+-- Name: bonusrules trg_audit_bonusrules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_bonusrules AFTER INSERT OR DELETE OR UPDATE ON payroll.bonusrules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5808 (class 2620 OID 22513)
+-- Name: gratuityconfig trg_audit_gratuityconfig; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_gratuityconfig AFTER INSERT OR DELETE OR UPDATE ON payroll.gratuityconfig FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('id');
+
+
+--
+-- TOC entry 5809 (class 2620 OID 22514)
+-- Name: gratuitytransactions trg_audit_gratuitytransactions; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_gratuitytransactions AFTER INSERT OR DELETE OR UPDATE ON payroll.gratuitytransactions FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('id');
+
+
+--
+-- TOC entry 5810 (class 2620 OID 22515)
+-- Name: lateattendancerules trg_audit_lateattendancerules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_lateattendancerules AFTER INSERT OR DELETE OR UPDATE ON payroll.lateattendancerules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5811 (class 2620 OID 22516)
+-- Name: leaverules trg_audit_leaverules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_leaverules AFTER INSERT OR DELETE OR UPDATE ON payroll.leaverules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5812 (class 2620 OID 22517)
+-- Name: loanpayments trg_audit_loanpayments; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_loanpayments AFTER INSERT OR DELETE OR UPDATE ON payroll.loanpayments FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('id');
+
+
+--
+-- TOC entry 5813 (class 2620 OID 22518)
+-- Name: loanrules trg_audit_loanrules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_loanrules AFTER INSERT OR DELETE OR UPDATE ON payroll.loanrules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5814 (class 2620 OID 22519)
+-- Name: loans trg_audit_loans; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_loans AFTER INSERT OR DELETE OR UPDATE ON payroll.loans FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('loanid');
+
+
+--
+-- TOC entry 5815 (class 2620 OID 22520)
+-- Name: overtimerules trg_audit_overtimerules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_overtimerules AFTER INSERT OR DELETE OR UPDATE ON payroll.overtimerules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5816 (class 2620 OID 22521)
+-- Name: payrollresults trg_audit_payrollresults; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_payrollresults AFTER INSERT OR DELETE OR UPDATE ON payroll.payrollresults FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('resultid');
+
+
+--
+-- TOC entry 5817 (class 2620 OID 22522)
+-- Name: performancepay trg_audit_performancepay; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_performancepay AFTER INSERT OR DELETE OR UPDATE ON payroll.performancepay FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('performancepayid');
+
+
+--
+-- TOC entry 5818 (class 2620 OID 22523)
+-- Name: performancerules trg_audit_performancerules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_performancerules AFTER INSERT OR DELETE OR UPDATE ON payroll.performancerules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5819 (class 2620 OID 22524)
+-- Name: pfrequests trg_audit_pfrequests; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_pfrequests AFTER INSERT OR DELETE OR UPDATE ON payroll.pfrequests FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('requestid');
+
+
+--
+-- TOC entry 5820 (class 2620 OID 22525)
+-- Name: pfrules trg_audit_pfrules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_pfrules AFTER INSERT OR DELETE OR UPDATE ON payroll.pfrules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5821 (class 2620 OID 22526)
+-- Name: pftransactions trg_audit_pftransactions; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_pftransactions AFTER INSERT OR DELETE OR UPDATE ON payroll.pftransactions FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('transactionid');
+
+
+--
+-- TOC entry 5822 (class 2620 OID 22527)
+-- Name: providentfund trg_audit_providentfund; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_providentfund AFTER INSERT OR DELETE OR UPDATE ON payroll.providentfund FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('pfid');
+
+
+--
+-- TOC entry 5823 (class 2620 OID 22528)
+-- Name: salaryadvance trg_audit_salaryadvance; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_salaryadvance AFTER INSERT OR DELETE OR UPDATE ON payroll.salaryadvance FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('advanceid');
+
+
+--
+-- TOC entry 5824 (class 2620 OID 22529)
+-- Name: salaryadvancerules trg_audit_salaryadvancerules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_salaryadvancerules AFTER INSERT OR DELETE OR UPDATE ON payroll.salaryadvancerules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5825 (class 2620 OID 22530)
+-- Name: socialsecurityclaims trg_audit_socialsecurityclaims; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_socialsecurityclaims AFTER INSERT OR DELETE OR UPDATE ON payroll.socialsecurityclaims FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('claimid');
+
+
+--
+-- TOC entry 5826 (class 2620 OID 22531)
+-- Name: socialsecurityrequests trg_audit_socialsecurityrequests; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_socialsecurityrequests AFTER INSERT OR DELETE OR UPDATE ON payroll.socialsecurityrequests FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('requestid');
+
+
+--
+-- TOC entry 5827 (class 2620 OID 22532)
+-- Name: socialsecurityrules trg_audit_socialsecurityrules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_socialsecurityrules AFTER INSERT OR DELETE OR UPDATE ON payroll.socialsecurityrules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('ruleid');
+
+
+--
+-- TOC entry 5828 (class 2620 OID 22533)
+-- Name: taxcategories trg_audit_taxcategories; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_taxcategories AFTER INSERT OR DELETE OR UPDATE ON payroll.taxcategories FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('categoryid');
+
+
+--
+-- TOC entry 5829 (class 2620 OID 22534)
+-- Name: taxcomponentrules trg_audit_taxcomponentrules; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_taxcomponentrules AFTER INSERT OR DELETE OR UPDATE ON payroll.taxcomponentrules FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('componentruleid');
+
+
+--
+-- TOC entry 5830 (class 2620 OID 22535)
+-- Name: taxregimes trg_audit_taxregimes; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_taxregimes AFTER INSERT OR DELETE OR UPDATE ON payroll.taxregimes FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('regimeid');
+
+
+--
+-- TOC entry 5831 (class 2620 OID 22536)
+-- Name: taxslabs trg_audit_taxslabs; Type: TRIGGER; Schema: payroll; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_taxslabs AFTER INSERT OR DELETE OR UPDATE ON payroll.taxslabs FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('slabid');
+
+
+--
+-- TOC entry 5832 (class 2620 OID 22537)
+-- Name: appraisal_cycle trg_audit_appraisal_cycle; Type: TRIGGER; Schema: performance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_appraisal_cycle AFTER INSERT OR DELETE OR UPDATE ON performance.appraisal_cycle FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('cycleid');
+
+
+--
+-- TOC entry 5833 (class 2620 OID 22538)
+-- Name: employeeappraisals trg_audit_employeeappraisals; Type: TRIGGER; Schema: performance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_employeeappraisals AFTER INSERT OR DELETE OR UPDATE ON performance.employeeappraisals FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('appraisalid');
+
+
+--
+-- TOC entry 5834 (class 2620 OID 22539)
+-- Name: employeeskills trg_audit_employeeskills; Type: TRIGGER; Schema: performance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_employeeskills AFTER INSERT OR DELETE OR UPDATE ON performance.employeeskills FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('employeeskillid');
+
+
+--
+-- TOC entry 5835 (class 2620 OID 22540)
+-- Name: hrappraisals trg_audit_hrappraisals; Type: TRIGGER; Schema: performance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_hrappraisals AFTER INSERT OR DELETE OR UPDATE ON performance.hrappraisals FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('hrreviewid');
+
+
+--
+-- TOC entry 5836 (class 2620 OID 22541)
+-- Name: managerreviews trg_audit_managerreviews; Type: TRIGGER; Schema: performance; Owner: postgres
+--
+
+CREATE TRIGGER trg_audit_managerreviews AFTER INSERT OR DELETE OR UPDATE ON performance.managerreviews FOR EACH ROW EXECUTE FUNCTION admin.fn_audit_trigger('managerreviewid');
+
+
+--
+-- TOC entry 5615 (class 2606 OID 22542)
 -- Name: attendance attendance_leavetype_fk; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11088,7 +12012,7 @@ ALTER TABLE ONLY attendance.attendance
 
 
 --
--- TOC entry 5623 (class 2606 OID 33190)
+-- TOC entry 5619 (class 2606 OID 22547)
 -- Name: attendance_update_requests attendance_update_requests_actioned_by_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11097,7 +12021,7 @@ ALTER TABLE ONLY attendance.attendance_update_requests
 
 
 --
--- TOC entry 5624 (class 2606 OID 33195)
+-- TOC entry 5620 (class 2606 OID 22552)
 -- Name: attendance_update_requests attendance_update_requests_attendance_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11106,7 +12030,7 @@ ALTER TABLE ONLY attendance.attendance_update_requests
 
 
 --
--- TOC entry 5625 (class 2606 OID 33200)
+-- TOC entry 5621 (class 2606 OID 22557)
 -- Name: attendance_update_requests attendance_update_requests_employee_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11115,7 +12039,7 @@ ALTER TABLE ONLY attendance.attendance_update_requests
 
 
 --
--- TOC entry 5626 (class 2606 OID 33205)
+-- TOC entry 5622 (class 2606 OID 22562)
 -- Name: attendance_update_requests attendance_update_requests_organization_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11124,7 +12048,7 @@ ALTER TABLE ONLY attendance.attendance_update_requests
 
 
 --
--- TOC entry 5616 (class 2606 OID 32916)
+-- TOC entry 5624 (class 2606 OID 22567)
 -- Name: attendancesessions attendancesessions_attendanceid_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11133,7 +12057,7 @@ ALTER TABLE ONLY attendance.attendancesessions
 
 
 --
--- TOC entry 5627 (class 2606 OID 35226)
+-- TOC entry 5623 (class 2606 OID 22572)
 -- Name: attendance_update_requests aur_leavetype_fk; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11142,7 +12066,7 @@ ALTER TABLE ONLY attendance.attendance_update_requests
 
 
 --
--- TOC entry 5761 (class 2606 OID 37583)
+-- TOC entry 5629 (class 2606 OID 22577)
 -- Name: employee_rate_cards employee_rate_cards_employee_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11151,7 +12075,7 @@ ALTER TABLE ONLY attendance.employee_rate_cards
 
 
 --
--- TOC entry 5762 (class 2606 OID 37588)
+-- TOC entry 5630 (class 2606 OID 22582)
 -- Name: employee_rate_cards employee_rate_cards_organization_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11160,7 +12084,7 @@ ALTER TABLE ONLY attendance.employee_rate_cards
 
 
 --
--- TOC entry 5619 (class 2606 OID 33151)
+-- TOC entry 5638 (class 2606 OID 22587)
 -- Name: finalized_timesheet_records finalized_timesheet_records_approved_by_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11169,7 +12093,7 @@ ALTER TABLE ONLY attendance.finalized_timesheet_records
 
 
 --
--- TOC entry 5620 (class 2606 OID 33156)
+-- TOC entry 5639 (class 2606 OID 22592)
 -- Name: finalized_timesheet_records finalized_timesheet_records_attendance_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11178,7 +12102,7 @@ ALTER TABLE ONLY attendance.finalized_timesheet_records
 
 
 --
--- TOC entry 5621 (class 2606 OID 33161)
+-- TOC entry 5640 (class 2606 OID 22597)
 -- Name: finalized_timesheet_records finalized_timesheet_records_employee_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11187,7 +12111,7 @@ ALTER TABLE ONLY attendance.finalized_timesheet_records
 
 
 --
--- TOC entry 5622 (class 2606 OID 33166)
+-- TOC entry 5641 (class 2606 OID 22602)
 -- Name: finalized_timesheet_records finalized_timesheet_records_organization_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11196,7 +12120,7 @@ ALTER TABLE ONLY attendance.finalized_timesheet_records
 
 
 --
--- TOC entry 5612 (class 2606 OID 34638)
+-- TOC entry 5616 (class 2606 OID 22607)
 -- Name: attendance fk_att_geofence; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11205,7 +12129,7 @@ ALTER TABLE ONLY attendance.attendance
 
 
 --
--- TOC entry 5613 (class 2606 OID 34643)
+-- TOC entry 5617 (class 2606 OID 22612)
 -- Name: attendance fk_att_in_facelog; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11214,7 +12138,7 @@ ALTER TABLE ONLY attendance.attendance
 
 
 --
--- TOC entry 5614 (class 2606 OID 34648)
+-- TOC entry 5618 (class 2606 OID 22617)
 -- Name: attendance fk_att_out_facelog; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11223,7 +12147,7 @@ ALTER TABLE ONLY attendance.attendance
 
 
 --
--- TOC entry 5641 (class 2606 OID 33484)
+-- TOC entry 5627 (class 2606 OID 22622)
 -- Name: company_holidays fk_company_holidays_catalog; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11232,7 +12156,7 @@ ALTER TABLE ONLY attendance.company_holidays
 
 
 --
--- TOC entry 5642 (class 2606 OID 33479)
+-- TOC entry 5628 (class 2606 OID 22627)
 -- Name: company_holidays fk_company_holidays_org; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11241,7 +12165,7 @@ ALTER TABLE ONLY attendance.company_holidays
 
 
 --
--- TOC entry 5643 (class 2606 OID 33508)
+-- TOC entry 5631 (class 2606 OID 22632)
 -- Name: employee_restricted_holidays fk_erh_employee; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11250,7 +12174,7 @@ ALTER TABLE ONLY attendance.employee_restricted_holidays
 
 
 --
--- TOC entry 5644 (class 2606 OID 33513)
+-- TOC entry 5632 (class 2606 OID 22637)
 -- Name: employee_restricted_holidays fk_erh_holiday; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11259,7 +12183,7 @@ ALTER TABLE ONLY attendance.employee_restricted_holidays
 
 
 --
--- TOC entry 5645 (class 2606 OID 33503)
+-- TOC entry 5633 (class 2606 OID 22642)
 -- Name: employee_restricted_holidays fk_erh_org; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11268,7 +12192,7 @@ ALTER TABLE ONLY attendance.employee_restricted_holidays
 
 
 --
--- TOC entry 5681 (class 2606 OID 34558)
+-- TOC entry 5634 (class 2606 OID 22647)
 -- Name: face_recognition_logs fk_frl_attendance; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11277,7 +12201,7 @@ ALTER TABLE ONLY attendance.face_recognition_logs
 
 
 --
--- TOC entry 5682 (class 2606 OID 34543)
+-- TOC entry 5635 (class 2606 OID 22652)
 -- Name: face_recognition_logs fk_frl_employee; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11286,7 +12210,7 @@ ALTER TABLE ONLY attendance.face_recognition_logs
 
 
 --
--- TOC entry 5683 (class 2606 OID 34548)
+-- TOC entry 5636 (class 2606 OID 22657)
 -- Name: face_recognition_logs fk_frl_geofence; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11295,7 +12219,7 @@ ALTER TABLE ONLY attendance.face_recognition_logs
 
 
 --
--- TOC entry 5684 (class 2606 OID 34553)
+-- TOC entry 5637 (class 2606 OID 22662)
 -- Name: face_recognition_logs fk_frl_session; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11304,7 +12228,7 @@ ALTER TABLE ONLY attendance.face_recognition_logs
 
 
 --
--- TOC entry 5685 (class 2606 OID 34595)
+-- TOC entry 5642 (class 2606 OID 22667)
 -- Name: geo_fence_violations fk_gfv_attendance; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11313,7 +12237,7 @@ ALTER TABLE ONLY attendance.geo_fence_violations
 
 
 --
--- TOC entry 5686 (class 2606 OID 34580)
+-- TOC entry 5643 (class 2606 OID 22672)
 -- Name: geo_fence_violations fk_gfv_employee; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11322,7 +12246,7 @@ ALTER TABLE ONLY attendance.geo_fence_violations
 
 
 --
--- TOC entry 5687 (class 2606 OID 34600)
+-- TOC entry 5644 (class 2606 OID 22677)
 -- Name: geo_fence_violations fk_gfv_facelog; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11331,7 +12255,7 @@ ALTER TABLE ONLY attendance.geo_fence_violations
 
 
 --
--- TOC entry 5688 (class 2606 OID 34585)
+-- TOC entry 5645 (class 2606 OID 22682)
 -- Name: geo_fence_violations fk_gfv_fence; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11340,7 +12264,7 @@ ALTER TABLE ONLY attendance.geo_fence_violations
 
 
 --
--- TOC entry 5689 (class 2606 OID 34590)
+-- TOC entry 5646 (class 2606 OID 22687)
 -- Name: geo_fence_violations fk_gfv_shift; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11349,7 +12273,7 @@ ALTER TABLE ONLY attendance.geo_fence_violations
 
 
 --
--- TOC entry 5617 (class 2606 OID 34659)
+-- TOC entry 5625 (class 2606 OID 22692)
 -- Name: attendancesessions fk_sess_facelog; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11358,7 +12282,7 @@ ALTER TABLE ONLY attendance.attendancesessions
 
 
 --
--- TOC entry 5618 (class 2606 OID 34654)
+-- TOC entry 5626 (class 2606 OID 22697)
 -- Name: attendancesessions fk_sess_geofence; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11367,7 +12291,7 @@ ALTER TABLE ONLY attendance.attendancesessions
 
 
 --
--- TOC entry 5679 (class 2606 OID 34522)
+-- TOC entry 5654 (class 2606 OID 22702)
 -- Name: shift_geo_fences fk_sgf_fence; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11376,7 +12300,7 @@ ALTER TABLE ONLY attendance.shift_geo_fences
 
 
 --
--- TOC entry 5680 (class 2606 OID 34517)
+-- TOC entry 5655 (class 2606 OID 22707)
 -- Name: shift_geo_fences fk_sgf_shift; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11385,7 +12309,7 @@ ALTER TABLE ONLY attendance.shift_geo_fences
 
 
 --
--- TOC entry 5703 (class 2606 OID 35888)
+-- TOC entry 5656 (class 2606 OID 22712)
 -- Name: timesheet_payroll_summary fk_tps_shift_id; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11394,7 +12318,7 @@ ALTER TABLE ONLY attendance.timesheet_payroll_summary
 
 
 --
--- TOC entry 5646 (class 2606 OID 33535)
+-- TOC entry 5647 (class 2606 OID 22717)
 -- Name: holiday_employee_assignments holiday_employee_assignments_employee_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11403,7 +12327,7 @@ ALTER TABLE ONLY attendance.holiday_employee_assignments
 
 
 --
--- TOC entry 5647 (class 2606 OID 33530)
+-- TOC entry 5648 (class 2606 OID 22722)
 -- Name: holiday_employee_assignments holiday_employee_assignments_holiday_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11412,7 +12336,7 @@ ALTER TABLE ONLY attendance.holiday_employee_assignments
 
 
 --
--- TOC entry 5628 (class 2606 OID 35133)
+-- TOC entry 5649 (class 2606 OID 22727)
 -- Name: monthly_timesheets monthly_timesheets_finalized_by_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11421,7 +12345,7 @@ ALTER TABLE ONLY attendance.monthly_timesheets
 
 
 --
--- TOC entry 5629 (class 2606 OID 33230)
+-- TOC entry 5650 (class 2606 OID 22732)
 -- Name: monthly_timesheets monthly_timesheets_generated_by_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11430,7 +12354,7 @@ ALTER TABLE ONLY attendance.monthly_timesheets
 
 
 --
--- TOC entry 5630 (class 2606 OID 35138)
+-- TOC entry 5651 (class 2606 OID 22737)
 -- Name: monthly_timesheets monthly_timesheets_locked_by_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11439,7 +12363,7 @@ ALTER TABLE ONLY attendance.monthly_timesheets
 
 
 --
--- TOC entry 5631 (class 2606 OID 33235)
+-- TOC entry 5652 (class 2606 OID 22742)
 -- Name: monthly_timesheets monthly_timesheets_organization_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11448,7 +12372,7 @@ ALTER TABLE ONLY attendance.monthly_timesheets
 
 
 --
--- TOC entry 5632 (class 2606 OID 35128)
+-- TOC entry 5653 (class 2606 OID 22747)
 -- Name: monthly_timesheets monthly_timesheets_submitted_by_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11457,7 +12381,7 @@ ALTER TABLE ONLY attendance.monthly_timesheets
 
 
 --
--- TOC entry 5704 (class 2606 OID 35197)
+-- TOC entry 5657 (class 2606 OID 22752)
 -- Name: timesheet_payroll_summary timesheet_payroll_summary_employee_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11466,7 +12390,7 @@ ALTER TABLE ONLY attendance.timesheet_payroll_summary
 
 
 --
--- TOC entry 5705 (class 2606 OID 35192)
+-- TOC entry 5658 (class 2606 OID 22757)
 -- Name: timesheet_payroll_summary timesheet_payroll_summary_organization_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11475,7 +12399,7 @@ ALTER TABLE ONLY attendance.timesheet_payroll_summary
 
 
 --
--- TOC entry 5706 (class 2606 OID 35187)
+-- TOC entry 5659 (class 2606 OID 22762)
 -- Name: timesheet_payroll_summary timesheet_payroll_summary_timesheet_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11484,7 +12408,7 @@ ALTER TABLE ONLY attendance.timesheet_payroll_summary
 
 
 --
--- TOC entry 5758 (class 2606 OID 37358)
+-- TOC entry 5660 (class 2606 OID 22767)
 -- Name: timesheet_period_assignments timesheet_period_assignments_employee_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11493,7 +12417,7 @@ ALTER TABLE ONLY attendance.timesheet_period_assignments
 
 
 --
--- TOC entry 5759 (class 2606 OID 37353)
+-- TOC entry 5661 (class 2606 OID 22772)
 -- Name: timesheet_period_assignments timesheet_period_assignments_timesheet_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11502,7 +12426,7 @@ ALTER TABLE ONLY attendance.timesheet_period_assignments
 
 
 --
--- TOC entry 5760 (class 2606 OID 37416)
+-- TOC entry 5662 (class 2606 OID 22777)
 -- Name: timesheet_transition_snapshots timesheet_transition_snapshots_timesheet_id_fkey; Type: FK CONSTRAINT; Schema: attendance; Owner: postgres
 --
 
@@ -11511,7 +12435,7 @@ ALTER TABLE ONLY attendance.timesheet_transition_snapshots
 
 
 --
--- TOC entry 5756 (class 2606 OID 36745)
+-- TOC entry 5664 (class 2606 OID 22782)
 -- Name: global_role_permissions fk_grp_action; Type: FK CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -11520,7 +12444,7 @@ ALTER TABLE ONLY auth.global_role_permissions
 
 
 --
--- TOC entry 5757 (class 2606 OID 36740)
+-- TOC entry 5665 (class 2606 OID 22787)
 -- Name: global_role_permissions fk_grp_role; Type: FK CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -11529,7 +12453,7 @@ ALTER TABLE ONLY auth.global_role_permissions
 
 
 --
--- TOC entry 5633 (class 2606 OID 36710)
+-- TOC entry 5667 (class 2606 OID 22792)
 -- Name: permissions fk_permissions_role; Type: FK CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -11538,7 +12462,7 @@ ALTER TABLE ONLY auth.permissions
 
 
 --
--- TOC entry 5634 (class 2606 OID 33305)
+-- TOC entry 5663 (class 2606 OID 22797)
 -- Name: actions fk_submenu; Type: FK CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -11547,7 +12471,7 @@ ALTER TABLE ONLY auth.actions
 
 
 --
--- TOC entry 5615 (class 2606 OID 25125)
+-- TOC entry 5666 (class 2606 OID 22802)
 -- Name: password_reset_tokens password_reset_tokens_userid_fkey; Type: FK CONSTRAINT; Schema: auth; Owner: postgres
 --
 
@@ -11556,7 +12480,7 @@ ALTER TABLE ONLY auth.password_reset_tokens
 
 
 --
--- TOC entry 5690 (class 2606 OID 34630)
+-- TOC entry 5668 (class 2606 OID 22807)
 -- Name: employee_face_descriptors fk_efd_employee; Type: FK CONSTRAINT; Schema: employee; Owner: postgres
 --
 
@@ -11565,7 +12489,7 @@ ALTER TABLE ONLY employee.employee_face_descriptors
 
 
 --
--- TOC entry 5746 (class 2606 OID 36238)
+-- TOC entry 5669 (class 2606 OID 22812)
 -- Name: jobparameter jobparameter_jobid_fkey; Type: FK CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -11574,7 +12498,7 @@ ALTER TABLE ONLY hangfire.jobparameter
 
 
 --
--- TOC entry 5745 (class 2606 OID 36215)
+-- TOC entry 5670 (class 2606 OID 22817)
 -- Name: state state_jobid_fkey; Type: FK CONSTRAINT; Schema: hangfire; Owner: postgres
 --
 
@@ -11583,7 +12507,7 @@ ALTER TABLE ONLY hangfire.state
 
 
 --
--- TOC entry 5670 (class 2606 OID 34138)
+-- TOC entry 5671 (class 2606 OID 22822)
 -- Name: ticket_assigned_employees ticket_assigned_employees_assignmentid_fkey; Type: FK CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -11592,7 +12516,7 @@ ALTER TABLE ONLY helpdesk.ticket_assigned_employees
 
 
 --
--- TOC entry 5671 (class 2606 OID 34143)
+-- TOC entry 5672 (class 2606 OID 22827)
 -- Name: ticket_assigned_employees ticket_assigned_employees_ticketid_fkey; Type: FK CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -11601,7 +12525,7 @@ ALTER TABLE ONLY helpdesk.ticket_assigned_employees
 
 
 --
--- TOC entry 5668 (class 2606 OID 34178)
+-- TOC entry 5673 (class 2606 OID 22832)
 -- Name: ticket_assignments ticket_assignments_groupid_fkey; Type: FK CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -11610,7 +12534,7 @@ ALTER TABLE ONLY helpdesk.ticket_assignments
 
 
 --
--- TOC entry 5669 (class 2606 OID 34124)
+-- TOC entry 5674 (class 2606 OID 22837)
 -- Name: ticket_assignments ticket_assignments_ticketid_fkey; Type: FK CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -11619,7 +12543,7 @@ ALTER TABLE ONLY helpdesk.ticket_assignments
 
 
 --
--- TOC entry 5667 (class 2606 OID 34093)
+-- TOC entry 5675 (class 2606 OID 22842)
 -- Name: ticket_message_recipients ticket_message_recipients_message_id_fkey; Type: FK CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -11628,7 +12552,7 @@ ALTER TABLE ONLY helpdesk.ticket_message_recipients
 
 
 --
--- TOC entry 5666 (class 2606 OID 34081)
+-- TOC entry 5676 (class 2606 OID 22847)
 -- Name: ticket_messages ticket_messages_ticket_id_fkey; Type: FK CONSTRAINT; Schema: helpdesk; Owner: postgres
 --
 
@@ -11637,7 +12561,7 @@ ALTER TABLE ONLY helpdesk.ticket_messages
 
 
 --
--- TOC entry 5750 (class 2606 OID 36560)
+-- TOC entry 5677 (class 2606 OID 22852)
 -- Name: candidateanswers fk_candidateanswers_application; Type: FK CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -11646,7 +12570,7 @@ ALTER TABLE ONLY jobs.candidateanswers
 
 
 --
--- TOC entry 5751 (class 2606 OID 36565)
+-- TOC entry 5678 (class 2606 OID 22857)
 -- Name: candidateanswers fk_candidateanswers_question; Type: FK CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -11655,7 +12579,7 @@ ALTER TABLE ONLY jobs.candidateanswers
 
 
 --
--- TOC entry 5748 (class 2606 OID 36537)
+-- TOC entry 5679 (class 2606 OID 22862)
 -- Name: jobquestions fk_jobquestions_job; Type: FK CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -11664,7 +12588,7 @@ ALTER TABLE ONLY jobs.jobquestions
 
 
 --
--- TOC entry 5749 (class 2606 OID 36542)
+-- TOC entry 5680 (class 2606 OID 22867)
 -- Name: jobquestions fk_jobquestions_question; Type: FK CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -11673,7 +12597,7 @@ ALTER TABLE ONLY jobs.jobquestions
 
 
 --
--- TOC entry 5752 (class 2606 OID 36582)
+-- TOC entry 5681 (class 2606 OID 22872)
 -- Name: parsedresumes fk_parsedresumes_application; Type: FK CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -11682,7 +12606,7 @@ ALTER TABLE ONLY jobs.parsedresumes
 
 
 --
--- TOC entry 5747 (class 2606 OID 36522)
+-- TOC entry 5682 (class 2606 OID 22877)
 -- Name: questions fk_questions_category; Type: FK CONSTRAINT; Schema: jobs; Owner: postgres
 --
 
@@ -11691,7 +12615,7 @@ ALTER TABLE ONLY jobs.questions
 
 
 --
--- TOC entry 5744 (class 2606 OID 36009)
+-- TOC entry 5683 (class 2606 OID 22882)
 -- Name: bank_details bank_details_onboardingid_fkey; Type: FK CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -11700,7 +12624,7 @@ ALTER TABLE ONLY onboarding.bank_details
 
 
 --
--- TOC entry 5742 (class 2606 OID 35960)
+-- TOC entry 5684 (class 2606 OID 22887)
 -- Name: education education_onboardingid_fkey; Type: FK CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -11709,7 +12633,7 @@ ALTER TABLE ONLY onboarding.education
 
 
 --
--- TOC entry 5743 (class 2606 OID 35988)
+-- TOC entry 5685 (class 2606 OID 22892)
 -- Name: work_experience work_experience_onboardingid_fkey; Type: FK CONSTRAINT; Schema: onboarding; Owner: postgres
 --
 
@@ -11718,7 +12642,7 @@ ALTER TABLE ONLY onboarding.work_experience
 
 
 --
--- TOC entry 5638 (class 2606 OID 33406)
+-- TOC entry 5686 (class 2606 OID 22897)
 -- Name: invoices fk_invoices_company; Type: FK CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -11727,7 +12651,7 @@ ALTER TABLE ONLY payment.invoices
 
 
 --
--- TOC entry 5639 (class 2606 OID 33401)
+-- TOC entry 5687 (class 2606 OID 22902)
 -- Name: invoices fk_invoices_transaction; Type: FK CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -11736,7 +12660,7 @@ ALTER TABLE ONLY payment.invoices
 
 
 --
--- TOC entry 5640 (class 2606 OID 33428)
+-- TOC entry 5688 (class 2606 OID 22907)
 -- Name: refunds fk_refunds_transaction; Type: FK CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -11745,7 +12669,7 @@ ALTER TABLE ONLY payment.refunds
 
 
 --
--- TOC entry 5635 (class 2606 OID 33365)
+-- TOC entry 5689 (class 2606 OID 22912)
 -- Name: transactions fk_transactions_company; Type: FK CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -11754,7 +12678,7 @@ ALTER TABLE ONLY payment.transactions
 
 
 --
--- TOC entry 5636 (class 2606 OID 33375)
+-- TOC entry 5690 (class 2606 OID 22917)
 -- Name: transactions fk_transactions_plan; Type: FK CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -11763,7 +12687,7 @@ ALTER TABLE ONLY payment.transactions
 
 
 --
--- TOC entry 5637 (class 2606 OID 33370)
+-- TOC entry 5691 (class 2606 OID 22922)
 -- Name: transactions fk_transactions_subscription; Type: FK CONSTRAINT; Schema: payment; Owner: postgres
 --
 
@@ -11772,7 +12696,7 @@ ALTER TABLE ONLY payment.transactions
 
 
 --
--- TOC entry 5675 (class 2606 OID 34336)
+-- TOC entry 5692 (class 2606 OID 22927)
 -- Name: attendancesummary attendancesummary_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11781,7 +12705,7 @@ ALTER TABLE ONLY payroll.attendancesummary
 
 
 --
--- TOC entry 5676 (class 2606 OID 35207)
+-- TOC entry 5693 (class 2606 OID 22932)
 -- Name: attendancesummary attendancesummary_source_timesheet_id_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11790,7 +12714,7 @@ ALTER TABLE ONLY payroll.attendancesummary
 
 
 --
--- TOC entry 5677 (class 2606 OID 35212)
+-- TOC entry 5694 (class 2606 OID 22937)
 -- Name: attendancesummary attendancesummary_timesheet_summary_id_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11799,7 +12723,7 @@ ALTER TABLE ONLY payroll.attendancesummary
 
 
 --
--- TOC entry 5672 (class 2606 OID 34206)
+-- TOC entry 5695 (class 2606 OID 22942)
 -- Name: bonusentries bonusentries_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11808,7 +12732,7 @@ ALTER TABLE ONLY payroll.bonusentries
 
 
 --
--- TOC entry 5707 (class 2606 OID 35280)
+-- TOC entry 5702 (class 2606 OID 22947)
 -- Name: payrollresults fk_payrollresults_emp; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11817,7 +12741,7 @@ ALTER TABLE ONLY payroll.payrollresults
 
 
 --
--- TOC entry 5753 (class 2606 OID 36688)
+-- TOC entry 5704 (class 2606 OID 22952)
 -- Name: paysliptemplates fk_paysliptemplates_layout; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11826,7 +12750,7 @@ ALTER TABLE ONLY payroll.paysliptemplates
 
 
 --
--- TOC entry 5648 (class 2606 OID 35467)
+-- TOC entry 5718 (class 2606 OID 22957)
 -- Name: socialsecurityconfig fk_ssconfig_authority; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11835,7 +12759,7 @@ ALTER TABLE ONLY payroll.socialsecurityconfig
 
 
 --
--- TOC entry 5649 (class 2606 OID 35462)
+-- TOC entry 5719 (class 2606 OID 22962)
 -- Name: socialsecurityconfig fk_ssconfig_jurisdiction; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11844,7 +12768,7 @@ ALTER TABLE ONLY payroll.socialsecurityconfig
 
 
 --
--- TOC entry 5650 (class 2606 OID 35477)
+-- TOC entry 5720 (class 2606 OID 22967)
 -- Name: socialsecurityconfig fk_ssconfig_rule; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11853,7 +12777,7 @@ ALTER TABLE ONLY payroll.socialsecurityconfig
 
 
 --
--- TOC entry 5651 (class 2606 OID 35472)
+-- TOC entry 5721 (class 2606 OID 22972)
 -- Name: socialsecurityconfig fk_ssconfig_scheme; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11862,7 +12786,7 @@ ALTER TABLE ONLY payroll.socialsecurityconfig
 
 
 --
--- TOC entry 5656 (class 2606 OID 35702)
+-- TOC entry 5751 (class 2606 OID 22977)
 -- Name: socialsecuritytransactions fk_sstrx_authority; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11871,7 +12795,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5657 (class 2606 OID 35682)
+-- TOC entry 5752 (class 2606 OID 22982)
 -- Name: socialsecuritytransactions fk_sstrx_employee; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11880,7 +12804,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5658 (class 2606 OID 35707)
+-- TOC entry 5753 (class 2606 OID 22987)
 -- Name: socialsecuritytransactions fk_sstrx_enrollment; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11889,7 +12813,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5659 (class 2606 OID 35697)
+-- TOC entry 5754 (class 2606 OID 22992)
 -- Name: socialsecuritytransactions fk_sstrx_jurisdiction; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11898,7 +12822,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5660 (class 2606 OID 35677)
+-- TOC entry 5755 (class 2606 OID 22997)
 -- Name: socialsecuritytransactions fk_sstrx_period; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11907,7 +12831,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5661 (class 2606 OID 35854)
+-- TOC entry 5756 (class 2606 OID 23002)
 -- Name: socialsecuritytransactions fk_sstrx_remittanceitem; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11916,7 +12840,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5662 (class 2606 OID 35712)
+-- TOC entry 5757 (class 2606 OID 23007)
 -- Name: socialsecuritytransactions fk_sstrx_request; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11925,7 +12849,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5663 (class 2606 OID 35687)
+-- TOC entry 5758 (class 2606 OID 23012)
 -- Name: socialsecuritytransactions fk_sstrx_rule; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11934,7 +12858,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5664 (class 2606 OID 35692)
+-- TOC entry 5759 (class 2606 OID 23017)
 -- Name: socialsecuritytransactions fk_sstrx_scheme; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11943,7 +12867,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5696 (class 2606 OID 34928)
+-- TOC entry 5696 (class 2606 OID 23022)
 -- Name: gratuitytransactions gratuitytransactions_configid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11952,7 +12876,7 @@ ALTER TABLE ONLY payroll.gratuitytransactions
 
 
 --
--- TOC entry 5653 (class 2606 OID 33780)
+-- TOC entry 5697 (class 2606 OID 23027)
 -- Name: lateattendance lateattendance_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11961,7 +12885,7 @@ ALTER TABLE ONLY payroll.lateattendance
 
 
 --
--- TOC entry 5674 (class 2606 OID 34281)
+-- TOC entry 5698 (class 2606 OID 23032)
 -- Name: loanpayments loanpayments_loanid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11970,7 +12894,7 @@ ALTER TABLE ONLY payroll.loanpayments
 
 
 --
--- TOC entry 5673 (class 2606 OID 34263)
+-- TOC entry 5699 (class 2606 OID 23037)
 -- Name: loans loans_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11979,7 +12903,7 @@ ALTER TABLE ONLY payroll.loans
 
 
 --
--- TOC entry 5652 (class 2606 OID 33738)
+-- TOC entry 5700 (class 2606 OID 23042)
 -- Name: overtimeentries overtimeentries_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11988,7 +12912,7 @@ ALTER TABLE ONLY payroll.overtimeentries
 
 
 --
--- TOC entry 5654 (class 2606 OID 33801)
+-- TOC entry 5701 (class 2606 OID 23047)
 -- Name: payrollleavesummary payrollleavesummary_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -11997,7 +12921,7 @@ ALTER TABLE ONLY payroll.payrollleavesummary
 
 
 --
--- TOC entry 5708 (class 2606 OID 35295)
+-- TOC entry 5703 (class 2606 OID 23052)
 -- Name: payslips payslips_resultid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12006,7 +12930,7 @@ ALTER TABLE ONLY payroll.payslips
 
 
 --
--- TOC entry 5754 (class 2606 OID 36681)
+-- TOC entry 5705 (class 2606 OID 23057)
 -- Name: paysliptemplates paysliptemplates_layoutkey_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12015,7 +12939,7 @@ ALTER TABLE ONLY payroll.paysliptemplates
 
 
 --
--- TOC entry 5755 (class 2606 OID 36676)
+-- TOC entry 5706 (class 2606 OID 23062)
 -- Name: paysliptemplates paysliptemplates_organizationid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12024,7 +12948,7 @@ ALTER TABLE ONLY payroll.paysliptemplates
 
 
 --
--- TOC entry 5655 (class 2606 OID 33816)
+-- TOC entry 5707 (class 2606 OID 23067)
 -- Name: performancepay performancepay_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12033,7 +12957,7 @@ ALTER TABLE ONLY payroll.performancepay
 
 
 --
--- TOC entry 5692 (class 2606 OID 34869)
+-- TOC entry 5708 (class 2606 OID 23072)
 -- Name: pfrequests pfrequests_pfid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12042,7 +12966,7 @@ ALTER TABLE ONLY payroll.pfrequests
 
 
 --
--- TOC entry 5693 (class 2606 OID 34864)
+-- TOC entry 5709 (class 2606 OID 23077)
 -- Name: pfrequests pfrequests_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12051,7 +12975,7 @@ ALTER TABLE ONLY payroll.pfrequests
 
 
 --
--- TOC entry 5694 (class 2606 OID 34885)
+-- TOC entry 5710 (class 2606 OID 23082)
 -- Name: pftransactions pftransactions_pfid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12060,7 +12984,7 @@ ALTER TABLE ONLY payroll.pftransactions
 
 
 --
--- TOC entry 5695 (class 2606 OID 34890)
+-- TOC entry 5711 (class 2606 OID 23087)
 -- Name: pftransactions pftransactions_pfrequestid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12069,7 +12993,7 @@ ALTER TABLE ONLY payroll.pftransactions
 
 
 --
--- TOC entry 5691 (class 2606 OID 34845)
+-- TOC entry 5712 (class 2606 OID 23092)
 -- Name: providentfund providentfund_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12078,7 +13002,7 @@ ALTER TABLE ONLY payroll.providentfund
 
 
 --
--- TOC entry 5678 (class 2606 OID 34367)
+-- TOC entry 5713 (class 2606 OID 23097)
 -- Name: salaryadvance salaryadvance_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12087,7 +13011,7 @@ ALTER TABLE ONLY payroll.salaryadvance
 
 
 --
--- TOC entry 5709 (class 2606 OID 35353)
+-- TOC entry 5714 (class 2606 OID 23102)
 -- Name: socialsecurityauthorities socialsecurityauthorities_jurisdictionid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12096,7 +13020,7 @@ ALTER TABLE ONLY payroll.socialsecurityauthorities
 
 
 --
--- TOC entry 5725 (class 2606 OID 35609)
+-- TOC entry 5715 (class 2606 OID 23107)
 -- Name: socialsecurityclaims socialsecurityclaims_employeeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12105,7 +13029,7 @@ ALTER TABLE ONLY payroll.socialsecurityclaims
 
 
 --
--- TOC entry 5726 (class 2606 OID 35614)
+-- TOC entry 5716 (class 2606 OID 23112)
 -- Name: socialsecurityclaims socialsecurityclaims_enrollmentid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12114,7 +13038,7 @@ ALTER TABLE ONLY payroll.socialsecurityclaims
 
 
 --
--- TOC entry 5727 (class 2606 OID 35619)
+-- TOC entry 5717 (class 2606 OID 23117)
 -- Name: socialsecurityclaims socialsecurityclaims_requestid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12123,7 +13047,7 @@ ALTER TABLE ONLY payroll.socialsecurityclaims
 
 
 --
--- TOC entry 5714 (class 2606 OID 35514)
+-- TOC entry 5722 (class 2606 OID 23122)
 -- Name: socialsecurityemployeeenrollments socialsecurityemployeeenrollments_configid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12132,7 +13056,7 @@ ALTER TABLE ONLY payroll.socialsecurityemployeeenrollments
 
 
 --
--- TOC entry 5715 (class 2606 OID 35504)
+-- TOC entry 5723 (class 2606 OID 23127)
 -- Name: socialsecurityemployeeenrollments socialsecurityemployeeenrollments_employeeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12141,7 +13065,7 @@ ALTER TABLE ONLY payroll.socialsecurityemployeeenrollments
 
 
 --
--- TOC entry 5716 (class 2606 OID 35524)
+-- TOC entry 5724 (class 2606 OID 23132)
 -- Name: socialsecurityemployeeenrollments socialsecurityemployeeenrollments_payrollendperiodid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12150,7 +13074,7 @@ ALTER TABLE ONLY payroll.socialsecurityemployeeenrollments
 
 
 --
--- TOC entry 5717 (class 2606 OID 35519)
+-- TOC entry 5725 (class 2606 OID 23137)
 -- Name: socialsecurityemployeeenrollments socialsecurityemployeeenrollments_payrollstartperiodid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12159,7 +13083,7 @@ ALTER TABLE ONLY payroll.socialsecurityemployeeenrollments
 
 
 --
--- TOC entry 5718 (class 2606 OID 35509)
+-- TOC entry 5726 (class 2606 OID 23142)
 -- Name: socialsecurityemployeeenrollments socialsecurityemployeeenrollments_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12168,7 +13092,7 @@ ALTER TABLE ONLY payroll.socialsecurityemployeeenrollments
 
 
 --
--- TOC entry 5737 (class 2606 OID 35842)
+-- TOC entry 5727 (class 2606 OID 23147)
 -- Name: socialsecurityremittanceitems socialsecurityremittanceitems_employeeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12177,7 +13101,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittanceitems
 
 
 --
--- TOC entry 5738 (class 2606 OID 35847)
+-- TOC entry 5728 (class 2606 OID 23152)
 -- Name: socialsecurityremittanceitems socialsecurityremittanceitems_periodid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12186,7 +13110,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittanceitems
 
 
 --
--- TOC entry 5739 (class 2606 OID 35827)
+-- TOC entry 5729 (class 2606 OID 23157)
 -- Name: socialsecurityremittanceitems socialsecurityremittanceitems_remittanceid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12195,7 +13119,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittanceitems
 
 
 --
--- TOC entry 5740 (class 2606 OID 35832)
+-- TOC entry 5730 (class 2606 OID 23162)
 -- Name: socialsecurityremittanceitems socialsecurityremittanceitems_transactionid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12204,7 +13128,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittanceitems
 
 
 --
--- TOC entry 5741 (class 2606 OID 35837)
+-- TOC entry 5731 (class 2606 OID 23167)
 -- Name: socialsecurityremittanceitems socialsecurityremittanceitems_transactionlineid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12213,7 +13137,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittanceitems
 
 
 --
--- TOC entry 5733 (class 2606 OID 35800)
+-- TOC entry 5732 (class 2606 OID 23172)
 -- Name: socialsecurityremittances socialsecurityremittances_authorityid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12222,7 +13146,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittances
 
 
 --
--- TOC entry 5734 (class 2606 OID 35795)
+-- TOC entry 5733 (class 2606 OID 23177)
 -- Name: socialsecurityremittances socialsecurityremittances_jurisdictionid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12231,7 +13155,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittances
 
 
 --
--- TOC entry 5735 (class 2606 OID 35790)
+-- TOC entry 5734 (class 2606 OID 23182)
 -- Name: socialsecurityremittances socialsecurityremittances_periodid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12240,7 +13164,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittances
 
 
 --
--- TOC entry 5736 (class 2606 OID 35805)
+-- TOC entry 5735 (class 2606 OID 23187)
 -- Name: socialsecurityremittances socialsecurityremittances_schemeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12249,7 +13173,7 @@ ALTER TABLE ONLY payroll.socialsecurityremittances
 
 
 --
--- TOC entry 5723 (class 2606 OID 35586)
+-- TOC entry 5736 (class 2606 OID 23192)
 -- Name: socialsecurityrequestdocuments socialsecurityrequestdocuments_employeeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12258,7 +13182,7 @@ ALTER TABLE ONLY payroll.socialsecurityrequestdocuments
 
 
 --
--- TOC entry 5724 (class 2606 OID 35581)
+-- TOC entry 5737 (class 2606 OID 23197)
 -- Name: socialsecurityrequestdocuments socialsecurityrequestdocuments_requestid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12267,7 +13191,7 @@ ALTER TABLE ONLY payroll.socialsecurityrequestdocuments
 
 
 --
--- TOC entry 5719 (class 2606 OID 35562)
+-- TOC entry 5738 (class 2606 OID 23202)
 -- Name: socialsecurityrequests socialsecurityrequests_configid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12276,7 +13200,7 @@ ALTER TABLE ONLY payroll.socialsecurityrequests
 
 
 --
--- TOC entry 5720 (class 2606 OID 35547)
+-- TOC entry 5739 (class 2606 OID 23207)
 -- Name: socialsecurityrequests socialsecurityrequests_employeeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12285,7 +13209,7 @@ ALTER TABLE ONLY payroll.socialsecurityrequests
 
 
 --
--- TOC entry 5721 (class 2606 OID 35552)
+-- TOC entry 5740 (class 2606 OID 23212)
 -- Name: socialsecurityrequests socialsecurityrequests_enrollmentid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12294,7 +13218,7 @@ ALTER TABLE ONLY payroll.socialsecurityrequests
 
 
 --
--- TOC entry 5722 (class 2606 OID 35557)
+-- TOC entry 5741 (class 2606 OID 23217)
 -- Name: socialsecurityrequests socialsecurityrequests_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12303,7 +13227,7 @@ ALTER TABLE ONLY payroll.socialsecurityrequests
 
 
 --
--- TOC entry 5713 (class 2606 OID 35444)
+-- TOC entry 5742 (class 2606 OID 23222)
 -- Name: socialsecurityrulecomponents socialsecurityrulecomponents_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12312,7 +13236,7 @@ ALTER TABLE ONLY payroll.socialsecurityrulecomponents
 
 
 --
--- TOC entry 5712 (class 2606 OID 35423)
+-- TOC entry 5743 (class 2606 OID 23227)
 -- Name: socialsecurityrules socialsecurityrules_schemeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12321,7 +13245,7 @@ ALTER TABLE ONLY payroll.socialsecurityrules
 
 
 --
--- TOC entry 5710 (class 2606 OID 35389)
+-- TOC entry 5744 (class 2606 OID 23232)
 -- Name: socialsecurityschemes socialsecurityschemes_authorityid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12330,7 +13254,7 @@ ALTER TABLE ONLY payroll.socialsecurityschemes
 
 
 --
--- TOC entry 5711 (class 2606 OID 35384)
+-- TOC entry 5745 (class 2606 OID 23237)
 -- Name: socialsecurityschemes socialsecurityschemes_jurisdictionid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12339,7 +13263,7 @@ ALTER TABLE ONLY payroll.socialsecurityschemes
 
 
 --
--- TOC entry 5728 (class 2606 OID 35748)
+-- TOC entry 5746 (class 2606 OID 23242)
 -- Name: socialsecuritytransactionlines socialsecuritytransactionlines_employeeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12348,7 +13272,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactionlines
 
 
 --
--- TOC entry 5729 (class 2606 OID 35753)
+-- TOC entry 5747 (class 2606 OID 23247)
 -- Name: socialsecuritytransactionlines socialsecuritytransactionlines_periodid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12357,7 +13281,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactionlines
 
 
 --
--- TOC entry 5730 (class 2606 OID 35758)
+-- TOC entry 5748 (class 2606 OID 23252)
 -- Name: socialsecuritytransactionlines socialsecuritytransactionlines_ruleid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12366,7 +13290,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactionlines
 
 
 --
--- TOC entry 5731 (class 2606 OID 35763)
+-- TOC entry 5749 (class 2606 OID 23257)
 -- Name: socialsecuritytransactionlines socialsecuritytransactionlines_schemeid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12375,7 +13299,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactionlines
 
 
 --
--- TOC entry 5732 (class 2606 OID 35743)
+-- TOC entry 5750 (class 2606 OID 23262)
 -- Name: socialsecuritytransactionlines socialsecuritytransactionlines_transactionid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12384,7 +13308,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactionlines
 
 
 --
--- TOC entry 5665 (class 2606 OID 33912)
+-- TOC entry 5760 (class 2606 OID 23267)
 -- Name: socialsecuritytransactions socialsecuritytransactions_configid_fkey; Type: FK CONSTRAINT; Schema: payroll; Owner: postgres
 --
 
@@ -12393,7 +13317,7 @@ ALTER TABLE ONLY payroll.socialsecuritytransactions
 
 
 --
--- TOC entry 5698 (class 2606 OID 34976)
+-- TOC entry 5761 (class 2606 OID 23272)
 -- Name: goals fk_goals_kra; Type: FK CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -12402,7 +13326,7 @@ ALTER TABLE ONLY performance.goals
 
 
 --
--- TOC entry 5697 (class 2606 OID 34960)
+-- TOC entry 5762 (class 2606 OID 23277)
 -- Name: kra fk_kra_cycle; Type: FK CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -12411,7 +13335,7 @@ ALTER TABLE ONLY performance.kra
 
 
 --
--- TOC entry 5701 (class 2606 OID 35014)
+-- TOC entry 5763 (class 2606 OID 23282)
 -- Name: managerreviews fk_mgr_goal; Type: FK CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -12420,7 +13344,7 @@ ALTER TABLE ONLY performance.managerreviews
 
 
 --
--- TOC entry 5702 (class 2606 OID 35019)
+-- TOC entry 5764 (class 2606 OID 23287)
 -- Name: managerreviews fk_mgr_kra; Type: FK CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -12429,7 +13353,7 @@ ALTER TABLE ONLY performance.managerreviews
 
 
 --
--- TOC entry 5699 (class 2606 OID 34993)
+-- TOC entry 5765 (class 2606 OID 23292)
 -- Name: selfassessments fk_self_goal; Type: FK CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -12438,7 +13362,7 @@ ALTER TABLE ONLY performance.selfassessments
 
 
 --
--- TOC entry 5700 (class 2606 OID 34998)
+-- TOC entry 5766 (class 2606 OID 23297)
 -- Name: selfassessments fk_self_kra; Type: FK CONSTRAINT; Schema: performance; Owner: postgres
 --
 
@@ -12447,15 +13371,16 @@ ALTER TABLE ONLY performance.selfassessments
 
 
 --
--- TOC entry 5923 (class 0 OID 0)
--- Dependencies: 8
+-- TOC entry 5994 (class 0 OID 0)
+-- Dependencies: 24
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: postgres
 --
 
 REVOKE USAGE ON SCHEMA public FROM PUBLIC;
+GRANT CREATE ON SCHEMA public TO PUBLIC;
 
 
--- Completed on 2026-07-17 17:21:14
+-- Completed on 2026-08-12 15:43:08
 
 --
 -- PostgreSQL database dump complete

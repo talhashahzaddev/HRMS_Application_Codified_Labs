@@ -109,7 +109,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("getleaverequestbyemployeeid")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveRequest>>>> GetLeaveRequestByEmployeeId()
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveRequest>>>> GetLeaveRequestByEmployeeId()
     {
         var userId = GetCurrentEmployeeId();
 
@@ -119,14 +119,14 @@ public class LeaveController : ControllerBase
 
             if (requests == null || !requests.Any())
             {
-                return Ok(new ServiceResponse<List<LeaveRequest>>
+                return Ok(new ServiceResponse<IEnumerable<LeaveRequest>>
                 {
                     Success = true,
                     Message = "No leave requests found"
                 });
             }
 
-            return Ok(new ServiceResponse<List<LeaveRequest>>
+            return Ok(new ServiceResponse<IEnumerable<LeaveRequest>>
             {
                 Success = true,
                 Data = requests
@@ -135,7 +135,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave requests for employee {UserId}", userId);
-            return StatusCode(500, new ServiceResponse<List<LeaveRequest>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<LeaveRequest>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave requests"
@@ -474,14 +474,14 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("types")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveTypeDto>>>> GetLeaveTypes()
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveTypeDto>>>> GetLeaveTypes()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var leaveTypes = await _leaveService.GetLeaveTypesAsync(organizationId);
             
-            return Ok(new ServiceResponse<List<LeaveTypeDto>>
+            return Ok(new ServiceResponse<IEnumerable<LeaveTypeDto>>
             {
                 Success = true,
                 Data = leaveTypes
@@ -490,7 +490,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave types");
-            return StatusCode(500, new ServiceResponse<List<LeaveTypeDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<LeaveTypeDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave types"
@@ -498,14 +498,14 @@ public class LeaveController : ControllerBase
         }
     }
     [HttpGet("typesforrequest")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveTypeDto>>>> GetLeaveTypesforRequest()
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveTypeDto>>>> GetLeaveTypesforRequest()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var leaveTypes = await _leaveService.GetLeaveTypesforrequestAsync(organizationId);
 
-            return Ok(new ServiceResponse<List<LeaveTypeDto>>
+            return Ok(new ServiceResponse<IEnumerable<LeaveTypeDto>>
             {
                 Success = true,
                 Data = leaveTypes
@@ -514,7 +514,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave types");
-            return StatusCode(500, new ServiceResponse<List<LeaveTypeDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<LeaveTypeDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave types"
@@ -666,7 +666,7 @@ public class LeaveController : ControllerBase
 
 
     [HttpGet("entitlements")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveEntitlementDto>>>> GetLeaveEntitlements([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveEntitlementDto>>>> GetLeaveEntitlements([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
     {
         try
         {
@@ -674,7 +674,7 @@ public class LeaveController : ControllerBase
             var entitlementYear = year ?? DateTime.Now.Year;
             var entitlements = await _leaveService.GetLeaveEntitlementsAsync(empId, entitlementYear);
             
-            return Ok(new ServiceResponse<List<LeaveEntitlementDto>>
+            return Ok(new ServiceResponse<IEnumerable<LeaveEntitlementDto>>
             {
                 Success = true,
                 Data = entitlements
@@ -683,7 +683,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave entitlements");
-            return StatusCode(500, new ServiceResponse<List<LeaveEntitlementDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<LeaveEntitlementDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave entitlements"
@@ -692,7 +692,7 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("balance")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveBalanceDto>>>> GetLeaveBalance([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveBalanceDto>>>> GetLeaveBalance([FromQuery] Guid? employeeId = null, [FromQuery] int? year = null)
     {
         try
         {
@@ -700,7 +700,7 @@ public class LeaveController : ControllerBase
             var balanceYear = year ?? DateTime.Now.Year;
             var balance = await _leaveService.GetLeaveBalanceAsync(empId, balanceYear);
             
-            return Ok(new ServiceResponse<List<LeaveBalanceDto>>
+            return Ok(new ServiceResponse<IEnumerable<LeaveBalanceDto>>
             {
                 Success = true,
                 Data = balance
@@ -709,7 +709,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave balance");
-            return StatusCode(500, new ServiceResponse<List<LeaveBalanceDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<LeaveBalanceDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave balance"
@@ -718,14 +718,14 @@ public class LeaveController : ControllerBase
     }
 
     [HttpGet("calendar")]
-    public async Task<ActionResult<ServiceResponse<List<LeaveCalendarDto>>>> GetLeaveCalendar([FromQuery] DateTime startDate,DateTime endDate)
+    public async Task<ActionResult<ServiceResponse<IEnumerable<LeaveCalendarDto>>>> GetLeaveCalendar([FromQuery] DateTime startDate,DateTime endDate)
     {
         try
         {
             var userId = GetCurrentEmployeeId();
             var data = await _leaveService.GetLeaveRequestsForCalendarAsync(userId, startDate, endDate);
 
-            return Ok(new ServiceResponse<List<LeaveCalendarDto>>
+            return Ok(new ServiceResponse<IEnumerable<LeaveCalendarDto>>
             {
                 Success = true,
                 Data = data
@@ -734,7 +734,7 @@ public class LeaveController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving leave calendar");
-            return StatusCode(500, new ServiceResponse<List<LeaveCalendarDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<LeaveCalendarDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving leave calendar"

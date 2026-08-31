@@ -68,7 +68,7 @@ public class PerformanceService : IPerformanceService
 
 
 
-    public async Task<List<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<AppraisalCycleDto>> GetAppraisalCyclesAsync(Guid organizationId)
     {
         _logger.LogInformation("Getting appraisal cycles for organization: {OrganizationId}", organizationId);
         if (organizationId == Guid.Empty)
@@ -137,7 +137,7 @@ public class PerformanceService : IPerformanceService
     }
 
 
-    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId)
+    public async Task<IReadOnlyList<EmployeeAppraisalDto>> GetEmployeeAppraisalsAsync(Guid cycleId, Guid employeeId)
     {
         return await _performanceRepository.GetEmployeeAppraisalsAsync(cycleId, employeeId);
     }
@@ -163,11 +163,11 @@ public class PerformanceService : IPerformanceService
             throw;
         }
     }
-    public async Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<SkillSetDto>> GetSkillSetsAsync(Guid organizationId)
     {
         return await _performanceRepository.GetSkillSetsAsync(organizationId);
     }
-    public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
+    public async Task<IReadOnlyList<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid employeeId)
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty.", nameof(employeeId));
@@ -190,7 +190,7 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetMyPerformanceSummaryAsync(organizationId, currentEmpid, CurrentCycleId);
     }
 
-    public async Task<List<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10)
+    public async Task<IReadOnlyList<TopPerformerDto>> GetTopPerformersAsync(Guid organizationId, int count = 10)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
@@ -307,14 +307,14 @@ public class PerformanceService : IPerformanceService
 
         // Apply additional filters that can't be done in SQL easily
         if (filter.ProficiencyLevel.HasValue)
-            allSkills = allSkills.Where(s => s.ProficiencyLevel == filter.ProficiencyLevel.Value).ToList();
+            allSkills = allSkills.Where(s => s.ProficiencyLevel == filter.ProficiencyLevel.Value).ToArray();
         if (!string.IsNullOrEmpty(filter.Search))
             allSkills = allSkills.Where(s =>
                 s.SkillName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase) ||
-                s.EmployeeName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase)).ToList();
+                s.EmployeeName.Contains(filter.Search, StringComparison.OrdinalIgnoreCase)).ToArray();
 
         var totalItems = allSkills.Count;
-        var pagedItems = allSkills.Skip((page - 1) * limit).Take(limit).ToList();
+        var pagedItems = allSkills.Skip((page - 1) * limit).Take(limit).ToArray();
 
         return new PagedResult<EmployeeSkillDto>
         {
@@ -339,7 +339,7 @@ public class PerformanceService : IPerformanceService
         var allSkills = await _performanceRepository.GetEmployeeSkillsByManagerAsync(managerEmployeeId, filter);
 
         var totalItems = allSkills.Count;
-        var pagedItems = allSkills.Skip((page - 1) * limit).Take(limit).ToList();
+        var pagedItems = allSkills.Skip((page - 1) * limit).Take(limit).ToArray();
 
         return new PagedResult<EmployeeSkillDto>
         {
@@ -350,7 +350,7 @@ public class PerformanceService : IPerformanceService
         };
     }
 
-    public async Task<List<EmployeeSkillDto>> GetEmployeeSkillsByEmployeeAsync(Guid employeeId)
+    public async Task<IReadOnlyList<EmployeeSkillDto>> GetEmployeeSkillsByEmployeeAsync(Guid employeeId)
     {
         _logger.LogInformation("Getting employee skills for employee: {EmployeeId}", employeeId);
         return await GetEmployeeSkillsAsync(employeeId);
@@ -479,10 +479,10 @@ public class PerformanceService : IPerformanceService
 
 
         if (!string.IsNullOrEmpty(search))
-            kras = kras.Where(k => k.Title.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+            kras = kras.Where(k => k.Title.Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
 
         var totalItems = kras.Count;
-        var pagedItems = kras.Skip((page - 1) * limit).Take(limit).ToList();
+        var pagedItems = kras.Skip((page - 1) * limit).Take(limit).ToArray();
 
         return new PagedResult<KRADto>
         {
@@ -605,7 +605,7 @@ public class PerformanceService : IPerformanceService
         return goal;
     }
 
-    public async Task<List<GoalDto>> GetAllGoalsAsync(Guid organizationId, Guid currentEmployeeId)
+    public async Task<IReadOnlyList<GoalDto>> GetAllGoalsAsync(Guid organizationId, Guid currentEmployeeId)
     {
       
      _logger.LogInformation("Fetching all Goals for Organization: {OrgId}", organizationId);
@@ -613,7 +613,7 @@ public class PerformanceService : IPerformanceService
       
     }
 
-    public async Task<List<GoalDto>> GetEmployeeAssignedGoalsAsync(Guid organizationId, Guid currentEmployeeId)
+    public async Task<IReadOnlyList<GoalDto>> GetEmployeeAssignedGoalsAsync(Guid organizationId, Guid currentEmployeeId)
     {
        return await _performanceRepository.GetEmployeeAssignedGoalAsync(organizationId, currentEmployeeId);
     }
@@ -673,10 +673,10 @@ public class PerformanceService : IPerformanceService
         var cycles = await GetAppraisalCyclesAsync(organizationId);
 
         if (!string.IsNullOrEmpty(search))
-            cycles = cycles.Where(c => c.CycleName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToList();
+            cycles = cycles.Where(c => c.CycleName.Contains(search, StringComparison.OrdinalIgnoreCase)).ToArray();
 
         var totalItems = cycles.Count;
-        var pagedItems = cycles.Skip((page - 1) * limit).Take(limit).ToList();
+        var pagedItems = cycles.Skip((page - 1) * limit).Take(limit).ToArray();
 
         return new PagedResult<AppraisalCycleDto>
         {
@@ -746,7 +746,7 @@ public class PerformanceService : IPerformanceService
         };
     }
 
-    public async Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId)
+    public async Task<IReadOnlyList<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId)
     {
         _logger.LogInformation("Getting employee appraisals for employee: {EmployeeId}", employeeId);
         if (employeeId == Guid.Empty)
@@ -868,8 +868,8 @@ public class PerformanceService : IPerformanceService
             EndDate = filter.EndDate ?? DateTime.Now,
             Appraisals = filteredAppraisals,
             Summary = summary,
-            DepartmentBreakdown = departmentBreakdown,
-            TopPerformers = await GetTopPerformersAsync(organizationId, 10)
+            DepartmentBreakdown = departmentBreakdown.ToList(),
+            TopPerformers = (await GetTopPerformersAsync(organizationId, 10)).ToList()
         };
     }
 
@@ -971,19 +971,19 @@ public class PerformanceService : IPerformanceService
         return result;
     }
     //my function
-    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsByEmployeeAsync(Guid employeeId, Guid organizationId)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetSelfAssessmentsByEmployeeAsync(Guid employeeId, Guid organizationId)
     {
         return await _performanceRepository.GetSelfAssessmentsByEmployeeAsync(employeeId, organizationId);
     }
     //mm
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsForManagerAsync(Guid managerId, Guid organizationId)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetSelfAssessmentsForManagerAsync(Guid managerId, Guid organizationId)
     {
         // 1) Get all employees reporting to this manager
         var employees = await _employeeRepository.GetEmployeesReportingToManagerAsync(managerId);
 
         if (employees == null || !employees.Any())
-            return Enumerable.Empty<SelfAssessmentDto>();
+            return Array.Empty<SelfAssessmentDto>();
 
         var employeeIds = employees.Select(e => e.EmployeeId).ToList();
 
@@ -994,12 +994,12 @@ public class PerformanceService : IPerformanceService
 
 
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetSelfAssessmentsAsync(Guid employeeId, Guid cycleId)
     {
         return await _performanceRepository.GetSelfAssessmentsAsync(employeeId, cycleId);
     }
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetMySelfAssessmentsAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null)
     {
         return await _performanceRepository.GetMySelfAssessmentsAsync(employeeId, cycleId, kraId, search);
     }
@@ -1009,17 +1009,17 @@ public class PerformanceService : IPerformanceService
         await _performanceRepository.UpdateSelfAssessmentStatusAsync(employeeId, cycleId, "submitted");
         return "submitted";
     }
-    public async Task<IEnumerable<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetTeamSelfAssessmentsAsync(Guid managerId, Guid cycleId)
     {
         return await _performanceRepository.GetTeamSelfAssessmentsAsync(managerId, cycleId);
     }
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetAllEmployeeSelfAssessmentsAsync(Guid organizationId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
     {
         return await _performanceRepository.GetAllEmployeeSelfAssessmentsAsync(organizationId, cycleId, employeeId, kraId, search);
     }
 
-    public async Task<IEnumerable<SelfAssessmentDto>> GetMyTeamSelfAssessmentsAsync(Guid managerEmployeeId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
+    public async Task<IReadOnlyList<SelfAssessmentDto>> GetMyTeamSelfAssessmentsAsync(Guid managerEmployeeId, Guid? cycleId = null, Guid? employeeId = null, Guid? kraId = null, string? search = null)
     {
         return await _performanceRepository.GetMyTeamSelfAssessmentsAsync(managerEmployeeId, cycleId, employeeId, kraId, search);
     }
@@ -1046,17 +1046,17 @@ public class PerformanceService : IPerformanceService
     }
 
     //Manager review and employee reviews
-    public async Task<List<ManagerReviewDto>> GetManagerReviewsAsync(Guid organizationId, Guid managerId)
+    public async Task<IReadOnlyList<ManagerReviewDto>> GetManagerReviewsAsync(Guid organizationId, Guid managerId)
     {
         return await _performanceRepository.GetManagerReviewsAsync(organizationId, managerId);
     }
     //Getting all record from managers table
-    public async Task<List<ManagerReviewDto>> GetAllManagerReviewsAsync(Guid organizationId, Guid managerId, SearchManagersDto search)
+    public async Task<IReadOnlyList<ManagerReviewDto>> GetAllManagerReviewsAsync(Guid organizationId, Guid managerId, SearchManagersDto search)
     {
         return await _performanceRepository.GetAllManagerReviewsAsync(organizationId, search);
     }
 
-    public async Task<List<ManagerReviewDto>> GetEmployeeReviewsAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<ManagerReviewDto>> GetEmployeeReviewsAsync(Guid organizationId, Guid employeeId)
     {
         return await _performanceRepository.GetEmployeeReviewsAsync(organizationId, employeeId);
     }
@@ -1098,23 +1098,23 @@ public class PerformanceService : IPerformanceService
         return result;
     }
 
-    public async Task<List<HrReviewDto>> GetHrReviewsAsync(Guid organizationId, Guid CurrentEmpId)
+    public async Task<IReadOnlyList<HrReviewDto>> GetHrReviewsAsync(Guid organizationId, Guid CurrentEmpId)
     {
         return await _performanceRepository.GetHrReviewsAsync(organizationId, CurrentEmpId);
     }
 
-    public async Task<List<HrReviewDto>> GetHrReviewsByEmployeeAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<HrReviewDto>> GetHrReviewsByEmployeeAsync(Guid organizationId, Guid employeeId)
     {
         return await _performanceRepository.GetHrReviewsByEmployeeAsync(organizationId, employeeId);
     }
     //Get all appraisals 
 
-    public async Task<List<HrReviewDto>> GetAllAppraisaAsync(Guid organizationId, Guid employeeId, SearchAppraisalDto search)
+    public async Task<IReadOnlyList<HrReviewDto>> GetAllAppraisaAsync(Guid organizationId, Guid employeeId, SearchAppraisalDto search)
     {
         return await _performanceRepository.GetAllAppraisalAsync(organizationId, employeeId, search);
     }
 
-    public async Task<IEnumerable<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null)
+    public async Task<IReadOnlyList<EmployeeAppraisalForEmployeeDto>> GetEmployeeAppraisalsForEmployeeAsync(Guid employeeId, Guid? cycleId = null, Guid? kraId = null, string? search = null, string? status = null)
     {
         return await _performanceRepository.GetEmployeeAppraisalsForEmployeeAsync(employeeId, cycleId, kraId, search, status);
     }

@@ -181,7 +181,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                 ApproverName = r.approver_name ?? string.Empty,
                 ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
                 ApprovedAt = r.approvedat
-            }).ToList();
+            }).ToArray();
 
             // Total count with manager-filter
             var countSql = @"
@@ -254,7 +254,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
                 ApproverName = r.approver_name ?? string.Empty,
                 ProfilePictureUrl = r.profilepictureurl ?? string.Empty,
                 ApprovedAt = r.approvedat
-            }).ToList();
+            }).ToArray();
 
             // Total count by organization
             var countSql = @"
@@ -280,7 +280,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
         }
     }
 
-    public async Task<List<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT leavetypeid, typename, description, maxdaysperyear, 
@@ -289,10 +289,9 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
             WHERE organizationid = @organizationId 
             ORDER BY typename";
 
-        var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
-        return results.ToList();
+        return await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
     }
-    public async Task<List<LeaveTypeDto>> GetLeaveTypesforRequestAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LeaveTypeDto>> GetLeaveTypesforRequestAsync(Guid organizationId)
     {
         var sql = @"
             SELECT leavetypeid, typename, description, maxdaysperyear, 
@@ -301,10 +300,9 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
             WHERE organizationid = @organizationId AND isactive = true
             ORDER BY typename";
 
-        var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
-        return results.ToList();
+        return await QueryAsync<LeaveTypeDto>(sql, new { organizationId });
     }
-    public async Task<List<LeaveTypeDto>> GetLeaveTypeIdByNameAsync(string LeaveType , Guid organizationId)
+    public async Task<IReadOnlyList<LeaveTypeDto>> GetLeaveTypeIdByNameAsync(string LeaveType , Guid organizationId)
     {
         var sql = @"
             SELECT leavetypeid
@@ -312,8 +310,7 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
             WHERE organizationid = @organizationId AND typename = @LeaveType AND isactive = true
             ORDER BY typename";
 
-        var results = await QueryAsync<LeaveTypeDto>(sql, new { organizationId,LeaveType });
-        return results.ToList();
+        return await QueryAsync<LeaveTypeDto>(sql, new { organizationId,LeaveType });
     }
     public async Task<string> GetLeaveTypeNameByIdAsync(Guid LeaveTypeid, Guid organizationId)
     {
@@ -466,7 +463,7 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
 
 
 
-    public async Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year)
+    public async Task<IReadOnlyList<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year)
     {
         var sql = @"
             SELECT le.entitlementid, le.employeeid, le.leavetypeid, le.year,
@@ -477,11 +474,10 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
             WHERE le.employeeid = @employeeId AND le.year = @year
             ORDER BY lt.typename";
 
-        var results = await QueryAsync<LeaveEntitlementDto>(sql, new { employeeId, year });
-        return results.ToList();
+        return await QueryAsync<LeaveEntitlementDto>(sql, new { employeeId, year });
     }
 
-    public async Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year)
+    public async Task<IReadOnlyList<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year)
     {
         var sql = @"
             SELECT lt.typename as leave_type_name, lt.color,
@@ -496,8 +492,7 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
             WHERE lt.organizationid = e.organizationid AND lt.isactive = true
             ORDER BY lt.typename";
 
-        var results = await QueryAsync<LeaveBalanceDto>(sql, new { employeeId, year });
-        return results.ToList();
+        return await QueryAsync<LeaveBalanceDto>(sql, new { employeeId, year });
     }
 
     public async Task<LeaveRequest?> GetLeaveRequestByIdAsync(Guid requestId)
@@ -707,7 +702,7 @@ WHERE employeeid = @employeeid
         }
     }
 
-    public async Task<List<LeaveRequest>> GetLeaveRequestsByEmployeeId(Guid employeeId)
+    public async Task<IReadOnlyList<LeaveRequest>> GetLeaveRequestsByEmployeeId(Guid employeeId)
     {
         try
         {
@@ -718,15 +713,14 @@ WHERE employeeid = @employeeid
             ON lt.leavetypeid = lr.leavetypeid
         WHERE lr.employeeid = @employeeId";
 
-            var results = await QueryAsync<LeaveRequest>(sql, new { employeeId });
-            return results.ToList();
+            return (await QueryAsync<LeaveRequest>(sql, new { employeeId })).ToArray();
         }
         catch (Exception ex)
         {
-            return new List<LeaveRequest>();
+            return Array.Empty<LeaveRequest>();
         }
     }
-    public async Task<List<LeaveCalendarDto>> GetLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    public async Task<IReadOnlyList<LeaveCalendarDto>> GetLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
         var sql = @"
         SELECT lr.requestid, 
@@ -752,11 +746,10 @@ WHERE employeeid = @employeeid
           AND lr.enddate <= @endDate
         ORDER BY lr.startdate;";
 
-        var results = await QueryAsync<LeaveCalendarDto>(sql, new { employeeId, startDate, endDate });
-        return results.ToList();
+        return await QueryAsync<LeaveCalendarDto>(sql, new { employeeId, startDate, endDate });
     }
 
-    public async Task<List<LeaveCalendarDto>> GetApprovedLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    public async Task<IReadOnlyList<LeaveCalendarDto>> GetApprovedLeaveRequestsAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
         var sql = @"
         SELECT lr.requestid, 
@@ -784,8 +777,7 @@ WHERE employeeid = @employeeid
                OR (lr.startdate <= @startDate AND lr.enddate >= @endDate))
         ORDER BY lr.startdate;";
 
-        var results = await QueryAsync<LeaveCalendarDto>(sql, new { employeeId, startDate, endDate });
-        return results.ToList();
+        return await QueryAsync<LeaveCalendarDto>(sql, new { employeeId, startDate, endDate });
     }
 
     public async Task<PagedResult<EmployeeLeaveBalanceDto>> GetTeamRemainingLeavesAsync(
@@ -906,7 +898,7 @@ WHERE employeeid = @employeeid
 
         return new PagedResult<EmployeeLeaveBalanceDto>
         {
-            Data = results.ToList(),
+            Data = results.ToArray(),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize
@@ -1027,7 +1019,7 @@ WHERE employeeid = @employeeid
 
         return new PagedResult<EmployeeLeaveBalanceDto>
         {
-            Data = results.ToList(),
+            Data = results.ToArray(),
             TotalCount = totalCount,
             Page = page,
             PageSize = pageSize

@@ -2,8 +2,6 @@ using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using System.Globalization;
-using System.Linq;
-using System.Collections.Generic;
 
 namespace HRMS.API.Services;
 
@@ -314,15 +312,15 @@ public class SettingsService : ISettingsService
         }
     }
 
-    public Task<ServiceResponse<List<CompanyPolicyDto>>> GetPoliciesAsync(Guid organizationId)
+    public Task<ServiceResponse<IReadOnlyList<CompanyPolicyDto>>> GetPoliciesAsync(Guid organizationId)
     {
         lock (_policyStoreLock)
         {
             _policyStore.TryGetValue(organizationId, out var policies);
-            return Task.FromResult(new ServiceResponse<List<CompanyPolicyDto>>
+            return Task.FromResult(new ServiceResponse<IReadOnlyList<CompanyPolicyDto>>
             {
                 Success = true,
-                Data = policies ?? new List<CompanyPolicyDto>()
+                Data = (IReadOnlyList<CompanyPolicyDto>?)policies ?? Array.Empty<CompanyPolicyDto>()
             });
         }
     }

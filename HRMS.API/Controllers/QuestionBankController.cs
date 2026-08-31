@@ -24,18 +24,18 @@ public class QuestionBankController : ControllerBase
     // ==================== Categories ====================
     [HttpGet("categories")]
     [PermissionAuthorize("question_bank_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<QuestionCategoryDto>>>> GetCategories()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<QuestionCategoryDto>>>> GetCategories()
     {
         try
         {
             var orgId = GetCurrentOrganizationId();
             var categories = await _questionBankService.GetCategoriesAsync(orgId);
-            return Ok(new ServiceResponse<IEnumerable<QuestionCategoryDto>> { Success = true, Data = categories });
+            return Ok(new ServiceResponse<IReadOnlyList<QuestionCategoryDto>> { Success = true, Data = categories });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting question categories.");
-            return StatusCode(500, new ServiceResponse<IEnumerable<QuestionCategoryDto>> { Success = false, Message = ex.Message });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<QuestionCategoryDto>> { Success = false, Message = ex.Message });
         }
     }
 
@@ -92,34 +92,34 @@ public class QuestionBankController : ControllerBase
     // ==================== Questions ====================
     [HttpGet("questions")]
     [PermissionAuthorize("question_bank_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<QuestionDto>>>> GetQuestionsByOrg()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<QuestionDto>>>> GetQuestionsByOrg()
     {
         try
         {
             var orgId = GetCurrentOrganizationId();
             var questions = await _questionBankService.GetQuestionsByOrganizationAsync(orgId);
-            return Ok(new ServiceResponse<IEnumerable<QuestionDto>> { Success = true, Data = questions });
+            return Ok(new ServiceResponse<IReadOnlyList<QuestionDto>> { Success = true, Data = questions });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting questions.");
-            return StatusCode(500, new ServiceResponse<IEnumerable<QuestionDto>> { Success = false, Message = ex.Message });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<QuestionDto>> { Success = false, Message = ex.Message });
         }
     }
 
     [HttpGet("categories/{categoryId}/questions")]
     [PermissionAuthorize("question_bank_view")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<QuestionDto>>>> GetQuestionsByCategory(Guid categoryId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<QuestionDto>>>> GetQuestionsByCategory(Guid categoryId)
     {
         try
         {
             var questions = await _questionBankService.GetQuestionsByCategoryAsync(categoryId);
-            return Ok(new ServiceResponse<IEnumerable<QuestionDto>> { Success = true, Data = questions });
+            return Ok(new ServiceResponse<IReadOnlyList<QuestionDto>> { Success = true, Data = questions });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting questions by category.");
-            return StatusCode(500, new ServiceResponse<IEnumerable<QuestionDto>> { Success = false, Message = ex.Message });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<QuestionDto>> { Success = false, Message = ex.Message });
         }
     }
 
@@ -176,17 +176,17 @@ public class QuestionBankController : ControllerBase
     // ==================== Job-Question Mapping ====================
     [HttpGet("jobs/{jobId}/questions")]
     [AllowAnonymous] // Allow public access to view questions on job application page
-    public async Task<ActionResult<ServiceResponse<IEnumerable<JobQuestionDto>>>> GetJobQuestions(Guid jobId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<JobQuestionDto>>>> GetJobQuestions(Guid jobId)
     {
         try
         {
             var questions = await _questionBankService.GetJobQuestionsAsync(jobId);
-            return Ok(new ServiceResponse<IEnumerable<JobQuestionDto>> { Success = true, Data = questions });
+            return Ok(new ServiceResponse<IReadOnlyList<JobQuestionDto>> { Success = true, Data = questions });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting job questions.");
-            return StatusCode(500, new ServiceResponse<IEnumerable<JobQuestionDto>> { Success = false, Message = ex.Message });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<JobQuestionDto>> { Success = false, Message = ex.Message });
         }
     }
 
@@ -240,17 +240,17 @@ public class QuestionBankController : ControllerBase
 
     // ==================== Candidate Answers ====================
     [HttpGet("applications/{jobApplyId}/answers")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<CandidateAnswerDto>>>> GetCandidateAnswers(Guid jobApplyId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<CandidateAnswerDto>>>> GetCandidateAnswers(Guid jobApplyId)
     {
         try
         {
             var answers = await _questionBankService.GetCandidateAnswersAsync(jobApplyId);
-            return Ok(new ServiceResponse<IEnumerable<CandidateAnswerDto>> { Success = true, Data = answers });
+            return Ok(new ServiceResponse<IReadOnlyList<CandidateAnswerDto>> { Success = true, Data = answers });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting candidate answers.");
-            return StatusCode(500, new ServiceResponse<IEnumerable<CandidateAnswerDto>> { Success = false, Message = ex.Message });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<CandidateAnswerDto>> { Success = false, Message = ex.Message });
         }
     }
 

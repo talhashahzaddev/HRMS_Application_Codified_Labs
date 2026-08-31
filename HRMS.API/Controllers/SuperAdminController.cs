@@ -125,7 +125,7 @@ public class SuperAdminController : ControllerBase
     /// Get subscription history for an organization
     /// </summary>
     [HttpGet("organizations/{organizationId:guid}/subscription-history")]
-    public async Task<ActionResult<ServiceResponse<List<SubscriptionHistoryDto>>>> GetSubscriptionHistory(Guid organizationId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SubscriptionHistoryDto>>>> GetSubscriptionHistory(Guid organizationId)
     {
         try
         {
@@ -135,7 +135,7 @@ public class SuperAdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting subscription history for {OrganizationId}", organizationId);
-            return StatusCode(500, new ServiceResponse<List<SubscriptionHistoryDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SubscriptionHistoryDto>>
             {
                 Success = false,
                 Message = "An error occurred while loading subscription history"
@@ -326,13 +326,13 @@ public class SuperAdminController : ControllerBase
     //GLOBAL ROLES API
 
     [HttpGet("global-roles")]
-    public async Task<ActionResult<ServiceResponse<List<GlobalRoleDetailResponse>>>> GetGlobalRoles()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<GlobalRoleDetailResponse>>>> GetGlobalRoles()
     {
         try
         {
             var result = await _superAdminService.GetGlobalRolesAsync();
 
-            return Ok(new ServiceResponse<List<GlobalRoleDetailResponse>>
+            return Ok(new ServiceResponse<IReadOnlyList<GlobalRoleDetailResponse>>
             {
                 Success = true,
                 Message = "Global roles retrieved successfully",
@@ -343,7 +343,7 @@ public class SuperAdminController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving global roles");
 
-            return StatusCode(500, new ServiceResponse<List<RoleDetailResponse>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<GlobalRoleDetailResponse>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving global roles"
@@ -430,13 +430,13 @@ public class SuperAdminController : ControllerBase
         }
     }
     [HttpGet("menus")]
-    public async Task<ActionResult<ServiceResponse<List<MenuDto>>>> GetMenus()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<MenuDto>>>> GetMenus()
     {
         try
         {
             var menus = await _superAdminService.GetMenusAsync();
 
-            return Ok(new ServiceResponse<List<MenuDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<MenuDto>>
             {
                 Success = true,
                 Data = menus,
@@ -447,7 +447,7 @@ public class SuperAdminController : ControllerBase
         {
             _logger.LogWarning(ex, "Invalid argument while retrieving menus");
 
-            return BadRequest(new ServiceResponse<List<MenuDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<MenuDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -457,7 +457,7 @@ public class SuperAdminController : ControllerBase
         {
             _logger.LogWarning(ex, "Business logic error while retrieving menus");
 
-            return BadRequest(new ServiceResponse<List<MenuDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<MenuDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -467,7 +467,7 @@ public class SuperAdminController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving menus");
 
-            return StatusCode(500, new ServiceResponse<List<MenuDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<MenuDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving menus"

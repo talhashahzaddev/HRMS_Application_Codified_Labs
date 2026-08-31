@@ -24,14 +24,14 @@ public class AssetsController : ControllerBase
 
     [HttpGet]
     [PermissionAuthorize("assets_show")]
-    public async Task<ActionResult<ServiceResponse<List<AssetDto>>>> GetAssets([FromQuery] AssetSearchViewModel searchModel)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AssetDto>>>> GetAssets([FromQuery] AssetSearchViewModel searchModel)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var assets = await _assetService.GetAssetsAsync(organizationId, searchModel);
 
-            return Ok(new ServiceResponse<List<AssetDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AssetDto>>
             {
                 Success = true,
                 Data = assets
@@ -40,7 +40,7 @@ public class AssetsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving assets");
-            return StatusCode(500, new ServiceResponse<List<AssetDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AssetDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving assets"
@@ -209,14 +209,14 @@ public class AssetsController : ControllerBase
 
     // Asset Types endpoints (moved from AssetTypesController)
     [HttpGet("asset-types")]
-    public async Task<ActionResult<ServiceResponse<List<AssetTypeDto>>>> GetAssetTypes()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AssetTypeDto>>>> GetAssetTypes()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var assetTypes = await _assetService.GetAssetTypesAsync(organizationId);
 
-            return Ok(new ServiceResponse<List<AssetTypeDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AssetTypeDto>>
             {
                 Success = true,
                 Data = assetTypes
@@ -225,7 +225,7 @@ public class AssetsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving asset types");
-            return StatusCode(500, new ServiceResponse<List<AssetTypeDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AssetTypeDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving asset types"
@@ -474,14 +474,14 @@ public class AssetsController : ControllerBase
 
     [HttpGet("asset-assignments/history")]
 
-    public async Task<ActionResult<ServiceResponse<List<AssetAssignmentDto>>>> GetAssignmentHistory([FromQuery] Guid? assetId, [FromQuery] Guid? employeeId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AssetAssignmentDto>>>> GetAssignmentHistory([FromQuery] Guid? assetId, [FromQuery] Guid? employeeId)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var history = await _assetService.GetAssetAssignmentHistoryAsync(organizationId, assetId, employeeId);
 
-            return Ok(new ServiceResponse<List<AssetAssignmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AssetAssignmentDto>>
             {
                 Success = true,
                 Data = history
@@ -490,7 +490,7 @@ public class AssetsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving asset assignment history");
-            return StatusCode(500, new ServiceResponse<List<AssetAssignmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AssetAssignmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving asset assignment history"

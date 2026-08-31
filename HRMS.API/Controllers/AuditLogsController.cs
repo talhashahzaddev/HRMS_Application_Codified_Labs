@@ -102,12 +102,11 @@ public class AuditLogsController : ControllerBase
         try
         {
             var history = await _repository.GetRecordHistoryAsync(recordId);
-            var list = history.ToList();
 
-            if (!list.Any())
+            if (!history.Any())
                 return NotFound(new { message = $"No audit history found for record {recordId}." });
 
-            return Ok(list);
+            return Ok(history);
         }
         catch (Exception ex)
         {

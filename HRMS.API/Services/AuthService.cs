@@ -723,20 +723,20 @@ public class AuthService : IAuthService
         return MapToRoleDto(createdRole);
     }
 
-    public async Task<List<RoleDto>> GetOrganizationRolesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<RoleDto>> GetOrganizationRolesAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty) throw new ArgumentException("Organization ID is required", nameof(organizationId));
         var roles = await _authRepository.GetOrganizationRolesAsync(organizationId);
-        return roles.Select(MapToRoleDto).ToList();
+        return roles.Select(MapToRoleDto).ToArray();
     }
-    public async Task<List<MenuDto>> GetMenusAsync()
+    public async Task<IReadOnlyList<MenuDto>> GetMenusAsync()
     {
         var result = await _authRepository.GetMenusAsync();
 
         if (result == null || !result.Any())
             throw new InvalidOperationException("No menus found");
 
-        var menus = result
+        return result
          .Where(x => x.menuid != null)
          .GroupBy(x => new { x.menuid, x.menuname, x.menuicon })
          .Select(g => new MenuDto
@@ -760,13 +760,11 @@ public class AuthService : IAuthService
                              ActionName = x.actionname,
                              ActionKey = x.actionkey
                          })
-                         .DistinctBy(a => a.ActionId) // Remove duplicate actions if any
+                         .DistinctBy(a => a.ActionId)
                          .ToList()
                  }).ToList()
          })
-         .ToList();
-
-        return menus;
+         .ToArray();
     }
     public async Task<CreateRoleResponse> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId)
     {
@@ -1072,30 +1070,27 @@ public class AuthService : IAuthService
             Deleted = true
         };
     }
-    public async Task<List<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId)
+    public async Task<IReadOnlyList<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID is required", nameof(organizationId));
 
         _logger.LogInformation("Retrieving all roles for organization: {OrganizationId}", organizationId);
 
-        // Get all roles for the organization
         var roles = await _authRepository.GetRolesByOrganizationIdAsync(organizationId);
 
         if (roles == null || !roles.Any())
         {
             _logger.LogInformation("No roles found for organization: {OrganizationId}", organizationId);
-            return new List<RoleDetailResponse>();
+            return Array.Empty<RoleDetailResponse>();
         }
 
-        var roleResponses = new List<RoleDetailResponse>();
+        var roleResponses = new List<RoleDetailResponse>(roles.Count);
 
         foreach (var role in roles)
         {
-            // Get permissions for each role (now returns actions)
             var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(role.RoleId);
 
-            // Group permissions by menu and submenu
             var menus = permissions
                 .GroupBy(p => new { p.MenuId, p.MenuName })
                 .Select(g => new RoleMenuPermission

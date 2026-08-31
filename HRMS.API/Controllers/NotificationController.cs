@@ -1,4 +1,4 @@
-﻿﻿using HRMS.API.Models.DTOs;
+﻿using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -97,13 +97,13 @@ namespace HRMS.API.Controllers
         }
 
         [HttpGet("user")]
-        public async Task<ActionResult<ServiceResponse<List<Notification>>>> GetUserNotifications(Guid userId)
+        public async Task<ActionResult<ServiceResponse<IReadOnlyList<Notification>>>> GetUserNotifications(Guid userId)
         {
             try
             {
                 if (userId == Guid.Empty)
                 {
-                    return BadRequest(new ServiceResponse<List<Notification>>
+                    return BadRequest(new ServiceResponse<IReadOnlyList<Notification>>
                     {
                         Success = false,
                         Message = "User ID is required"
@@ -120,7 +120,7 @@ namespace HRMS.API.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid argument for getting user notifications: {UserId}", userId);
-                return BadRequest(new ServiceResponse<List<Notification>>
+                return BadRequest(new ServiceResponse<IReadOnlyList<Notification>>
                 {
                     Success = false,
                     Message = ex.Message
@@ -129,7 +129,7 @@ namespace HRMS.API.Controllers
             catch (UnauthorizedAccessException ex)
             {
                 _logger.LogWarning(ex, "Unauthorized access while getting user notifications: {UserId}", userId);
-                return StatusCode(403, new ServiceResponse<List<Notification>>
+                return StatusCode(403, new ServiceResponse<IReadOnlyList<Notification>>
                 {
                     Success = false,
                     Message = ex.Message
@@ -138,7 +138,7 @@ namespace HRMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving notifications for user: {UserId}", userId);
-                return StatusCode(500, new ServiceResponse<List<Notification>>
+                return StatusCode(500, new ServiceResponse<IReadOnlyList<Notification>>
                 {
                     Success = false,
                     Message = "An error occurred while retrieving notifications"

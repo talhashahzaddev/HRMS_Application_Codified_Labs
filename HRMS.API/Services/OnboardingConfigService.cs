@@ -41,7 +41,7 @@ namespace HRMS.API.Services
             _repo = repo;
         }
 
-        public async Task<List<FieldConfigRecord>> GetConfigAsync(Guid organizationId)
+        public async Task<IReadOnlyList<FieldConfigRecord>> GetConfigAsync(Guid organizationId)
         {
             var records = await _repo.GetByOrganizationAsync(organizationId);
             return records;

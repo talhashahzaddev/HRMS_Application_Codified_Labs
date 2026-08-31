@@ -17,17 +17,15 @@ namespace HRMS.API.Repositories
         {
             try
             {
-                var sql = @"
+                const string sql = @"
             SELECT em.employeeid
             FROM employee.employees em
-            WHERE ( em.userid = @employeeId)
+            WHERE em.userid = @employeeId
             LIMIT 1";
 
-                var results = await QueryAsync<Guid>(sql, new { employeeId });
-
-                return results.FirstOrDefault();
+                return await QuerySingleOrDefaultAsync<Guid>(sql, new { employeeId });
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return Guid.Empty;
             }
@@ -169,10 +167,10 @@ namespace HRMS.API.Repositories
 
 
         // Get notifications for a specific user
-        public async Task<List<Notification>> GetUserNotificationsAsync(Guid userId, Guid organizationId)
+        public async Task<IReadOnlyList<Notification>> GetUserNotificationsAsync(Guid userId, Guid organizationId)
         {
             var userid = await GetEmpId(userId);
-            var sql = @"
+            const string sql = @"
         SELECT *
         FROM notification.notifications
         WHERE @UserId = ANY(receiveruserid)
@@ -180,16 +178,14 @@ namespace HRMS.API.Repositories
         ORDER BY createdat DESC
     ";
 
-            // Execute query and map results to Notification objects
-            var notifications = await QueryAsync<Notification>(sql, new { UserId = userid, OrganizationId = organizationId });
-            return notifications.ToList();
+            return await QueryAsync<Notification>(sql, new { UserId = userid, OrganizationId = organizationId });
         }
 
 
 
         public async Task<Notification> getnotificationdetailAsync(Guid requestId)
         {
-            var sql = @"
+            const string sql = @"
       SELECT notificationid,
              receiveruserid AS ""ReceiverUserIds"",
              senderuserid AS ""SenderUserId"",
@@ -208,8 +204,7 @@ namespace HRMS.API.Repositories
       LIMIT 1
   ";
 
-            var notifications = await QueryAsync<Notification>(sql, new { requestId });
-            return notifications.FirstOrDefault();
+            return await QuerySingleOrDefaultAsync<Notification>(sql, new { requestId });
         }
 
 

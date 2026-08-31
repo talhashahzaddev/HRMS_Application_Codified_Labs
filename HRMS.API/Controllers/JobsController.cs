@@ -29,22 +29,22 @@ public class JobsController : ControllerBase
     // ==================== Stage Master ====================
     [HttpGet("stages")]
     [PermissionAuthorize("stage_view_all")]
-    public async Task<ActionResult<ServiceResponse<List<StageMasterDto>>>> GetAllStages()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<StageMasterDto>>>> GetAllStages()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stages = await _jobsService.GetAllStageMastersAsync(organizationId);
-            return Ok(new ServiceResponse<List<StageMasterDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<StageMasterDto>>
             {
                 Success = true,
-                Data = stages?.ToList() ?? new List<StageMasterDto>()
+                Data = stages
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting stages");
-            return Unauthorized(new ServiceResponse<List<StageMasterDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<StageMasterDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -53,7 +53,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving stages");
-            return StatusCode(500, new ServiceResponse<List<StageMasterDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<StageMasterDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving stages"
@@ -478,22 +478,22 @@ public class JobsController : ControllerBase
     // ==================== Job Applications ====================
     [HttpGet("applications")]
     [PermissionAuthorize("all_job_application")]
-    public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetAllJobApplications()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<JobApplicationDto>>>> GetAllJobApplications()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var applications = await _jobsService.GetAllJobApplicationsAsync(organizationId);
-            return Ok(new ServiceResponse<List<JobApplicationDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = true,
-                Data = applications?.ToList() ?? new List<JobApplicationDto>()
+                Data = applications
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting job applications");
-            return Unauthorized(new ServiceResponse<List<JobApplicationDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -502,7 +502,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving job applications");
-            return StatusCode(500, new ServiceResponse<List<JobApplicationDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving job applications"
@@ -669,21 +669,21 @@ public class JobsController : ControllerBase
 
     [HttpGet("applications/by-job/{jobId}")]
     [PermissionAuthorize("job_application_view_by_job")]
-    public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
     {
         try
         {
             var applications = await _jobsService.GetJobApplicationsByJobIdAsync(jobId);
-            return Ok(new ServiceResponse<List<JobApplicationDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = true,
-                Data = applications?.ToList() ?? new List<JobApplicationDto>()
+                Data = applications
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting job applications by job");
-            return Unauthorized(new ServiceResponse<List<JobApplicationDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -692,7 +692,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving job applications for job {JobId}", jobId);
-            return StatusCode(500, new ServiceResponse<List<JobApplicationDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving job applications"
@@ -997,22 +997,22 @@ public class JobsController : ControllerBase
     // ==================== Application Stages ====================
     [HttpGet("application-stages")]
     [PermissionAuthorize("app_stage_view_all")]
-    public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetAllApplicationStages()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ApplicationStageDto>>>> GetAllApplicationStages()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stages = await _jobsService.GetAllApplicationStagesAsync(organizationId);
-            return Ok(new ServiceResponse<List<ApplicationStageDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = true,
-                Data = stages?.ToList() ?? new List<ApplicationStageDto>()
+                Data = stages
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting application stages");
-            return Unauthorized(new ServiceResponse<List<ApplicationStageDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -1021,7 +1021,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving application stages");
-            return StatusCode(500, new ServiceResponse<List<ApplicationStageDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving application stages"
@@ -1031,21 +1031,21 @@ public class JobsController : ControllerBase
 
     [HttpGet("application-stages/by-application/{jobApplyId}")]
     [PermissionAuthorize("app_stage_view_by_application")]
-    public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
     {
         try
         {
             var stages = await _jobsService.GetApplicationStagesByJobApplyIdAsync(jobApplyId);
-            return Ok(new ServiceResponse<List<ApplicationStageDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = true,
-                Data = stages?.ToList() ?? new List<ApplicationStageDto>()
+                Data = stages
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting application stages by job apply");
-            return Unauthorized(new ServiceResponse<List<ApplicationStageDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -1054,7 +1054,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving application stages for job apply {JobApplyId}", jobApplyId);
-            return StatusCode(500, new ServiceResponse<List<ApplicationStageDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving application stages"

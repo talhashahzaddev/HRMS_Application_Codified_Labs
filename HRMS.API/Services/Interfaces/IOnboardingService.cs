@@ -47,7 +47,7 @@ public interface IOnboardingService
 
 public interface IPolicyService
 {
-    Task<List<PolicyDto>> GetPoliciesAsync(Guid organizationId, bool isSuperAdmin);
+    Task<IReadOnlyList<PolicyDto>> GetPoliciesAsync(Guid organizationId, bool isSuperAdmin);
 
     Task<PolicyDto?> GetByIdAsync(Guid policyId, Guid organizationId);
 

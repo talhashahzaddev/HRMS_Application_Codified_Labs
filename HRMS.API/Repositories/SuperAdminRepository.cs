@@ -259,7 +259,7 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
             }
 
             // Subscription history
-            org.SubscriptionHistory = await GetSubscriptionHistoryAsync(organizationId);
+            org.SubscriptionHistory = (await GetSubscriptionHistoryAsync(organizationId)).ToList();
 
             return org;
         }
@@ -270,7 +270,7 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
         }
     }
 
-    public async Task<List<SubscriptionHistoryDto>> GetSubscriptionHistoryAsync(Guid companyId)
+    public async Task<IReadOnlyList<SubscriptionHistoryDto>> GetSubscriptionHistoryAsync(Guid companyId)
     {
         var sql = @"
             SELECT 
@@ -430,7 +430,7 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
         }
     }
 
-    public async Task<List<GlobalRolePermissionFlatDto>> GetGlobalRolesAsync()
+    public async Task<IReadOnlyList<GlobalRolePermissionFlatDto>> GetGlobalRolesAsync()
     {
         const string sql = @"
             SELECT

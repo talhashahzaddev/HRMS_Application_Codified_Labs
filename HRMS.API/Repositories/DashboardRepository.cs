@@ -20,7 +20,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // LEAVE BALANCES
     // Replicates the same join used in LeaveRepository.GetLeaveBalanceAsync
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<LeaveTypeBalanceSummaryDto>> GetLeaveBalancesAsync(Guid employeeId, Guid organizationId, int year)
+    public async Task<IReadOnlyList<LeaveTypeBalanceSummaryDto>> GetLeaveBalancesAsync(Guid employeeId, Guid organizationId, int year)
     {
         try
         {
@@ -40,8 +40,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 WHERE lt.organizationid = @OrganizationId AND lt.isactive = true
                 ORDER BY lt.typename;";
 
-            var result = await QueryAsync<LeaveTypeBalanceSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId, Year = year });
-            return result.ToList();
+            return await QueryAsync<LeaveTypeBalanceSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId, Year = year });
         }
         catch (Exception ex)
         {
@@ -113,7 +112,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // ACTIVE LOANS
     // Disbursed loans where loan is still active (loanstatus = 'active')
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<ActiveLoanSummaryDto>> GetActiveLoansAsync(Guid employeeId, Guid organizationId)
+    public async Task<IReadOnlyList<ActiveLoanSummaryDto>> GetActiveLoansAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
@@ -136,8 +135,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND l.loanstatus     = 'active'
                 ORDER BY l.createdat DESC;";
 
-            var result = await QueryAsync<ActiveLoanSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
-            return result.ToList();
+            return await QueryAsync<ActiveLoanSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
         }
         catch (Exception ex)
         {
@@ -150,7 +148,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // DISBURSED SALARY ADVANCES (still outstanding – not yet fully deducted)
     // advancestatus = 'disbursed' means money was given but not yet deducted
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<ActiveAdvanceSummaryDto>> GetDisbursedAdvancesAsync(Guid employeeId, Guid organizationId)
+    public async Task<IReadOnlyList<ActiveAdvanceSummaryDto>> GetDisbursedAdvancesAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
@@ -166,8 +164,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND sa.advancestatus  = 'disbursed'
                 ORDER BY sa.createdat DESC;";
 
-            var result = await QueryAsync<ActiveAdvanceSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
-            return result.ToList();
+            return await QueryAsync<ActiveAdvanceSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
         }
         catch (Exception ex)
         {
@@ -179,7 +176,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // ─────────────────────────────────────────────────────────────────────────
     // PENDING LEAVE REQUESTS
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<PendingRequestSummaryDto>> GetPendingLeaveRequestsAsync(Guid employeeId)
+    public async Task<IReadOnlyList<PendingRequestSummaryDto>> GetPendingLeaveRequestsAsync(Guid employeeId)
     {
         try
         {
@@ -197,8 +194,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND lr.status     = 'pending'
                 ORDER BY lr.createdat DESC;";
 
-            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId });
-            return result.ToList();
+            return await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId });
         }
         catch (Exception ex)
         {
@@ -210,7 +206,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // ─────────────────────────────────────────────────────────────────────────
     // PENDING SHIFT SWAP REQUESTS
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<PendingRequestSummaryDto>> GetPendingShiftSwapRequestsAsync(Guid employeeId)
+    public async Task<IReadOnlyList<PendingRequestSummaryDto>> GetPendingShiftSwapRequestsAsync(Guid employeeId)
     {
         try
         {
@@ -230,8 +226,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND ss.status     = 'pending'
                 ORDER BY ss.submittedat DESC;";
 
-            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId });
-            return result.ToList();
+            return await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId });
         }
         catch (Exception ex)
         {
@@ -244,7 +239,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // PENDING OVERTIME REQUESTS
     // requesttype = 'employee' isolates employee-initiated requests
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<PendingRequestSummaryDto>> GetPendingOvertimeRequestsAsync(Guid employeeId, Guid organizationId)
+    public async Task<IReadOnlyList<PendingRequestSummaryDto>> GetPendingOvertimeRequestsAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
@@ -265,8 +260,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND o.status         = 'pending'
                 ORDER BY o.createdat DESC;";
 
-            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
-            return result.ToList();
+            return await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
         }
         catch (Exception ex)
         {
@@ -278,7 +272,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // ─────────────────────────────────────────────────────────────────────────
     // PENDING SALARY ADVANCE REQUESTS
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<PendingRequestSummaryDto>> GetPendingSalaryAdvanceRequestsAsync(Guid employeeId, Guid organizationId)
+    public async Task<IReadOnlyList<PendingRequestSummaryDto>> GetPendingSalaryAdvanceRequestsAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
@@ -295,8 +289,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND sa.advancestatus  = 'pending'
                 ORDER BY sa.createdat DESC;";
 
-            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
-            return result.ToList();
+            return await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
         }
         catch (Exception ex)
         {
@@ -309,7 +302,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // PENDING LOAN REQUESTS
     // requeststatus = 'pending' means HR has not yet approved/rejected
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<PendingRequestSummaryDto>> GetPendingLoanRequestsAsync(Guid employeeId, Guid organizationId)
+    public async Task<IReadOnlyList<PendingRequestSummaryDto>> GetPendingLoanRequestsAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
@@ -326,8 +319,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND l.requeststatus  = 'pending'
                 ORDER BY l.createdat DESC;";
 
-            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
-            return result.ToList();
+            return await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
         }
         catch (Exception ex)
         {
@@ -340,7 +332,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
     // PENDING PROVIDENT FUND REQUESTS
     // status = 'pending' across all request types (enrollment, update, withdrawal)
     // ─────────────────────────────────────────────────────────────────────────
-    public async Task<List<PendingRequestSummaryDto>> GetPendingPfRequestsAsync(Guid employeeId, Guid organizationId)
+    public async Task<IReadOnlyList<PendingRequestSummaryDto>> GetPendingPfRequestsAsync(Guid employeeId, Guid organizationId)
     {
         try
         {
@@ -358,8 +350,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND pf.status         = 'pending'
                 ORDER BY pf.createdat DESC;";
 
-            var result = await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
-            return result.ToList();
+            return await QueryAsync<PendingRequestSummaryDto>(sql, new { EmployeeId = employeeId, OrganizationId = organizationId });
         }
         catch (Exception ex)
         {
@@ -436,8 +427,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                   AND o.status IN ('pending', 'approved');";
 
             var parameters = new { ManagerId = managerId, OrganizationId = organizationId, Date = date.Date };
-            var result = await QueryAsync<int>(sql, parameters);
-            return result.FirstOrDefault();
+            return await ExecuteScalarAsync<int>(sql, parameters);
         }
         catch (Exception ex)
         {
@@ -647,7 +637,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
         }
     }
 
-    public async Task<List<PayrollOutflowDto>> GetLast3PayrollOutflowAsync(Guid organizationId)
+    public async Task<IReadOnlyList<PayrollOutflowDto>> GetLast3PayrollOutflowAsync(Guid organizationId)
     {
         try
         {
@@ -669,9 +659,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 GROUP BY lp.periodname, lp.startdate
                 ORDER BY lp.startdate ASC;";
 
-            var parameters = new { OrganizationId = organizationId };
-            var result = await QueryAsync<PayrollOutflowDto>(sql, parameters);
-            return result.ToList();
+            return await QueryAsync<PayrollOutflowDto>(sql, new { OrganizationId = organizationId });
         }
         catch (Exception ex)
         {
@@ -680,7 +668,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
         }
     }
 
-    public async Task<List<MonthlyExpenseDto>> GetLast3MonthsExpensesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<MonthlyExpenseDto>> GetLast3MonthsExpensesAsync(Guid organizationId)
     {
         try
         {
@@ -701,9 +689,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 GROUP BY to_char(e.billdate, 'YYYY-MM')
                 ORDER BY to_char(e.billdate, 'YYYY-MM') ASC;";
 
-            var parameters = new { OrganizationId = organizationId };
-            var result = await QueryAsync<MonthlyExpenseDto>(sql, parameters);
-            return result.ToList();
+            return await QueryAsync<MonthlyExpenseDto>(sql, new { OrganizationId = organizationId });
         }
         catch (Exception ex)
         {
@@ -712,7 +698,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
         }
     }
 
-    public async Task<List<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LatestHiredEmployeeDto>> GetLatestHiresAsync(Guid organizationId)
     {
         try
         {
@@ -737,9 +723,7 @@ public class DashboardRepository : BaseRepository, IDashboardRepository
                 ORDER BY COALESCE(ja.updateddate, ja.createddate) DESC
                 LIMIT 3;";
 
-            var parameters = new { OrganizationId = organizationId };
-            var result = await QueryAsync<LatestHiredEmployeeDto>(sql, parameters);
-            return result.ToList();
+            return await QueryAsync<LatestHiredEmployeeDto>(sql, new { OrganizationId = organizationId });
         }
         catch (Exception ex)
         {

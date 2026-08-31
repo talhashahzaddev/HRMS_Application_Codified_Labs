@@ -125,7 +125,7 @@ public class DemoInquiryRepository : BaseRepository, IDemoInquiryRepository
 
         return new PagedResult<DemoInquiryDto>
         {
-            Data = data.ToList(),
+            Data = data.ToArray(),
             TotalCount = totalCount,
             Page = filter.Page,
             PageSize = filter.PageSize

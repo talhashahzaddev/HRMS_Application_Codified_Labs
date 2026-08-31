@@ -32,22 +32,22 @@ public class ExpenseController : ControllerBase
     // ==================== Expense Categories ====================
     [HttpGet("categories")]
     [PermissionAuthorize("expense_category_view")]
-    public async Task<ActionResult<ServiceResponse<List<ExpenseCategoryDto>>>> GetExpenseCategories()
+    public async Task<ActionResult<ServiceResponse<IEnumerable<ExpenseCategoryDto>>>> GetExpenseCategories()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var categories = await _expenseService.GetExpenseCategoriesAsync(organizationId);
-            return Ok(new ServiceResponse<List<ExpenseCategoryDto>>
+            return Ok(new ServiceResponse<IEnumerable<ExpenseCategoryDto>>
             {
                 Success = true,
-                Data = categories?.ToList() ?? new List<ExpenseCategoryDto>()
+                Data = categories ?? Array.Empty<ExpenseCategoryDto>()
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting expense categories");
-            return Unauthorized(new ServiceResponse<List<ExpenseCategoryDto>>
+            return Unauthorized(new ServiceResponse<IEnumerable<ExpenseCategoryDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -56,7 +56,7 @@ public class ExpenseController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving expense categories");
-            return StatusCode(500, new ServiceResponse<List<ExpenseCategoryDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<ExpenseCategoryDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving expense categories"
@@ -833,7 +833,7 @@ public class ExpenseController : ControllerBase
 
     [HttpGet("pie-report")]
     [PermissionAuthorize("report_expense_by_category")]
-    public async Task<ActionResult<ServiceResponse<List<ExpensePieReportItemDto>>>> GetExpensePieReport(
+    public async Task<ActionResult<ServiceResponse<IEnumerable<ExpensePieReportItemDto>>>> GetExpensePieReport(
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         [FromQuery] bool expense,
@@ -843,16 +843,16 @@ public class ExpenseController : ControllerBase
         {
             var organizationId = GetCurrentOrganizationId();
             var data = await _expenseService.GetExpensePieReportAsync(organizationId, fromDate, toDate, expense, recurring);
-            return Ok(new ServiceResponse<List<ExpensePieReportItemDto>>
+            return Ok(new ServiceResponse<IEnumerable<ExpensePieReportItemDto>>
             {
                 Success = true,
-                Data = data?.ToList() ?? new List<ExpensePieReportItemDto>()
+                Data = data ?? Array.Empty<ExpensePieReportItemDto>()
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting expense pie report");
-            return Unauthorized(new ServiceResponse<List<ExpensePieReportItemDto>>
+            return Unauthorized(new ServiceResponse<IEnumerable<ExpensePieReportItemDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -861,7 +861,7 @@ public class ExpenseController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving expense pie report");
-            return StatusCode(500, new ServiceResponse<List<ExpensePieReportItemDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<ExpensePieReportItemDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving the expense pie report"
@@ -871,7 +871,7 @@ public class ExpenseController : ControllerBase
 
     [HttpGet("line-chart")]
     [PermissionAuthorize("report_expense_by_month")]
-    public async Task<ActionResult<ServiceResponse<List<ExpenseLineChartItemDto>>>> GetExpenseLineChart(
+    public async Task<ActionResult<ServiceResponse<IEnumerable<ExpenseLineChartItemDto>>>> GetExpenseLineChart(
         [FromQuery] int? year,
         [FromQuery] bool expense,
         [FromQuery] bool recurring)
@@ -881,16 +881,16 @@ public class ExpenseController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var y = year ?? DateTime.UtcNow.Year;
             var data = await _expenseService.GetExpenseLineChartAsync(organizationId, y, expense, recurring);
-            return Ok(new ServiceResponse<List<ExpenseLineChartItemDto>>
+            return Ok(new ServiceResponse<IEnumerable<ExpenseLineChartItemDto>>
             {
                 Success = true,
-                Data = data?.ToList() ?? new List<ExpenseLineChartItemDto>()
+                Data = data ?? Array.Empty<ExpenseLineChartItemDto>()
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting expense line chart");
-            return Unauthorized(new ServiceResponse<List<ExpenseLineChartItemDto>>
+            return Unauthorized(new ServiceResponse<IEnumerable<ExpenseLineChartItemDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -899,7 +899,7 @@ public class ExpenseController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving expense line chart");
-            return StatusCode(500, new ServiceResponse<List<ExpenseLineChartItemDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<ExpenseLineChartItemDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving the expense line chart"
@@ -909,7 +909,7 @@ public class ExpenseController : ControllerBase
 
     [HttpGet("bar-chart")]
     [PermissionAuthorize("report_expense_by_year")]
-    public async Task<ActionResult<ServiceResponse<List<ExpenseBarChartItemDto>>>> GetExpenseBarChart(
+    public async Task<ActionResult<ServiceResponse<IEnumerable<ExpenseBarChartItemDto>>>> GetExpenseBarChart(
         [FromQuery] int? years,
         [FromQuery] bool expense,
         [FromQuery] bool recurring)
@@ -919,7 +919,7 @@ public class ExpenseController : ControllerBase
             var yearsCount = years ?? 5;
             if (yearsCount < 1 || yearsCount > 20)
             {
-                return BadRequest(new ServiceResponse<List<ExpenseBarChartItemDto>>
+                return BadRequest(new ServiceResponse<IEnumerable<ExpenseBarChartItemDto>>
                 {
                     Success = false,
                     Message = "Years must be between 1 and 20"
@@ -929,16 +929,16 @@ public class ExpenseController : ControllerBase
             var toYear = DateTime.UtcNow.Year;
             var fromYear = toYear - yearsCount + 1;
             var data = await _expenseService.GetExpenseBarChartAsync(organizationId, fromYear, toYear, expense, recurring);
-            return Ok(new ServiceResponse<List<ExpenseBarChartItemDto>>
+            return Ok(new ServiceResponse<IEnumerable<ExpenseBarChartItemDto>>
             {
                 Success = true,
-                Data = data?.ToList() ?? new List<ExpenseBarChartItemDto>()
+                Data = data ?? Array.Empty<ExpenseBarChartItemDto>()
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting expense bar chart");
-            return Unauthorized(new ServiceResponse<List<ExpenseBarChartItemDto>>
+            return Unauthorized(new ServiceResponse<IEnumerable<ExpenseBarChartItemDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -947,7 +947,7 @@ public class ExpenseController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving expense bar chart");
-            return StatusCode(500, new ServiceResponse<List<ExpenseBarChartItemDto>>
+            return StatusCode(500, new ServiceResponse<IEnumerable<ExpenseBarChartItemDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving the expense bar chart"

@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 
@@ -15,7 +15,7 @@ public class GeoFenceService : IGeoFenceService
         _logger = logger;
     }
 
-    public async Task<IEnumerable<GeoFenceDto>> GetAllGeoFencesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<GeoFenceDto>> GetAllGeoFencesAsync(Guid organizationId)
         => await _repo.GetAllGeoFencesAsync(organizationId);
 
     public async Task<GeoFenceDto?> GetGeoFenceByIdAsync(Guid geoFenceId)
@@ -80,7 +80,7 @@ public class GeoFenceService : IGeoFenceService
         return new ServiceResponse<bool> { Success = result, Data = result };
     }
 
-    public async Task<IEnumerable<ShiftGeoFenceDto>> GetGeoFencesByShiftAsync(Guid shiftId)
+    public async Task<IReadOnlyList<ShiftGeoFenceDto>> GetGeoFencesByShiftAsync(Guid shiftId)
         => await _repo.GetGeoFencesByShiftAsync(shiftId);
 
     public async Task<ServiceResponse<bool>> LinkGeoFenceToShiftAsync(Guid shiftId, Guid geoFenceId)
@@ -171,10 +171,10 @@ public class GeoFenceService : IGeoFenceService
         }
     }
 
-    public async Task<IEnumerable<TeamLiveStreamDto>> GetTeamLiveStreamAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TeamLiveStreamDto>> GetTeamLiveStreamAsync(Guid organizationId)
         => await _repo.GetTeamLiveStreamAsync(organizationId);
 
-    public async Task<IEnumerable<GeoFenceViolationReportDto>> GetViolationsReportAsync(
+    public async Task<IReadOnlyList<GeoFenceViolationReportDto>> GetViolationsReportAsync(
         Guid organizationId, DateTime startDate, DateTime endDate, Guid? shiftId = null)
         => await _repo.GetViolationsReportAsync(organizationId, startDate, endDate, shiftId);
 

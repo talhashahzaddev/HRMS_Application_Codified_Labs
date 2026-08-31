@@ -102,17 +102,17 @@ public class SuperAdminService : ISuperAdminService
         }
     }
 
-    public async Task<ServiceResponse<List<SubscriptionHistoryDto>>> GetSubscriptionHistoryAsync(Guid companyId)
+    public async Task<ServiceResponse<IReadOnlyList<SubscriptionHistoryDto>>> GetSubscriptionHistoryAsync(Guid companyId)
     {
         try
         {
             var history = await _superAdminRepository.GetSubscriptionHistoryAsync(companyId);
-            return new ServiceResponse<List<SubscriptionHistoryDto>> { Success = true, Data = history };
+            return new ServiceResponse<IReadOnlyList<SubscriptionHistoryDto>> { Success = true, Data = history };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting subscription history for {CompanyId}", companyId);
-            return new ServiceResponse<List<SubscriptionHistoryDto>>
+            return new ServiceResponse<IReadOnlyList<SubscriptionHistoryDto>>
             {
                 Success = false,
                 Message = "Failed to load subscription history"
@@ -270,12 +270,12 @@ public class SuperAdminService : ISuperAdminService
         }
     }
 
-    public async Task<List<GlobalRoleDetailResponse>> GetGlobalRolesAsync()
+    public async Task<IReadOnlyList<GlobalRoleDetailResponse>> GetGlobalRolesAsync()
     {
         var result = await _superAdminRepository.GetGlobalRolesAsync();
 
         if (result == null || !result.Any())
-            return new List<GlobalRoleDetailResponse>();
+            return Array.Empty<GlobalRoleDetailResponse>();
 
         var roles = result
             .GroupBy(x => new
@@ -343,7 +343,7 @@ public class SuperAdminService : ISuperAdminService
                             }).ToList()
 
                     }).ToList()
-            }).ToList();
+            }).ToArray();
 
         return roles;
     }
@@ -398,7 +398,7 @@ public class SuperAdminService : ISuperAdminService
         return await _superAdminRepository.DeleteGlobalRoleAsync(roleId);
     }
 
-    public async Task<List<MenuDto>> GetMenusAsync()
+    public async Task<IReadOnlyList<MenuDto>> GetMenusAsync()
     {
         var result = await _authRepository.GetMenusAsync();
 
@@ -425,7 +425,7 @@ public class SuperAdminService : ISuperAdminService
                          .Where(x => x.actionid != null)
                          .Select(x => new ActionDto
                          {
-                             ActionId = x.actionid,
+                            ActionId = x.actionid,
                              ActionName = x.actionname,
                              ActionKey = x.actionkey
                          })
@@ -433,7 +433,7 @@ public class SuperAdminService : ISuperAdminService
                          .ToList()
                  }).ToList()
          })
-         .ToList();
+         .ToArray();
 
         return menus;
     }

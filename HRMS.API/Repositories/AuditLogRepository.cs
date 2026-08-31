@@ -92,10 +92,8 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
             ORDER BY a.createdat DESC
             LIMIT @PageSize OFFSET @Offset";
 
-        using var connection = CreateConnection();
-
-        var totalCount = await connection.ExecuteScalarAsync<int>(countSql, parameters);
-        var items = await connection.QueryAsync<AuditLogDto>(dataSql, parameters);
+        var totalCount = await ExecuteScalarAsync<int>(countSql, parameters);
+        var items = await QueryAsync<AuditLogDto>(dataSql, parameters);
 
         return new AuditLogPagedResult
         {
@@ -107,7 +105,7 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
     }
 
     /// <inheritdoc/>
-    public async Task<IEnumerable<AuditLogDto>> GetRecordHistoryAsync(Guid recordId)
+    public async Task<IReadOnlyList<AuditLogDto>> GetRecordHistoryAsync(Guid recordId)
     {
         // Returns the complete chronological history of a single record.
         // e.g. "Show me every status change this Loan ever had."
@@ -130,7 +128,6 @@ public class AuditLogRepository : BaseRepository, IAuditLogRepository
             WHERE a.recordid = @RecordId
             ORDER BY a.createdat ASC";
 
-        using var connection = CreateConnection();
-        return await connection.QueryAsync<AuditLogDto>(sql, new { RecordId = recordId });
+        return await QueryAsync<AuditLogDto>(sql, new { RecordId = recordId });
     }
 }

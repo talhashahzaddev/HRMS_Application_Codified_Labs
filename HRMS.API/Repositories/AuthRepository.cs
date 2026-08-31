@@ -588,9 +588,9 @@ WHERE token = @token;
         }
     }
 
-    public async Task<List<Role>> GetOrganizationRolesAsync(Guid? organizationId)
+    public async Task<IReadOnlyList<Role>> GetOrganizationRolesAsync(Guid? organizationId)
     {
-        var sql = @"
+        const string sql = @"
             SELECT roleid, organizationid, rolename, description, permissions, issystemrole, createdat
             FROM auth.roles 
             WHERE organizationid = @organizationId
@@ -610,7 +610,7 @@ WHERE token = @token;
         : JsonConvert.DeserializeObject<Dictionary<string, object>>((string)r.permissions),
                 IsSystemRole = r.issystemrole,
                 CreatedAt = r.createdat
-            }).ToList();
+            }).ToArray();
 
         }
         catch (Exception ex)
@@ -743,7 +743,7 @@ WHERE token = @token;
     }
 
     // Get user ids by role id
-    public async Task<List<Guid>> GetUserIdsByRoleIdAsync(Guid roleId, Guid? organizationId)
+    public async Task<IReadOnlyList<Guid>> GetUserIdsByRoleIdAsync(Guid roleId, Guid? organizationId)
     {
         const string sql = @"
     SELECT e.employeeid
@@ -757,8 +757,7 @@ WHERE token = @token;
         parameters.Add("RoleId", roleId, DbType.Guid);
         parameters.Add("OrganizationId", organizationId, DbType.Guid);
 
-        var results = await QueryAsync<Guid>(sql, parameters);
-        return results.ToList();
+        return await QueryAsync<Guid>(sql, parameters);
     }
 
     // Delete role
@@ -825,7 +824,7 @@ WHERE token = @token;
         return count > 0;
     }
 
-    public async Task<List<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId)
+    public async Task<IReadOnlyList<Role>> GetRolesByOrganizationIdAsync(Guid? organizationId)
     {
         const string sql = @"
         SELECT roleid, rolename, description, organizationid, issystemrole, createdat
@@ -833,10 +832,10 @@ WHERE token = @token;
         WHERE organizationid = @organizationid
         ORDER BY createdat DESC";
 
-        return (await QueryAsync<Role>(sql, new { organizationid = organizationId })).ToList();
+        return await QueryAsync<Role>(sql, new { organizationid = organizationId });
     }
 
-    public async Task<List<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId)
+    public async Task<IReadOnlyList<PermissionDetail>> GetRolePermissionsWithMenuDetailsAsync(Guid? roleId)
     {
         try
         {
@@ -871,7 +870,7 @@ WHERE token = @token;
             WHERE r.roleid = @roleid
             ORDER BY m.menuname, sm.submenuname, a.actionname;";
 
-            return (await QueryAsync<PermissionDetail>(sql, new { roleid = roleId })).ToList();
+            return await QueryAsync<PermissionDetail>(sql, new { roleid = roleId });
         }
         catch(Exception ex)
         {
