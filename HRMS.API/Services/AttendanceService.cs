@@ -379,7 +379,7 @@ public class AttendanceService : IAttendanceService
 
 
  
-    public async Task<List<AttendanceSessionDto?>> EmployeeTodaySessions(Guid employeeId, DateTime? date = null)
+    public async Task<IReadOnlyList<AttendanceSessionDto>> EmployeeTodaySessions(Guid employeeId, DateTime? date = null)
     {
         if (employeeId == Guid.Empty)
         {
@@ -629,7 +629,7 @@ public class AttendanceService : IAttendanceService
 
 
 
-    public async Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date)
+    public async Task<IReadOnlyList<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date)
     {
         if (departmentId == Guid.Empty)
         {
@@ -808,7 +808,7 @@ public class AttendanceService : IAttendanceService
         return true;
     }
 
-    public async Task<List<AttendanceDto>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    public async Task<IReadOnlyList<AttendanceDto>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
         _logger.LogInformation("Getting employee attendance for employee: {EmployeeId} from {StartDate} to {EndDate}", 
             employeeId, startDate, endDate);
@@ -819,7 +819,7 @@ public class AttendanceService : IAttendanceService
     }
 
    
-    public async Task<List<AttendanceCalendarDto>> GetAttendanceCalendarAsync(Guid employeeId, int year, int month)
+    public async Task<IReadOnlyList<AttendanceCalendarDto>> GetAttendanceCalendarAsync(Guid employeeId, int year, int month)
     {
         _logger.LogInformation("Getting attendance calendar for employee: {EmployeeId} for {Year}-{Month}",
             employeeId, year, month);
@@ -1199,7 +1199,7 @@ public class AttendanceService : IAttendanceService
 
 
     //Employee overtime request of accept reject manager
-    public async Task<List<OvertimeRequestDto>> GetEmployeeOvertimeRequestsAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<OvertimeRequestDto>> GetEmployeeOvertimeRequestsAsync(Guid organizationId, Guid employeeId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("OrganizationId is required.");
@@ -1215,7 +1215,7 @@ public class AttendanceService : IAttendanceService
 
         // Optional: handle null
         if (result == null || !result.Any())
-            return new List<OvertimeRequestDto>();
+            return Array.Empty<OvertimeRequestDto>();
 
         return result;
     }
@@ -1249,7 +1249,7 @@ public class AttendanceService : IAttendanceService
     }
 
     //Getting all employee assigned overtime request that manager request him
-    public async Task<List<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("OrganizationId is required.");
@@ -1265,13 +1265,13 @@ public class AttendanceService : IAttendanceService
 
         // Optional: handle null
         if (result == null || !result.Any())
-            return new List<OvertimeRequestDto>();
+            return Array.Empty<OvertimeRequestDto>();
 
         return result;
     }
 
     //Employee overtime request shows to manager for approval or reject
-    public async Task<List<EmployeeOverTimeDto>> EmplyeOverTimeRequesForManagerAsync(Guid organizationId, Guid managerId)
+    public async Task<IReadOnlyList<EmployeeOverTimeDto>> EmplyeOverTimeRequesForManagerAsync(Guid organizationId, Guid managerId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("OrganizationId is required.");
@@ -1286,11 +1286,11 @@ public class AttendanceService : IAttendanceService
         );
 
         // Safety fallback
-        return result?.ToList() ?? new List<EmployeeOverTimeDto>();
+        return result ?? Array.Empty<EmployeeOverTimeDto>();
     }
     //Get all employee created Overtime requests
 
-    public async Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequest(Guid organizationId, Guid managerId)
+    public async Task<IReadOnlyList<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequest(Guid organizationId, Guid managerId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("OrganizationId is required.");
@@ -1304,7 +1304,7 @@ public class AttendanceService : IAttendanceService
         );
 
         // Safety fallback
-        return result?.ToList() ?? new List<EmployeeOverTimeDto>();
+        return result ?? Array.Empty<EmployeeOverTimeDto>();
     }
 
     public async Task<bool> AssignShiftToEmployeeAsync(Guid organizationId, AssignShiftDto request, Guid currentEmpid)
@@ -1361,7 +1361,7 @@ public class AttendanceService : IAttendanceService
 
 
 
-    public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId,Guid currentEmployeeId)
+    public async Task<IReadOnlyList<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId,Guid currentEmployeeId)
     {
 
         try
@@ -1508,7 +1508,7 @@ public class AttendanceService : IAttendanceService
     }
 
 
-    public async Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId,Guid currentEmployeeId)
+    public async Task<IReadOnlyList<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId,Guid currentEmployeeId)
     {
         var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
         if (isAdminOrHR)
@@ -1528,7 +1528,7 @@ public class AttendanceService : IAttendanceService
         return await _attendanceRepository.GetShiftByEmployeeIdAsync(empId);
     }
 
-    public async Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId)
+    public async Task<IReadOnlyList<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeId)
     {
         return await _attendanceRepository.GetShiftSwapRequestsByEmployeeAsync(employeeId);
     }
@@ -1559,7 +1559,7 @@ public class AttendanceService : IAttendanceService
 
 
 
-    public async Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
     {
         try
         {
@@ -1615,7 +1615,7 @@ public class AttendanceService : IAttendanceService
     }
 
  
-    public async Task<List<EmployeeSimpleDto>> GetdepartmentEmployeesAsync(
+    public async Task<IReadOnlyList<EmployeeSimpleDto>> GetdepartmentEmployeesAsync(
     Guid currentEmployeeId,
     Guid? departmentId,
     Guid organizationId)
@@ -1987,12 +1987,12 @@ public class AttendanceService : IAttendanceService
         _logger.LogInformation("Getting Employee Id against User id: {EmployeeId}", Userid);
         return await _attendanceRepository.GetEmployeeFromTable(Userid);
     }
-    public async Task<ServiceResponse<List<EmployeeTimesheetDto>>> GetTimesheetDetailsByIdAsync(
+    public async Task<ServiceResponse<IReadOnlyList<EmployeeTimesheetDto>>> GetTimesheetDetailsByIdAsync(
     Guid timesheetId, Guid organizationId, Guid currentEmployeeId)
     {
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
         if (snapshot == null)
-            return new ServiceResponse<List<EmployeeTimesheetDto>> { Success = false, Message = "Snapshot not found" };
+            return new ServiceResponse<IReadOnlyList<EmployeeTimesheetDto>> { Success = false, Message = "Snapshot not found" };
 
         var startDate = snapshot.StartDate != default
             ? snapshot.StartDate
@@ -2142,7 +2142,7 @@ public class AttendanceService : IAttendanceService
                 };
             }).ToList();
 
-        return new ServiceResponse<List<EmployeeTimesheetDto>> { Data = groupedTimesheet, Success = true };
+        return new ServiceResponse<IReadOnlyList<EmployeeTimesheetDto>> { Data = groupedTimesheet, Success = true };
     }
     public async Task<ServiceResponse<bool>> ProcessAttendanceUpdateRequestAsync(ProcessAttendanceRequestDto dto, Guid actionedBy, Guid organizationId)
     {
@@ -2228,13 +2228,13 @@ public class AttendanceService : IAttendanceService
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>>> GetApprovedTimesheetAsync(Guid timesheetId, Guid currentUserEmployeeId, string role)
+    public async Task<ServiceResponse<IReadOnlyList<FinalizedTimesheetRecordDto>>> GetApprovedTimesheetAsync(Guid timesheetId, Guid currentUserEmployeeId, string role)
     {
         Guid? filterEmployeeId = (role == "Employee") ? currentUserEmployeeId : null;
 
         var data = await _attendanceRepository.GetFinalizedRecordsAsync(timesheetId, filterEmployeeId);
 
-        return new ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>> { Success = true, Data = data };
+        return new ServiceResponse<IReadOnlyList<FinalizedTimesheetRecordDto>> { Success = true, Data = data };
     }
 
     public async Task<ServiceResponse<bool>> CreateTimesheetSnapshotAsync(Guid organizationId, Guid currentUserEmployeeId, MonthlyTimesheetCreateDto dto)
@@ -2247,7 +2247,7 @@ public class AttendanceService : IAttendanceService
             Message = success ? "Timesheet period created." : "Period already exists."
         };
     }
-    public async Task<ServiceResponse<List<PendingAttendanceRequest>>> GetPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId)
+    public async Task<ServiceResponse<IReadOnlyList<PendingAttendanceRequest>>> GetPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId)
     {
         var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
 
@@ -2256,9 +2256,9 @@ public class AttendanceService : IAttendanceService
             isAdminOrHR ? null : currentEmployeeId // Managers only see their team
         );
 
-        return new ServiceResponse<List<PendingAttendanceRequest>>
+        return new ServiceResponse<IReadOnlyList<PendingAttendanceRequest>>
         {
-            Data = requests.ToList(),
+            Data = requests,
             Success = true
         };
     }
@@ -2312,11 +2312,11 @@ public class AttendanceService : IAttendanceService
             };
         }
     }
-    public async Task<ServiceResponse<List<MonthlyTimesheetSummary>>> GetMonthlyTimesheetSnapshotsAsync(
+    public async Task<ServiceResponse<IReadOnlyList<MonthlyTimesheetSummary>>> GetMonthlyTimesheetSnapshotsAsync(
     Guid organizationId, DateTime? startDate, DateTime? endDate, Guid currentEmployeeId)
     {
         var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
-        var snapshots = (await _attendanceRepository.GetMonthlySnapshotsAsync(organizationId, startDate, endDate)).ToList();
+        var snapshots = await _attendanceRepository.GetMonthlySnapshotsAsync(organizationId, startDate, endDate);
         var today = DateTime.Today;
 
         foreach (var snapshot in snapshots)
@@ -2397,9 +2397,9 @@ public class AttendanceService : IAttendanceService
                 snapshot.TotalEmployees = 1;
         }
 
-        return new ServiceResponse<List<MonthlyTimesheetSummary>> { Data = snapshots, Success = true };
+        return new ServiceResponse<IReadOnlyList<MonthlyTimesheetSummary>> { Data = snapshots, Success = true };
     }
-    public async Task<ServiceResponse<IEnumerable<Attendance>>> GetManualAttendanceAsync(ManualAttendanceSearchDto searchDto, Guid currentUserEmployeeId, string currentUserRole, Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<Attendance>>> GetManualAttendanceAsync(ManualAttendanceSearchDto searchDto, Guid currentUserEmployeeId, string currentUserRole, Guid organizationId)
     {
         try
         {
@@ -2419,7 +2419,7 @@ public class AttendanceService : IAttendanceService
 
             var records = await _attendanceRepository.GetManualAttendanceRecordsAsync(organizationId, managerId, employeeId, searchDto.StartDate, searchDto.EndDate);
             
-            return new ServiceResponse<IEnumerable<Attendance>>
+            return new ServiceResponse<IReadOnlyList<Attendance>>
             {
                 Success = true,
                 Data = records
@@ -2428,7 +2428,7 @@ public class AttendanceService : IAttendanceService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching manual attendance records");
-            return new ServiceResponse<IEnumerable<Attendance>> { Success = false, Message = "Failed to fetch records" };
+            return new ServiceResponse<IReadOnlyList<Attendance>> { Success = false, Message = "Failed to fetch records" };
         }
     }
 
@@ -2570,13 +2570,13 @@ public class AttendanceService : IAttendanceService
             Message = $"Successfully approved {count} requests."
         };
     }
-    public async Task<ServiceResponse<List<EmployeeSubmissionPackage>>> GetGroupedPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId)
+    public async Task<ServiceResponse<IReadOnlyList<EmployeeSubmissionPackage>>> GetGroupedPendingRequestsAsync(Guid organizationId, Guid currentEmployeeId)
     {
         var isAdminOrHR = await _attendanceRepository.IsAdminOrHRAsync(currentEmployeeId, organizationId);
         var rawRequests = await _attendanceRepository.GetAllPendingRequestsAsync(
             organizationId,
             isAdminOrHR ? null : currentEmployeeId
-        ) ?? Enumerable.Empty<PendingAttendanceRequest>(); 
+        ) ?? Array.Empty<PendingAttendanceRequest>(); 
         var grouped = rawRequests
             .GroupBy(r => new { r.EmployeeId, r.EmployeeName, r.EmployeeCode })
             .Select(g => new EmployeeSubmissionPackage
@@ -2585,16 +2585,16 @@ public class AttendanceService : IAttendanceService
                 EmployeeName = g.Key.EmployeeName,
                 EmployeeCode = g.Key.EmployeeCode,
                 SubmittedAt = g.Max(r => r.Submittedat),
-                Corrections = g.OrderBy(r => r.WorkDate).ToList()
-            }).ToList();
+                Corrections = g.OrderBy(r => r.WorkDate).ToArray()
+            }).ToArray();
 
-        return new ServiceResponse<List<EmployeeSubmissionPackage>>
+        return new ServiceResponse<IReadOnlyList<EmployeeSubmissionPackage>>
         {
             Data = grouped,
             Success = true
         };
     }
-    public async Task<ServiceResponse<List<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(
+    public async Task<ServiceResponse<IReadOnlyList<EmployeeReviewPackage>>> GetManagerReviewDashboardAsync(
     Guid timesheetId,
     Guid organizationId,
     Guid currentUserId,
@@ -2606,7 +2606,7 @@ public class AttendanceService : IAttendanceService
         var today = DateTime.Today;
 
         var snapshot = await _attendanceRepository.GetSnapshotByIdAsync(timesheetId);
-        if (snapshot == null) return new ServiceResponse<List<EmployeeReviewPackage>> { Success = false, Message = "Timesheet period not found" };
+        if (snapshot == null) return new ServiceResponse<IReadOnlyList<EmployeeReviewPackage>> { Success = false, Message = "Timesheet period not found" };
 
         var start = snapshot.StartDate != default
             ? snapshot.StartDate
@@ -2736,7 +2736,7 @@ public class AttendanceService : IAttendanceService
                            && finalizableRecords.All(r => r.IsFinalized);
         }
 
-        return new ServiceResponse<List<EmployeeReviewPackage>> { Data = grouped, Success = true };
+        return new ServiceResponse<IReadOnlyList<EmployeeReviewPackage>> { Data = grouped, Success = true };
     }
     public async Task<OrgSubmissionProgressDto> GetOrgSubmissionProgressAsync(
     Guid organizationId, int month, int year)
@@ -2790,17 +2790,17 @@ public class AttendanceService : IAttendanceService
     // PAYROLL BRIDGE
     // ────────────────────────────────────────────────────────────────────────────
 
-    public async Task<ServiceResponse<List<TimesheetPeriodLinkDto>>> GetFinalizedTimesheetLinksAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TimesheetPeriodLinkDto>>> GetFinalizedTimesheetLinksAsync(Guid organizationId)
     {
         try
         {
-            var data = (await _attendanceRepository.GetFinalizedTimesheetLinksAsync(organizationId)).ToList();
-            return new ServiceResponse<List<TimesheetPeriodLinkDto>> { Success = true, Data = data };
+            var data = await _attendanceRepository.GetFinalizedTimesheetLinksAsync(organizationId);
+            return new ServiceResponse<IReadOnlyList<TimesheetPeriodLinkDto>> { Success = true, Data = data };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to fetch finalized timesheet links for org {OrgId}", organizationId);
-            return new ServiceResponse<List<TimesheetPeriodLinkDto>>
+            return new ServiceResponse<IReadOnlyList<TimesheetPeriodLinkDto>>
             {
                 Success = false,
                 Message = "Failed to fetch finalized timesheets."

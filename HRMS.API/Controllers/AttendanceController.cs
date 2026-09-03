@@ -1,4 +1,4 @@
-﻿using HRMS.API.Authorization;
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -304,14 +304,14 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("department/{departmentId}")]
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<List<AttendanceDto>>>> GetDepartmentAttendance(Guid departmentId, [FromQuery] DateTime? date = null)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceDto>>>> GetDepartmentAttendance(Guid departmentId, [FromQuery] DateTime? date = null)
     {
         try
         {
             var attendanceDate = date ?? DateTime.Today;
             var attendance = await _attendanceService.GetDepartmentAttendanceAsync(departmentId, attendanceDate);
 
-            return Ok(new ServiceResponse<List<AttendanceDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AttendanceDto>>
             {
                 Success = true,
                 Data = attendance
@@ -320,7 +320,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving department attendance");
-            return BadRequest(new ServiceResponse<List<AttendanceDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -329,7 +329,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving department attendance");
-            return StatusCode(500, new ServiceResponse<List<AttendanceDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving department attendance"
@@ -373,14 +373,14 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("employeeSession")]
-    public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeTodaySessions([FromQuery] DateTime? date = null)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceSessionDto>>>> EmployeeTodaySessions([FromQuery] DateTime? date = null)
     {
         try
         {
             var employeeId = await GetCurrentEmployeeId();
             var sessions = await _attendanceService.EmployeeTodaySessions(employeeId, date);
 
-            return Ok(new ServiceResponse<List<AttendanceSessionDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = true,
                 Data = sessions
@@ -389,7 +389,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving current sessions");
-            return BadRequest(new ServiceResponse<List<AttendanceSessionDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -398,7 +398,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving current sessions");
-            return StatusCode(500, new ServiceResponse<List<AttendanceSessionDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving current sessions"
@@ -409,7 +409,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("employeeSession/{id}")]
-    public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByid(Guid id, [FromQuery] DateTime? date = null)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceSessionDto>>>> EmployeeSessionsByid(Guid id, [FromQuery] DateTime? date = null)
     {
         try
         {
@@ -426,7 +426,7 @@ public class AttendanceController : ControllerBase
             }
             var sessions = await _attendanceService.EmployeeTodaySessions(id, date);
 
-            return Ok(new ServiceResponse<List<AttendanceSessionDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = true,
                 Data = sessions
@@ -435,7 +435,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving sessions by id");
-            return BadRequest(new ServiceResponse<List<AttendanceSessionDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -444,7 +444,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving current sessions");
-            return StatusCode(500, new ServiceResponse<List<AttendanceSessionDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving current sessions"
@@ -454,7 +454,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("employeeSessionforcalendar/{id}")]
-    public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByidforcalendar(Guid id, [FromQuery] DateTime? date = null)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceSessionDto>>>> EmployeeSessionsByidforcalendar(Guid id, [FromQuery] DateTime? date = null)
     {
         try
         {
@@ -469,7 +469,7 @@ public class AttendanceController : ControllerBase
             }
             var sessions = await _attendanceService.EmployeeTodaySessions(id, date);
 
-            return Ok(new ServiceResponse<List<AttendanceSessionDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = true,
                 Data = sessions
@@ -478,7 +478,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving sessions by id");
-            return BadRequest(new ServiceResponse<List<AttendanceSessionDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -487,7 +487,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving current sessions");
-            return StatusCode(500, new ServiceResponse<List<AttendanceSessionDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceSessionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving current sessions"
@@ -719,14 +719,14 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("my-attendance")]
-    public async Task<ActionResult<ServiceResponse<List<AttendanceDto>>>> GetMyAttendance([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceDto>>>> GetMyAttendance([FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
         try
         {
             var employeeId = await GetCurrentEmployeeId();
             var attendance = await _attendanceService.GetEmployeeAttendanceAsync(employeeId, startDate, endDate);
 
-            return Ok(new ServiceResponse<List<AttendanceDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AttendanceDto>>
             {
                 Success = true,
                 Data = attendance
@@ -735,7 +735,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving my attendance");
-            return StatusCode(500, new ServiceResponse<List<AttendanceDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving attendance records"
@@ -831,14 +831,14 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("employee/{employeeId}")]
-    public async Task<ActionResult<ServiceResponse<List<AttendanceDto>>>> GetEmployeeAttendance(Guid employeeId, [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceDto>>>> GetEmployeeAttendance(Guid employeeId, [FromQuery] DateTime startDate, [FromQuery] DateTime endDate)
     {
         try
         {
             var empid = await GetCurrentEmployeeId();
             var attendance = await _attendanceService.GetEmployeeAttendanceAsync(empid, startDate, endDate);
 
-            return Ok(new ServiceResponse<List<AttendanceDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AttendanceDto>>
             {
                 Success = true,
                 Data = attendance
@@ -847,7 +847,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving employee attendance");
-            return BadRequest(new ServiceResponse<List<AttendanceDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -856,7 +856,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee attendance");
-            return StatusCode(500, new ServiceResponse<List<AttendanceDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee attendance"
@@ -865,19 +865,19 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("calendar/employee/{employeeId}")]
-    public async Task<ActionResult<ServiceResponse<List<AttendanceCalendarDto>>>> GetEmployeeAttendanceCalendar(Guid employeeId, [FromQuery] int year, [FromQuery] int month)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceCalendarDto>>>> GetEmployeeAttendanceCalendar(Guid employeeId, [FromQuery] int year, [FromQuery] int month)
     {
         try
         {
             // M4 fix: validate year/month range
             if (month < 1 || month > 12)
-                return BadRequest(new ServiceResponse<List<AttendanceCalendarDto>> { Success = false, Message = "Month must be between 1 and 12." });
+                return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>> { Success = false, Message = "Month must be between 1 and 12." });
             if (year < 2000 || year > 2100)
-                return BadRequest(new ServiceResponse<List<AttendanceCalendarDto>> { Success = false, Message = "Year is out of a valid range." });
+                return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>> { Success = false, Message = "Year is out of a valid range." });
 
             var calendar = await _attendanceService.GetAttendanceCalendarAsync(employeeId, year, month);
 
-            return Ok(new ServiceResponse<List<AttendanceCalendarDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>>
             {
                 Success = true,
                 Data = calendar
@@ -886,7 +886,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving employee attendance calendar");
-            return BadRequest(new ServiceResponse<List<AttendanceCalendarDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -895,7 +895,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee attendance calendar");
-            return StatusCode(500, new ServiceResponse<List<AttendanceCalendarDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving attendance calendar"
@@ -1229,7 +1229,7 @@ public class AttendanceController : ControllerBase
 
     //Employee overtime request get that are requested by manager
     [HttpGet("employee/overtime/assigned")]
-    public async Task<ActionResult<ServiceResponse<List<OvertimeRequestDto>>>> GetEmployeeOvertimeRequests()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<OvertimeRequestDto>>>> GetEmployeeOvertimeRequests()
     {
         try
         {
@@ -1241,7 +1241,7 @@ public class AttendanceController : ControllerBase
                 employeeId
             );
 
-            return Ok(new ServiceResponse<List<OvertimeRequestDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<OvertimeRequestDto>>
             {
                 Success = true,
                 Data = result,
@@ -1251,7 +1251,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
-            return BadRequest(new ServiceResponse<List<OvertimeRequestDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<OvertimeRequestDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -1260,7 +1260,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching employee overtime requests");
-            return StatusCode(500, new ServiceResponse<List<OvertimeRequestDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<OvertimeRequestDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching employee overtime requests"
@@ -1311,7 +1311,7 @@ public class AttendanceController : ControllerBase
     }
     //Getting all assigned overtime request that manager created for his employee
     [HttpGet("getAllemployee/overtime/assigned")]
-    public async Task<ActionResult<ServiceResponse<List<OvertimeRequestDto>>>> GetAllEmployeeOvertimeAssignedRequests()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<OvertimeRequestDto>>>> GetAllEmployeeOvertimeAssignedRequests()
     {
         try
         {
@@ -1323,7 +1323,7 @@ public class AttendanceController : ControllerBase
                 employeeId
             );
 
-            return Ok(new ServiceResponse<List<OvertimeRequestDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<OvertimeRequestDto>>
             {
                 Success = true,
                 Data = result,
@@ -1333,7 +1333,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
-            return BadRequest(new ServiceResponse<List<OvertimeRequestDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<OvertimeRequestDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -1342,7 +1342,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching employee overtime requests");
-            return StatusCode(500, new ServiceResponse<List<OvertimeRequestDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<OvertimeRequestDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching employee overtime requests"
@@ -1353,7 +1353,7 @@ public class AttendanceController : ControllerBase
     //Get employee overtime request for manager so he accept accept and reject
     [HttpGet("manager/overtime/pending")]
     [PermissionAuthorize("MANAGER_OVERTIME_SECTION")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeOverTimeDto>>>> EmplyeOverTimeRequestForManager()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeOverTimeDto>>>> EmplyeOverTimeRequestForManager()
     {
         try
         {
@@ -1365,7 +1365,7 @@ public class AttendanceController : ControllerBase
                 employeeId
             );
 
-            return Ok(new ServiceResponse<List<EmployeeOverTimeDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeOverTimeDto>>
             {
                 Success = true,
                 Data = result,
@@ -1375,7 +1375,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
-            return BadRequest(new ServiceResponse<List<EmployeeOverTimeDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<EmployeeOverTimeDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -1384,7 +1384,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching employee overtime requests");
-            return StatusCode(500, new ServiceResponse<List<EmployeeOverTimeDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeOverTimeDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching employee overtime requests"
@@ -1395,7 +1395,7 @@ public class AttendanceController : ControllerBase
     //Getting all overtime request that employee created so manager accept it that he has overtime that day
     [HttpGet("getall/EmployeeCreated/overtime")]
     [PermissionAuthorize("MANAGER_OVERTIME_SECTION")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeOverTimeDto>>>> GetAllEmployeeCreatedOverTimeRequest()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeOverTimeDto>>>> GetAllEmployeeCreatedOverTimeRequest()
     {
         try
         {
@@ -1406,7 +1406,7 @@ public class AttendanceController : ControllerBase
                 organizationId,
                 employeeId
             );
-            return Ok(new ServiceResponse<List<EmployeeOverTimeDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeOverTimeDto>>
             {
                 Success = true,
                 Data = result,
@@ -1416,7 +1416,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument while fetching employee overtime");
-            return BadRequest(new ServiceResponse<List<EmployeeOverTimeDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<EmployeeOverTimeDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -1425,7 +1425,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching employee overtime requests");
-            return StatusCode(500, new ServiceResponse<List<EmployeeOverTimeDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeOverTimeDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching employee overtime requests"
@@ -1501,7 +1501,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("shift/{shiftId}")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeShiftDto>>>> GetEmployeesByShift(Guid shiftId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeShiftDto>>>> GetEmployeesByShift(Guid shiftId)
     {
         try
         {
@@ -1510,7 +1510,7 @@ public class AttendanceController : ControllerBase
 
             var employees = await _attendanceService.GetEmployeesByShiftAsync(organizationId, shiftId,CurrentEmployee);
 
-            return Ok(new ServiceResponse<List<EmployeeShiftDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeShiftDto>>
             {
                 Success = true,
                 Message = "Employees retrieved successfully.",
@@ -1520,7 +1520,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving employees by shift");
-            return BadRequest(new ServiceResponse<List<EmployeeShiftDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<EmployeeShiftDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -1529,7 +1529,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employees by shift");
-            return StatusCode(500, new ServiceResponse<List<EmployeeShiftDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeShiftDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employees by shift"
@@ -1681,7 +1681,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("shiftswap/pending")]
-    public async Task<ActionResult<ServiceResponse<List<PendingShiftSwapDto>>>> GetPendingShiftSwapRequests()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PendingShiftSwapDto>>>> GetPendingShiftSwapRequests()
     {
         try
         {
@@ -1689,7 +1689,7 @@ public class AttendanceController : ControllerBase
             var currentEmployee = await GetCurrentEmployeeId();
             var requests = await _attendanceService.GetPendingShiftSwapRequestsAsync(organizationId,currentEmployee);
 
-            return Ok(new ServiceResponse<List<PendingShiftSwapDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<PendingShiftSwapDto>>
             {
                 Success = true,
                 Message = "Pending shift swap requests retrieved successfully.",
@@ -1699,7 +1699,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for fetching pending shift swap requests");
-            return BadRequest(new ServiceResponse<List<PendingShiftSwapDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<PendingShiftSwapDto>>
             {
                 Success = false,
                 Message = ex.Message,
@@ -1709,7 +1709,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching pending shift swap requests");
-            return StatusCode(500, new ServiceResponse<List<PendingShiftSwapDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PendingShiftSwapDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching pending shift swap requests.",
@@ -1721,13 +1721,13 @@ public class AttendanceController : ControllerBase
     //Getting employee All shifts
 
     [HttpGet("shiftswap/eemployeeShifts/{employeeId}")]
-    public async Task<ActionResult<ServiceResponse<List<PendingShiftSwapDto>>>> GetShiftSwapRequestsByEmployee(Guid employeeId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PendingShiftSwapDto>>>> GetShiftSwapRequestsByEmployee(Guid employeeId)
     {
         try
         {
             var requests = await _attendanceService.GetShiftSwapRequestsByEmployeeAsync(employeeId);
 
-            return Ok(new ServiceResponse<List<PendingShiftSwapDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<PendingShiftSwapDto>>
             {
                 Success = true,
                 Message = requests.Count > 0 ? "Shift swap requests retrieved successfully." : "No shift swap requests found.",
@@ -1737,7 +1737,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for fetching shift swap requests for employee {EmployeeId}", employeeId);
-            return BadRequest(new ServiceResponse<List<PendingShiftSwapDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<PendingShiftSwapDto>>
             {
                 Success = false,
                 Message = ex.Message,
@@ -1747,7 +1747,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching shift swap requests for employee {EmployeeId}", employeeId);
-            return StatusCode(500, new ServiceResponse<List<PendingShiftSwapDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PendingShiftSwapDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching the employee's shift swap requests.",
@@ -1802,7 +1802,7 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("shifts")]
     [PermissionAuthorize("ALL_SHIFT_TABLE")]
-    public async Task<ActionResult<ServiceResponse<List<ShiftDto>>>> GetAllShifts()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ShiftDto>>>> GetAllShifts()
     {
         try
         {
@@ -1810,7 +1810,7 @@ public class AttendanceController : ControllerBase
 
             var shifts = await _attendanceService.GetAllShiftsAsync(organizationId);
 
-            return Ok(new ServiceResponse<List<ShiftDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<ShiftDto>>
             {
                 Success = true,
                 Message = "Shifts retrieved successfully.",
@@ -1820,7 +1820,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving all shifts");
-            return BadRequest(new ServiceResponse<List<ShiftDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<ShiftDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -1829,7 +1829,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all shifts");
-            return StatusCode(500, new ServiceResponse<List<ShiftDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ShiftDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving shifts."
@@ -1995,20 +1995,20 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("my-calendar")]
-    public async Task<ActionResult<ServiceResponse<List<AttendanceCalendarDto>>>> GetMyAttendanceCalendar([FromQuery] int year, [FromQuery] int month)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AttendanceCalendarDto>>>> GetMyAttendanceCalendar([FromQuery] int year, [FromQuery] int month)
     {
         try
         {
             // M4 fix: validate year/month range
             if (month < 1 || month > 12)
-                return BadRequest(new ServiceResponse<List<AttendanceCalendarDto>> { Success = false, Message = "Month must be between 1 and 12." });
+                return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>> { Success = false, Message = "Month must be between 1 and 12." });
             if (year < 2000 || year > 2100)
-                return BadRequest(new ServiceResponse<List<AttendanceCalendarDto>> { Success = false, Message = "Year is out of a valid range." });
+                return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>> { Success = false, Message = "Year is out of a valid range." });
 
             var employeeId = await GetCurrentEmployeeId();
             var calendar = await _attendanceService.GetAttendanceCalendarAsync(employeeId, year, month);
 
-            return Ok(new ServiceResponse<List<AttendanceCalendarDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>>
             {
                 Success = true,
                 Data = calendar
@@ -2017,7 +2017,7 @@ public class AttendanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving my attendance calendar");
-            return BadRequest(new ServiceResponse<List<AttendanceCalendarDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -2026,7 +2026,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving my attendance calendar");
-            return StatusCode(500, new ServiceResponse<List<AttendanceCalendarDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AttendanceCalendarDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving attendance calendar"
@@ -2109,7 +2109,7 @@ public class AttendanceController : ControllerBase
 
 
     [HttpGet("departmentEmployees")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeSimpleDto>>>> GetEmployeesByDepartment([FromQuery] Guid? departmentId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeSimpleDto>>>> GetEmployeesByDepartment([FromQuery] Guid? departmentId)
     {
         try
         {
@@ -2118,7 +2118,7 @@ public class AttendanceController : ControllerBase
 
             var employees = await _attendanceService.GetdepartmentEmployeesAsync(currentEmployeeId, departmentId, organizationId);
 
-            return Ok(new ServiceResponse<List<EmployeeSimpleDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeSimpleDto>>
             {
                 Success = true,
                 Data = employees
@@ -2127,7 +2127,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching employees by department");
-            return StatusCode(500, new ServiceResponse<List<EmployeeSimpleDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeSimpleDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching employees"
@@ -2315,7 +2315,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching finalized timesheet {TimesheetId}", timesheetId);
-            return StatusCode(500, new ServiceResponse<IEnumerable<FinalizedTimesheetRecordDto>> { Success = false, Message = "An error occurred." });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<FinalizedTimesheetRecordDto>> { Success = false, Message = "An error occurred." });
         }
     }
 
@@ -2338,7 +2338,7 @@ public class AttendanceController : ControllerBase
 
     [HttpGet("timesheet/details")]
     [PermissionAuthorize("timesheet_view_details")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeTimesheetDto>>>> GetTimesheetDetails([FromQuery] Guid timesheetId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeTimesheetDto>>>> GetTimesheetDetails([FromQuery] Guid timesheetId)
     {
         try
         {
@@ -2351,7 +2351,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching timesheet details for ID: {Id}", timesheetId);
-            return StatusCode(500, new ServiceResponse<List<EmployeeTimesheetDto>> { Success = false, Message = "Internal server error" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeTimesheetDto>> { Success = false, Message = "Internal server error" });
         }
     }
 
@@ -2397,7 +2397,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("timesheet")]
-    public async Task<ActionResult<ServiceResponse<List<MonthlyTimesheetSummary>>>> GetCreatedTimesheets(
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<MonthlyTimesheetSummary>>>> GetCreatedTimesheets(
     [FromQuery] DateTime? startDate = null,
     [FromQuery] DateTime? endDate = null)
     {
@@ -2417,7 +2417,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving timesheet dashboard data");
-            return StatusCode(500, new ServiceResponse<List<MonthlyTimesheetSummary>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<MonthlyTimesheetSummary>>
             {
                 Success = false,
                 Message = "Internal server error while fetching timesheets"
@@ -2426,7 +2426,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet("manual")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<Attendance>>>> GetManualAttendance([FromQuery] ManualAttendanceSearchDto searchDto)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<Attendance>>>> GetManualAttendance([FromQuery] ManualAttendanceSearchDto searchDto)
     {
         try
         {
@@ -2445,7 +2445,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving manual attendance");
-            return StatusCode(500, new ServiceResponse<IEnumerable<Attendance>> { Success = false, Message = "Internal Server Error" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<Attendance>> { Success = false, Message = "Internal Server Error" });
         }
     }
 
@@ -2512,7 +2512,7 @@ public class AttendanceController : ControllerBase
         }
     }
     [HttpGet("pending-requests")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeSubmissionPackage>>>> GetPendingRequests()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeSubmissionPackage>>>> GetPendingRequests()
     {
         try
         {
@@ -2524,12 +2524,12 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching pending requests");
-            return StatusCode(500, new ServiceResponse<List<EmployeeSubmissionPackage>> { Success = false, Message = "An error occurred." });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeSubmissionPackage>> { Success = false, Message = "An error occurred." });
         }
     }
     [HttpGet("timesheet/review-dashboard")]
     //[Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeReviewPackage>>>> GetManagerReviewDashboard(
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeReviewPackage>>>> GetManagerReviewDashboard(
     [FromQuery] Guid timesheetId,
     [FromQuery] Guid? employeeId = null)
     {
@@ -2547,7 +2547,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching manager review dashboard for timesheet {TimesheetId}", timesheetId);
-            return StatusCode(500, new ServiceResponse<List<EmployeeReviewPackage>> { Success = false, Message = "An error occurred." });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeReviewPackage>> { Success = false, Message = "An error occurred." });
         }
     }
 
@@ -2569,7 +2569,7 @@ public class AttendanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching finalized timesheet links");
-            return StatusCode(500, new ServiceResponse<List<TimesheetPeriodLinkDto>> { Success = false, Message = "An error occurred." });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TimesheetPeriodLinkDto>> { Success = false, Message = "An error occurred." });
         }
     }
 
@@ -2692,7 +2692,7 @@ public class AttendanceController : ControllerBase
 
     //Get all timezone
     [HttpGet("timezones")]
-    public async Task<ActionResult<ServiceResponse<List<TimeZoneDto>>>> GetAllTimeZones()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TimeZoneDto>>>> GetAllTimeZones()
     {
         try
         {
@@ -2709,9 +2709,9 @@ public class AttendanceController : ControllerBase
                     UtcOffset = tz.BaseUtcOffset.ToString(@"hh\:mm")
                 })
                 .OrderBy(t => t.DisplayName)
-                .ToList();
+                .ToArray();
 
-            return Ok(new ServiceResponse<List<TimeZoneDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<TimeZoneDto>>
             {
                 Success = true,
                 Message = "Time zones retrieved successfully.",
@@ -2722,7 +2722,7 @@ public class AttendanceController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving time zones");
 
-            return StatusCode(500, new ServiceResponse<List<TimeZoneDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TimeZoneDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving time zones"
