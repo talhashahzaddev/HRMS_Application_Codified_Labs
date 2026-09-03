@@ -544,7 +544,7 @@ public class EmployeeSubmissionPackage
     public Guid TimesheetId { get; set; }
     public string TimesheetName { get; set; } = string.Empty;
     public DateTime SubmittedAt { get; set; }
-    public List<PendingAttendanceRequest> Corrections { get; set; } = new();
+    public IReadOnlyList<PendingAttendanceRequest> Corrections { get; set; } = Array.Empty<PendingAttendanceRequest>();
 }
 public class EmployeeReviewPackage
 {
@@ -555,7 +555,7 @@ public class EmployeeReviewPackage
     public Guid TimesheetId { get; set; }
     public int Month { get; set; }
     public int Year { get; set; }
-    public List<ReviewAttendanceRecord> FullMonthRecords { get; set; } = new();
+    public IReadOnlyList<ReviewAttendanceRecord> FullMonthRecords { get; set; } = Array.Empty<ReviewAttendanceRecord>();
     public int PendingRequestCount { get; set; }
     public int ApprovedCount { get; set; }
     public int RejectedCount { get; set; }
@@ -671,8 +671,8 @@ public class AttendanceReportDto
     public decimal OvertimeHours { get; set; } // Add this
     public PagedResult<AttendanceDto> Records { get; set; } = new();
     public AttendanceSummaryDto Summary { get; set; } = new();
-    public List<DailyAttendanceStatsDto> DailyStats { get; set; } = new();
-    public List<DepartmentAttendanceStatsDto> DepartmentStats { get; set; } = new();
+    public IReadOnlyList<DailyAttendanceStatsDto> DailyStats { get; set; } = Array.Empty<DailyAttendanceStatsDto>();
+    public IReadOnlyList<DepartmentAttendanceStatsDto> DepartmentStats { get; set; } = Array.Empty<DepartmentAttendanceStatsDto>();
 }
 
 public class BulkAttendanceRequest
