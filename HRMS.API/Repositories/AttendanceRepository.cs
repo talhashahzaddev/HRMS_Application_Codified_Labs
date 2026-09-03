@@ -17,7 +17,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     {
         _logger = logger;
     }
-    public async Task<IEnumerable<Attendance>> GetManualAttendanceRecordsAsync(Guid organizationId, Guid? managerId, Guid? employeeId, DateTime startDate, DateTime endDate)
+    public async Task<IReadOnlyList<Attendance>> GetManualAttendanceRecordsAsync(Guid organizationId, Guid? managerId, Guid? employeeId, DateTime startDate, DateTime endDate)
     {
         // H4 fix: when managerId is provided, show team members (employees reporting to that manager),
         // not just the manager's own records.
@@ -146,7 +146,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
         throw new ArgumentException("Either (StartDate, EndDate) or (Month, Year) must be provided on MonthlyTimesheetCreateDto.");
     }
-    public async Task<IEnumerable<PendingAttendanceRequest>> GetAllPendingRequestsAsync(Guid organizationId, Guid? managerId = null)
+    public async Task<IReadOnlyList<PendingAttendanceRequest>> GetAllPendingRequestsAsync(Guid organizationId, Guid? managerId = null)
     {
         try
         {
@@ -179,7 +179,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             return await QueryAsync<PendingAttendanceRequest>(sql, new { organizationId, managerId });
         }
         catch (Exception ex)
-        { return Enumerable.Empty<PendingAttendanceRequest>(); }
+        { return Array.Empty<PendingAttendanceRequest>(); }
     }
     public async Task<Guid> SubmitUpdateRequestAsync(Guid employeeId, Guid organizationId, AttendanceUpdateRequestDto dto)
     {
@@ -450,7 +450,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
             throw;
         }
     }
-    public async Task<IEnumerable<FinalizedTimesheetRecordDto>> GetFinalizedRecordsAsync(Guid timesheetId, Guid? employeeId = null)
+    public async Task<IReadOnlyList<FinalizedTimesheetRecordDto>> GetFinalizedRecordsAsync(Guid timesheetId, Guid? employeeId = null)
     {
         const string sql = @"
         SELECT
@@ -485,7 +485,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
     // PAYROLL BRIDGE — accessors for the new timesheet_payroll_summary table.
     // ────────────────────────────────────────────────────────────────────────────
 
-    public async Task<IEnumerable<TimesheetPeriodLinkDto>> GetFinalizedTimesheetLinksAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TimesheetPeriodLinkDto>> GetFinalizedTimesheetLinksAsync(Guid organizationId)
     {
         const string sql = @"
             SELECT
@@ -633,7 +633,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
         public DateTime? aggregated_at { get; set; }
     }
 
-    public async Task<IEnumerable<MonthlyTimesheetSummary>> GetMonthlySnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
+    public async Task<IReadOnlyList<MonthlyTimesheetSummary>> GetMonthlySnapshotsAsync(Guid organizationId, DateTime? startDate, DateTime? endDate)
     {
         var sql = @"
         SELECT
@@ -659,7 +659,7 @@ public class AttendanceRepository : BaseRepository, IAttendanceRepository
 
         return await QueryAsync<MonthlyTimesheetSummary>(sql, new { organizationId, startDate, endDate });
     }
-    public async Task<IEnumerable<AttendanceDto>> GetConsolidatedAttendanceAsync(
+    public async Task<IReadOnlyList<AttendanceDto>> GetConsolidatedAttendanceAsync(
     Guid organizationId, DateTime startDate, DateTime endDate,
     Guid? employeeId, Guid? managerId = null)
     {
@@ -1757,7 +1757,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
 
 
-    public async Task<List<AttendanceSessionDto>> GetTodaySessionAsync(Guid? attendanceId)
+    public async Task<IReadOnlyList<AttendanceSessionDto>> GetTodaySessionAsync(Guid? attendanceId)
     {
         try
         {
@@ -1780,7 +1780,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 attendanceId
             });
 
-            return sessions.ToList();
+            return sessions;
         }
         catch (Exception ex)
         {
@@ -1973,7 +1973,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
     }
 
     //Employee overtime requests accept reject
-    public async Task<List<OvertimeRequestDto>> GetEmployeeOvertimeRequestsAsync(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<OvertimeRequestDto>> GetEmployeeOvertimeRequestsAsync(Guid organizationId, Guid employeeId)
     {
         var sql = @"
         SELECT
@@ -2011,13 +2011,13 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 EmployeeId = employeeId
             });
 
-        return result.ToList();
+        return result;
     }
 
 
     //Getting all employee overtime request that manager has assinged him
 
-    public async Task<List<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<OvertimeRequestDto>> GetAllEmployeeOvertimeAssignedRequests(Guid organizationId, Guid employeeId)
     {
         var sql = @"
         SELECT
@@ -2054,12 +2054,12 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 EmployeeId = employeeId
             });
 
-        return result.ToList();
+        return result;
     }
 
 
     //Employee overme request for manager o accept and eject
-    public async Task<List<EmployeeOverTimeDto>> EmplyeOverTimeRequesForManagerAsync(Guid organizationId, Guid managerId)
+    public async Task<IReadOnlyList<EmployeeOverTimeDto>> EmplyeOverTimeRequesForManagerAsync(Guid organizationId, Guid managerId)
     {
         var sql = @"
         SELECT
@@ -2103,10 +2103,10 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 ManagerId = managerId
             });
 
-        return result.ToList();
+        return result;
     }
     //Getting all overtime request that employee created 
-    public async Task<List<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequests(Guid organizationId, Guid employeeId)
+    public async Task<IReadOnlyList<EmployeeOverTimeDto>> GetAllEmployeeCreatedOverTimeRequests(Guid organizationId, Guid employeeId)
     {
         var sql = @"
         SELECT
@@ -2148,7 +2148,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 EmployeeId = employeeId
             });
 
-        return result.ToList();
+        return result;
     }
 
 
@@ -2601,7 +2601,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
         }
     }
 
-    public async Task<List<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date)
+    public async Task<IReadOnlyList<AttendanceDto>> GetDepartmentAttendanceAsync(Guid departmentId, DateTime date)
     {
         try
         {
@@ -2627,7 +2627,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
                 CheckOutTime = r.checkouttime,
                 TotalHours = r.totalhours,
                 Status = r.status
-            }).ToList();
+            }).ToArray();
         }
         catch (Exception ex)
         {
@@ -2762,7 +2762,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
     //Get by shift
 
-    public async Task<List<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId)
+    public async Task<IReadOnlyList<EmployeeShiftDto>> GetEmployeesByShiftAsync(Guid organizationId, Guid shiftId)
     {
         try
         {
@@ -2787,7 +2787,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
             var parameters = new { OrganizationId = organizationId, ShiftId = shiftId };
             var result = await QueryAsync<EmployeeShiftDto>(sql, parameters);
-            return result.ToList();
+            return result;
         }
         catch (Exception ex)
         {
@@ -2798,7 +2798,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
     //Getting Employee BY shift id for Manager
 
-    public async Task<List<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId, Guid currentEmp)
+    public async Task<IReadOnlyList<EmployeeShiftDto>> GetManagerEmployeesByShiftAsync(Guid organizationId, Guid shiftId, Guid currentEmp)
     {
         try
         {
@@ -2824,7 +2824,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
             var parameters = new { OrganizationId = organizationId, ShiftId = shiftId, CurrentEmp = currentEmp };
             var result = await QueryAsync<EmployeeShiftDto>(sql, parameters);
-            return result.ToList();
+            return result;
         }
         catch (Exception ex)
         {
@@ -2975,7 +2975,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
 
 
 
-    public async Task<List<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<PendingShiftSwapDto>> GetPendingShiftSwapRequestsAsync(Guid organizationId)
     {
         try
         {
@@ -3012,7 +3012,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
         }
     }
 
-    public async Task<List<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId)
+    public async Task<IReadOnlyList<PendingShiftSwapDto>> GetManagerPendingShiftsAsync(Guid organizationId, Guid currentEmployeeId)
     {
         try
         {
@@ -3046,7 +3046,7 @@ ORDER BY ed.employeename, ed.workdate ASC";
             };
 
             var result = await QueryAsync<PendingShiftSwapDto>(sql, parameters);
-            return result.ToList();
+            return result;
         }
         catch (Exception ex)
         {
@@ -3137,7 +3137,7 @@ WHERE ed.employeeid = @EmployeeId
 
     //Get employee all request
 
-    public async Task<List<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeIdd)
+    public async Task<IReadOnlyList<PendingShiftSwapDto>> GetShiftSwapRequestsByEmployeeAsync(Guid employeeIdd)
     {
         try
         {
@@ -3165,7 +3165,7 @@ WHERE ed.employeeid = @EmployeeId
 
             var parameters = new { EmployeeId = employeeId };
             var result = await QueryAsync<PendingShiftSwapDto>(sql, parameters);
-            return result.ToList();
+            return result;
         }
         catch (Exception ex)
         {
@@ -3175,7 +3175,7 @@ WHERE ed.employeeid = @EmployeeId
     }
 
 
-    public async Task<List<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<ShiftDto>> GetAllShiftsAsync(Guid organizationId)
     {
         try
         {
@@ -3206,7 +3206,7 @@ WHERE ed.employeeid = @EmployeeId
 
             var parameters = new { OrganizationId = organizationId };
             var result = await QueryAsync<ShiftDto>(sql, parameters);
-            return result.ToList();
+            return result;
         }
         catch (Exception ex)
         {
@@ -3415,8 +3415,7 @@ WHERE ed.employeeid = @EmployeeId
                 FROM attendance.attendance
                 WHERE employeeid = @employeeId AND workdate = @workDate
                 LIMIT 1";
-            var results = await QueryAsync<Attendance>(sql, new { employeeId, workDate });
-            return results.FirstOrDefault();
+            return await QuerySingleOrDefaultAsync<Attendance>(sql, new { employeeId, workDate });
         }
         catch (Exception ex)
         {
@@ -3440,7 +3439,7 @@ WHERE ed.employeeid = @EmployeeId
         }
     }
 
-    public async Task<List<Attendance>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    public async Task<IReadOnlyList<Attendance>> GetEmployeeAttendanceAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
         try
         {
@@ -3454,7 +3453,7 @@ WHERE ed.employeeid = @EmployeeId
                 ORDER BY workdate DESC";
 
             var results = await QueryAsync<Attendance>(sql, new { employeeId, startDate, endDate });
-            return results.ToList();
+            return results;
         }
         catch (Exception ex)
         {
@@ -3576,7 +3575,7 @@ WHERE ed.employeeid = @EmployeeId
 
 
 
-    public async Task<List<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(
+    public async Task<IReadOnlyList<DepartmentAttendanceStatsDto>> GetDepartmentAttendanceStatsAsync(
     Guid organizationId, DateTime startDate, DateTime endDate, Guid? departmentId)
     {
         try
@@ -3664,7 +3663,7 @@ WHERE ed.employeeid = @EmployeeId
                 startDate,
                 endDate,
                 departmentId
-            })).ToList();
+            })).ToArray();
         }
         catch (Exception ex)
         {
@@ -3674,7 +3673,7 @@ WHERE ed.employeeid = @EmployeeId
 
 
 
-    public async Task<List<DailyAttendanceStatsDto>> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate)
+    public async Task<IReadOnlyList<DailyAttendanceStatsDto>> GetDailyAttendanceStatsAsync(Guid organizationId, DateTime startDate, DateTime endDate)
     {
         var sql = @"
         SELECT 
@@ -3921,7 +3920,7 @@ LIMIT @pageSize OFFSET @offset;
         };
     }
 
-    public async Task<List<EmployeeSimpleDto>> GetEmployeeForAdminAsync(
+    public async Task<IReadOnlyList<EmployeeSimpleDto>> GetEmployeeForAdminAsync(
     Guid organizationId,
     Guid? departmentId)
     {
@@ -3965,7 +3964,7 @@ ORDER BY e.firstname, e.lastname";
 
             var result = await QueryAsync<EmployeeSimpleDto>(sql, parameters);
 
-            return result.ToList();
+            return result;
         }
         catch (Exception ex)
         {
@@ -3980,7 +3979,7 @@ ORDER BY e.firstname, e.lastname";
     }
 
 
-    public async Task<List<EmployeeSimpleDto>> GetManagerEmployeeAsync(
+    public async Task<IReadOnlyList<EmployeeSimpleDto>> GetManagerEmployeeAsync(
         Guid managerId,
         Guid organizationId,
         Guid? departmentId)
@@ -4023,7 +4022,7 @@ LEFT JOIN employee.employees m
             // ?? This matches EXACTLY your UpdateShiftAsync repo style
             var result = await QueryAsync<EmployeeSimpleDto>(sql, parameters);
 
-            return result.ToList();
+            return result;
         }
         catch (Exception ex)
         {
@@ -4047,9 +4046,7 @@ LEFT JOIN employee.employees m
             WHERE ( em.userid = @employeeId)
             LIMIT 1";
 
-            var results = await QueryAsync<Guid>(sql, new { employeeId });
-
-            return results.FirstOrDefault();
+            return await QuerySingleOrDefaultAsync<Guid>(sql, new { employeeId });
         }
         catch (Exception ex)
         {
@@ -4267,7 +4264,7 @@ WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
             throw new Exception($"Error checking HR manager status for employee {employeeId} in organization {organizationId}", ex);
         }
     }
-    public async Task<IEnumerable<PendingAttendanceRequest>> GetAllReviewableRequestsAsync(
+    public async Task<IReadOnlyList<PendingAttendanceRequest>> GetAllReviewableRequestsAsync(
     Guid organizationId, Guid? managerId = null)
     {
         var sql = @"
@@ -4328,7 +4325,7 @@ WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
         }
     }
 
-    async Task<List<Guid>> IAttendanceRepository.GetTeamEmployeeIdsAsync(Guid managerEmployeeId, Guid organizationId)
+    async Task<IReadOnlyList<Guid>> IAttendanceRepository.GetTeamEmployeeIdsAsync(Guid managerEmployeeId, Guid organizationId)
     {
         try
         {
@@ -4348,7 +4345,7 @@ WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
                 organizationId
             };
             var teamEmployeeIds = await QueryAsync<Guid>(sql, parameters);
-            return teamEmployeeIds.ToList();
+            return teamEmployeeIds;
         }
         catch (Exception ex)
         {
