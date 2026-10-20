@@ -565,23 +565,34 @@ public class AuthService : IAuthService
         _logger.LogInformation("Generating token for user: {UserId}, OrganizationId: {OrganizationId}",
             user.UserId, user.OrganizationId);
 
-        // Check if OrganizationId is valid
-        if (user.OrganizationId == Guid.Empty)
+        if (user.UserId is not Guid userId || userId == Guid.Empty)
         {
-            _logger.LogError("User {UserId} has empty OrganizationId", user.UserId);
+            _logger.LogError("Cannot generate a token for a user without a valid user ID");
+            throw new InvalidOperationException("User does not have a valid user ID");
+        }
+
+        if (string.IsNullOrWhiteSpace(user.Email))
+        {
+            _logger.LogError("Cannot generate a token for user {UserId} without an email", userId);
+            throw new InvalidOperationException("User does not have a valid email address");
+        }
+
+        if (user.OrganizationId is not Guid organizationId || organizationId == Guid.Empty)
+        {
+            _logger.LogError("User {UserId} has no valid organization ID", userId);
             throw new InvalidOperationException("User does not have a valid organization ID");
         }
 
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, user.Email),
-            new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-            new(CustomClaimTypes.OrganizationId, user.OrganizationId.ToString()),
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(CustomClaimTypes.OrganizationId, organizationId.ToString()),
             new(ClaimTypes.Role, user.Role?.RoleName ?? "Employee"),
-            new("firstName", user.FirstName),
-            new("lastName", user.LastName)
+            new("firstName", user.FirstName ?? string.Empty),
+            new("lastName", user.LastName ?? string.Empty)
         };
-        var role_id = await _authRepository.GetRoleByNameforTokenAsync(user.Role?.RoleName ?? "Employee", user.OrganizationId);
+        var role_id = await _authRepository.GetRoleByNameforTokenAsync(user.Role?.RoleName ?? "Employee", organizationId);
 
         // Keep JWT compact: store roleId only and evaluate permissions server-side from cache/database.
         if (role_id.RoleId.HasValue)
@@ -593,7 +604,7 @@ public class AuthService : IAuthService
             _logger.LogWarning("RoleId not resolved for user {UserId} (RoleName: {RoleName}, OrganizationId: {OrganizationId})",
                 user.UserId,
                 user.Role?.RoleName,
-                user.OrganizationId);
+                organizationId);
         }
 
         // Debug: Log all claims

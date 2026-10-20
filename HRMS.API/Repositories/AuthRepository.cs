@@ -17,40 +17,45 @@ public class AuthRepository : BaseRepository, IAuthRepository
 
     public async Task<User?> AuthenticateAsync(string email, string passwordHash)
     {
-        var sql = "SELECT * FROM auth.fn_authenticate_user(@email, @passwordHash)";
+        var sql = @"
+            SELECT
+                userid AS ""UserId"",
+                organizationid AS ""OrganizationId"",
+                email AS ""Email"",
+                firstname AS ""FirstName"",
+                lastname AS ""LastName"",
+                rolename AS ""RoleName"",
+                permissions::text AS ""Permissions"",
+                organizationname AS ""OrganizationName"",
+                domain AS ""Domain"",
+                isactive AS ""IsActive""
+            FROM auth.fn_authenticate_user(@email, @passwordHash)";
         var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { email, passwordHash });
 
         if (result == null) return null;
-        try
+
+        string? permissionsJson = result.Permissions;
+        return new User
         {
-            return new User
+            UserId = result.UserId,
+            OrganizationId = result.OrganizationId,
+            Email = result.Email,
+            FirstName = result.FirstName,
+            LastName = result.LastName,
+            IsActive = result.IsActive,
+            Role = new Role
             {
-                UserId = result.userid,
-                OrganizationId = result.organizationid,
-                Email = result.email,
-                FirstName = result.firstname,
-                LastName = result.lastname,
-                IsActive = result.isactive,
-                Role = new Role
-                {
-                    RoleName = result.rolename,
-                    Permissions = string.IsNullOrEmpty(result.permissions)
-                        ? new Dictionary<string, object>()
-                        : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(result.permissions)
-                },
-                Organization = new Organization
-                {
-                    Name = result.organizationname,
-                    Domain=result.domain
-                }
-            };
-        }
-        catch (Exception ex)
-        {
-            // Log the exception
-            Console.WriteLine($"Error mapping user data: {ex.Message}");
-            return null;
-        }
+                RoleName = result.RoleName,
+                Permissions = string.IsNullOrWhiteSpace(permissionsJson)
+                    ? new Dictionary<string, object>()
+                    : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(permissionsJson)
+            },
+            Organization = new Organization
+            {
+                Name = result.OrganizationName,
+                Domain = result.Domain
+            }
+        };
     }
     public async Task<string> GetOrganizationDomainAsync(Guid? organizationId)
     {
@@ -439,33 +444,26 @@ WHERE token = @token;
     {
         // Use QuerySingleAsync to fetch the single row containing multiple columns
         // NOTE: We used "SELECT * FROM" to explode the Table result into separate columns
-        try
-        {
-            var result = await QuerySingleAsync<dynamic>(
-                "SELECT * FROM auth.fn_create_user(@organizationId, @email, @passwordHash, @firstName, @lastName, @roleName, @emailVerify, @emailVerifyToken, @emailVerifyExpiry)",
-                new
-                {
-                    organizationId = user.OrganizationId,
-                    email = user.Email,
-                    passwordHash = user.PasswordHash,
-                    firstName = user.FirstName,
-                    lastName = user.LastName,
-                    roleName = user.Role?.RoleName ?? "Employee",
-                    emailVerify = user.IsEmailVerified,
-                    emailVerifyToken = user.EmailVerificationToken,
-                    emailVerifyExpiry = user.EmailVerificationExpiry
-                });
+        var result = await QuerySingleAsync<dynamic>(
+            "SELECT * FROM auth.fn_create_user(@organizationId, @email, @passwordHash, @firstName, @lastName, @roleName, @emailVerify, @emailVerifyToken, @emailVerifyExpiry)",
+            new
+            {
+                organizationId = user.OrganizationId,
+                email = user.Email,
+                passwordHash = user.PasswordHash,
+                firstName = user.FirstName,
+                lastName = user.LastName,
+                roleName = user.Role?.RoleName ?? "Employee",
+                emailVerify = user.IsEmailVerified,
+                emailVerifyToken = user.EmailVerificationToken,
+                emailVerifyExpiry = user.EmailVerificationExpiry
+            });
 
-            // Map the snake_case results from PostgreSQL to your C# model
-            user.UserId = result.user_id;
-            user.RoleId = result.role_id;
+        // Map the snake_case results from PostgreSQL to your C# model
+        user.UserId = result.user_id;
+        user.RoleId = result.role_id;
 
-            return user;
-        }
-        catch (Exception ex)
-        {
-            throw new Exception("An error occured", ex.InnerException);
-        }
+        return user;
     }
     public async Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId, Guid? departmentId, string title)
     {

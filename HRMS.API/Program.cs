@@ -90,14 +90,17 @@ builder.Services.AddSingleton<IDatabaseConnectionFactory>(_ =>
     var envConnection = Environment.GetEnvironmentVariable("CONNECTION_STRING");
     var configConnection = builder.Configuration.GetConnectionString("DefaultConnection");
 
+    if (builder.Environment.IsProduction() && string.IsNullOrWhiteSpace(envConnection))
+        throw new InvalidOperationException("CONNECTION_STRING must be configured for production.");
+
     var finalConnection = !string.IsNullOrEmpty(envConnection)
         ? envConnection
         : configConnection;
 
     if (string.IsNullOrEmpty(finalConnection))
-        throw new Exception("❌ Database connection string not found");
+        throw new InvalidOperationException("Database connection string not found.");
 
-    Console.WriteLine($"✅ DB Source: {(envConnection != null ? "Railway ENV" : "Local Config")}");
+    Console.WriteLine($"DB source: {(envConnection != null ? "CONNECTION_STRING environment variable" : "local configuration")}");
 
     return new DatabaseConnectionFactory(finalConnection);
 });
@@ -106,7 +109,30 @@ builder.Services.AddSingleton<IDatabaseConnectionFactory>(_ =>
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 builder.Services.Configure<JwtSettings>(jwtSettings);
 
-var key = Encoding.ASCII.GetBytes(jwtSettings["SecretKey"]!);
+var jwtSecret = jwtSettings["SecretKey"];
+if (string.IsNullOrWhiteSpace(jwtSecret) || Encoding.UTF8.GetByteCount(jwtSecret) < 32)
+    throw new InvalidOperationException("JwtSettings:SecretKey must be configured with at least 32 bytes.");
+
+if (builder.Environment.IsProduction())
+{
+    var requiredSecrets = new[]
+    {
+        "MailJet:PublicKey",
+        "MailJet:PrivateKey",
+        "Cloudinary:ApiKey",
+        "Cloudinary:ApiSecret",
+        "GroqAI:ApiKeys:0"
+    };
+    var missingSecrets = requiredSecrets
+        .Where(key => string.IsNullOrWhiteSpace(builder.Configuration[key]))
+        .ToArray();
+
+    if (missingSecrets.Length > 0)
+        throw new InvalidOperationException(
+            $"Missing required production settings: {string.Join(", ", missingSecrets)}");
+}
+
+var key = Encoding.UTF8.GetBytes(jwtSecret);
 
 builder.Services.AddAuthentication(options =>
 {
@@ -139,13 +165,22 @@ builder.Services.AddScoped<ICloudinaryService>(sp => sp.GetRequiredService<Cloud
 builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<CloudinaryService>());
 
 // -------------------- CORS --------------------
+var allowedOrigins = builder.Configuration
+    .GetSection("CORS:AllowedOrigins")
+    .Get<string[]>() ?? Array.Empty<string>();
+
+if (builder.Environment.IsProduction() && allowedOrigins.Length == 0)
+    throw new InvalidOperationException("CORS:AllowedOrigins must contain the production frontend origins.");
+
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    options.AddPolicy("ConfiguredOrigins", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy.AllowAnyMethod().AllowAnyHeader();
+        if (builder.Environment.IsProduction())
+            policy.WithOrigins(allowedOrigins);
+        else
+            policy.AllowAnyOrigin();
     });
 });
 
@@ -259,7 +294,7 @@ app.UseStaticFiles();
 // ❌ REMOVED HTTPS REDIRECTION (Railway handles HTTPS)
 
 // IMPORTANT ORDER
-app.UseCors("AllowAll");
+app.UseCors("ConfiguredOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
 

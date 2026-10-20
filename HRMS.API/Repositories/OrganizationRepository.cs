@@ -36,6 +36,45 @@ namespace HRMS.API.Repositories
                 });
             }
 
+            const string ensureSuperAdminRoleSql = @"
+                WITH inserted_role AS (
+                    INSERT INTO auth.roles (
+                        organizationid, rolename, description, permissions, issystemrole, createdat
+                    )
+                    SELECT
+                        @OrganizationId,
+                        'Super Admin',
+                        'System administrator with full access to all features',
+                        '{}'::jsonb,
+                        false,
+                        CURRENT_TIMESTAMP
+                    WHERE NOT EXISTS (
+                        SELECT 1
+                        FROM auth.roles
+                        WHERE organizationid = @OrganizationId
+                          AND rolename = 'Super Admin'
+                    )
+                    RETURNING roleid, organizationid
+                )
+                INSERT INTO auth.permissions (
+                    permissionid, roleid, actionid, organizationid,
+                    has_permission, created_date, updated_date
+                )
+                SELECT
+                    public.uuid_generate_v4(),
+                    inserted_role.roleid,
+                    actions.actionid,
+                    inserted_role.organizationid,
+                    true,
+                    CURRENT_TIMESTAMP,
+                    CURRENT_TIMESTAMP
+                FROM inserted_role
+                CROSS JOIN auth.actions actions
+                WHERE actions.actionname != 'Employee Dashboard'
+                ON CONFLICT DO NOTHING";
+
+            await ExecuteAsync(ensureSuperAdminRoleSql, new { OrganizationId = organizationId });
+
             return organization;
         }
 
