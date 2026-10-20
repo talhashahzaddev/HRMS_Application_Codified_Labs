@@ -19,41 +19,56 @@ public class AuthRepository : BaseRepository, IAuthRepository
     {
         var sql = @"
             SELECT
-                userid AS ""UserId"",
-                organizationid AS ""OrganizationId"",
-                email AS ""Email"",
-                firstname AS ""FirstName"",
-                lastname AS ""LastName"",
-                rolename AS ""RoleName"",
-                permissions::text AS ""Permissions"",
-                organizationname AS ""OrganizationName"",
-                domain AS ""Domain"",
-                isactive AS ""IsActive""
-            FROM auth.fn_authenticate_user(@email, @passwordHash)";
+                u.userid AS ""UserId"",
+                u.organizationid AS ""OrganizationId"",
+                u.email AS ""Email"",
+                u.firstname AS ""FirstName"",
+                u.lastname AS ""LastName"",
+                r.rolename AS ""RoleName"",
+                r.permissions::text AS ""Permissions"",
+                o.name AS ""OrganizationName"",
+                o.domain AS ""Domain"",
+                u.isactive AS ""IsActive""
+            FROM auth.users u
+            INNER JOIN auth.roles r ON r.roleid = u.roleid
+            INNER JOIN auth.organizations o ON o.organizationid = u.organizationid
+            WHERE u.email = @email
+              AND u.passwordhash = @passwordHash
+              AND u.isactive = true
+              AND o.status = 'active'
+              AND EXISTS (
+                  SELECT 1
+                  FROM employee.employees e
+                  WHERE e.userid = u.userid
+                    AND e.status = 'active'
+              )
+            ORDER BY u.createdat DESC
+            LIMIT 1";
         var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { email, passwordHash });
 
         if (result == null) return null;
 
-        string? permissionsJson = result.Permissions;
+        var row = (IDictionary<string, object>)result;
+        string? permissionsJson = (string?)GetColumnValue(row, "Permissions");
         return new User
         {
-            UserId = result.UserId,
-            OrganizationId = result.OrganizationId,
-            Email = result.Email,
-            FirstName = result.FirstName,
-            LastName = result.LastName,
-            IsActive = result.IsActive,
+            UserId = (Guid?)GetColumnValue(row, "UserId"),
+            OrganizationId = (Guid?)GetColumnValue(row, "OrganizationId"),
+            Email = (string?)GetColumnValue(row, "Email"),
+            FirstName = (string?)GetColumnValue(row, "FirstName"),
+            LastName = (string?)GetColumnValue(row, "LastName"),
+            IsActive = (bool?)GetColumnValue(row, "IsActive"),
             Role = new Role
             {
-                RoleName = result.RoleName,
+                RoleName = (string?)GetColumnValue(row, "RoleName"),
                 Permissions = string.IsNullOrWhiteSpace(permissionsJson)
                     ? new Dictionary<string, object>()
                     : System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, object>>(permissionsJson)
             },
             Organization = new Organization
             {
-                Name = result.OrganizationName,
-                Domain = result.Domain
+                Name = (string?)GetColumnValue(row, "OrganizationName") ?? string.Empty,
+                Domain = (string?)GetColumnValue(row, "Domain")
             }
         };
     }
@@ -125,17 +140,10 @@ INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
     ORDER BY u.createdat DESC
     LIMIT 1";
 
-        try
-        {
-            var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { email });
-            if (result == null) return null;
+        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { email });
+        if (result == null) return null;
 
-            return MapToUser(result);
-        }
-        catch (Exception ex)
-        {
-            throw new Exception("An error occured", ex.InnerException);
-        }
+        return MapToUser(result);
     }
 
     //Changes Here
@@ -994,6 +1002,19 @@ WHERE token = @token;
         {
             throw new Exception("Cannot map to the result", ex.InnerException);
         }
+    }
+
+    private static object? GetColumnValue(IDictionary<string, object> row, string columnName)
+    {
+        foreach (var field in row)
+        {
+            if (string.Equals(field.Key, columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return field.Value == DBNull.Value ? null : field.Value;
+            }
+        }
+
+        throw new DataException($"Authentication query did not return the expected '{columnName}' column.");
     }
 
 }

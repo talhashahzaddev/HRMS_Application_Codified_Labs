@@ -42,8 +42,6 @@ public class AuthController : ControllerBase
             }
             var response = await _authService.AuthenticateAsync(request);
 
-            _logger.LogInformation("Generated JWT Token: {Token}", response.Token);
-
             return Ok(new ServiceResponse<AuthResponse>
             {
                 Success = true,
