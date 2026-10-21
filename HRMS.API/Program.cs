@@ -171,16 +171,33 @@ var allowedOrigins = builder.Configuration
 
 if (builder.Environment.IsProduction() && allowedOrigins.Length == 0)
     throw new InvalidOperationException("CORS:AllowedOrigins must contain the production frontend origins.");
-
+// -------------------- CORS --------------------
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ConfiguredOrigins", policy =>
     {
-        policy.AllowAnyMethod().AllowAnyHeader();
-        if (builder.Environment.IsProduction())
-            policy.WithOrigins(allowedOrigins);
-        else
-            policy.AllowAnyOrigin();
+        policy
+            .SetIsOriginAllowed(origin =>
+            {
+                if (!Uri.TryCreate(
+                    origin,
+                    UriKind.Absolute,
+                    out var uri))
+                {
+                    return false;
+                }
+
+                return uri.Scheme == Uri.UriSchemeHttps &&
+                       (uri.Host.Equals(
+                            "briskpeople.com",
+                            StringComparison.OrdinalIgnoreCase)
+                        ||
+                        uri.Host.EndsWith(
+                            ".briskpeople.com",
+                            StringComparison.OrdinalIgnoreCase));
+            })
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 
