@@ -26,8 +26,13 @@ namespace HRMS.AI.Services
             _allKeys = configuration.GetSection("GroqAI:ApiKeys")
                                     .GetChildren()
                                     .Select(x => x.Value)
-                                    .Where(v => !string.IsNullOrEmpty(v))
+                                    .Where(v => !string.IsNullOrWhiteSpace(v))
                                     .ToList();
+
+            var singleKey = configuration["GroqAI:ApiKey"] ?? configuration["GROQ_API_KEY"];
+            if (!string.IsNullOrWhiteSpace(singleKey) && !_allKeys.Contains(singleKey))
+                _allKeys.Insert(0, singleKey);
+
             if (_allKeys.Count == 0)
                 throw new InvalidOperationException("No API keys configured in GroqAI:ApiKeys.");
 

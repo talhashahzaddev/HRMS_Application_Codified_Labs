@@ -120,12 +120,20 @@ if (builder.Environment.IsProduction())
         "MailJet:PublicKey",
         "MailJet:PrivateKey",
         "Cloudinary:ApiKey",
-        "Cloudinary:ApiSecret",
-        "GroqAI:ApiKeys:0"
+        "Cloudinary:ApiSecret"
     };
     var missingSecrets = requiredSecrets
         .Where(key => string.IsNullOrWhiteSpace(builder.Configuration[key]))
         .ToArray();
+
+    var hasGroqApiKey = builder.Configuration.GetSection("GroqAI:ApiKeys")
+                            .GetChildren()
+                            .Any(key => !string.IsNullOrWhiteSpace(key.Value))
+                        || !string.IsNullOrWhiteSpace(builder.Configuration["GroqAI:ApiKey"])
+                        || !string.IsNullOrWhiteSpace(builder.Configuration["GROQ_API_KEY"]);
+
+    if (!hasGroqApiKey)
+        missingSecrets = missingSecrets.Append("GroqAI:ApiKeys:0 (or GROQ_API_KEY)").ToArray();
 
     if (missingSecrets.Length > 0)
         throw new InvalidOperationException(
