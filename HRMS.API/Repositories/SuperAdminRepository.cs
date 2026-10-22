@@ -85,7 +85,11 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
 
             if (!string.IsNullOrWhiteSpace(filter.Search))
             {
-                whereClause += " AND LOWER(o.name) LIKE @search";
+                whereClause += @" AND (
+                    LOWER(o.name) LIKE @search
+                    OR LOWER(COALESCE(o.admin_email, '')) LIKE @search
+                    OR LOWER(COALESCE(o.industry, '')) LIKE @search
+                )";
                 parameters.Add("search", $"%{filter.Search.ToLower()}%");
             }
 
@@ -102,6 +106,12 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
                     case "trial":
                         whereClause += " AND (o.subscriptiontype = 'trial' OR cs.subscriptionid IS NULL)";
                         break;
+                    case "cancelled":
+                        whereClause += " AND cs.status = 'cancelled'";
+                        break;
+                    case "pending":
+                        whereClause += " AND cs.status = 'pending'";
+                        break;
                 }
             }
 
@@ -115,9 +125,14 @@ public class SuperAdminRepository : BaseRepository, ISuperAdminRepository
             var allowedSortColumns = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
             {
                 { "createdat", "o.createdat" },
+                { "created_at", "o.createdat" },
                 { "name", "o.name" },
                 { "expirydate", "cs.enddate" },
-                { "employeecount", "active_emp_count" }
+                { "subscriptionstatus", "cs.status" },
+                { "subscription_status", "cs.status" },
+                { "employeecount", "active_emp_count" },
+                { "totalactiveemployees", "active_emp_count" },
+                { "total_active_employees", "active_emp_count" }
             };
 
             var sortColumn = allowedSortColumns.ContainsKey(filter.SortBy ?? "createdat")
