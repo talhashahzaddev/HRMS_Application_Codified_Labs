@@ -4005,16 +4005,15 @@ WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
     {
         try
         {
-            var sql = @"SELECT 
-    CASE 
-        WHEN r.rolename IN ('Super Admin', 'HR Manager') THEN TRUE
-        ELSE FALSE
-    END AS is_admin_or_hr
+            var sql = @"SELECT EXISTS (
+    SELECT 1
 FROM employee.employees e
 JOIN auth.users u ON u.userid = e.userid
 JOIN auth.roles r ON r.roleid = u.roleid
-WHERE e.employeeid = @employeeid AND u.organizationId = @organizationId;
-";
+WHERE e.employeeid = @employeeid
+  AND u.organizationId = @organizationId
+  AND r.rolename IN ('Super Admin', 'HR Manager')
+);";
             var parameters = new
             {
                 employeeId,

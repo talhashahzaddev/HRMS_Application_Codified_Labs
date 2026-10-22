@@ -5,6 +5,7 @@ using Serilog;
 using FluentValidation;
 using AutoMapper;
 using HRMS.API.Configuration;
+using HRMS.API.Hubs;
 using HRMS.API.Middleware;
 using HRMS.API.Services.Interfaces;
 using HRMS.API.Services;
@@ -151,6 +152,22 @@ builder.Services.AddAuthentication(options =>
 {
     options.RequireHttpsMetadata = false;
     options.SaveToken = true;
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var accessToken = context.Request.Query["access_token"];
+            var requestPath = context.HttpContext.Request.Path;
+
+            if (!string.IsNullOrEmpty(accessToken) &&
+                requestPath.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
+
+            return Task.CompletedTask;
+        }
+    };
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
@@ -195,14 +212,24 @@ builder.Services.AddCors(options =>
                     return false;
                 }
 
-                return uri.Scheme == Uri.UriSchemeHttps &&
-                       (uri.Host.Equals(
-                            "briskpeople.com",
-                            StringComparison.OrdinalIgnoreCase)
-                        ||
-                        uri.Host.EndsWith(
-                            ".briskpeople.com",
-                            StringComparison.OrdinalIgnoreCase));
+                var isConfiguredOrigin = allowedOrigins.Any(allowedOrigin =>
+                    string.Equals(allowedOrigin, origin, StringComparison.OrdinalIgnoreCase));
+
+                var isBriskPeopleOrigin = uri.Scheme == Uri.UriSchemeHttps &&
+                    (uri.Host.Equals(
+                        "briskpeople.com",
+                        StringComparison.OrdinalIgnoreCase)
+                    ||
+                    uri.Host.EndsWith(
+                        ".briskpeople.com",
+                        StringComparison.OrdinalIgnoreCase));
+
+                var isLocalDevelopmentOrigin = builder.Environment.IsDevelopment() &&
+                    uri.Scheme == Uri.UriSchemeHttp &&
+                    (uri.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                     uri.Host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase));
+
+                return isConfiguredOrigin || isBriskPeopleOrigin || isLocalDevelopmentOrigin;
             })
             .AllowAnyMethod()
             .AllowAnyHeader();
@@ -299,6 +326,7 @@ builder.Services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
 
 // -------------------- HOSTED SERVICES --------------------
 builder.Services.AddAuthorization();
+builder.Services.AddSignalR();
 builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 builder.Services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
 // -------------------- HOSTED SERVICES --------------------
@@ -327,6 +355,7 @@ app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();
 
 app.MapControllers();
+app.MapHub<PermissionHub>("/hubs/permissionHub");
 
 try
 {

@@ -119,7 +119,10 @@ namespace HRMS.API.Controllers
                 }
                 var organizationId = GetCurrentOrganizationId();
                 var currentEmployeeId = await GetCurrentEmployeeId();
-                var newsItem = await _newsService.GetAllNewsAsync(currentEmployeeId, organizationId, searchModel);
+                var newsItem = await _newsService.GetAllNewsAsync(
+                    currentEmployeeId,
+                    organizationId,
+                    searchModel ?? new NewsSearchViewModel());
                 return Ok(new ServiceResponse<PagedResult<NewsDto>>
                 {
                     Success = true,
