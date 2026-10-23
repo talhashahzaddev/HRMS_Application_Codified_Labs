@@ -908,8 +908,6 @@ public class AuthService : IAuthService
     public async Task<DeleteRoleResponse> DeleteRoleAsync(Guid roleId, Guid? organizationId)
     {
         if (roleId == Guid.Empty) throw new ArgumentException("Role ID is required", nameof(roleId));
-        if (organizationId == Guid.Empty) throw new ArgumentException("Organization ID is required", nameof(organizationId));
-
         _logger.LogInformation("Deleting role: {RoleId} for organization: {OrganizationId}",
             roleId, organizationId);
 

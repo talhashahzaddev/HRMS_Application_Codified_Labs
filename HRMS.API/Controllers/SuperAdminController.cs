@@ -1,7 +1,9 @@
 using HRMS.API.Models.DTOs;
+using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Npgsql;
 using System.Security.Claims;
 
 namespace HRMS.API.Controllers;
@@ -13,16 +15,186 @@ public class SuperAdminController : ControllerBase
 {
     private readonly ISuperAdminService _superAdminService;
     private readonly ITransactionService _transactionService;
+    private readonly IAuthRepository _authRepository;
+    private readonly IAuthService _authService;
     private readonly ILogger<SuperAdminController> _logger;
 
     public SuperAdminController(
         ISuperAdminService superAdminService,
         ITransactionService transactionService,
+        IAuthRepository authRepository,
+        IAuthService authService,
         ILogger<SuperAdminController> logger)
     {
         _superAdminService = superAdminService;
         _transactionService = transactionService;
+        _authRepository = authRepository;
+        _authService = authService;
         _logger = logger;
+    }
+
+    [HttpGet("menus")]
+    public async Task<ActionResult<ServiceResponse<List<MenuDto>>>> GetMenus()
+    {
+        var menus = await _authService.GetMenusAsync();
+        return Ok(new ServiceResponse<List<MenuDto>>
+        {
+            Success = true,
+            Data = menus,
+            Message = "Menus retrieved successfully."
+        });
+    }
+
+    [HttpGet("global-roles")]
+    public async Task<ActionResult<ServiceResponse<List<RoleDto>>>> GetGlobalRoles()
+    {
+        var roles = await _authRepository.GetGlobalRolesAsync();
+        var result = roles.Select(role => new RoleDto
+        {
+            RoleId = role.RoleId ?? Guid.Empty,
+            RoleName = role.RoleName,
+            Description = role.Description,
+            OrganizationId = role.OrganizationId ?? Guid.Empty,
+            OrganizationName = role.OrganizationName,
+            IsSystemRole = role.IsSystemRole ?? false,
+            CreatedAt = role.CreatedAt ?? DateTime.MinValue,
+            PermissionsCount = role.PermissionsCount
+        }).ToList();
+
+        return Ok(new ServiceResponse<List<RoleDto>>
+        {
+            Success = true,
+            Data = result,
+            Message = "Global roles retrieved successfully."
+        });
+    }
+
+    [HttpPost("create-global-role")]
+    public async Task<ActionResult<ServiceResponse<CreateRoleResponse>>> CreateGlobalRole(
+        [FromBody] Create_RoleRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<CreateRoleResponse>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors)
+                        .Select(e => e.ErrorMessage)
+                        .ToList()
+                });
+            }
+
+            var result = await _authService.Create_RoleAsync(request, null);
+            return Ok(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = true,
+                Data = result,
+                Message = "Global role created successfully."
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.NotNullViolation)
+        {
+            _logger.LogError(ex,
+                "Global role creation failed because the database schema does not allow NULL organization IDs.");
+
+            return Conflict(new ServiceResponse<CreateRoleResponse>
+            {
+                Success = false,
+                Message = "The database schema does not support global roles yet. Run HRMS.Script/06_global_roles_migration.sql and try again."
+            });
+        }
+    }
+
+    [HttpDelete("delete-global-role/{roleId:guid}")]
+    public async Task<ActionResult<ServiceResponse<DeleteRoleResponse>>> DeleteGlobalRole(Guid roleId)
+    {
+        try
+        {
+            var role = await _authRepository.GetRoleByIdAsync(roleId);
+            if (role == null)
+            {
+                return NotFound(new ServiceResponse<DeleteRoleResponse>
+                {
+                    Success = false,
+                    Message = $"Role with ID {roleId} not found"
+                });
+            }
+
+            var result = await _authService.DeleteRoleAsync(roleId, role.OrganizationId);
+            return Ok(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = true,
+                Data = result,
+                Message = "Global role deleted successfully."
+            });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(new ServiceResponse<DeleteRoleResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    [HttpGet("invitations")]
+    public ActionResult<ServiceResponse<PagedResult<UserInvitationDto>>> GetInvitations(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 15)
+    {
+        page = Math.Max(page, 1);
+        pageSize = Math.Clamp(pageSize, 1, 100);
+
+        return Ok(new ServiceResponse<PagedResult<UserInvitationDto>>
+        {
+            Success = true,
+            Data = new PagedResult<UserInvitationDto>
+            {
+                Data = new List<UserInvitationDto>(),
+                TotalCount = 0,
+                Page = page,
+                PageSize = pageSize
+            },
+            Message = "Invitations retrieved successfully."
+        });
     }
 
     /// <summary>

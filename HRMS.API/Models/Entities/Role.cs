@@ -8,6 +8,8 @@ public class Role : BaseEntity
     public string? Description { get; set; }
     public Dictionary<string, object>? Permissions { get; set; }
     public bool? IsSystemRole { get; set; }
+    public string? OrganizationName { get; set; }
+    public int PermissionsCount { get; set; }
 
     // Navigation properties
     public Organization Organization { get; set; } = null!;

@@ -24,6 +24,19 @@ public class PlatformAdminAuthResponse
     public DateTime TokenExpiration { get; set; }
 }
 
+public class UserInvitationDto
+{
+    public Guid InvitationId { get; set; }
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string? OrganizationName { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime ExpiresAt { get; set; }
+}
+
 // ========== Platform Dashboard DTOs ==========
 
 public class PlatformDashboardDto

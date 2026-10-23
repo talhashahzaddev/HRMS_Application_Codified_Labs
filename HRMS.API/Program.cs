@@ -94,14 +94,17 @@ builder.Services.AddSingleton<IDatabaseConnectionFactory>(_ =>
     if (builder.Environment.IsProduction() && string.IsNullOrWhiteSpace(envConnection))
         throw new InvalidOperationException("CONNECTION_STRING must be configured for production.");
 
-    var finalConnection = !string.IsNullOrEmpty(envConnection)
+    var finalConnection = !string.IsNullOrWhiteSpace(envConnection)
         ? envConnection
         : configConnection;
 
     if (string.IsNullOrEmpty(finalConnection))
         throw new InvalidOperationException("Database connection string not found.");
 
-    Console.WriteLine($"DB source: {(envConnection != null ? "CONNECTION_STRING environment variable" : "local configuration")}");
+    var databaseSource = string.IsNullOrWhiteSpace(envConnection)
+        ? "local configuration"
+        : "CONNECTION_STRING environment variable";
+    Console.WriteLine($"DB source: {databaseSource}");
 
     return new DatabaseConnectionFactory(finalConnection);
 });

@@ -624,6 +624,44 @@ WHERE token = @token;
         }
 
     }
+
+    public async Task<List<Role>> GetGlobalRolesAsync()
+    {
+        const string sql = @"
+            SELECT
+                r.roleid,
+                r.organizationid,
+                r.rolename,
+                r.description,
+                r.permissions,
+                r.issystemrole,
+                r.createdat,
+                o.name AS organizationname,
+                COUNT(p.permissionid)::int AS permissionscount
+            FROM auth.roles r
+            LEFT JOIN auth.organizations o ON o.organizationid = r.organizationid
+            LEFT JOIN auth.permissions p ON p.roleid = r.roleid AND p.has_permission = true
+            GROUP BY r.roleid, r.organizationid, r.rolename, r.description,
+                     r.permissions, r.issystemrole, r.createdat, o.name
+            ORDER BY r.createdat DESC, r.rolename";
+
+        var results = await QueryAsync<dynamic>(sql);
+        return results.Select(r => new Role
+        {
+            RoleId = r.roleid,
+            OrganizationId = r.organizationid,
+            RoleName = r.rolename,
+            Description = r.description,
+            OrganizationName = r.organizationname,
+            PermissionsCount = r.permissionscount,
+            Permissions = r.permissions is string permissionsJson && !string.IsNullOrWhiteSpace(permissionsJson)
+                ? JsonConvert.DeserializeObject<Dictionary<string, object>>(permissionsJson)
+                : null,
+            IsSystemRole = r.issystemrole,
+            CreatedAt = r.createdat
+        }).ToList();
+    }
+
     public async Task<IEnumerable<dynamic>> GetMenusAsync()
     {
         var sql = @"

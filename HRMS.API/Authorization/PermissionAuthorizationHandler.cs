@@ -32,6 +32,15 @@ namespace HRMS.API.Authorization
 
         protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, PermissionRequirement requirement)
         {
+            var roleName = context.User.FindFirstValue(ClaimTypes.Role);
+            if (string.Equals(roleName?.Trim(), "Super Admin", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Authorization granted to Super Admin for permissions: {Permissions}",
+                    string.Join(", ", requirement.Permissions));
+                context.Succeed(requirement);
+                return;
+            }
+
             var roleId = await ResolveRoleIdAsync(context.User);
             if (!roleId.HasValue)
             {
