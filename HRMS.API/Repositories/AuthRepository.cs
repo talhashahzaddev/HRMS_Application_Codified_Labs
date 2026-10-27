@@ -439,13 +439,51 @@ WHERE token = @token;
 
     public async Task<bool> VerifyEmail (string token)
     {
-        var result = await QuerySingleAsync<bool>("SELECT * FROM auth.fn_verify_email(@p_token, @p_verify_time)",
-            new
-            {
-                p_token = token,
-                p_verify_time = DateTime.UtcNow
-            });
-        return result;
+        const string sql = """
+            UPDATE auth.users
+            SET emailverified = true,
+                emailverify = true,
+                emailverifytoken = NULL,
+                emailverifyexpiry = NULL,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE emailverifytoken = @token
+              AND emailverifyexpiry > @verifiedAt
+              AND COALESCE(emailverify, false) = false
+            RETURNING true;
+            """;
+
+        return await QuerySingleOrDefaultAsync<bool?>(sql, new
+        {
+            token,
+            verifiedAt = DateTime.UtcNow
+        }) ?? false;
+    }
+
+    public async Task<string?> CreateEmailVerificationTokenAsync(string email, string token, DateTime expiresAt)
+    {
+        const string sql = @"
+            UPDATE auth.users
+            SET emailverifytoken = @token,
+                emailverifyexpiry = @expiresAt,
+                updatedat = CURRENT_TIMESTAMP
+            WHERE LOWER(email) = LOWER(@email)
+              AND COALESCE(emailverified, false) = false
+              AND COALESCE(emailverify, false) = false
+            RETURNING firstname";
+
+        return await QuerySingleOrDefaultAsync<string>(sql, new { email, token, expiresAt });
+    }
+
+    public async Task<bool> IsEmailVerifiedAsync(string email)
+    {
+        const string sql = @"
+            SELECT COALESCE(emailverified, false) OR COALESCE(emailverify, false)
+            FROM auth.users
+            WHERE LOWER(email) = LOWER(@email)
+            ORDER BY createdat DESC
+            LIMIT 1";
+
+        return await QuerySingleOrDefaultAsync<bool?>(sql, new { email }) ?? true;
     }
 
     public async Task<User> CreateUserAsync(User user)

@@ -74,6 +74,10 @@ public class AuthService : IAuthService
             _logger.LogWarning("Invalid password for email: {Email}", request.Email);
             throw new UnauthorizedAccessException("Invalid password");
         }
+        if (!await _authRepository.IsEmailVerifiedAsync(request.Email))
+        {
+            throw new InvalidOperationException("Please verify your email before logging in.");
+        }
         User? user = await _authRepository.AuthenticateAsync(request.Email, hashedPassword);
 
         if (user == null)
@@ -215,6 +219,12 @@ public class AuthService : IAuthService
         if (string.IsNullOrWhiteSpace(request.FirstName)) throw new ArgumentException("First name is required", nameof(request.FirstName));
         if (string.IsNullOrWhiteSpace(request.LastName)) throw new ArgumentException("Last name is required", nameof(request.LastName));
         if (string.IsNullOrWhiteSpace(request.CompanyName)) throw new ArgumentException("Company name is required", nameof(request.CompanyName));
+        request.Email = request.Email.Trim();
+        request.FirstName = request.FirstName.Trim();
+        request.LastName = request.LastName.Trim();
+        request.CompanyName = request.CompanyName.Trim();
+        request.CompanySize = NormalizeCompanySize(request.CompanySize);
+        request.Website = string.IsNullOrWhiteSpace(request.Website) ? null : request.Website.Trim();
         _logger.LogInformation("Registration attempt for email: {Email} and organization: {CompanyName}", request.Email, request.CompanyName);
 
         // Check if user already exists
@@ -329,13 +339,43 @@ public class AuthService : IAuthService
 
         await _authRepository.AdminIntoEmployeeDetailsAsync(superadminEmployeeid, position);
 
-        await _emailService.SendVerificationEmailAsync(request.Email, request.FirstName, emailVerificationToken);
+        var verificationEmailSent = await _emailService.SendVerificationEmailAsync(
+            request.Email,
+            request.FirstName,
+            emailVerificationToken);
+        if (!verificationEmailSent)
+        {
+            _logger.LogError("Registration completed but verification email could not be sent.");
+        }
 
         return new AuthResponse
         {
             Token = null,
             RefreshToken = null,
+            EmailVerificationSent = verificationEmailSent
         };
+    }
+
+    public async Task<bool> ResendVerificationEmailAsync(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+        {
+            throw new ArgumentException("Email is required", nameof(email));
+        }
+
+        var normalizedEmail = email.Trim();
+        var token = Guid.NewGuid().ToString("N");
+        var firstName = await _authRepository.CreateEmailVerificationTokenAsync(
+            normalizedEmail,
+            token,
+            DateTime.UtcNow.AddHours(24));
+
+        if (firstName == null)
+        {
+            return false;
+        }
+
+        return await _emailService.SendVerificationEmailAsync(normalizedEmail, firstName, token);
     }
     private string? ExtractDomainFromUrl(string url)
     {
@@ -368,6 +408,22 @@ public class AuthService : IAuthService
         };
     }
 
+    private static string NormalizeCompanySize(string companySize)
+    {
+        var normalized = companySize?.Trim() ?? string.Empty;
+        var supportedSizes = new[] { "1-10", "11-50", "51-200", "201-500", "501-1000", "1000+" };
+        var matchedSize = supportedSizes.FirstOrDefault(size =>
+            string.Equals(size, normalized, StringComparison.OrdinalIgnoreCase) ||
+            string.Equals($"{size} employees", normalized, StringComparison.OrdinalIgnoreCase));
+
+        if (matchedSize == null)
+        {
+            throw new ArgumentException("Please select a valid company size.", nameof(companySize));
+        }
+
+        return matchedSize;
+    }
+
 
     public async Task<bool> ForgotPasswordAsync(HRMS.API.Models.DTOs.ForgotPasswordRequest request)
     {
@@ -396,11 +452,13 @@ public class AuthService : IAuthService
         var resetLink = $"https://login.briskpeople.com/reset-password?token={resetToken}";
 
         // 5️⃣ Send email
-        await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, resetLink);
+        var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, resetLink);
+        if (!emailSent)
+        {
+            _logger.LogError("Password reset email could not be sent for user {UserId}.", user.UserId);
+        }
 
-        _logger.LogInformation("Password reset token generated and email sent for {Email}", request.Email);
-
-        return true;
+        return emailSent;
     }
 
     //Reset Password

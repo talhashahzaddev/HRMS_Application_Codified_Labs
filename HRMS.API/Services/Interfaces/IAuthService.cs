@@ -16,6 +16,7 @@ public interface IAuthService
     Task<UserDto?> GetUserByIdAsync(Guid userId);
     // New missing methods
     Task<AuthResponse> RegisterAsync(HRMS.API.Models.DTOs.RegisterRequest request);
+    Task<bool> ResendVerificationEmailAsync(string email);
     Task<bool> ForgotPasswordAsync(HRMS.API.Models.DTOs.ForgotPasswordRequest request);
     Task<bool> UpdateProfileAsync(Guid userId, UpdateProfileRequest request);// bool changoe in response
     Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordRequest request);

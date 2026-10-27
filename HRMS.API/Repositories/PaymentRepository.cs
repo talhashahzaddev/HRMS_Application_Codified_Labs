@@ -20,10 +20,11 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
                 monthlyprice,
                 annualprice,
                 maxusers,
+                currency,
                 features,
                 iscustom,
                 isactive
-            FROM payment.subscriptionplans
+            FROM payment.subscriptionplans p
             WHERE planid = @planId";
 
         var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { planId });
@@ -43,6 +44,7 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
                 monthlyprice,
                 annualprice,
                 maxusers,
+                currency,
                 features,
                 iscustom,
                 isactive
@@ -55,36 +57,19 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
     public async Task<IEnumerable<SubscriptionPlanDto>> GetActiveSubscriptionPlansAsync()
     {
         var sql = @"
-        SELECT planid, name, monthlyprice, annualprice, maxusers, features, iscustom, isactive
-        FROM payment.subscriptionplans
-        WHERE isactive = true
-        ORDER BY monthlyprice ASC";
+        SELECT planid, name, monthlyprice, annualprice, maxusers, currency,
+               COALESCE((
+                   SELECT jsonb_agg(f.name ORDER BY f.module_key, f.name)
+                   FROM entitlement.plan_features pf
+                   JOIN entitlement.features f ON f.feature_id = pf.feature_id
+                   WHERE pf.plan_id = p.planid AND pf.enabled = true AND f.is_active = true
+               ), '[]'::jsonb) AS features,
+               iscustom, isactive
+        FROM payment.subscriptionplans p
+        WHERE p.isactive = true AND p.status = 'active' AND p.is_public = true
+        ORDER BY p.monthlyprice ASC";
         var results = await QueryAsync<dynamic>(sql);
-        return results.Select(record =>
-        {
-            Dictionary<string, object>? featuresDict = null;
-            if (record.features != null)
-            {
-                var featuresList = JsonSerializer.Deserialize<List<string>>(record.features.ToString());
-                if (featuresList != null)
-                {
-                 featuresDict = new Dictionary<string, object>();
-                 for (int i = 0; i < featuresList.Count; i++)
-                 featuresDict.Add($"Feature{i + 1}", featuresList[i]);
-                }
-            }
-            return new SubscriptionPlanDto
-            {
-                PlanId = record.planid,
-                Name = record.name,
-                MonthlyPrice = record.monthlyprice,
-                AnnualPrice = record.annualprice,
-                MaxUsers = record.maxusers,
-                Features = featuresDict,
-                IsCustom = record.iscustom,
-                IsActive = record.isactive
-            };
-        });
+        return results.Select(MapToSubscriptionPlanDto);
     }
     public async Task<Guid> CreateSubscriptionPlanAsync(CreateSubscriptionPlanRequest request)
     {
@@ -360,26 +345,6 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
 
     private SubscriptionPlanDto MapToSubscriptionPlanDto(dynamic row)
     {
-        Dictionary<string, object>? features = null;
-        
-        if (row.features != null && !Convert.IsDBNull(row.features))
-        {
-            try
-            {
-                string raw = row.features.ToString();
-                
-                if (!string.IsNullOrWhiteSpace(raw) && raw.TrimStart().StartsWith("{"))
-                {
-                    features = JsonSerializer.Deserialize<Dictionary<string, object>>(raw);
-                }
-            }
-            catch
-            {
-                // If deserialization fails, leave features as null
-                features = null;
-            }
-        }
-
         return new SubscriptionPlanDto
         {
             PlanId = row.planid,
@@ -387,10 +352,38 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
             MonthlyPrice = row.monthlyprice,
             AnnualPrice = row.annualprice,
             MaxUsers = row.maxusers,
-            Features = features,
+            Currency = row.currency ?? "BHD",
+            Features = ParsePlanFeatures(row.features),
             IsCustom = row.iscustom ?? false,
             IsActive = row.isactive ?? true
         };
     }
-}
 
+    private static Dictionary<string, object>? ParsePlanFeatures(object? value)
+    {
+        if (value == null || Convert.IsDBNull(value))
+        {
+            return null;
+        }
+
+        using var document = JsonDocument.Parse(value.ToString() ?? "null");
+        var root = document.RootElement;
+        if (root.ValueKind == JsonValueKind.Object)
+        {
+            return JsonSerializer.Deserialize<Dictionary<string, object>>(root.GetRawText());
+        }
+
+        if (root.ValueKind == JsonValueKind.Array)
+        {
+            return root.EnumerateArray()
+                .Select((feature, index) => new KeyValuePair<string, object>(
+                    $"Feature{index + 1}",
+                    feature.ValueKind == JsonValueKind.String
+                        ? feature.GetString() ?? string.Empty
+                        : feature.GetRawText()))
+                .ToDictionary(item => item.Key, item => item.Value);
+        }
+
+        throw new JsonException("Subscription plan features must be a JSON object or array.");
+    }
+}

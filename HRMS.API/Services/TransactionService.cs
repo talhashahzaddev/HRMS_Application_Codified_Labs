@@ -8,15 +8,18 @@ public class TransactionService : ITransactionService
 {
     private readonly ITransactionRepository _transactionRepository;
     private readonly IPaymentRepository _paymentRepository;
+    private readonly IEntitlementService _entitlementService;
     private readonly ILogger<TransactionService> _logger;
 
     public TransactionService(
         ITransactionRepository transactionRepository,
         IPaymentRepository paymentRepository,
+        IEntitlementService entitlementService,
         ILogger<TransactionService> logger)
     {
         _transactionRepository = transactionRepository;
         _paymentRepository = paymentRepository;
+        _entitlementService = entitlementService;
         _logger = logger;
     }
 
@@ -31,12 +34,25 @@ public class TransactionService : ITransactionService
         {
             // 1. Get the plan details
             var plan = await _paymentRepository.GetSubscriptionPlanByIdAsync(request.PlanId);
-            if (plan == null)
+            if (plan == null || !plan.IsActive)
             {
                 return new ServiceResponse<CheckoutSessionResponse>
                 {
                     Success = false,
-                    Message = "Subscription plan not found"
+                    Message = "Subscription plan is unavailable or archived."
+                };
+            }
+
+            var entitlementPlan = await _entitlementService.GetPlanAsync(request.PlanId);
+            if (entitlementPlan == null || !string.Equals(
+                    entitlementPlan.Status?.Trim(),
+                    "active",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return new ServiceResponse<CheckoutSessionResponse>
+                {
+                    Success = false,
+                    Message = "Subscription plan is unavailable or archived."
                 };
             }
 
@@ -61,7 +77,7 @@ public class TransactionService : ITransactionService
                 PlanId = request.PlanId,
                 Gateway = "stripe",
                 Amount = amount,
-                Currency = "USD",
+                Currency = plan.Currency,
                 BillingCycle = request.BillingCycle.ToLower(),
                 Status = "pending"
             };
@@ -116,37 +132,54 @@ public class TransactionService : ITransactionService
                 };
             }
 
+            var plan = await _entitlementService.GetPlanAsync(transaction.PlanId);
+            if (plan == null || !string.Equals(
+                    plan.Status?.Trim(),
+                    "active",
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                return new ServiceResponse<PaymentConfirmationDto>
+                {
+                    Success = false,
+                    Message = "The selected subscription plan is unavailable or archived."
+                };
+            }
+
             // TODO: Verify with Stripe
             // var session = await _stripeClient.Checkout.Sessions.GetAsync(request.SessionId);
             // For now, simulate successful verification
 
-            // 1. Update transaction status to completed
+            // Apply the subscription through the entitlement service so upgrades update
+            // the tenant's effective plan and invalidate its cached access.
+            var startDate = DateTime.UtcNow;
+            var endDate = transaction.BillingCycle == "annual"
+                ? startDate.AddYears(1)
+                : startDate.AddMonths(1);
+            var assigned = await _entitlementService.AssignTenantPlanAsync(
+                transaction.CompanyId,
+                new TenantPlanAssignmentRequest
+                {
+                    PlanId = transaction.PlanId,
+                    Status = "active",
+                    BillingCycle = transaction.BillingCycle,
+                    StartDate = startDate,
+                    EndDate = endDate,
+                    CustomCurrency = plan.Currency
+                },
+                actor: null);
+            if (!assigned)
+            {
+                throw new InvalidOperationException("The subscription could not be activated after payment.");
+            }
+
             await _transactionRepository.UpdateTransactionStatusAsync(
                 request.TransactionId, "completed",
                 paymentMethod: "card",
                 cardLast4: "4242",
                 cardBrand: "visa");
 
-            // 2. Create/update subscription
-            var startDate = DateTime.UtcNow;
-            var endDate = transaction.BillingCycle == "annual"
-                ? startDate.AddYears(1)
-                : startDate.AddMonths(1);
-
-            var subscriptionRequest = new CreateCompanySubscriptionRequest
-            {
-                CompanyId = transaction.CompanyId,
-                PlanId = transaction.PlanId,
-                Status = "active",
-                BillingCycle = transaction.BillingCycle,
-                StartDate = startDate,
-                EndDate = endDate
-            };
-            var subscriptionId = await _paymentRepository.CreateCompanySubscriptionAsync(subscriptionRequest);
-
-            // 3. Generate invoice
+            // Generate invoice
             var invoiceNumber = await _transactionRepository.GenerateInvoiceNumberAsync();
-            var plan = await _paymentRepository.GetSubscriptionPlanByIdAsync(transaction.PlanId);
 
             // Get company name from transaction (already joined)
             var invoice = new InvoiceDto

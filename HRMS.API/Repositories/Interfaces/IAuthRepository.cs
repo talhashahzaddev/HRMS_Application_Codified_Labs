@@ -34,6 +34,8 @@ public interface IAuthRepository
     Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt);
     Task<bool> UpdateLastLoginAsync(Guid? userId);
     Task<string> GetHashedPassword(string email);
+    Task<string?> CreateEmailVerificationTokenAsync(string email, string token, DateTime expiresAt);
+    Task<bool> IsEmailVerifiedAsync(string email);
     //Inserting Admin into Employee table
     Task<bool> adminIntoEmployeeAsync(User createUser);
     //Task<string> GenerateEmployeeCodeAsync()

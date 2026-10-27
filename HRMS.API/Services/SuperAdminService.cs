@@ -8,15 +8,18 @@ public class SuperAdminService : ISuperAdminService
 {
     private readonly ISuperAdminRepository _superAdminRepository;
     private readonly IPaymentRepository _paymentRepository;
+    private readonly IEntitlementService _entitlementService;
     private readonly ILogger<SuperAdminService> _logger;
 
     public SuperAdminService(
         ISuperAdminRepository superAdminRepository,
         IPaymentRepository paymentRepository,
+        IEntitlementService entitlementService,
         ILogger<SuperAdminService> logger)
     {
         _superAdminRepository = superAdminRepository;
         _paymentRepository = paymentRepository;
+        _entitlementService = entitlementService;
         _logger = logger;
     }
 
@@ -104,8 +107,9 @@ public class SuperAdminService : ISuperAdminService
     {
         try
         {
+            var action = request.Action.Trim().ToLowerInvariant();
             var validActions = new[] { "upgrade", "downgrade", "extend", "cancel" };
-            if (!validActions.Contains(request.Action.ToLower()))
+            if (!validActions.Contains(action))
             {
                 return new ServiceResponse<bool>
                 {
@@ -116,9 +120,15 @@ public class SuperAdminService : ISuperAdminService
 
             // Get current subscription
             var currentSubs = await _paymentRepository.GetCompanySubscriptionsByCompanyIdAsync(companyId);
-            var currentSub = currentSubs.OrderByDescending(s => s.EndDate).FirstOrDefault();
+            var currentSub = currentSubs
+                .OrderBy(subscription => string.Equals(subscription.Status, "active", StringComparison.OrdinalIgnoreCase)
+                    ? 0
+                    : string.Equals(subscription.Status, "trial", StringComparison.OrdinalIgnoreCase) ? 1 : 2)
+                .ThenBy(subscription => subscription.EndDate.HasValue ? 0 : 1)
+                .ThenByDescending(subscription => subscription.EndDate)
+                .FirstOrDefault();
 
-            if (currentSub == null && request.Action.ToLower() != "upgrade")
+            if (currentSub == null && action != "upgrade")
             {
                 return new ServiceResponse<bool>
                 {
@@ -130,7 +140,7 @@ public class SuperAdminService : ISuperAdminService
             Guid? oldPlanId = currentSub?.PlanId;
             DateTime? oldEndDate = currentSub?.EndDate;
 
-            switch (request.Action.ToLower())
+            switch (action)
             {
                 case "upgrade":
                 case "downgrade":
@@ -143,42 +153,39 @@ public class SuperAdminService : ISuperAdminService
                         };
                     }
 
-                    var plan = await _paymentRepository.GetSubscriptionPlanByIdAsync(request.NewPlanId.Value);
-                    if (plan == null)
+                    var plan = await _entitlementService.GetPlanAsync(request.NewPlanId.Value);
+                    if (plan == null || !string.Equals(
+                            plan.Status?.Trim(),
+                            "active",
+                            StringComparison.OrdinalIgnoreCase))
                     {
                         return new ServiceResponse<bool>
                         {
                             Success = false,
-                            Message = "Selected plan not found"
+                            Message = "The selected plan is unavailable or archived."
                         };
                     }
 
-                    var updateRequest = new UpdateCompanySubscriptionRequest
+                    var billingCycle = request.BillingCycle ?? currentSub?.BillingCycle ?? "monthly";
+                    var startDate = DateTime.UtcNow;
+                    var endDate = request.NewEndDate ?? (string.Equals(
+                        billingCycle,
+                        "annual",
+                        StringComparison.OrdinalIgnoreCase)
+                        ? startDate.AddYears(1)
+                        : startDate.AddMonths(1));
+                    var assigned = await _entitlementService.AssignTenantPlanAsync(companyId, new TenantPlanAssignmentRequest
                     {
                         PlanId = request.NewPlanId.Value,
                         Status = "active",
-                        BillingCycle = request.BillingCycle ?? currentSub?.BillingCycle ?? "monthly",
-                        StartDate = DateTime.UtcNow,
-                        EndDate = request.NewEndDate ?? DateTime.UtcNow.AddMonths(
-                            (request.BillingCycle ?? currentSub?.BillingCycle) == "annual" ? 12 : 1)
-                    };
-
-                    if (currentSub != null)
+                        BillingCycle = billingCycle,
+                        StartDate = startDate,
+                        EndDate = endDate,
+                        CustomCurrency = plan.Currency
+                    }, performedBy);
+                    if (!assigned)
                     {
-                        await _paymentRepository.UpdateCompanySubscriptionAsync(currentSub.SubscriptionId, updateRequest);
-                    }
-                    else
-                    {
-                        // Create new subscription
-                        await _paymentRepository.CreateCompanySubscriptionAsync(new CreateCompanySubscriptionRequest
-                        {
-                            CompanyId = companyId,
-                            PlanId = request.NewPlanId.Value,
-                            Status = "active",
-                            BillingCycle = request.BillingCycle ?? "monthly",
-                            StartDate = DateTime.UtcNow,
-                            EndDate = updateRequest.EndDate
-                        });
+                        throw new InvalidOperationException("The subscription could not be updated.");
                     }
                     break;
 
@@ -220,24 +227,35 @@ public class SuperAdminService : ISuperAdminService
             await _superAdminRepository.LogSubscriptionHistoryAsync(
                 subscriptionId: currentSub?.SubscriptionId ?? Guid.Empty,
                 companyId: companyId,
-                action: request.Action.ToLower(),
+                action,
                 oldPlanId: oldPlanId,
                 newPlanId: request.NewPlanId,
                 oldEndDate: oldEndDate,
-                newEndDate: request.NewEndDate ?? (request.Action == "cancel" ? DateTime.UtcNow : null),
+                newEndDate: request.NewEndDate ?? (action == "cancel" ? DateTime.UtcNow : null),
                 performedBy: performedBy,
                 notes: request.Notes
             );
 
+            _entitlementService.InvalidateTenantCache(companyId);
             _logger.LogInformation("Subscription {Action} for company {CompanyId} by admin {AdminId}",
-                request.Action, companyId, performedBy);
+                action, companyId, performedBy);
 
             return new ServiceResponse<bool>
             {
                 Success = true,
                 Data = true,
-                Message = $"Subscription {request.Action} completed successfully"
+                Message = $"Subscription {action} completed successfully"
             };
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid subscription change for {CompanyId}", companyId);
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Subscription change rejected for {CompanyId}", companyId);
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
         }
         catch (Exception ex)
         {

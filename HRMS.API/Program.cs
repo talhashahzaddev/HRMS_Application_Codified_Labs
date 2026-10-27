@@ -296,6 +296,8 @@ builder.Services.AddScoped<IGeoFenceService, GeoFenceService>();
 builder.Services.AddScoped<IPlatformAdminAuthService, PlatformAdminAuthService>();
 builder.Services.AddScoped<IDemoInquiryService, DemoInquiryService>();
 builder.Services.AddScoped<ISuperAdminService, SuperAdminService>();
+builder.Services.AddScoped<IEntitlementRepository, EntitlementRepository>();
+builder.Services.AddScoped<IEntitlementService, EntitlementService>();
 
 // -------------------- REPOSITORIES --------------------
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
@@ -353,6 +355,7 @@ app.UseStaticFiles();
 app.UseCors("ConfiguredOrigins");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<TenantEntitlementMiddleware>();
 
 app.UseMiddleware<ErrorHandlingMiddleware>();
 app.UseMiddleware<RequestLoggingMiddleware>();

@@ -29,17 +29,19 @@ public class EmailService : IEmailService
         {
             var publicKey = _configuration["MailJet:PublicKey"];
             var privateKey = _configuration["MailJet:PrivateKey"];
-            var fromEmail = _configuration["MailJet:FromEmail"];
-            var fromName = _configuration["MailJet:FromName"];
+            var fromEmail = _configuration["MailJet:FromEmail"] ?? _configuration["Email:FromEmail"];
+            var fromName = _configuration["MailJet:FromName"] ?? _configuration["Email:FromName"];
 
-            if (string.IsNullOrWhiteSpace(fromEmail))
+            if (!IsConfigured(publicKey) ||
+                !IsConfigured(privateKey) ||
+                !IsConfigured(fromEmail))
             {
-                _logger.LogError("MailJet FromEmail is missing or not verified.");
+                _logger.LogError(
+                    "Mailjet is not configured. Set MailJet:PublicKey, MailJet:PrivateKey, and MailJet:FromEmail (or Email:FromEmail).");
                 return false;
             }
 
-            var client = new MailjetClient(publicKey, privateKey);
-
+            var client = new MailjetClient(publicKey!, privateKey!);
             var request = new MailjetRequest
             {
                 Resource = SendV31.Resource
@@ -78,10 +80,14 @@ public class EmailService : IEmailService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Mailjet email exception");
+            _logger.LogError(ex, "Email delivery failed.");
             return false;
         }
     }
+
+    private static bool IsConfigured(string? value) =>
+        !string.IsNullOrWhiteSpace(value) &&
+        !value.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase);
 
     // ================= EXISTING METHODS (UNCHANGED) =================
 
@@ -510,7 +516,20 @@ public class EmailService : IEmailService
     }
     public async Task<bool> SendVerificationEmailAsync(string email, string adminName, string verificationToken)
     {
-        var verifyLink = $"{_configuration["EmployeePortal:PortalUrl"]}verify-email?token={verificationToken}";
+        var portalUrl = _configuration["EmployeePortal:PortalUrl"];
+        if (!Uri.TryCreate(portalUrl, UriKind.Absolute, out var portalUri) ||
+            (portalUri.Scheme != Uri.UriSchemeHttp && portalUri.Scheme != Uri.UriSchemeHttps))
+        {
+            _logger.LogError("EmployeePortal:PortalUrl must be an absolute HTTP or HTTPS URL.");
+            return false;
+        }
+
+        var portalBaseUri = new Uri(portalUri.ToString().TrimEnd('/') + "/");
+        var verifyUri = new Uri(
+            portalBaseUri,
+            $"verify-email?token={Uri.EscapeDataString(verificationToken)}");
+        var verifyLink = System.Net.WebUtility.HtmlEncode(verifyUri.AbsoluteUri);
+        var safeAdminName = System.Net.WebUtility.HtmlEncode(adminName);
 
         var subject = "Verify Your Organization Email | BriskPeople";
 
@@ -537,7 +556,7 @@ public class EmailService : IEmailService
                 </tr>
                 <tr>
                     <td style='padding:35px;color:#333;font-size:14px;line-height:1.7;'>
-                        <p style='margin-top:0;'>Hi <strong>{adminName}</strong>,</p>
+                        <p style='margin-top:0;'>Hi <strong>{safeAdminName}</strong>,</p>
                         <p>Thank you for registering your organization on<strong>BriskPeople</strong>.</p>
                         <p>To complete your registration and activate your account,please verify your email address by clicking the button below:</p>
                         <p style='text-align:center;margin:35px 0;'>

@@ -11,6 +11,7 @@ public class SubscriptionPlanDto
     public decimal? MonthlyPrice { get; set; }
     public decimal? AnnualPrice { get; set; }
     public int? MaxUsers { get; set; }
+    public string Currency { get; set; } = "BHD";
     public Dictionary<string, object>? Features { get; set; }
     public bool IsCustom { get; set; }
     public bool IsActive { get; set; }

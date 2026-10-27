@@ -328,6 +328,7 @@ public class AuthController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning(ex, "Registration was rejected.");
             return BadRequest(new ServiceResponse<AuthResponse>
             {
                 Success = false,
@@ -341,6 +342,41 @@ public class AuthController : ControllerBase
             {
                 Success = false,
                 Message = "An error occurred during registration"
+            });
+        }
+    }
+
+    [HttpPost("resend-verification")]
+    public async Task<ActionResult<ServiceResponse<bool>>> ResendVerification([FromBody] ResendVerificationRequest request)
+    {
+        if (!ModelState.IsValid || string.IsNullOrWhiteSpace(request?.Email))
+        {
+            return BadRequest(new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "A valid email address is required."
+            });
+        }
+
+        try
+        {
+            var sent = await _authService.ResendVerificationEmailAsync(request.Email);
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = sent,
+                Data = sent,
+                Message = sent
+                    ? "Verification email sent. Check your inbox."
+                    : "No pending verification was found, or the email could not be sent."
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unable to resend verification email.");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "Unable to send the verification email. Please try again later."
             });
         }
     }
@@ -417,12 +453,12 @@ public class AuthController : ControllerBase
                     Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
                 });
             }
-            var result = await _authService.ForgotPasswordAsync(request);
+            await _authService.ForgotPasswordAsync(request);
             return Ok(new ServiceResponse<bool>
             {
                 Success = true,
-                Message = "Password reset email sent successfully",
-                Data = result
+                Message = "If an account exists for that email, password reset instructions will be sent.",
+                Data = true
             });
         }
         catch (ArgumentException ex)
@@ -600,7 +636,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Email verification failed for token: {Token}", token);
+            _logger.LogError(ex, "Email verification failed.");
             return StatusCode(500, new ServiceResponse<bool>
             {
                 Success = false,

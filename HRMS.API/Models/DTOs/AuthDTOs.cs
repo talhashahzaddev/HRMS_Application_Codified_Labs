@@ -18,6 +18,7 @@ public class AuthResponse
     public string Token { get; set; } = string.Empty;
     public string RefreshToken { get; set; } = string.Empty;
     public DateTime TokenExpiration { get; set; }
+    public bool? EmailVerificationSent { get; set; }
 }
 
 public class RefreshTokenRequest
@@ -65,6 +66,11 @@ public class RegisterRequest
 }
 
 public class ForgotPasswordRequest
+{
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResendVerificationRequest
 {
     public string Email { get; set; } = string.Empty;
 }

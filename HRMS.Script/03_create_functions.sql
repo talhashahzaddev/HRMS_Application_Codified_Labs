@@ -436,9 +436,11 @@ DECLARE
 BEGIN
     UPDATE auth.users
     SET
+        emailverified = TRUE,
         emailVerify = TRUE,
         emailVerifyToken = NULL,
-        emailVerifyExpiry = NULL
+        emailVerifyExpiry = NULL,
+        updatedat = CURRENT_TIMESTAMP
     WHERE emailVerifyToken = p_token
       AND emailVerifyExpiry > p_verify_time
       AND emailVerify = FALSE;
