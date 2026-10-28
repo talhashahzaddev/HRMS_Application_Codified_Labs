@@ -162,19 +162,19 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
     {
         const string sql = """
             SELECT
-                planid AS PlanId,
-                name AS Name,
-                code AS Code,
-                monthlyprice AS PriceMonthly,
-                annualprice AS PriceAnnual,
-                currency AS Currency,
-                maxusers AS MaxUsers,
-                user_count_type AS UserCountType,
-                iscustom AS IsCustom,
-                is_public AS IsPublic,
-                is_recommended AS IsRecommended,
-                status AS Status,
-                version AS Version
+                planid AS "PlanId",
+                name AS "Name",
+                code AS "Code",
+                monthlyprice AS "PriceMonthly",
+                annualprice AS "PriceAnnual",
+                currency AS "Currency",
+                maxusers AS "MaxUsers",
+                user_count_type AS "UserCountType",
+                iscustom AS "IsCustom",
+                is_public AS "IsPublic",
+                is_recommended AS "IsRecommended",
+                status AS "Status",
+                version AS "Version"
             FROM payment.subscriptionplans
             WHERE @includeArchived OR status = 'active'
             ORDER BY monthlyprice NULLS LAST, name;
@@ -194,19 +194,19 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
     {
         const string sql = """
             SELECT
-                planid AS PlanId,
-                name AS Name,
-                code AS Code,
-                monthlyprice AS PriceMonthly,
-                annualprice AS PriceAnnual,
-                currency AS Currency,
-                maxusers AS MaxUsers,
-                user_count_type AS UserCountType,
-                iscustom AS IsCustom,
-                is_public AS IsPublic,
-                is_recommended AS IsRecommended,
-                status AS Status,
-                version AS Version
+                planid AS "PlanId",
+                name AS "Name",
+                code AS "Code",
+                monthlyprice AS "PriceMonthly",
+                annualprice AS "PriceAnnual",
+                currency AS "Currency",
+                maxusers AS "MaxUsers",
+                user_count_type AS "UserCountType",
+                iscustom AS "IsCustom",
+                is_public AS "IsPublic",
+                is_recommended AS "IsRecommended",
+                status AS "Status",
+                version AS "Version"
             FROM payment.subscriptionplans
             WHERE planid = @planId;
             """;
@@ -507,7 +507,7 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
     public async Task<bool> AssignTenantPlanAsync(Guid tenantId, TenantPlanAssignmentRequest request, Guid? actor)
     {
         const string planSql = """
-            SELECT planid AS PlanId, code AS Code, status AS Status
+            SELECT planid AS "PlanId", code AS "Code", status AS "Status"
             FROM payment.subscriptionplans
             WHERE planid = @PlanId;
             """;
@@ -521,18 +521,20 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
                 planSql,
                 new { request.PlanId },
                 transaction);
-            if (plan == null || !string.Equals(
-                    ((string?)plan.Status)?.Trim(),
-                    "active",
-                    StringComparison.OrdinalIgnoreCase))
+            if (plan == null)
             {
-                throw new ArgumentException("The selected plan does not exist or is archived.");
+                throw new ArgumentException($"Plan ID '{request.PlanId}' was not found. Reload the plan list and try again.");
+            }
+
+            if (!string.Equals(((string?)plan.Status)?.Trim(), "active", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"Plan '{(string?)plan.Code}' is not active (status: '{(string?)plan.Status}'). Select an active plan.");
             }
 
             const string currentSql = """
-                SELECT subscriptionid AS SubscriptionId, planid AS PlanId, status AS Status,
-                       billingcycle AS BillingCycle, startdate AS StartDate, enddate AS EndDate,
-                       trial_ends_at AS TrialEndsAt
+                  SELECT subscriptionid AS "SubscriptionId", planid AS "PlanId", status AS "Status",
+                      billingcycle AS "BillingCycle", startdate AS "StartDate", enddate AS "EndDate",
+                      trial_ends_at AS "TrialEndsAt"
                 FROM payment.companysubscriptions
                 WHERE companyid = @tenantId
                 ORDER BY
@@ -639,15 +641,15 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
     {
         var beforeOverrides = await GetTenantOverridesAsync(tenantId);
         const string planSql = """
-            SELECT code AS Code, status AS Status
+            SELECT code AS "Code", status AS "Status"
             FROM payment.subscriptionplans
             WHERE planid = @PlanId;
             """;
         const string currentSql = """
-            SELECT subscriptionid AS SubscriptionId, planid AS PlanId, status AS Status,
-                   billingcycle AS BillingCycle, startdate AS StartDate, enddate AS EndDate,
-                   trial_ends_at AS TrialEndsAt, custom_price AS CustomPrice,
-                   custom_max_users AS CustomMaxUsers, custom_currency AS CustomCurrency
+            SELECT subscriptionid AS "SubscriptionId", planid AS "PlanId", status AS "Status",
+                   billingcycle AS "BillingCycle", startdate AS "StartDate", enddate AS "EndDate",
+                   trial_ends_at AS "TrialEndsAt", custom_price AS "CustomPrice",
+                   custom_max_users AS "CustomMaxUsers", custom_currency AS "CustomCurrency"
             FROM payment.companysubscriptions
             WHERE companyid = @tenantId
             ORDER BY
@@ -666,12 +668,14 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
                 planSql,
                 new { request.PlanId },
                 transaction);
-            if (plan == null || !string.Equals(
-                    ((string?)plan.Status)?.Trim(),
-                    "active",
-                    StringComparison.OrdinalIgnoreCase))
+            if (plan == null)
             {
-                throw new ArgumentException("The selected plan does not exist or is archived.");
+                throw new ArgumentException($"Plan ID '{request.PlanId}' was not found. Reload the plan list and try again.");
+            }
+
+            if (!string.Equals(((string?)plan.Status)?.Trim(), "active", StringComparison.OrdinalIgnoreCase))
+            {
+                throw new ArgumentException($"Plan '{(string?)plan.Code}' is not active (status: '{(string?)plan.Status}'). Select an active plan.");
             }
 
             var beforeSubscription = await connection.QuerySingleOrDefaultAsync<dynamic>(

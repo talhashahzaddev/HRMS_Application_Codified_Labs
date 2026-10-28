@@ -30,10 +30,23 @@ namespace HRMS.AI.Services
         {
             var intentResult = await _intentService.DetectIntentAsync(request.Message);
 
-             if (intentResult.Intent == ChatIntent.Guidance || intentResult.Intent == ChatIntent.Greeting)
+            if (intentResult.Intent is ChatIntent.Guidance or ChatIntent.Greeting or ChatIntent.Unknown or ChatIntent.GetPayslip)
              {
-                var guidance = await _guidance_service.GenerateGuidanceAsync(request.Message, intentResult.Module,roleName,domain);
-                     return new ChatResponseDto { Intent = intentResult.Intent, ResponseText = guidance, Module = intentResult.Module };
+                var module = intentResult.Intent switch
+                {
+                    ChatIntent.GetPayslip => "Payroll",
+                    ChatIntent.Unknown => string.Empty,
+                    _ => intentResult.Module
+                };
+                var guidance = await _guidance_service.GenerateGuidanceAsync(request.Message, module, roleName, domain);
+                return new ChatResponseDto
+                {
+                    Intent = intentResult.Intent == ChatIntent.Unknown || intentResult.Intent == ChatIntent.GetPayslip
+                        ? ChatIntent.Guidance
+                        : intentResult.Intent,
+                    ResponseText = guidance,
+                    Module = module
+                };
              }
 
             // For all non-Guidance intents, return the detected intent name (and module if any) to the controller.

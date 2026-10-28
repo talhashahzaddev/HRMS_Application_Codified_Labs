@@ -235,12 +235,14 @@ public sealed class EntitlementService : IEntitlementService
         }
 
         var plan = await _repository.GetPlanAsync(request.PlanId);
-        if (plan == null || !string.Equals(
-                plan.Status?.Trim(),
-                "active",
-                StringComparison.OrdinalIgnoreCase))
+        if (plan == null)
         {
-            throw new ArgumentException("The selected plan does not exist or is archived.");
+            throw new ArgumentException($"Plan ID '{request.PlanId}' was not found. Reload the plan list and try again.");
+        }
+
+        if (!string.Equals(plan.Status?.Trim(), "active", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"Plan '{plan.Code}' is not active (status: '{plan.Status}'). Select an active plan.");
         }
 
         var maximumUsers = request.CustomMaxUsers ?? plan.MaxUsers;
@@ -295,12 +297,14 @@ public sealed class EntitlementService : IEntitlementService
         }
 
         var plan = await _repository.GetPlanAsync(request.PlanId);
-        if (plan == null || !string.Equals(
-                plan.Status?.Trim(),
-                "active",
-                StringComparison.OrdinalIgnoreCase))
+        if (plan == null)
         {
-            throw new ArgumentException("The selected plan does not exist or is archived.");
+            throw new ArgumentException($"Plan ID '{request.PlanId}' was not found. Reload the plan list and try again.");
+        }
+
+        if (!string.Equals(plan.Status?.Trim(), "active", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new ArgumentException($"Plan '{plan.Code}' is not active (status: '{plan.Status}'). Select an active plan.");
         }
 
         var maximumUsers = request.CustomMaxUsers ?? plan.MaxUsers;

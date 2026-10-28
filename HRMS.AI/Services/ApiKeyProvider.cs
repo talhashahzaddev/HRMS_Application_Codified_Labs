@@ -29,7 +29,7 @@ namespace HRMS.AI.Services
                                     .Where(v => !string.IsNullOrWhiteSpace(v))
                                     .ToList();
 
-            var singleKey = configuration["GroqAI:ApiKey"] ?? configuration["GROQ_API_KEY"];
+            var singleKey = configuration["GROQ_API_KEY"] ?? configuration["GroqAI:ApiKey"];
             if (!string.IsNullOrWhiteSpace(singleKey) && !_allKeys.Contains(singleKey))
                 _allKeys.Insert(0, singleKey);
 
@@ -49,8 +49,8 @@ namespace HRMS.AI.Services
                         {
                             model = configuration["GroqAI:Model"],
                             messages = new[] {
-                        new { role = "system", content = "" },
-                        new { role = "user", content = "Hy" }
+                        new { role = "system", content = "You are a helpful assistant." },
+                        new { role = "user", content = "Hi" }
                     },
                             max_tokens = 20,
                             temperature = 0.0
@@ -65,12 +65,14 @@ namespace HRMS.AI.Services
                         if (response.IsSuccessStatusCode)
                         {
                             _activeKeys.Add(key);
-                            break;
                             _logger.LogInformation("API key validated successfully.");
+                            break;
                         }
                         else
                         {
-                            _logger.LogWarning("API key validation failed.");
+                            _logger.LogWarning(
+                                "API key validation failed with status code {StatusCode}.",
+                                (int)response.StatusCode);
                         }
                     }
                     catch (Exception ex)
