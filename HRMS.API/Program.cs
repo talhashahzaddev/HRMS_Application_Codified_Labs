@@ -352,7 +352,8 @@ builder.Services.AddScoped<IHolidayService, HolidayService>();
 builder.Services.AddScoped<IPayRollService, PayRollService>();
 builder.Services.AddScoped<IPayslipBulkUploadService, PayslipBulkUploadService>();
 builder.Services.AddScoped<IBulkPayslipJobService, BulkPayslipJobService>();
-builder.Services.AddScoped<IApiKeyProvider, ApiKeyProvider>();
+// Singleton: Groq keys are validated once for the whole app, not on every chat request.
+builder.Services.AddSingleton<IApiKeyProvider, ApiKeyProvider>();
 builder.Services.AddScoped<IHelpDeskService, HelpDeskService>();
 builder.Services.AddScoped<IGeoFenceService, GeoFenceService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
@@ -427,6 +428,14 @@ builder.Services.Configure<FormOptions>(options =>
 });
 // ===================== PIPELINE =====================
 var app = builder.Build();
+
+// Validate the Groq key once at startup in the background, so the first chat message doesn't wait for it
+// and a bad key is logged right away instead of failing silently later.
+_ = Task.Run(() =>
+{
+    try { app.Services.GetRequiredService<IApiKeyProvider>().GetCurrentKey(); }
+    catch (Exception ex) { app.Logger.LogError(ex, "AI Assistant is unavailable: Groq API key check failed at startup."); }
+});
 
 app.UseSwagger();
 app.UseSwaggerUI(c =>

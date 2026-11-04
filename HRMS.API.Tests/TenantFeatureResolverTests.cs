@@ -63,3 +63,40 @@ public sealed class TenantFeatureResolverTests
     private static FeatureEntitlementDto Feature(string key, bool enabled, int? limit = null) =>
         new() { Key = key, Enabled = enabled, Limit = limit };
 }
+
+public sealed class TenantFeatureResolverExtraTests
+{
+    private static FeatureEntitlementDto F(string key, bool enabled, int? limit = null) =>
+        new() { Key = key, Enabled = enabled, Limit = limit };
+
+    [Fact]
+    public void Resolve_OverrideKeyIsCaseInsensitive()
+    {
+        var features = TenantFeatureResolver.Resolve([F("Payroll", true)], [F("payroll", false)]);
+        Assert.Single(features);
+        Assert.False(features["PAYROLL"].Enabled);
+    }
+
+    [Fact]
+    public void Resolve_DoesNotMutateInputPlan()
+    {
+        var plan = F("payroll", true, 10);
+        TenantFeatureResolver.Resolve([plan], [F("payroll", false, 1)]);
+        Assert.True(plan.Enabled);
+        Assert.Equal(10, plan.Limit);
+    }
+
+    [Fact]
+    public void NormalizeStatus_ExpiresWhenEndDatePassed()
+    {
+        var now = new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc);
+        Assert.Equal("expired", EntitlementRules.NormalizeSubscriptionStatus("Active", now.AddDays(-1), null, now));
+    }
+
+    [Fact]
+    public void NormalizeStatus_ActiveSubscriptionIsLowercased()
+    {
+        var now = new DateTime(2026, 1, 10, 0, 0, 0, DateTimeKind.Utc);
+        Assert.Equal("active", EntitlementRules.NormalizeSubscriptionStatus("ACTIVE", now.AddDays(30), null, now));
+    }
+}

@@ -93,7 +93,7 @@ namespace HRMS.API.Authorization
             }
 
             var role = await _authRepository.GetRoleByNameforTokenAsync(roleName, organizationId);
-            return role.RoleId;
+            return role?.RoleId;
         }
     }
 

@@ -138,22 +138,14 @@ public class AuthService : IAuthService
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         if (string.IsNullOrWhiteSpace(request.RefreshToken)) throw new ArgumentException("Refresh token is required", nameof(request.RefreshToken));
-        ClaimsPrincipal? principal;
-        try
-        {
-            principal = GetPrincipalFromExpiredToken(request.RefreshToken);
-        }
-        catch (SecurityTokenException)
-        {
-            throw new UnauthorizedAccessException("Invalid refresh token");
-        }
-        if (principal?.Identity?.Name == null)
-            throw new UnauthorizedAccessException("Invalid refresh token");
+        // The refresh token is an opaque random string (see GenerateRefreshToken), not a JWT,
+        // so it is looked up directly instead of being decoded.
+        var user = await _authRepository.GetUserByRefreshTokenAsync(request.RefreshToken);
 
-        var userEmail = principal.Identity.Name;
-        var user = await _authRepository.GetUserByEmailAsync(userEmail);
-
-        if (user?.RefreshToken != request.RefreshToken || user.RefreshTokenExpiresAt <= DateTime.UtcNow)
+        if (user == null
+            || user.RefreshToken != request.RefreshToken
+            || user.RefreshTokenExpiresAt == null
+            || user.RefreshTokenExpiresAt <= DateTime.UtcNow)
         {
             throw new UnauthorizedAccessException("Invalid or expired refresh token");
         }
@@ -170,6 +162,7 @@ public class AuthService : IAuthService
             LastName = user.LastName,
             RoleName = user.Role?.RoleName ?? "Employee",
             OrganizationName = user.Organization?.Name ?? "Unknown",
+            Domain = user.Organization?.Domain,
             Token = newAccessToken,
             RefreshToken = newRefreshToken,
             TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
@@ -673,7 +666,7 @@ public class AuthService : IAuthService
         var role_id = await _authRepository.GetRoleByNameforTokenAsync(user.Role?.RoleName ?? "Employee", organizationId);
 
         // Keep JWT compact: store roleId only and evaluate permissions server-side from cache/database.
-        if (role_id.RoleId.HasValue)
+        if (role_id?.RoleId is not null)
         {
             claims.Add(new Claim(CustomClaimTypes.RoleId, role_id.RoleId.Value.ToString()));
         }
@@ -712,29 +705,6 @@ public class AuthService : IAuthService
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomBytes);
         return Convert.ToBase64String(randomBytes);
-    }
-
-    private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
-    {
-        var tokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateAudience = false,
-            ValidateIssuer = false,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_jwtSettings.SecretKey)),
-            ValidateLifetime = false
-        };
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken validatedToken);
-
-        if (validatedToken is not JwtSecurityToken jwtSecurityToken ||
-            !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-        {
-            throw new SecurityTokenException("Invalid token");
-        }
-
-        return principal;
     }
 
     // Debug methods for testing
