@@ -6,27 +6,30 @@ namespace HRMS.API.Hubs;
 [Authorize]
 public sealed class PermissionHub : Hub
 {
+    public const string RoleUpdatedEvent = "RoleUpdated";
+    public const string EmployeeUpdatedEvent = "EmployeeUpdated";
+
+    // Join group for a specific role within an organization
     public Task JoinRole(string organizationId, string roleId)
     {
         if (string.IsNullOrWhiteSpace(organizationId) || string.IsNullOrWhiteSpace(roleId))
-        {
-            throw new HubException("Organization and role are required.");
-        }
+            throw new HubException("OrganizationId and RoleId are required.");
 
-        return Groups.AddToGroupAsync(
-            Context.ConnectionId,
-            $"role_{organizationId.Trim()}_{roleId.Trim()}");
+        return Groups.AddToGroupAsync(Context.ConnectionId, GetRoleGroupName(organizationId, roleId));
     }
 
-    public Task JoinEmployee(string organizationId, string employeeId)
+    // Join group for a specific employee within an organization
+    public Task JoinEmployee(string organizationId, string userId)
     {
-        if (string.IsNullOrWhiteSpace(organizationId) || string.IsNullOrWhiteSpace(employeeId))
-        {
-            throw new HubException("Organization and employee are required.");
-        }
+        if (string.IsNullOrWhiteSpace(organizationId) || string.IsNullOrWhiteSpace(userId))
+            throw new HubException("OrganizationId and EmployeeId are required.");
 
-        return Groups.AddToGroupAsync(
-            Context.ConnectionId,
-            $"employee_{organizationId.Trim()}_{employeeId.Trim()}");
+        return Groups.AddToGroupAsync(Context.ConnectionId, GetEmployeeGroupName(organizationId, userId));
     }
+
+    public static string GetRoleGroupName(string organizationId, string roleId) =>
+        $"role_{organizationId.Trim()}_{roleId.Trim()}";
+
+    public static string GetEmployeeGroupName(string organizationId, string? userId) =>
+        $"employee_{organizationId.Trim()}_{userId?.Trim()}";
 }

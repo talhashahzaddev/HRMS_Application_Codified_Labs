@@ -11,7 +11,7 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
     public ExpenseRepository(IDatabaseConnectionFactory connectionFactory) : base(connectionFactory) { }
 
     // ==================== ExpenseCategories ====================
-    public async Task<IEnumerable<ExpenseCategoryDto>> GetExpenseCategoriesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<ExpenseCategoryDto>> GetExpenseCategoriesAsync(Guid organizationId)
     {
         var sql = @"
             SELECT categoryid AS CategoryId, organizationid AS OrganizationId, name AS Name, createdat AS CreatedAt
@@ -58,7 +58,7 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
     }
 
     // ==================== Expenses ====================
-    public async Task<IEnumerable<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
+    public async Task<IReadOnlyList<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
     {
         var sql = @"
             SELECT e.expenseid AS ExpenseId, e.organizationid AS OrganizationId, e.employeeid AS EmployeeId,
@@ -198,7 +198,7 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
     }
 
     // ==================== RecurringExpenses ====================
-    public async Task<IEnumerable<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
+    public async Task<IReadOnlyList<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
     {
         var sql = @"
             SELECT r.recurringexpenseid AS RecurringExpenseId, r.organizationid AS OrganizationId, r.employeeid AS EmployeeId,
@@ -339,7 +339,7 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         return rows > 0;
     }
 
-    public async Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+    public async Task<IReadOnlyList<ExpensePieReportItemDto>> GetExpensePieReportAsync(
         Guid organizationId,
         DateTime fromDate,
         DateTime toDate,
@@ -419,7 +419,7 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         return result.Values.OrderBy(x => x.CategoryName).ToList();
     }
 
-    public async Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+    public async Task<IReadOnlyList<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
         Guid organizationId,
         int year,
         bool includeExpense,
@@ -474,7 +474,7 @@ public class ExpenseRepository : BaseRepository, IExpenseRepository
         return result.Values.OrderBy(x => x.Month).ToList();
     }
 
-    public async Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+    public async Task<IReadOnlyList<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
         Guid organizationId,
         int fromYear,
         int toYear,

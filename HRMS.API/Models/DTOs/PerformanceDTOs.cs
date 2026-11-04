@@ -153,6 +153,8 @@ public class EmployeeSkillFilterRequest
     public string? Department { get; set; }
     public int? ProficiencyLevel { get; set; }
     public string? Search { get; set; }
+    public Guid? ReportingManagerId { get; set; }
+    public bool? OnlySelfAdded { get; set; }
 }
 
 public class AppraisalFilterRequest

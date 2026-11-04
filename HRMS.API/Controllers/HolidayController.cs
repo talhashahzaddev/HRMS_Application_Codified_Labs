@@ -1,10 +1,11 @@
+using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
+using HRMS.API.Repositories.Interfaces;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Services.Interfaces;
-using HRMS.API.Repositories.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
+using System.Security.Claims;
 
 namespace HRMS.API.Controllers;
 
@@ -72,7 +73,8 @@ public class HolidayController : ControllerBase
     // ========================
 
     [HttpGet]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("Holiday_Table")]
+
     public async Task<ActionResult<ServiceResponse<IEnumerable<CompanyHolidayDto>>>> GetCompanyHolidays([FromQuery] int? year)
     {
         try
@@ -94,7 +96,6 @@ public class HolidayController : ControllerBase
     }
 
     [HttpGet("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<CompanyHolidayDto>>> GetCompanyHoliday(Guid id)
     {
         try
@@ -119,13 +120,14 @@ public class HolidayController : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("add_holidays")]
+
     public async Task<ActionResult<ServiceResponse<CompanyHolidayDto>>> CreateCompanyHoliday([FromBody] CreateCompanyHolidayDto dto)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var result = await _holidayService.CreateCompanyHolidayAsync(dto, organizationId, employeeId);
 
             if (!result.Success)
@@ -145,7 +147,7 @@ public class HolidayController : ControllerBase
     }
 
     [HttpPut("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize(" edit_holidays_details")]
     public async Task<ActionResult<ServiceResponse<CompanyHolidayDto>>> UpdateCompanyHoliday(Guid id, [FromBody] UpdateCompanyHolidayDto dto)
     {
         try
@@ -170,7 +172,7 @@ public class HolidayController : ControllerBase
     }
 
     [HttpDelete("{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("delete_holidays_details")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteCompanyHoliday(Guid id)
     {
         try
@@ -195,13 +197,13 @@ public class HolidayController : ControllerBase
     }
 
     [HttpPost("import-from-catalog")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("import_holidays_from_catalog")]
     public async Task<ActionResult<ServiceResponse<List<CompanyHolidayDto>>>> ImportFromCatalog([FromBody] ImportFromCatalogDto dto)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var result = await _holidayService.ImportFromCatalogAsync(dto, organizationId, employeeId);
 
             if (!result.Success)
@@ -225,7 +227,6 @@ public class HolidayController : ControllerBase
     // ========================
 
     [HttpGet("{holidayId}/assignments")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<Guid>>>> GetEmployeeAssignments(Guid holidayId)
     {
         try
@@ -250,7 +251,6 @@ public class HolidayController : ControllerBase
     // ========================
 
     [HttpGet("range")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<HolidayRangeDto>>>> GetHolidaysInRange(
         [FromQuery] DateTime start, [FromQuery] DateTime end)
     {
@@ -281,7 +281,7 @@ public class HolidayController : ControllerBase
         try
         {
             var organizationId = GetCurrentOrganizationId();
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var result = await _holidayService.GetHolidaysInRangeForEmployeeAsync(
                 organizationId, employeeId, null, null, start, end);
             return Ok(result);
@@ -318,7 +318,7 @@ public class HolidayController : ControllerBase
     }
 
     [HttpGet("summary")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("Holiday_Summary")]
     public async Task<ActionResult<ServiceResponse<HolidaySummaryDto>>> GetHolidaySummary([FromQuery] int? year)
     {
         try
@@ -344,7 +344,6 @@ public class HolidayController : ControllerBase
     // ========================
 
     [HttpGet("restricted")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<CompanyHolidayDto>>>> GetAvailableRestrictedHolidays([FromQuery] int? year)
     {
         try
@@ -370,7 +369,7 @@ public class HolidayController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var organizationId = GetCurrentOrganizationId();
             var targetYear = year ?? DateTime.UtcNow.Year;
             var result = await _holidayService.GetAvailableRestrictedHolidaysForEmployeeAsync(
@@ -393,7 +392,7 @@ public class HolidayController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var organizationId = GetCurrentOrganizationId();
             var targetYear = year ?? DateTime.UtcNow.Year;
             var result = await _holidayService.GetEmployeeRestrictedHolidaysAsync(employeeId, organizationId, targetYear);
@@ -415,7 +414,7 @@ public class HolidayController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var organizationId = GetCurrentOrganizationId();
             var result = await _holidayService.SelectRestrictedHolidayAsync(employeeId, organizationId, dto);
 
@@ -440,7 +439,7 @@ public class HolidayController : ControllerBase
     {
         try
         {
-            var employeeId = GetCurrentEmployeeId();
+            var employeeId = await GetCurrentEmployeeIdAsync();
             var result = await _holidayService.CancelRestrictedHolidayAsync(id, employeeId);
 
             if (!result.Success)
@@ -463,7 +462,7 @@ public class HolidayController : ControllerBase
     // Helper Methods
     // ========================
 
-    private Guid GetCurrentEmployeeId()
+    private async Task<Guid> GetCurrentEmployeeIdAsync()
     {
         var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -479,7 +478,7 @@ public class HolidayController : ControllerBase
             throw new UnauthorizedAccessException("Invalid user ID format");
         }
 
-        var employeeId = _employeeRepository.getemployeeid(userId).GetAwaiter().GetResult();
+        var employeeId = await _employeeRepository.GetEmployeeIdAsync(userId);
         if (employeeId == null)
         {
             _logger.LogError("Employee not found for User ID: {UserId}", userId);

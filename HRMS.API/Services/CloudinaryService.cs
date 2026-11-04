@@ -14,6 +14,7 @@ public class CloudinaryService : ICloudinaryService, IFileUploadService
     private const long MaxFileSizeBytes = 5 * 1024 * 1024;
     private const string ReceiptsFolder = "hrms/receipts";
     private const string ProfilePicturesFolder = "hrms/profile_pics";
+    private const string PayslipsFolder = "hrms/payslips";
 
     private static readonly HashSet<string> ReceiptAllowedTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -74,6 +75,45 @@ public class CloudinaryService : ICloudinaryService, IFileUploadService
     }
 
     public Task<string> UploadReceiptAsync(IFormFile file) => UploadFileAsync(file);
+
+    public async Task<string> UploadPayslipPdfFromPathAsync(string filePath, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
+        {
+            throw new FileNotFoundException("Payslip PDF file was not found.", filePath);
+        }
+
+        var fileInfo = new FileInfo(filePath);
+        if (fileInfo.Length == 0)
+        {
+            throw new ArgumentException("Payslip PDF file is empty.");
+        }
+
+        if (fileInfo.Length > MaxFileSizeBytes)
+        {
+            throw new ArgumentException("Payslip PDF must be 5 MB or less.");
+        }
+
+        try
+        {
+            await using var stream = File.OpenRead(filePath);
+            var uploadParams = new RawUploadParams
+            {
+                File = new FileDescription(Path.GetFileName(filePath), stream),
+                Folder = PayslipsFolder
+            };
+
+            var result = await _cloudinary.UploadAsync(uploadParams);
+            var url = ExtractSecureUrl(result);
+            _logger.LogInformation("Payslip PDF uploaded to Cloudinary from {FilePath}", filePath);
+            return url;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error uploading payslip PDF from path {FilePath}", filePath);
+            throw;
+        }
+    }
 
     public async Task<string> UploadFileAsync(IFormFile file, CancellationToken cancellationToken = default)
     {

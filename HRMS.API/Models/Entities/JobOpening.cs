@@ -79,4 +79,7 @@ public class JobOpening
 
     [Column("updatedat")]
     public DateTime? UpdatedAt { get; set; }
+
+    [Column("mandatoryskills")]
+    public string? MandatorySkills { get; set; }
 }

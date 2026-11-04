@@ -45,26 +45,26 @@ public class PaymentService : IPaymentService
         };
     }
 
-    public async Task<ServiceResponse<IEnumerable<SubscriptionPlanDto>>> GetAllSubscriptionPlansAsync()
+    public async Task<ServiceResponse<IReadOnlyList<SubscriptionPlanDto>>> GetAllSubscriptionPlansAsync()
     {
         _logger.LogInformation("Getting all subscription plans");
 
         var plans = await _paymentRepository.GetAllSubscriptionPlansAsync();
 
-        return new ServiceResponse<IEnumerable<SubscriptionPlanDto>>
+        return new ServiceResponse<IReadOnlyList<SubscriptionPlanDto>>
         {
             Success = true,
             Data = plans
         };
     }
 
-    public async Task<ServiceResponse<IEnumerable<SubscriptionPlanDto>>> GetActiveSubscriptionPlansAsync()
+    public async Task<ServiceResponse<IReadOnlyList<SubscriptionPlanDto>>> GetActiveSubscriptionPlansAsync()
     {
         _logger.LogInformation("Getting active subscription plans");
 
         var plans = await _paymentRepository.GetActiveSubscriptionPlansAsync();
 
-        return new ServiceResponse<IEnumerable<SubscriptionPlanDto>>
+        return new ServiceResponse<IReadOnlyList<SubscriptionPlanDto>>
         {
             Success = true,
             Data = plans
@@ -387,7 +387,7 @@ public class PaymentService : IPaymentService
         };
     }
 
-    public async Task<ServiceResponse<IEnumerable<CompanySubscriptionDto>>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId)
+    public async Task<ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId)
     {
         _logger.LogInformation("Getting subscriptions for company: {CompanyId}", companyId);
 
@@ -398,20 +398,20 @@ public class PaymentService : IPaymentService
 
         var subscriptions = await _paymentRepository.GetCompanySubscriptionsByCompanyIdAsync(companyId);
 
-        return new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+        return new ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>
         {
             Success = true,
             Data = subscriptions
         };
     }
 
-    public async Task<ServiceResponse<IEnumerable<CompanySubscriptionDto>>> GetAllCompanySubscriptionsAsync()
+    public async Task<ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>> GetAllCompanySubscriptionsAsync()
     {
         _logger.LogInformation("Getting all company subscriptions");
 
         var subscriptions = await _paymentRepository.GetAllCompanySubscriptionsAsync();
 
-        return new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+        return new ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>
         {
             Success = true,
             Data = subscriptions

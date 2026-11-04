@@ -11,6 +11,6 @@ namespace HRMS.API.Services.Interfaces
         Task<ServiceResponse<OrganizationDTO>> UpdateOrganizationAsync(Guid organizationId, UpdateOrganizationDTO updateOrganizationDTO);
         Task<ServiceResponse<bool>> DeleteOrganizationAsync(Guid organizationId);
         Task<ServiceResponse<OrganizationDTO>> GetOrganizationByDomainAsync(string domain);
-        Task<ServiceResponse<IEnumerable<OrganizationDTO>>> GetAllOrganizationsAsync();
+        Task<ServiceResponse<IReadOnlyList<OrganizationDTO>>> GetAllOrganizationsAsync();
     }
 }

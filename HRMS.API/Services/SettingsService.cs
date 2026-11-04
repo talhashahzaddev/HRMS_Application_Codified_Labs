@@ -11,6 +11,9 @@ public class SettingsService : ISettingsService
     private readonly IOrganizationRepository _organizationRepository;
     private readonly ILogger<SettingsService> _logger;
 
+    private static readonly Dictionary<Guid, List<CompanyPolicyDto>> _policyStore = new();
+    private static readonly object _policyStoreLock = new();
+
     public SettingsService(
         ISettingsRepository settingsRepository,
         IOrganizationRepository organizationRepository,
@@ -306,6 +309,159 @@ public class SettingsService : ISettingsService
                 Success = false,
                 Message = "An error occurred while retrieving career page details"
             };
+        }
+    }
+
+    public Task<ServiceResponse<IReadOnlyList<CompanyPolicyDto>>> GetPoliciesAsync(Guid organizationId)
+    {
+        lock (_policyStoreLock)
+        {
+            _policyStore.TryGetValue(organizationId, out var policies);
+            return Task.FromResult(new ServiceResponse<IReadOnlyList<CompanyPolicyDto>>
+            {
+                Success = true,
+                Data = (IReadOnlyList<CompanyPolicyDto>?)policies ?? Array.Empty<CompanyPolicyDto>()
+            });
+        }
+    }
+
+    public Task<ServiceResponse<CompanyPolicyDto>> GetPolicyByIdAsync(Guid organizationId, Guid policyId)
+    {
+        lock (_policyStoreLock)
+        {
+            if (!_policyStore.TryGetValue(organizationId, out var policies))
+            {
+                return Task.FromResult(new ServiceResponse<CompanyPolicyDto>
+                {
+                    Success = false,
+                    Message = "Policy not found"
+                });
+            }
+
+            var policy = policies.FirstOrDefault(p => p.Id == policyId);
+            if (policy == null)
+            {
+                return Task.FromResult(new ServiceResponse<CompanyPolicyDto>
+                {
+                    Success = false,
+                    Message = "Policy not found"
+                });
+            }
+
+            return Task.FromResult(new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = true,
+                Data = policy
+            });
+        }
+    }
+
+    public Task<ServiceResponse<CompanyPolicyDto>> CreatePolicyAsync(Guid organizationId, CreateCompanyPolicyRequest request, string createdBy)
+    {
+        lock (_policyStoreLock)
+        {
+            if (!_policyStore.TryGetValue(organizationId, out var policies))
+            {
+                policies = new List<CompanyPolicyDto>();
+                _policyStore[organizationId] = policies;
+            }
+
+            var policy = new CompanyPolicyDto
+            {
+                Id = Guid.NewGuid(),
+                OrganizationId = organizationId,
+                PolicyName = request.PolicyName?.Trim() ?? string.Empty,
+                Category = request.Category?.Trim() ?? string.Empty,
+                PolicyContent = request.PolicyContent ?? string.Empty,
+                Version = 1,
+                IsPublished = request.IsPublished,
+                CreatedBy = createdBy,
+                UpdatedBy = createdBy,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            policies.Add(policy);
+
+            return Task.FromResult(new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = true,
+                Message = "Policy created successfully",
+                Data = policy
+            });
+        }
+    }
+
+    public Task<ServiceResponse<CompanyPolicyDto>> UpdatePolicyAsync(Guid organizationId, Guid policyId, UpdateCompanyPolicyRequest request, string updatedBy)
+    {
+        lock (_policyStoreLock)
+        {
+            if (!_policyStore.TryGetValue(organizationId, out var policies))
+            {
+                return Task.FromResult(new ServiceResponse<CompanyPolicyDto>
+                {
+                    Success = false,
+                    Message = "Policy not found"
+                });
+            }
+
+            var existingPolicy = policies.FirstOrDefault(p => p.Id == policyId);
+            if (existingPolicy == null)
+            {
+                return Task.FromResult(new ServiceResponse<CompanyPolicyDto>
+                {
+                    Success = false,
+                    Message = "Policy not found"
+                });
+            }
+
+            existingPolicy.PolicyName = request.PolicyName?.Trim() ?? existingPolicy.PolicyName;
+            existingPolicy.Category = request.Category?.Trim() ?? existingPolicy.Category;
+            existingPolicy.PolicyContent = request.PolicyContent ?? existingPolicy.PolicyContent;
+            existingPolicy.IsPublished = request.IsPublished;
+            existingPolicy.Version += 1;
+            existingPolicy.UpdatedBy = updatedBy;
+            existingPolicy.UpdatedAt = DateTime.UtcNow;
+
+            return Task.FromResult(new ServiceResponse<CompanyPolicyDto>
+            {
+                Success = true,
+                Message = "Policy updated successfully",
+                Data = existingPolicy
+            });
+        }
+    }
+
+    public Task<ServiceResponse<bool>> DeletePolicyAsync(Guid organizationId, Guid policyId)
+    {
+        lock (_policyStoreLock)
+        {
+            if (!_policyStore.TryGetValue(organizationId, out var policies))
+            {
+                return Task.FromResult(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Policy not found"
+                });
+            }
+
+            var policy = policies.FirstOrDefault(p => p.Id == policyId);
+            if (policy == null)
+            {
+                return Task.FromResult(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Policy not found"
+                });
+            }
+
+            policies.Remove(policy);
+            return Task.FromResult(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Policy deleted successfully",
+                Data = true
+            });
         }
     }
 }

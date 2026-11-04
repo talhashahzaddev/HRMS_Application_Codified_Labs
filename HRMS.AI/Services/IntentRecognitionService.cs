@@ -1,4 +1,4 @@
-﻿using HRMS.AI.Models;
+using HRMS.AI.Models;
 using HRMS.AI.Models.Enums;
 using HRMS.AI.Services.Interface;
 using Microsoft.Extensions.Configuration;
@@ -46,8 +46,9 @@ namespace HRMS.AI.Services
 
             // not implemented yet
             //-GetPayslip:
-            //     User wants to view or download payslip details including monthly salary,
-            //     deductions, allowances, payroll summary, or salary slip.
+            //     User wants their own salary or payroll information: basic salary, net salary,
+            //     last/latest payroll, payroll history, deduction breakdown, or payslip/salary slip.
+            //     NOT for admin payroll processing questions (those are Guidance / Payroll module).
             var prompt =
      $@"You are classifying HRMS user messages.
         Labels:
@@ -87,12 +88,38 @@ namespace HRMS.AI.Services
                pending review status, or monthly timesheet progress.
 
              - GetExpenseStatus:
-               User wants to check expense claims, claim status,
-               pending/approved/rejected expenses, or expense summary.
+               User wants a quick yes/no or summary of expense claims status.
+               Example: 'any pending expenses?', 'do I have expense claims?'.
+
+             - GetMyExpenseClaims:
+               User wants to list or view their expense claims (one-time expenses).
+               Example: 'show my expense claims', 'my recent expenses', 'show my claims',
+               'list my expense requests', 'what expenses did I submit'.
+
+             - GetMyRecurringExpenses:
+               User wants to see their recurring expense entries.
+               Example: 'show my recurring expenses', 'my recurring claims',
+               'do I have recurring expenses', 'list my recurring expense records'.
 
              - GetJobsStatus:
-               User wants information about job openings, applications,
-               application status, or hiring stages.
+               User wants a general overview or summary of job openings and applications.
+               Example: 'how many jobs are open', 'job openings summary'.
+
+             - GetMyJobApplications:
+               User wants to see jobs they applied for themselves (self-applications).
+               Example: 'show me my job applications', 'my self applications', 'jobs I applied for',
+               'show my recent job applications', 'what jobs did I apply for'.
+
+             - GetMyReferredApplications:
+               User wants to see candidates they referred for a job or jobs referred by them.
+               Example: 'show my referrals', 'candidates I referred', 'my refer applications',
+               'show referred applications', 'who did I refer', 'my job referrals'.
+
+             - GetJobApplicationDetail:
+               User asks for specific details of an application such as ATS score, match score,
+               knockout status, current stage, or hiring pipeline stage.
+               Example: 'what is my ATS score', 'did I pass knockout', 'what stage is my application',
+               'show application details', 'my application status in detail', 'interview stage for my application'.
 
              - GetNewsUpdates:
                User wants latest company news, announcements,
@@ -122,6 +149,11 @@ namespace HRMS.AI.Services
                User wants to apply for leave, submit a leave request, select leave type,
                choose leave dates, or check leave eligibility.
 
+             - GetPayslip:
+               User wants their own salary or payroll information: basic salary, net salary,
+               last/latest payroll, payroll history, deduction breakdown, or payslip/salary slip.
+               NOT for admin payroll processing questions (those are Guidance).
+
              - LeaveApplicationDetails:
                User provides leave application details such as leave type,
                start date, end date, and reason for applying for leave.
@@ -146,7 +178,7 @@ namespace HRMS.AI.Services
 If the label is Guidance, Greeting, also determine the affected module, and if related department of positions then also return EmployeeManagement. If label is Greeting then module is also Greeting. Possible modules: Greeting, Dashboard, EmployeeManagement, Attendance, Leave, HolidayManagement, Payroll, Performance, SkillMatrix, ShiftManagement, Profile, OrganizationSettings, HRPolicies, AssetsManagement, AccountCreation, GlobalCalendar, NewsManagement, JobsManagement, ExpensesManagement, Subscription, Other.
 
         Return EXACT output in this format (no extra text):
-        Label: <Greeting|Guidance|GetHolidaySummary|GetMyRestrictedHolidays|GetTimesheetStatus|GetExpenseStatus|GetJobsStatus|GetNewsUpdates|GetMyAssets|GetSubscriptionStatus|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
+        Label: <Greeting|Guidance|GetHolidaySummary|GetMyRestrictedHolidays|GetTimesheetStatus|GetExpenseStatus|GetMyExpenseClaims|GetMyRecurringExpenses|GetJobsStatus|GetMyJobApplications|GetMyReferredApplications|GetJobApplicationDetail|GetNewsUpdates|GetMyAssets|GetSubscriptionStatus|GetPerformanceSummary|GetAttendance|CheckMyShift|GetLeaveBalance|ApplyForLeave|GetPayslip|EmployeeInfo|LeaveApplicationDetails|GetMySkills|ClockIn|ClockOut|Unknown>; Module: <module or empty>
 
         User message:
         ""{message}"".
@@ -213,7 +245,12 @@ If the label is Guidance, Greeting, also determine the affected module, and if r
                   "GetMyRestrictedHolidays" => ChatIntent.GetMyRestrictedHolidays,
                   "GetTimesheetStatus" => ChatIntent.GetTimesheetStatus,
                     "GetExpenseStatus" => ChatIntent.GetExpenseStatus,
+                    "GetMyExpenseClaims" => ChatIntent.GetMyExpenseClaims,
+                    "GetMyRecurringExpenses" => ChatIntent.GetMyRecurringExpenses,
                     "GetJobsStatus" => ChatIntent.GetJobsStatus,
+                    "GetMyJobApplications" => ChatIntent.GetMyJobApplications,
+                    "GetMyReferredApplications" => ChatIntent.GetMyReferredApplications,
+                    "GetJobApplicationDetail" => ChatIntent.GetJobApplicationDetail,
                     "GetNewsUpdates" => ChatIntent.GetNewsUpdates,
                     "GetMyAssets" => ChatIntent.GetMyAssets,
                     "GetSubscriptionStatus" => ChatIntent.GetSubscriptionStatus,
@@ -256,12 +293,52 @@ If the label is Guidance, Greeting, also determine the affected module, and if r
           var text = message.Trim().ToLowerInvariant();
 
           // Direct status/data queries should bypass Guidance.
-          if (text.Contains("payslip") || text.Contains("salary slip"))
+          if (text.Contains("payslip") || text.Contains("salary slip")
+              || text.Contains("basic salary") || text.Contains("my salary")
+              || text.Contains("net salary") || text.Contains("last payroll")
+              || text.Contains("payroll history") || text.Contains("salary deduction")
+              || (text.Contains("payroll") && (text.Contains("history") || text.Contains("deduction") || text.Contains("breakdown"))))
             return new IntentDetectionResult { Intent = ChatIntent.GetPayslip };
 
-          if (text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))
+          // --- Expense intent rules (most specific first: recurring before claims) ---
+
+          // GetMyRecurringExpenses: check FIRST — user wants their recurring expenses
+          if (text.Contains("recurring expense") || text.Contains("recurring claim")
+              || (text.Contains("recurring") && (text.Contains("my") || text.Contains("show") || text.Contains("list") || text.Contains("expense"))))
+            return new IntentDetectionResult { Intent = ChatIntent.GetMyRecurringExpenses };
+
+          // GetMyExpenseClaims: check AFTER recurring — must NOT contain 'recurring'
+          if (!text.Contains("recurring")
+              && ((text.Contains("my expense") && (text.Contains("claim") || text.Contains("show") || text.Contains("list") || text.Contains("recent")))
+                  || text.Contains("show my claim") || text.Contains("my claims") || text.Contains("list my expense")
+                  || (text.Contains("expense") && text.Contains("submitted") && text.Contains("my"))))
+            return new IntentDetectionResult { Intent = ChatIntent.GetMyExpenseClaims };
+
+          // GetExpenseStatus: general/yes-no expense query (fallback)
+          if (!text.Contains("recurring")
+              && text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))
             return new IntentDetectionResult { Intent = ChatIntent.GetExpenseStatus };
 
+          // --- Granular job intent rules ---
+          // GetMyJobApplications: user wants their own self-applied jobs
+          if ((text.Contains("my job application") || text.Contains("my self application") || text.Contains("jobs i applied") || text.Contains("i applied for"))
+              || (text.Contains("my recent job") && (text.Contains("application") || text.Contains("applied")))
+              || (text.Contains("show me my") && text.Contains("application") && !text.Contains("refer")))
+            return new IntentDetectionResult { Intent = ChatIntent.GetMyJobApplications };
+
+          // GetMyReferredApplications: user wants applications they referred
+          if (text.Contains("my refer") || text.Contains("i referred") || text.Contains("my referral")
+              || (text.Contains("refer") && (text.Contains("application") || text.Contains("candidate") || text.Contains("status"))))
+            return new IntentDetectionResult { Intent = ChatIntent.GetMyReferredApplications };
+
+          // GetJobApplicationDetail: user wants ATS score, knockout, stage details
+          if (text.Contains("ats score") || text.Contains("match score")
+              || text.Contains("knockout") || text.Contains("passed knockout")
+              || (text.Contains("application") && text.Contains("stage") && (text.Contains("my") || text.Contains("what") || text.Contains("current")))
+              || (text.Contains("application") && text.Contains("detail") && text.Contains("my")))
+            return new IntentDetectionResult { Intent = ChatIntent.GetJobApplicationDetail };
+
+          // GetJobsStatus: general summary fallback
           if ((text.Contains("job application") || text.Contains("applications")) && text.Contains("status"))
             return new IntentDetectionResult { Intent = ChatIntent.GetJobsStatus };
 

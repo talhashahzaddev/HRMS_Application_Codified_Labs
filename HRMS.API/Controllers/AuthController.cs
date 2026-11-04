@@ -864,14 +864,14 @@ public class AuthController : ControllerBase
         {
             var organizationId = GetOrganizationIdFromClaims();
             if (organizationId == null)
-                return BadRequest(new ServiceResponse<List<RoleDto>>
+                return BadRequest(new ServiceResponse<IReadOnlyList<RoleDto>>
                 {
                     Success = false,
                     Message = "Organization ID not found in claims"
                 });
 
             var roles = await _authService.GetOrganizationRolesAsync(organizationId.Value);
-            return Ok(new ServiceResponse<List<RoleDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<RoleDto>>
             {
                 Success = true,
                 Data = roles,
@@ -880,7 +880,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new ServiceResponse<List<RoleDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<RoleDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving roles"
@@ -889,13 +889,13 @@ public class AuthController : ControllerBase
     }
     [HttpGet("menus")]
     [Authorize]
-    public async Task<ActionResult<ServiceResponse<List<MenuDto>>>> GetMenus()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<MenuDto>>>> GetMenus()
     {
         try
         {
             var menus = await _authService.GetMenusAsync();
 
-            return Ok(new ServiceResponse<List<MenuDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<MenuDto>>
             {
                 Success = true,
                 Data = menus,
@@ -906,7 +906,7 @@ public class AuthController : ControllerBase
         {
             _logger.LogWarning(ex, "Invalid argument while retrieving menus");
 
-            return BadRequest(new ServiceResponse<List<MenuDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<MenuDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -916,7 +916,7 @@ public class AuthController : ControllerBase
         {
             _logger.LogWarning(ex, "Business logic error while retrieving menus");
 
-            return BadRequest(new ServiceResponse<List<MenuDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<MenuDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -926,7 +926,7 @@ public class AuthController : ControllerBase
         {
             _logger.LogError(ex, "Error retrieving menus");
 
-            return StatusCode(500, new ServiceResponse<List<MenuDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<MenuDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving menus"
@@ -1103,14 +1103,14 @@ public class AuthController : ControllerBase
         }
     }
     [HttpGet("get-roles-by-organization")]
-    public async Task<ActionResult<ServiceResponse<List<RoleDetailResponse>>>> GetRolesByOrganization()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<RoleDetailResponse>>>> GetRolesByOrganization()
     {
         try
         {
             var claimsOrganizationId = GetOrganizationIdFromClaims();
             if (claimsOrganizationId == Guid.Empty)
             {
-                return BadRequest(new ServiceResponse<List<RoleDetailResponse>>
+                return BadRequest(new ServiceResponse<IReadOnlyList<RoleDetailResponse>>
                 {
                     Success = false,
                     Message = "Invalid organization ID",
@@ -1122,7 +1122,7 @@ public class AuthController : ControllerBase
 
             var response = await _authService.GetRolesByOrganizationAsync(claimsOrganizationId);
 
-            return Ok(new ServiceResponse<List<RoleDetailResponse>>
+            return Ok(new ServiceResponse<IReadOnlyList<RoleDetailResponse>>
             {
                 Success = true,
                 Message = "Roles retrieved successfully",
@@ -1133,7 +1133,7 @@ public class AuthController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving roles for organization");
-            return StatusCode(500, new ServiceResponse<List<RoleDetailResponse>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<RoleDetailResponse>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving roles",

@@ -17,7 +17,7 @@ public class ExpenseService : IExpenseService
     }
 
     // ==================== ExpenseCategories ====================
-    public async Task<IEnumerable<ExpenseCategoryDto>> GetExpenseCategoriesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<ExpenseCategoryDto>> GetExpenseCategoriesAsync(Guid organizationId)
     {
         return await _expenseRepository.GetExpenseCategoriesAsync(organizationId);
     }
@@ -60,7 +60,7 @@ public class ExpenseService : IExpenseService
     }
 
     // ==================== Expenses ====================
-    public async Task<IEnumerable<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
+    public async Task<IReadOnlyList<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
     {
         return await _expenseRepository.GetExpensesAsync(organizationId, employeeId, status);
     }
@@ -154,7 +154,7 @@ public class ExpenseService : IExpenseService
     }
 
     // ==================== RecurringExpenses ====================
-    public async Task<IEnumerable<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
+    public async Task<IReadOnlyList<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null)
     {
         return await _expenseRepository.GetRecurringExpensesAsync(organizationId, employeeId, status);
     }
@@ -253,7 +253,7 @@ public class ExpenseService : IExpenseService
         return await _expenseRepository.DeleteRecurringExpenseAsync(recurringExpenseId);
     }
 
-    public async Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+    public async Task<IReadOnlyList<ExpensePieReportItemDto>> GetExpensePieReportAsync(
         Guid organizationId,
         DateTime? fromDate,
         DateTime? toDate,
@@ -275,7 +275,7 @@ public class ExpenseService : IExpenseService
         return await _expenseRepository.GetExpensePieReportAsync(organizationId, from, to, includeExpense, includeRecurring);
     }
 
-    public async Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+    public async Task<IReadOnlyList<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
         Guid organizationId,
         int year,
         bool expense,
@@ -286,7 +286,7 @@ public class ExpenseService : IExpenseService
         return await _expenseRepository.GetExpenseLineChartAsync(organizationId, year, includeExpense, includeRecurring);
     }
 
-    public async Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+    public async Task<IReadOnlyList<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
         Guid organizationId,
         int fromYear,
         int toYear,

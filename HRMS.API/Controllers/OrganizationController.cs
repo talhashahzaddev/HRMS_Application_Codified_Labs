@@ -16,7 +16,7 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> CreateOrganization([FromBody] CreateOrganizationDTO createOrganizationDTO)
+        public async Task<ActionResult<ServiceResponse<OrganizationDTO>>> CreateOrganization([FromBody] CreateOrganizationDTO createOrganizationDTO)
         {
             var response = await _organizationService.CreateOrganizationAsync(createOrganizationDTO);
             if (!response.Success)
@@ -27,7 +27,7 @@ namespace HRMS.API.Controllers
         }
 
         [HttpGet("{organizationId:guid}")]
-        public async Task<IActionResult> GetOrganizationById(Guid organizationId)
+        public async Task<ActionResult<ServiceResponse<OrganizationDTO>>> GetOrganizationById(Guid organizationId)
         {
             var response = await _organizationService.GetOrganizationByIdAsync(organizationId);
             if (!response.Success)
@@ -38,7 +38,7 @@ namespace HRMS.API.Controllers
         }
 
         [HttpGet("name/{name}")]
-        public async Task<IActionResult> GetOrganizationByName(string name)
+        public async Task<ActionResult<ServiceResponse<OrganizationDTO>>> GetOrganizationByName(string name)
         {
             var response = await _organizationService.GetOrganizationByNameAsync(name);
             if (!response.Success)
@@ -49,7 +49,7 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPut("{organizationId:guid}")]
-        public async Task<IActionResult> UpdateOrganization(Guid organizationId, [FromBody] UpdateOrganizationDTO updateOrganizationDTO)
+        public async Task<ActionResult<ServiceResponse<OrganizationDTO>>> UpdateOrganization(Guid organizationId, [FromBody] UpdateOrganizationDTO updateOrganizationDTO)
         {
             var response = await _organizationService.UpdateOrganizationAsync(organizationId, updateOrganizationDTO);
             if (!response.Success)
@@ -64,7 +64,7 @@ namespace HRMS.API.Controllers
         }
 
         [HttpDelete("{organizationId:guid}")]
-        public async Task<IActionResult> DeleteOrganization(Guid organizationId)
+        public async Task<ActionResult<ServiceResponse<bool>>> DeleteOrganization(Guid organizationId)
         {
             var response = await _organizationService.DeleteOrganizationAsync(organizationId);
             if (!response.Success)
@@ -75,7 +75,7 @@ namespace HRMS.API.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAllOrganizations()
+        public async Task<ActionResult<ServiceResponse<IReadOnlyList<OrganizationDTO>>>> GetAllOrganizations()
         {
             var response = await _organizationService.GetAllOrganizationsAsync();
             if (!response.Success)
