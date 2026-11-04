@@ -29,6 +29,7 @@ public class EmployeeService : IEmployeeService
     private readonly IEmailService _emailService;
     private readonly IConfiguration _configuration;
     private readonly IHubContext<PermissionHub> _hubContext;
+    private readonly IHttpContextAccessor? _httpContextAccessor;
     private readonly IAuthRepository _authRepository;
     private readonly INotificationRepository _notificationRepository;
     public EmployeeService(
@@ -40,7 +41,8 @@ public class EmployeeService : IEmployeeService
         ILogger<EmployeeService> logger,
         IEmailService emailService,
         IConfiguration configuration,INotificationRepository notificationRepository,IAuthRepository authRepository,
-         IHubContext<PermissionHub> hubContext)
+         IHubContext<PermissionHub> hubContext,
+         IHttpContextAccessor? httpContextAccessor = null)
 
     {
         _employeeRepository = employeeRepository;
@@ -54,6 +56,7 @@ public class EmployeeService : IEmployeeService
         _authRepository = authRepository;
         _notificationRepository = notificationRepository;
         _hubContext = hubContext;
+        _httpContextAccessor = httpContextAccessor;
     }
 
     public async Task<EmployeeDto> CreateEmployeeAsync(CreateEmployeeRequest request, Guid organizationId)
@@ -152,7 +155,10 @@ public class EmployeeService : IEmployeeService
             var result = await _employeeRepository.GetEmployeedetailsAsync(createdEmployee.EmployeeId);
             if (result != null)
             {
-                var loginLink = _configuration["EmployeePortal:LoginUrl"];
+                // Local frontend → local login page; live → configured login URL.
+                var loginLink = LoginLinkResolver.Resolve(
+                    _httpContextAccessor?.HttpContext?.Request.Headers.Origin.ToString(),
+                    _configuration["EmployeePortal:LoginUrl"]);
                 _logger.LogInformation("Successfully retrieved details for employee {EmployeeId}", createdEmployee.EmployeeId);
                 await _emailService.SendEmployeeCredentialsAsync(result.Email, result.FirstName, randomPassword, loginLink);
             }

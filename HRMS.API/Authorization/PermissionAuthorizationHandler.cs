@@ -62,7 +62,9 @@ namespace HRMS.API.Authorization
             });
 
             // Check if user has ALL required permissions
-            bool hasPermissions = requirement.Permissions.All(p => userPermissions != null && userPermissions.Contains(p));
+            // "A|B" means either permission is enough.
+            bool hasPermissions = requirement.Permissions.All(p => userPermissions != null &&
+                p.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).Any(userPermissions.Contains));
 
             if (hasPermissions)
             {

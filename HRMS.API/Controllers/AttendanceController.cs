@@ -25,7 +25,8 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-in")]
-    [PermissionAuthorize("CLOCK_IN_BUTTON")]
+    // Time-tracker and calendar each have their own clock-in permission; either is enough.
+    [PermissionAuthorize("CLOCK_IN_BUTTON|calendar_clock_in")]
 
     public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockIn([FromBody] ClockInOutRequest request)
     {
@@ -93,7 +94,7 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpPost("clock-out")]
-    [PermissionAuthorize("CLOCK_OUT_BUTTON")]
+    [PermissionAuthorize("CLOCK_OUT_BUTTON|calendar_clock_out")]
 
     public async Task<ActionResult<ServiceResponse<ClockInOutResponse>>> ClockOut([FromBody] ClockInOutRequest request)
     {

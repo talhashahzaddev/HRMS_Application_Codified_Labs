@@ -141,7 +141,7 @@ public class EmailService : IEmailService
                 <table cellspacing=""0"" cellpadding=""0"" border=""0"" style=""margin:auto;"">
                 <tr>
                     <td style=""vertical-align:middle; padding-right:10px;"">
-                        <img src=""https://www.briskpeople.com/hub.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
+                        <img src=""https://www.briskpeople.com/BriskLogo.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
                     </td>
                     <td style=""vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;"">
                         BriskPeople
@@ -287,7 +287,7 @@ public class EmailService : IEmailService
                 <table cellspacing=""0"" cellpadding=""0"" border=""0"" style=""margin:auto;"">
                 <tr>
                     <td style=""vertical-align:middle; padding-right:10px;"">
-                        <img src=""https://www.briskpeople.com/hub.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
+                        <img src=""https://www.briskpeople.com/BriskLogo.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
                     </td>
                     <td style=""vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;"">
                         BriskPeople
@@ -449,7 +449,7 @@ public class EmailService : IEmailService
                     <table cellspacing=""0"" cellpadding=""0"" border=""0"" style=""margin:auto;"">
                     <tr>
                         <td style=""vertical-align:middle; padding-right:10px;"">
-                            <img src=""https://www.briskpeople.com/hub.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
+                            <img src=""https://www.briskpeople.com/BriskLogo.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
                         </td>
                         <td style=""vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;"">
                             BriskPeople
@@ -546,7 +546,7 @@ public class EmailService : IEmailService
                 <table cellspacing=""0"" cellpadding=""0"" border=""0"" style=""margin:auto;"">
                     <tr>
                         <td style=""vertical-align:middle; padding-right:10px;"">
-                            <img src=""https://www.briskpeople.com/hub.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
+                            <img src=""https://www.briskpeople.com/BriskLogo.png"" alt=""BriskPeople"" style=""height:40px; display:block;"" />
                         </td>
                         <td style=""vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;"">
                             BriskPeople
@@ -634,7 +634,7 @@ public class EmailService : IEmailService
             <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
                 <tr>
                     <td style='vertical-align:middle; padding-right:10px;'>
-                        <img src='https://www.briskpeople.com/hub.png' 
+                        <img src='https://www.briskpeople.com/BriskLogo.png' 
                              alt='BriskPeople' 
                              style='height:40px; display:block;' />
                     </td>
@@ -731,7 +731,7 @@ public class EmailService : IEmailService
                                     <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
                                         <tr>
                                         <td style='vertical-align:middle; padding-right:10px;'>
-                                            <img src='https://www.briskpeople.com/hub.png' alt='BriskPeople' style='height:40px; display:block;' />
+                                            <img src='https://www.briskpeople.com/BriskLogo.png' alt='BriskPeople' style='height:40px; display:block;' />
                                         </td>
                                         <td style='vertical-align:middle; font-size:22px; font-weight:bold; color:#1f4fd8;'>
                                             BriskPeople
@@ -814,7 +814,7 @@ public class EmailService : IEmailService
             <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
          <tr>
             <td style='vertical-align:middle; padding-right:10px;'>
-        <img src='https://www.briskpeople.com/hub.png' 
+        <img src='https://www.briskpeople.com/BriskLogo.png' 
            alt='BriskPeople' 
         style='height:40px; display:block;' />
         </td>
@@ -918,7 +918,7 @@ public class EmailService : IEmailService
     <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
         <tr>
             <td style='vertical-align:middle; padding-right:10px;'>
-                <img src='https://www.briskpeople.com/hub.png' 
+                <img src='https://www.briskpeople.com/BriskLogo.png' 
                      alt='BriskPeople' 
                      style='height:40px; display:block;' />
             </td>
@@ -1022,7 +1022,7 @@ public class EmailService : IEmailService
     <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
     <tr>
         <td style='vertical-align:middle;padding-right:10px;'>
-            <img src='https://www.briskpeople.com/hub.png' alt='BriskPeople' style='height:40px;display:block;' />
+            <img src='https://www.briskpeople.com/BriskLogo.png' alt='BriskPeople' style='height:40px;display:block;' />
         </td>
         <td style='vertical-align:middle;font-size:22px;font-weight:bold;color:#1f4fd8;'>BriskPeople</td>
     </tr>
@@ -1088,7 +1088,7 @@ public class EmailService : IEmailService
     <table cellspacing='0' cellpadding='0' border='0' style='margin:auto;'>
     <tr>
         <td style='vertical-align:middle;padding-right:10px;'>
-            <img src='https://www.briskpeople.com/hub.png' alt='BriskPeople' style='height:40px;display:block;' />
+            <img src='https://www.briskpeople.com/BriskLogo.png' alt='BriskPeople' style='height:40px;display:block;' />
         </td>
         <td style='vertical-align:middle;font-size:22px;font-weight:bold;color:#1f4fd8;'>BriskPeople</td>
     </tr>
