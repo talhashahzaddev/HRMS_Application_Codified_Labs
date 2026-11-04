@@ -1,8 +1,8 @@
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using System.Collections.Generic;
 using System.Security.Claims;
 
 namespace HRMS.API.Controllers;
@@ -27,14 +27,14 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("get-allcycles")]
-    public async Task<ActionResult<ServiceResponse<List<AppraisalCycleDto>>>> GetAppraisalCycles()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<AppraisalCycleDto>>>> GetAppraisalCycles()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var cycles = await _performanceService.GetAppraisalCyclesAsync(organizationId);
 
-            return Ok(new ServiceResponse<List<AppraisalCycleDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<AppraisalCycleDto>>
             {
                 Success = true,
                 Data = cycles
@@ -43,7 +43,7 @@ public class PerformanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving appraisal cycles");
-            return BadRequest(new ServiceResponse<List<AppraisalCycleDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<AppraisalCycleDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -52,7 +52,7 @@ public class PerformanceController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access retrieving appraisal cycles");
-            return StatusCode(403, new ServiceResponse<List<AppraisalCycleDto>>
+            return StatusCode(403, new ServiceResponse<IReadOnlyList<AppraisalCycleDto>>
             {
                 Success = false,
                 Message = "You do not have permission to access this resource."
@@ -61,7 +61,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving appraisal cycles");
-            return StatusCode(500, new ServiceResponse<List<AppraisalCycleDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<AppraisalCycleDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving appraisal cycles"
@@ -70,7 +70,8 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("create-cycles")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("APPRAISAL_CYCLE_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> CreateAppraisalCycle([FromBody] CreateAppraisalCycleRequest request)
     {
         try
@@ -127,7 +128,7 @@ public class PerformanceController : ControllerBase
 
 
     [HttpDelete("delete-cycle/{cycleId}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("APPRAISAL_CYCLE_DELETE_BUTTON")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAppraisalCycle(Guid cycleId)
     {
         try
@@ -195,14 +196,14 @@ public class PerformanceController : ControllerBase
 
 
     [HttpGet("cycles/{cycleId}/appraisals")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeAppraisalDto>>>> GetEmployeeAppraisals(Guid cycleId, [FromQuery] Guid? employeeId = null)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeAppraisalDto>>>> GetEmployeeAppraisals(Guid cycleId, [FromQuery] Guid? employeeId = null)
     {
         var employeeIdToUse = await GetCurrentEmployeeId();
         try
         {
             var appraisals = await _performanceService.GetEmployeeAppraisalsAsync(cycleId, employeeIdToUse);
 
-            return Ok(new ServiceResponse<List<EmployeeAppraisalDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeAppraisalDto>>
             {
                 Success = true,
                 Data = appraisals
@@ -211,7 +212,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee appraisals for cycle {CycleId}", cycleId);
-            return StatusCode(500, new ServiceResponse<List<EmployeeAppraisalDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeAppraisalDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee appraisals"
@@ -272,8 +273,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/my-team-employees")]
-    [Authorize(Roles = "Manager")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeListItemDto>>>> GetMyTeamEmployees()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeListItemDto>>>> GetMyTeamEmployees()
     {
         try
         {
@@ -282,17 +282,17 @@ public class PerformanceController : ControllerBase
 
             if (currentEmployeeId == Guid.Empty)
             {
-                return Ok(new ServiceResponse<List<EmployeeListItemDto>>
+                return Ok(new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
                 {
                     Success = true,
-                    Data = new List<EmployeeListItemDto>(),
+                    Data = Array.Empty<EmployeeListItemDto>(),
                     Message = "No employee record found for this user"
                 });
             }
 
             var employees = await _employeeService.GetEmployeesByManagerAsync(currentEmployeeId, organizationId);
 
-            return Ok(new ServiceResponse<List<EmployeeListItemDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
             {
                 Success = true,
                 Data = employees
@@ -301,7 +301,7 @@ public class PerformanceController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access attempt for my team employees");
-            return StatusCode(403, new ServiceResponse<List<EmployeeListItemDto>>
+            return StatusCode(403, new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
             {
                 Success = false,
                 Message = "You do not have permission to access this resource."
@@ -310,7 +310,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving my team employees");
-            return StatusCode(500, new ServiceResponse<List<EmployeeListItemDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeListItemDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving team employees"
@@ -319,7 +319,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/my-created-appraisals")]
-    [Authorize(Roles = "Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeAppraisalDto>>>> GetMyCreatedAppraisals(
         [FromQuery] Guid? appraisalCycleId = null,
         [FromQuery] string? status = null,
@@ -340,7 +339,7 @@ public class PerformanceController : ControllerBase
                     Success = true,
                     Data = new PagedResult<EmployeeAppraisalDto>
                     {
-                        Data = new List<EmployeeAppraisalDto>(),
+                        Data = Array.Empty<EmployeeAppraisalDto>(),
                         TotalCount = 0,
                         Page = page,
                         PageSize = limit
@@ -439,6 +438,9 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("skills")]
+    [PermissionAuthorize("CREATE_SKILLS_BUTTON")]
+
+
     public async Task<ActionResult<ServiceResponse<SkillSetDto>>> CreateSkillSet([FromBody] CreateSkillSetRequest request)
     {
         try
@@ -459,7 +461,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("skills")]
-    public async Task<ActionResult<ServiceResponse<List<SkillSetDto>>>> GetSkillSets([FromQuery] string? search = null, [FromQuery] string? category = null, [FromQuery] bool? isActive = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SkillSetDto>>>> GetSkillSets([FromQuery] string? search = null, [FromQuery] string? category = null, [FromQuery] bool? isActive = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
     {
         try
         {
@@ -527,6 +529,8 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("my-skills")]
+    [PermissionAuthorize("ADD_SKILLS_BUTTON")]
+
     public async Task<IActionResult> AddMySkill([FromBody] CreateEmployeeSkillRequest request)
     {
         if (!ModelState.IsValid) return BadRequest(ModelState);
@@ -552,18 +556,18 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("my-skills")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeSkillDto>>>> GetMySkills()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeSkillDto>>>> GetMySkills()
     {
         try
         {
             var employeeId = await GetCurrentEmployeeId();
             var skills = await _performanceService.GetEmployeeSkillsAsync(employeeId);
-            return Ok(new ServiceResponse<List<EmployeeSkillDto>> { Success = true, Data = skills });
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeSkillDto>> { Success = true, Data = skills });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving current employee skills");
-            return StatusCode(500, new ServiceResponse<List<EmployeeSkillDto>> { Success = false, Message = "An error occurred" });
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeSkillDto>> { Success = false, Message = "An error occurred" });
         }
     }
 
@@ -607,28 +611,35 @@ public class PerformanceController : ControllerBase
         }
     }
 
-    //[HttpGet("employee-skills")]
-    //public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>>> GetAllEmployeeSkills([FromQuery] Guid? employeeId = null, [FromQuery] Guid? skillSetId = null, [FromQuery] string? department = null, [FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
-    //{
-    //    try
-    //    {
-    //        var organizationId = GetCurrentOrganizationId();
-    //        var filter = new EmployeeSkillFilterRequest
-    //        {
-    //            EmployeeId = employeeId,
-    //            SkillSetId = skillSetId,
-    //            Department = department,
-    //            Search = search
-    //        };
-    //        var result = await _performanceService.GetEmployeeSkillsSummaryPagedAsync(organizationId, filter, page, limit);
-    //        return Ok(new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>> { Success = true, Data = result });
-    //    }
-    //    catch (Exception ex)
-    //    {
-    //        _logger.LogError(ex, "Error retrieving all employee skills");
-    //        return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>> { Success = false, Message = "An error occurred" });
-    //    }
-    //}
+    [HttpGet("employee-skills/team-summary")]
+    [PermissionAuthorize("skill_matrix_pending_skill_assessments")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetTeamEmployeeSkillsSummary([FromQuery] Guid? employeeId = null, [FromQuery] Guid? skillSetId = null, [FromQuery] string? department = null, [FromQuery] string? search = null, [FromQuery] int page = 1, [FromQuery] int limit = 10)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var currentEmployeeId = await GetCurrentEmployeeId();
+            
+            var filter = new EmployeeSkillFilterRequest
+            {
+                EmployeeId = employeeId,
+                SkillSetId = skillSetId,
+                Department = department,
+                Search = search,
+                ReportingManagerId = currentEmployeeId,
+                OnlySelfAdded = true // Fetch only skills that haven't been assessed by others yet
+            };
+            
+            // We use GetEmployeeSkillsByManagerPagedAsync to get individual skills instead of summary
+            var result = await _performanceService.GetEmployeeSkillsByManagerPagedAsync(currentEmployeeId, filter, page, limit);
+            return Ok(new ServiceResponse<PagedResult<EmployeeSkillDto>> { Success = true, Data = result });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving team employee skills");
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillDto>> { Success = false, Message = "An error occurred" });
+        }
+    }
 
     [HttpGet("employee-skills/detail/{employeeId}")]
     public async Task<ActionResult<ServiceResponse<EmployeeSkillFullDetailDto>>> GetEmployeeSkillDetail(Guid employeeId)
@@ -734,14 +745,14 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employees/{employeeId}/skills")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeSkillDto>>>> GetEmployeeSkills(Guid employeeId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeSkillDto>>>> GetEmployeeSkills(Guid employeeId)
     {
         try
         {
             var employeeTableId = await GetCurrentEmployeeId();
             var skills = await _performanceService.GetEmployeeSkillsAsync(employeeTableId);
 
-            return Ok(new ServiceResponse<List<EmployeeSkillDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeSkillDto>>
             {
                 Success = true,
                 Data = skills
@@ -750,7 +761,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee skills for {EmployeeId}", employeeId);
-            return StatusCode(500, new ServiceResponse<List<EmployeeSkillDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeSkillDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee skills"
@@ -758,15 +769,14 @@ public class PerformanceController : ControllerBase
         }
     }
     [HttpGet("Otheremployees/{employeeId}/skills")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<List<EmployeeSkillDto>>>> GetOtherEmployeeSkills(Guid employeeId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeSkillDto>>>> GetOtherEmployeeSkills(Guid employeeId)
     {
         try
         {
             //var employeeTableId = await GetCurrentEmployeeId();
             var skills = await _performanceService.GetEmployeeSkillsAsync(employeeId);
 
-            return Ok(new ServiceResponse<List<EmployeeSkillDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeSkillDto>>
             {
                 Success = true,
                 Data = skills
@@ -775,7 +785,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee skills for {EmployeeId}", employeeId);
-            return StatusCode(500, new ServiceResponse<List<EmployeeSkillDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeSkillDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee skills"
@@ -784,7 +794,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employee-skills/my-team")]
-    [Authorize(Roles = "Manager")]
     public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetMyTeamEmployeeSkills(
         [FromQuery] Guid? employeeId = null,
         [FromQuery] Guid? skillSetId = null,
@@ -804,7 +813,7 @@ public class PerformanceController : ControllerBase
                     Success = true,
                     Data = new PagedResult<EmployeeSkillDto>
                     {
-                        Data = new List<EmployeeSkillDto>(),
+                        Data = Array.Empty<EmployeeSkillDto>(),
                         TotalCount = 0,
                         Page = page,
                         PageSize = limit
@@ -859,8 +868,8 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employee-skills")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillDto>>>> GetAllEmployeeSkills(
+    [PermissionAuthorize("skill_matrix_all_employees_skills")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>>> GetAllEmployeeSkills(
         [FromQuery] Guid? employeeId = null,
         [FromQuery] Guid? skillSetId = null,
         [FromQuery] string? department = null,
@@ -881,9 +890,9 @@ public class PerformanceController : ControllerBase
                 Search = search
             };
 
-            var result = await _performanceService.GetEmployeeSkillsPagedAsync(organizationId, filter, page, limit);
+            var result = await _performanceService.GetEmployeeSkillsSummaryPagedAsync(organizationId, filter, page, limit);
 
-            return Ok(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            return Ok(new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>
             {
                 Success = true,
                 Data = result
@@ -892,7 +901,7 @@ public class PerformanceController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for retrieving all employee skills");
-            return BadRequest(new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            return BadRequest(new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -901,7 +910,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all employee skills");
-            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillDto>>
+            return StatusCode(500, new ServiceResponse<PagedResult<EmployeeSkillSummaryDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee skills"
@@ -980,7 +989,6 @@ public class PerformanceController : ControllerBase
 
 
     [HttpGet("team-performance-overview")]
-    [Authorize(Roles = "Super Admin,Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<TeamPerformanceOverviewDto>>> GetTeamPerformanceOverview()
     {
         try
@@ -1029,6 +1037,8 @@ public class PerformanceController : ControllerBase
 
 
     [HttpPost("create-Kra")]
+   [PermissionAuthorize("CREATE_KRA_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<KRADto>>> CreateKra([FromQuery] CreateKRARequest request)
     {
         try
@@ -1046,7 +1056,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error While creating KRas");
-            return StatusCode(500, new ServiceResponse<List<TopPerformerDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TopPerformerDto>>
             {
                 Success = false,
                 Message = "Error While creating KRass"
@@ -1135,6 +1145,8 @@ public class PerformanceController : ControllerBase
 
 
     [HttpPut("KraUpdate")]
+    [PermissionAuthorize("KRA_EDIT_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<KRADto>>> UpdateKra([FromQuery] UpdateKRARequest request, Guid kraId)
     {
         try
@@ -1216,7 +1228,7 @@ public class PerformanceController : ControllerBase
 
 
     [HttpPost("create-goal")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    [PermissionAuthorize("CREATE_GOAL_BUTTON")]
     public async Task<ActionResult<ServiceResponse<GoalDto>>> CreateGoal([FromBody] CreateGoalRequest request)
     {
         try
@@ -1244,7 +1256,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("goals")]
-    public async Task<ActionResult<ServiceResponse<List<GoalDto>>>> GetAllGoals()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<GoalDto>>>> GetAllGoals()
     {
         try
         {
@@ -1252,7 +1264,7 @@ public class PerformanceController : ControllerBase
             var currentEmployeeId = await GetCurrentEmployeeId();
 
             var result = await _performanceService.GetAllGoalsAsync(organizationId, currentEmployeeId);
-            return Ok(new ServiceResponse<List<GoalDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<GoalDto>>
             {
                 Success = true,
                 Data = result
@@ -1261,7 +1273,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while fetching Goals");
-            return StatusCode(500, new ServiceResponse<List<GoalDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<GoalDto>>
             {
                 Success = false,
                 Message = "Error while fetching Goals"
@@ -1270,7 +1282,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("employee/Assigned/goals")]
-    public async Task<ActionResult<ServiceResponse<List<GoalDto>>>> GetEmployeeAssignedGoals()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<GoalDto>>>> GetEmployeeAssignedGoals()
     {
         try
         {
@@ -1278,7 +1290,7 @@ public class PerformanceController : ControllerBase
             var currentEmployeeId = await GetCurrentEmployeeId();
 
             var result = await _performanceService.GetEmployeeAssignedGoalsAsync(organizationId, currentEmployeeId);
-            return Ok(new ServiceResponse<List<GoalDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<GoalDto>>
             {
                 Success = true,
                 Data = result
@@ -1288,7 +1300,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error while fetching Goals");
-            return StatusCode(500, new ServiceResponse<List<GoalDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<GoalDto>>
             {
                 Success = false,
                 Message = "Error while fetching Goals"
@@ -1297,7 +1309,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("goals/{goalId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<GoalDto>>> GetGoalById(Guid goalId)
     {
         try
@@ -1321,7 +1332,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPut("update-goal")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<GoalDto>>> UpdateGoal([FromBody] UpdateGoalRequest request)
     {
         try
@@ -1401,7 +1411,8 @@ public class PerformanceController : ControllerBase
 
 
     [HttpDelete("delete-goal/{goalId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    [PermissionAuthorize("Delete Goal Button")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteGoal(Guid goalId)
     {
         try
@@ -1422,7 +1433,8 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPost("goals/assign-employee")]
-    [Authorize(Roles = "Super Admin,HR Manager,Employee")]
+    [PermissionAuthorize("ASSIGN_GOAL_BUTTON")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> AssignGoalToEmployee(
      [FromQuery] Guid goalId,
      [FromQuery] Guid assignedTo)
@@ -1462,15 +1474,14 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("top-performers")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<List<TopPerformerDto>>>> GetTopPerformers([FromQuery] int count = 10)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<TopPerformerDto>>>> GetTopPerformers([FromQuery] int count = 10)
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var topPerformers = await _performanceService.GetTopPerformersAsync(organizationId, count);
 
-            return Ok(new ServiceResponse<List<TopPerformerDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<TopPerformerDto>>
             {
                 Success = true,
                 Data = topPerformers
@@ -1479,7 +1490,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving top performers");
-            return StatusCode(500, new ServiceResponse<List<TopPerformerDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<TopPerformerDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving top performers"
@@ -1532,7 +1543,7 @@ public class PerformanceController : ControllerBase
     //mm
 
     [HttpGet("selfassessment/my")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMySelfAssessments()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SelfAssessmentDto>>>> GetMySelfAssessments()
     {
         try
         {
@@ -1541,7 +1552,7 @@ public class PerformanceController : ControllerBase
 
             var result = await _performanceService.GetSelfAssessmentsByEmployeeAsync(currentEmployeeId, organizationId);
 
-            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = true,
                 Data = result,
@@ -1551,7 +1562,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving self-assessments");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving self-assessments"
@@ -1562,7 +1573,7 @@ public class PerformanceController : ControllerBase
     //mm
 
     [HttpGet("selfassessment/team")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetTeamSelfAssessments()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SelfAssessmentDto>>>> GetTeamSelfAssessments()
     {
         try
         {
@@ -1573,7 +1584,7 @@ public class PerformanceController : ControllerBase
             // Call service to get self-assessments of employees reporting to this manager
             var result = await _performanceService.GetSelfAssessmentsForManagerAsync(currentManagerId, organizationId);
 
-            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = true,
                 Data = result,
@@ -1583,7 +1594,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving team self-assessments");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving team self-assessments"
@@ -1592,13 +1603,12 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/{employeeId}/{cycleId}")]
-    [Authorize(Roles = "Employee,Manager,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetSelfAssessment(Guid employeeId, Guid cycleId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SelfAssessmentDto>>>> GetSelfAssessment(Guid employeeId, Guid cycleId)
     {
         try
         {
             var assessments = await _performanceService.GetSelfAssessmentsAsync(employeeId, cycleId);
-            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = true,
                 Data = assessments
@@ -1607,7 +1617,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching self-assessment");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching self-assessment"
@@ -1616,8 +1626,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/my-assessments")]
-    [Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMySelfAssessments(
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SelfAssessmentDto>>>> GetMySelfAssessments(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? kraId = null,
         [FromQuery] string? search = null)
@@ -1626,7 +1635,7 @@ public class PerformanceController : ControllerBase
         {
             var currentEmployeeId = await GetCurrentEmployeeId();
             var assessments = await _performanceService.GetMySelfAssessmentsAsync(currentEmployeeId, cycleId, kraId, search);
-            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = true,
                 Data = assessments
@@ -1635,7 +1644,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching my self-assessments");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching self-assessments"
@@ -1644,8 +1653,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/my-appraisals")]
-    [Authorize(Roles = "Employee,Manager,HR Manager,Super Admin")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>>> GetMyAppraisals(
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<EmployeeAppraisalForEmployeeDto>>>> GetMyAppraisals(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? kraId = null,
         [FromQuery] string? search = null,
@@ -1659,16 +1667,16 @@ public class PerformanceController : ControllerBase
             if (currentEmployeeId == Guid.Empty)
             {
                 _logger.LogWarning("User does not have an associated employee record");
-                return Ok(new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
+                return Ok(new ServiceResponse<IReadOnlyList<EmployeeAppraisalForEmployeeDto>>
                 {
                     Success = true,
-                    Data = new List<EmployeeAppraisalForEmployeeDto>(),
+                    Data = Array.Empty<EmployeeAppraisalForEmployeeDto>(),
                     Message = "No employee record found for this user"
                 });
             }
 
             var appraisals = await _performanceService.GetEmployeeAppraisalsForEmployeeAsync(currentEmployeeId, cycleId, kraId, search, status);
-            return Ok(new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<EmployeeAppraisalForEmployeeDto>>
             {
                 Success = true,
                 Data = appraisals
@@ -1677,7 +1685,7 @@ public class PerformanceController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access attempt for my appraisals");
-            return StatusCode(403, new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
+            return StatusCode(403, new ServiceResponse<IReadOnlyList<EmployeeAppraisalForEmployeeDto>>
             {
                 Success = false,
                 Message = "You do not have permission to access this resource. Please ensure you have an employee record associated with your account."
@@ -1686,7 +1694,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching my appraisals");
-            return StatusCode(500, new ServiceResponse<IEnumerable<EmployeeAppraisalForEmployeeDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<EmployeeAppraisalForEmployeeDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching appraisals"
@@ -1721,13 +1729,12 @@ public class PerformanceController : ControllerBase
     //}
 
     [HttpGet("Manager/Self-Assessments/{managerId}/{cycleId}")]
-    [Authorize(Roles = "Manager,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetTeamSelfAssessments(Guid managerId, Guid cycleId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SelfAssessmentDto>>>> GetTeamSelfAssessments(Guid managerId, Guid cycleId)
     {
         try
         {
             var data = await _performanceService.GetTeamSelfAssessmentsAsync(managerId, cycleId);
-            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = true,
                 Data = data
@@ -1736,7 +1743,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching team self-assessments");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching team self-assessments"
@@ -1745,13 +1752,12 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("Manager/Self-Assessment/{employeeId}/{cycleId}")]
-    [Authorize(Roles = "Manager,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetEmployeeSelfAssessment(Guid employeeId, Guid cycleId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SelfAssessmentDto>>>> GetEmployeeSelfAssessment(Guid employeeId, Guid cycleId)
     {
         try
         {
             var data = await _performanceService.GetSelfAssessmentsAsync(employeeId, cycleId);
-            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = true,
                 Data = data
@@ -1760,7 +1766,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching employee self-assessment");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching employee self-assessment"
@@ -1769,8 +1775,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/all-employee-assessments")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetAllEmployeeSelfAssessments(
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SelfAssessmentDto>>>> GetAllEmployeeSelfAssessments(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? employeeId = null,
         [FromQuery] Guid? kraId = null,
@@ -1780,7 +1785,7 @@ public class PerformanceController : ControllerBase
         {
             var organizationId = GetCurrentOrganizationId();
             var assessments = await _performanceService.GetAllEmployeeSelfAssessmentsAsync(organizationId, cycleId, employeeId, kraId, search);
-            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = true,
                 Data = assessments
@@ -1789,7 +1794,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching all employee self-assessments");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching employee self-assessments"
@@ -1798,8 +1803,7 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("SelfAssessment/my-team-assessments")]
-    [Authorize(Roles = "Manager")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetMyTeamSelfAssessments(
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SelfAssessmentDto>>>> GetMyTeamSelfAssessments(
         [FromQuery] Guid? cycleId = null,
         [FromQuery] Guid? employeeId = null,
         [FromQuery] Guid? kraId = null,
@@ -1811,16 +1815,16 @@ public class PerformanceController : ControllerBase
 
             if (currentEmployeeId == Guid.Empty)
             {
-                return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+                return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
                 {
                     Success = true,
-                    Data = new List<SelfAssessmentDto>(),
+                    Data = Array.Empty<SelfAssessmentDto>(),
                     Message = "No employee record found for this user"
                 });
             }
 
             var assessments = await _performanceService.GetMyTeamSelfAssessmentsAsync(currentEmployeeId, cycleId, employeeId, kraId, search);
-            return Ok(new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = true,
                 Data = assessments
@@ -1829,7 +1833,7 @@ public class PerformanceController : ControllerBase
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access attempt for my team self-assessments");
-            return StatusCode(403, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(403, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "You do not have permission to access this resource."
@@ -1838,7 +1842,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching my team self-assessments");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SelfAssessmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SelfAssessmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while fetching team self-assessments"
@@ -1957,7 +1961,7 @@ public class PerformanceController : ControllerBase
 
     // KRA Management - Enhanced
     [HttpDelete("Kra/{kraId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager")]
+    [PermissionAuthorize("KRA_DELETE_BUTTON")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteKRA(Guid kraId)
     {
         try
@@ -2038,7 +2042,6 @@ public class PerformanceController : ControllerBase
 
     // Reports and Analytics
     [HttpGet("employee/{employeeId}/history")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<EmployeePerformanceHistoryDto>>> GetEmployeePerformanceHistory(Guid employeeId)
     {
         try
@@ -2080,7 +2083,6 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpGet("appraisals/{appraisalId}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<EmployeeAppraisalDto>>> GetEmployeeAppraisalById(Guid appraisalId)
     {
         try
@@ -2150,7 +2152,8 @@ public class PerformanceController : ControllerBase
 
     // Get reviews created by manager (for their employees)
     [HttpGet("getall/created/Manager/Reviews")]
-    public async Task<ActionResult<ServiceResponse<List<ManagerReviewDto>>>> GetManagerCreatedReviews()
+    [PermissionAuthorize("appraisal_manager_appraisals_review")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ManagerReviewDto>>>> GetManagerCreatedReviews()
     {
         try
         {
@@ -2159,7 +2162,7 @@ public class PerformanceController : ControllerBase
 
             var result = await _performanceService.GetManagerReviewsAsync(organizationId, managerId);
 
-            return Ok(new ServiceResponse<List<ManagerReviewDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<ManagerReviewDto>>
             {
                 Success = true,
                 Data = result,
@@ -2169,7 +2172,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving manager reviews");
-            return StatusCode(500, new ServiceResponse<List<ManagerReviewDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ManagerReviewDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving manager reviews"
@@ -2179,7 +2182,7 @@ public class PerformanceController : ControllerBase
 
     //Getting all managers review from manager table for showing all managers review that they give to there employee
     [HttpGet("getAllManagers/Reviews")]
-    public async Task<ActionResult<ServiceResponse<List<ManagerReviewDto>>>> GetAllManagerReviews([FromQuery] SearchManagersDto search)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ManagerReviewDto>>>> GetAllManagerReviews([FromQuery] SearchManagersDto search)
     {
         try
         {
@@ -2188,7 +2191,7 @@ public class PerformanceController : ControllerBase
 
             var result = await _performanceService.GetAllManagerReviewsAsync(organizationId, managerId, search);
 
-            return Ok(new ServiceResponse<List<ManagerReviewDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<ManagerReviewDto>>
             {
                 Success = true,
                 Data = result,
@@ -2198,7 +2201,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving manager reviews");
-            return StatusCode(500, new ServiceResponse<List<ManagerReviewDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ManagerReviewDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving manager reviews"
@@ -2208,7 +2211,7 @@ public class PerformanceController : ControllerBase
 
     // Get reviews received by employee (from their manager)
     [HttpGet("employee/manager-reviews")]
-    public async Task<ActionResult<ServiceResponse<List<ManagerReviewDto>>>> GetEmployeeReviews()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ManagerReviewDto>>>> GetEmployeeReviews()
     {
         try
         {
@@ -2217,7 +2220,7 @@ public class PerformanceController : ControllerBase
 
             var result = await _performanceService.GetEmployeeReviewsAsync(organizationId, employeeId);
 
-            return Ok(new ServiceResponse<List<ManagerReviewDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<ManagerReviewDto>>
             {
                 Success = true,
                 Data = result,
@@ -2227,7 +2230,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee reviews");
-            return StatusCode(500, new ServiceResponse<List<ManagerReviewDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ManagerReviewDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee reviews"
@@ -2285,7 +2288,7 @@ public class PerformanceController : ControllerBase
 
     // Get all HR reviews given to other employees  by this hr (for HR dashboard)
     [HttpGet("HR/Reviews")]
-    public async Task<ActionResult<ServiceResponse<List<HrReviewDto>>>> GetHrReviews()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<HrReviewDto>>>> GetHrReviews()
     {
         try
         {
@@ -2294,7 +2297,7 @@ public class PerformanceController : ControllerBase
 
             var result = await _performanceService.GetHrReviewsAsync(organizationId, currenEmpid);
 
-            return Ok(new ServiceResponse<List<HrReviewDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<HrReviewDto>>
             {
                 Success = true,
                 Data = result,
@@ -2304,7 +2307,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving HR reviews");
-            return StatusCode(500, new ServiceResponse<List<HrReviewDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<HrReviewDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving HR reviews"
@@ -2314,7 +2317,7 @@ public class PerformanceController : ControllerBase
 
     // Get HR reviews for a specific employee
     [HttpGet("HR/Reviews/Employee/{employeeId}")]
-    public async Task<ActionResult<ServiceResponse<List<HrReviewDto>>>> GetHrReviewsByEmployee(Guid employeeId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<HrReviewDto>>>> GetHrReviewsByEmployee(Guid employeeId)
     {
         try
         {
@@ -2322,7 +2325,7 @@ public class PerformanceController : ControllerBase
 
             var result = await _performanceService.GetHrReviewsByEmployeeAsync(organizationId, employeeId);
 
-            return Ok(new ServiceResponse<List<HrReviewDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<HrReviewDto>>
             {
                 Success = true,
                 Data = result,
@@ -2332,7 +2335,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee HR reviews");
-            return StatusCode(500, new ServiceResponse<List<HrReviewDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<HrReviewDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving employee HR reviews"
@@ -2343,7 +2346,7 @@ public class PerformanceController : ControllerBase
 
     // Get employee's own HR reviews
     [HttpGet("Employee/HR/Reviews")]
-    public async Task<ActionResult<ServiceResponse<List<HrReviewDto>>>> GetMyHrReviews()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<HrReviewDto>>>> GetMyHrReviews()
     {
         try
         {
@@ -2352,7 +2355,7 @@ public class PerformanceController : ControllerBase
 
             var result = await _performanceService.GetHrReviewsByEmployeeAsync(organizationId, employeeId);
 
-            return Ok(new ServiceResponse<List<HrReviewDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<HrReviewDto>>
             {
                 Success = true,
                 Data = result,
@@ -2362,7 +2365,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee HR reviews");
-            return StatusCode(500, new ServiceResponse<List<HrReviewDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<HrReviewDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving your HR reviews"
@@ -2373,7 +2376,7 @@ public class PerformanceController : ControllerBase
 
     //Get all records of Hr.appraisals mm
     [HttpGet("GetAllHr/Appraisals")]
-    public async Task<ActionResult<ServiceResponse<List<HrReviewDto>>>> GetallAppraisal([FromQuery] SearchAppraisalDto? search)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<HrReviewDto>>>> GetallAppraisal([FromQuery] SearchAppraisalDto? search)
     {
         try
         {
@@ -2382,7 +2385,7 @@ public class PerformanceController : ControllerBase
 
             var result = await _performanceService.GetAllAppraisaAsync(organizationId, employeeId, search);
 
-            return Ok(new ServiceResponse<List<HrReviewDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<HrReviewDto>>
             {
                 Success = true,
                 Data = result,
@@ -2392,7 +2395,7 @@ public class PerformanceController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving employee HR reviews");
-            return StatusCode(500, new ServiceResponse<List<HrReviewDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<HrReviewDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving your HR reviews"
@@ -2404,7 +2407,6 @@ public class PerformanceController : ControllerBase
 
 
     [HttpDelete("appraisals/{appraisalId}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployeeAppraisal(Guid appraisalId)
     {
         try
@@ -2498,8 +2500,8 @@ public class CreateAppraisalCycleRequest
 
     public string? Status { get; set; } // upcoming, inprogress, concluded
 
-    public bool IsSelfAssessmentEnable { get; set; }
-    public bool ManagerReview { get; set; }   // renamed from IsReviewEnable
+    public bool IsSelfAssessmentEnable { get; set; } = true;
+    public bool ManagerReview { get; set; } = true;   // renamed from IsReviewEnable
     public bool IsAppraisalEnable { get; set; }
 
     public string? Description { get; set; }

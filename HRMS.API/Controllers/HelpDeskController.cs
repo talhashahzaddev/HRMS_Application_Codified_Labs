@@ -1,4 +1,5 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -26,6 +27,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPost("create-ticket")]
+        [PermissionAuthorize("Create_Ticket_Button")]
+
         public async Task<ActionResult<ServiceResponse<TicketDto>>> CreateTicket([FromBody] TicketRequest ticketRequest)
         {
             try
@@ -166,7 +169,7 @@ namespace HRMS.API.Controllers
                 var organizationId = GetCurrentOrganizationId();
                 var currentEmployeeId = await GetCurrentEmployeeId();
                 var tickets = await _helpDeskService.GetAllTicketsAsync(organizationId, currentEmployeeId, searchModel);
-                return Ok(new ServiceResponse<List<TicketDto>>
+                return Ok(new ServiceResponse<IEnumerable<TicketDto>>
                 {
                     Success = true,
                     Data = tickets
@@ -175,7 +178,7 @@ namespace HRMS.API.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid argument while retrieving tickets");
-                return BadRequest(new ServiceResponse<List<TicketDto>>
+                return BadRequest(new ServiceResponse<IEnumerable<TicketDto>>
                 {
                     Success = false,
                     Message = ex.Message
@@ -246,7 +249,7 @@ namespace HRMS.API.Controllers
                 var organizationId = GetCurrentOrganizationId();
                 var currentEmployeeId = await GetCurrentEmployeeId();
                 var tickets = await _helpDeskService.GetAllAssignedTicket(organizationId, currentEmployeeId, searchModel);
-                return Ok(new ServiceResponse<List<TicketDto>>
+                return Ok(new ServiceResponse<IEnumerable<TicketDto>>
                 {
                     Success = true,
                     Data = tickets
@@ -255,7 +258,7 @@ namespace HRMS.API.Controllers
             catch (ArgumentException ex)
             {
                 _logger.LogWarning(ex, "Invalid argument while retrieving tickets");
-                return BadRequest(new ServiceResponse<List<TicketDto>>
+                return BadRequest(new ServiceResponse<IEnumerable<TicketDto>>
                 {
                     Success = false,
                     Message = ex.Message
@@ -273,6 +276,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpDelete("delete-ticket/{ticketId}")]
+        [PermissionAuthorize("Ticket_Delete_Button")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> DeleteTicket(Guid ticketId)
         {
             try
@@ -312,6 +317,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPost("create-group")]
+        [PermissionAuthorize("Create_AgentGroup_Button")]
+
         public async Task<ActionResult<ServiceResponse<TicketGroupDto>>> CreateGroup([FromBody] CreateTicketGroupRequest request)
         {
             try
@@ -345,6 +352,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPut("update-group")]
+        [PermissionAuthorize("EDIT_AGENTGROUP_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> UpdateGroup([FromBody] UpdateTicketGroupRequest request)
         {
             try
@@ -397,7 +406,7 @@ namespace HRMS.API.Controllers
 
                 // Call service to fetch all groups for the organization
                 var groups = await _helpDeskService.GetAllTicketGroupsAsync(organizationId, search,departmentId,categoryId);
-                return Ok(new ServiceResponse<List<TicketGroupDto>>
+                return Ok(new ServiceResponse<IEnumerable<TicketGroupDto>>
                 {
                     Success = true,
                     Data = groups
@@ -406,7 +415,7 @@ namespace HRMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving all ticket groups for organization {OrganizationId}", GetCurrentOrganizationId());
-                return StatusCode(500, new ServiceResponse<List<TicketGroupDto>>
+                return StatusCode(500, new ServiceResponse<IEnumerable<TicketGroupDto>>
                 {
                     Success = false,
                     Message = "An error occurred while retrieving ticket groups"
@@ -451,6 +460,8 @@ namespace HRMS.API.Controllers
         }
         //Delete Group
         [HttpDelete("delete-group/{groupId}")]
+        [PermissionAuthorize("DELETE_AGENTGROUP_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> DeleteGroup(Guid groupId)
         {
             try
@@ -611,7 +622,7 @@ namespace HRMS.API.Controllers
                 // Fetch messages sent or received by current employee
                 var messages = await _helpDeskService.GetMessagesByEmployeeIdAsync(organizationId, currentEmployeeId, ticketId);
 
-                return Ok(new ServiceResponse<List<TicketMessageDto>>
+                return Ok(new ServiceResponse<IEnumerable<TicketMessageDto>>
                 {
                     Success = true,
                     Message = "Messages retrieved successfully",
@@ -621,7 +632,7 @@ namespace HRMS.API.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving messages for current employee");
-                return StatusCode(500, new ServiceResponse<List<TicketMessageDto>>
+                return StatusCode(500, new ServiceResponse<IEnumerable<TicketMessageDto>>
                 {
                     Success = false,
                     Message = "An error occurred while retrieving messages"
@@ -631,6 +642,8 @@ namespace HRMS.API.Controllers
 
 
         [HttpPost("create-category")]
+        [PermissionAuthorize("CREATE_TICKETCATEGORY_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> CreateCategory([FromBody] CreateCategoryRequest request)
         {
             try
@@ -677,7 +690,7 @@ namespace HRMS.API.Controllers
                 
                 var categories = await _helpDeskService.GetCategoriesAsync(organizationId, search);
 
-                return Ok(new ServiceResponse<List<CategoryDto>>
+                return Ok(new ServiceResponse<IEnumerable<CategoryDto>>
                 {
                     Success = true,
                     Message = "Categories fetched successfully",
@@ -688,7 +701,7 @@ namespace HRMS.API.Controllers
             {
                 _logger.LogError(ex, "Error fetching categories");
 
-                return StatusCode(500, new ServiceResponse<List<CategoryDto>>
+                return StatusCode(500, new ServiceResponse<IEnumerable<CategoryDto>>
                 {
                     Success = false,
                     Message = "Error fetching categories"
@@ -697,6 +710,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpPut("update-category")]
+        [PermissionAuthorize("EDIT_TICKETCategory_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> UpdateCategory([FromBody] UpdateCategoryRequest request)
         {
             try
@@ -735,6 +750,8 @@ namespace HRMS.API.Controllers
         }
 
         [HttpDelete("delete-category/{categoryId}")]
+        [PermissionAuthorize("DELETE_TICKETCateogry_BUTTON")]
+
         public async Task<ActionResult<ServiceResponse<bool>>> DeleteCategory(Guid categoryId)
         {
             try

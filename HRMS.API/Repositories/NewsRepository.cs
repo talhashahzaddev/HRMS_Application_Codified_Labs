@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Wordprocessing;
+using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
@@ -103,8 +103,8 @@ namespace HRMS.API.Repositories
                   Description = r.Description,
                   OrganizationId=r.OrganizationId,
              AuthorName = r.AuthorName
-         }).ToList();
-         var totalCount = news.Count;
+         }).ToArray();
+         var totalCount = news.Length;
                 return new PagedResult<NewsDto>
                 {
                   Data = news,
@@ -147,8 +147,8 @@ namespace HRMS.API.Repositories
                   Description = r.Description,
                   OrganizationId=r.OrganizationId,
                   AuthorName=r.AuthorName
-                  }).ToList();
-         var totalCount = news.Count;
+                  }).ToArray();
+         var totalCount = news.Length;
                 return new PagedResult<NewsDto>
                 {
                   Data = news,

@@ -1,4 +1,4 @@
-﻿using HRMS.API.Models.DTOs;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -12,7 +12,7 @@ namespace HRMS.API.Services.Interfaces
 {
     public interface IIpAddressService
     {
-        Task<List<IpAddress>> GetAllIpAddressesAsync();
+        Task<IReadOnlyList<IpAddress>> GetAllIpAddressesAsync();
         Task<IpAddress> GetIpByIdAsync(Guid id);
         Task<bool> CreateIpAddressAsync(IpAddress dto);
         Task<bool> UpdateIpAddressAsync(Guid id, IpAddress dto);

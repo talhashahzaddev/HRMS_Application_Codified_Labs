@@ -10,7 +10,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     public JobsRepository(IDatabaseConnectionFactory connectionFactory) : base(connectionFactory) { }
 
     // ==================== StageMaster ====================
-    public async Task<IEnumerable<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId)
+    public async Task<IReadOnlyList<StageMasterDto>> GetAllStageMastersAsync(Guid organizationId)
     {
         var sql = @"
             SELECT stageid AS StageId, organizationid AS OrganizationId, stagename AS StageName,
@@ -18,7 +18,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             FROM jobs.stagemaster
             WHERE organizationid = @organizationId
             ORDER BY stageorder NULLS LAST, stagename";
-        return await QueryAsync<StageMasterDto>(sql, new { organizationId });
+        return (await QueryAsync<StageMasterDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<StageMasterDto?> GetStageMasterByIdAsync(Guid stageId)
@@ -58,7 +58,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
     }
 
     // ==================== JobOpenings ====================
-    public async Task<IEnumerable<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<JobOpeningDto>> GetAllJobOpeningsAsync(Guid organizationId)
     {
         var sql = @"
             SELECT j.jobid AS JobId, j.jobcode AS JobCode, j.organizationid AS OrganizationId, j.jobrolename AS JobRoleName,
@@ -71,13 +71,14 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
             WHERE j.organizationid = @organizationId
             ORDER BY j.posteddate DESC NULLS LAST, j.createdat DESC";
-        return await QueryAsync<JobOpeningDto>(sql, new { organizationId });
+        return (await QueryAsync<JobOpeningDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<JobOpeningStatsDto> GetJobOpeningStatsAsync(Guid organizationId)
@@ -135,7 +136,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills::text AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
@@ -156,7 +158,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var data = await QueryAsync<JobOpeningDto>(dataSql, new { organizationId, searchPattern, status, fromDate, toDate, pageSize, offset });
         return new PagedResult<JobOpeningDto>
         {
-            Data = data?.ToList() ?? new List<JobOpeningDto>(),
+            Data = data?.ToArray() ?? Array.Empty<JobOpeningDto>(),
             TotalCount = totalCount,
             Page = pageNumber,
             PageSize = pageSize
@@ -178,6 +180,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             WHERE j.organizationid = @organizationId
               AND j.postedas = 'External'
+              AND j.status = 'Open'
               AND (@employmentType IS NULL OR j.employmenttype = @employmentType)
               AND (@searchPattern IS NULL OR (
                   j.jobrolename ILIKE @searchPattern OR
@@ -202,12 +205,14 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills::text AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
             WHERE j.organizationid = @organizationId
               AND j.postedas = 'External'
+              AND j.status = 'Open'
               AND (@employmentType IS NULL OR j.employmenttype = @employmentType)
               AND (@searchPattern IS NULL OR (
                   j.jobrolename ILIKE @searchPattern OR
@@ -224,7 +229,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var data = await QueryAsync<JobOpeningDto>(dataSql, new { organizationId, searchPattern, employmentType, fromDate, toDate, pageSize, offset });
         return new PagedResult<JobOpeningDto>
         {
-            Data = data?.ToList() ?? new List<JobOpeningDto>(),
+            Data = data?.ToArray() ?? Array.Empty<JobOpeningDto>(),
             TotalCount = totalCount,
             Page = pageNumber,
             PageSize = pageSize
@@ -244,7 +249,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    j.lastdate AS LastDate, j.posteddate AS PostedDate, j.postedas AS PostedAs,
                    j.externallink AS ExternalLink, j.status AS Status, j.createdby AS CreatedBy,
                    CONCAT(emp.firstname, ' ', emp.lastname) AS CreatedByName,
-                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt
+                   j.createdat AS CreatedAt, j.updatedat AS UpdatedAt,
+                   j.mandatoryskills::text AS MandatorySkills
             FROM jobs.jobopenings j
             LEFT JOIN employee.departments d ON j.departmentid = d.departmentid
             LEFT JOIN employee.employees emp ON j.createdby = emp.employeeid
@@ -257,10 +263,10 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var sql = @"
             INSERT INTO jobs.jobopenings (organizationid, jobcode, jobrolename, departmentid, experiencemin, experiencemax,
                 ctcmin, ctcmax, currency, vacancies, location, workmode, employmenttype, jobintroduction,
-                responsibilities, skillset, lastdate, postedas, externallink, status, createdby)
+                responsibilities, skillset, lastdate, postedas, externallink, status, createdby, mandatoryskills)
             VALUES (@OrganizationId, @JobCode, @JobRoleName, @DepartmentId, @ExperienceMin, @ExperienceMax,
                 @CtcMin, @CtcMax, @Currency, @Vacancies, @Location, @WorkMode, @EmploymentType, @JobIntroduction,
-                @Responsibilities, @Skillset, @LastDate, @PostedAs, @ExternalLink, @Status, @CreatedBy)
+                @Responsibilities, @Skillset, @LastDate, @PostedAs, @ExternalLink, @Status, @CreatedBy, CAST(@MandatorySkills AS jsonb))
             RETURNING jobid";
         return await ExecuteScalarAsync<Guid>(sql, new
         {
@@ -284,7 +290,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
             entity.PostedAs,
             entity.ExternalLink,
             entity.Status,
-            entity.CreatedBy
+            entity.CreatedBy,
+            entity.MandatorySkills
         });
     }
 
@@ -297,6 +304,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
                 vacancies = @Vacancies, location = @Location, workmode = @WorkMode, employmenttype = @EmploymentType,
                 jobintroduction = @JobIntroduction, responsibilities = @Responsibilities, skillset = @Skillset,
                 lastdate = @LastDate, postedas = @PostedAs, externallink = @ExternalLink, status = @Status,
+                mandatoryskills = CAST(@MandatorySkills AS jsonb),
                 updatedat = CURRENT_TIMESTAMP
             WHERE jobid = @JobId";
         var rows = await ExecuteAsync(sql, new
@@ -320,7 +328,8 @@ public class JobsRepository : BaseRepository, IJobsRepository
             entity.LastDate,
             entity.PostedAs,
             entity.ExternalLink,
-            entity.Status
+            entity.Status,
+            entity.MandatorySkills
         });
         return rows > 0;
     }
@@ -329,6 +338,16 @@ public class JobsRepository : BaseRepository, IJobsRepository
     {
         var sql = "DELETE FROM jobs.jobopenings WHERE jobid = @jobId";
         var rows = await ExecuteAsync(sql, new { jobId });
+        return rows > 0;
+    }
+
+    public async Task<bool> UpdatePassedKnockoutAsync(Guid jobApplyId, bool passed)
+    {
+        var sql = @"
+            UPDATE jobs.jobapplications
+            SET passedknockout = @passed, updateddate = CURRENT_TIMESTAMP
+            WHERE jobapplyid = @jobApplyId";
+        var rows = await ExecuteAsync(sql, new { jobApplyId, passed });
         return rows > 0;
     }
 
@@ -358,18 +377,20 @@ public class JobsRepository : BaseRepository, IJobsRepository
                    a.linkedinurl AS LinkedInUrl, a.resumeurl AS ResumeUrl, a.phone AS Phone,
                    a.coverletter AS CoverLetter, a.currentstageid AS CurrentStageId, s.stagename AS CurrentStageName,
                    a.applicationsource AS ApplicationSource, a.status AS Status,
-                   a.createddate AS CreatedDate, a.updateddate AS UpdatedDate
+                   a.createddate AS CreatedDate, a.updateddate AS UpdatedDate,
+                   a.passedknockout AS PassedKnockout, a.enteredtostage AS EnteredToStage,
+                   j.mandatoryskills AS MandatorySkills
             FROM jobs.jobapplications a
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             LEFT JOIN employee.employees emp ON a.employeeid = emp.employeeid
             LEFT JOIN jobs.stagemaster s ON a.currentstageid = s.stageid";
 
-    public async Task<IEnumerable<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId)
+    public async Task<IReadOnlyList<JobApplicationDto>> GetAllJobApplicationsAsync(Guid organizationId)
     {
         var sql = JobApplicationSelectSql + @"
             WHERE a.organizationid = @organizationId
-            ORDER BY a.createddate DESC NULLS LAST";
-        return await QueryAsync<JobApplicationDto>(sql, new { organizationId });
+            ORDER BY a.createddate DESC";
+        return (await QueryAsync<JobApplicationDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsPagedAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, Guid? stageId, List<Guid>? jobIds, int pageNumber, int pageSize)
@@ -389,6 +410,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             FROM jobs.jobapplications a
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             WHERE a.organizationid = @organizationId
+              AND a.enteredtostage = true
               AND (@searchPattern IS NULL OR (
                   a.candidatename ILIKE @searchPattern OR
                   a.candidateemail ILIKE @searchPattern OR
@@ -401,6 +423,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.organizationid = @organizationId
+              AND a.enteredtostage = true
               AND (@searchPattern IS NULL OR (
                   a.candidatename ILIKE @searchPattern OR
                   a.candidateemail ILIKE @searchPattern OR
@@ -414,7 +437,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var data = await QueryAsync<JobApplicationDto>(dataSql, new { organizationId, searchPattern, fromDate, toDate, stageId, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>(), pageSize, offset });
         return new PagedResult<JobApplicationDto>
         {
-            Data = data?.ToList() ?? new List<JobApplicationDto>(),
+            Data = data?.ToArray() ?? Array.Empty<JobApplicationDto>(),
             TotalCount = totalCount,
             Page = pageNumber,
             PageSize = pageSize
@@ -438,6 +461,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
             FROM jobs.jobapplications a
             LEFT JOIN jobs.jobopenings j ON a.jobid = j.jobid
             WHERE a.jobid IN (SELECT jobid FROM jobs.jobopenings WHERE createdby = @employeeId)
+              AND a.enteredtostage = true
               AND (@searchPattern IS NULL OR (
                   a.candidatename ILIKE @searchPattern OR
                   a.candidateemail ILIKE @searchPattern OR
@@ -450,6 +474,7 @@ public class JobsRepository : BaseRepository, IJobsRepository
 
         var dataSql = JobApplicationSelectSql + @"
             WHERE a.jobid IN (SELECT jobid FROM jobs.jobopenings WHERE createdby = @employeeId)
+              AND a.enteredtostage = true
               AND (@searchPattern IS NULL OR (
                   a.candidatename ILIKE @searchPattern OR
                   a.candidateemail ILIKE @searchPattern OR
@@ -463,11 +488,45 @@ public class JobsRepository : BaseRepository, IJobsRepository
         var data = await QueryAsync<JobApplicationDto>(dataSql, new { employeeId, searchPattern, fromDate, toDate, stageId, hasJobIds, jobIdArray = jobIdArray ?? Array.Empty<Guid>(), pageSize, offset });
         return new PagedResult<JobApplicationDto>
         {
-            Data = data?.ToList() ?? new List<JobApplicationDto>(),
+            Data = data?.ToArray() ?? Array.Empty<JobApplicationDto>(),
             TotalCount = totalCount,
             Page = pageNumber,
             PageSize = pageSize
         };
+    }
+
+    /// <summary>Gets all unreviewed applications (enteredtostage = false) for the ATS inbox with filters.</summary>
+    public async Task<IReadOnlyList<JobApplicationDto>> GetAtsApplicationsAsync(Guid organizationId, string? search, DateTime? applyDateFrom, DateTime? applyDateTo, List<Guid>? jobIds, bool? passedKnockout)
+    {
+        var searchPattern = string.IsNullOrWhiteSpace(search) ? null : $"%{search.Trim()}%";
+        var fromDate = applyDateFrom ?? new DateTime(1900, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        var toDate = applyDateTo ?? new DateTime(9999, 12, 31, 23, 59, 59, DateTimeKind.Utc);
+        var hasJobIds = jobIds != null && jobIds.Any();
+
+        var sql = JobApplicationSelectSql + @"
+            WHERE a.organizationid = @organizationId
+              AND a.status != 'Rejected'
+              AND (@searchPattern IS NULL OR (
+                  a.candidatename ILIKE @searchPattern OR
+                  a.candidateemail ILIKE @searchPattern OR
+                  a.phone ILIKE @searchPattern OR
+                  j.jobrolename ILIKE @searchPattern))
+              AND ((CAST(@fromDate AS date) = '1900-01-01'::date) OR (a.createddate >= @fromDate))
+              AND ((CAST(@toDate AS date) = '9999-12-31'::date) OR (a.createddate <= @toDate))
+              AND (@hasJobIds = FALSE OR a.jobid = ANY(@jobIds))
+              AND (@passedKnockout IS NULL OR a.passedknockout = @passedKnockout)
+            ORDER BY a.createddate DESC";
+        return (await QueryAsync<JobApplicationDto>(sql, new { organizationId, searchPattern, fromDate, toDate, hasJobIds, jobIds = jobIds?.ToArray(), passedKnockout })).ToArray();
+    }
+
+    public async Task<bool> UpdateEnteredToStageAsync(Guid jobApplyId)
+    {
+        var sql = @"
+            UPDATE jobs.jobapplications
+            SET enteredtostage = true, updateddate = CURRENT_TIMESTAMP
+            WHERE jobapplyid = @jobApplyId";
+        var rows = await ExecuteAsync(sql, new { jobApplyId });
+        return rows > 0;
     }
 
     public async Task<JobApplicationDto?> GetJobApplicationByIdAsync(Guid jobApplyId)
@@ -477,12 +536,12 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return await QuerySingleOrDefaultAsync<JobApplicationDto>(sql, new { jobApplyId });
     }
 
-    public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId)
+    public async Task<IReadOnlyList<JobApplicationDto>> GetJobApplicationsByEmployeeIdAsync(Guid employeeId)
     {
         var sql = JobApplicationSelectSql + @"
             WHERE a.employeeid = @employeeId
-            ORDER BY a.createddate DESC NULLS LAST";
-        return await QueryAsync<JobApplicationDto>(sql, new { employeeId });
+            ORDER BY a.createddate DESC";
+        return (await QueryAsync<JobApplicationDto>(sql, new { employeeId })).ToArray();
     }
 
     public async Task<PagedResult<JobApplicationDto>> GetJobApplicationsByEmployeeIdPagedAsync(Guid employeeId, string? search, Guid? stageId, string? status, int pageNumber, int pageSize)
@@ -559,12 +618,12 @@ public class JobsRepository : BaseRepository, IJobsRepository
         };
     }
 
-    public async Task<IEnumerable<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
+    public async Task<IReadOnlyList<JobApplicationDto>> GetJobApplicationsByJobIdAsync(Guid jobId)
     {
         var sql = JobApplicationSelectSql + @"
             WHERE a.jobid = @jobId
-            ORDER BY a.createddate DESC NULLS LAST";
-        return await QueryAsync<JobApplicationDto>(sql, new { jobId });
+            ORDER BY a.createddate DESC";
+        return (await QueryAsync<JobApplicationDto>(sql, new { jobId })).ToArray();
     }
 
     public async Task<Guid> CreateJobApplicationAsync(JobApplication entity)
@@ -657,13 +716,13 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return string.Join(",", ids.Where(g => g != Guid.Empty).Distinct());
     }
 
-    public async Task<IEnumerable<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<ApplicationStageDto>> GetAllApplicationStagesAsync(Guid organizationId)
     {
         var sql = ApplicationStageSelectSql + @"
             WHERE a.organizationid = @organizationId
             ORDER BY ast.updatedon DESC NULLS LAST";
         var rows = await QueryAsync<ApplicationStageRow>(sql, new { organizationId });
-        return await BuildApplicationStageDtosAsync(rows);
+        return (await BuildApplicationStageDtosAsync(rows)).ToArray();
     }
 
     public async Task<ApplicationStageDto?> GetApplicationStageByIdAsync(Guid applicationStageId)
@@ -676,13 +735,13 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return list.FirstOrDefault();
     }
 
-    public async Task<IEnumerable<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId)
+    public async Task<IReadOnlyList<ApplicationStageDto>> GetApplicationStagesByJobApplyIdAsync(Guid jobApplyId)
     {
         var sql = ApplicationStageSelectSql + @"
             WHERE ast.jobapplyid = @jobApplyId
             ORDER BY ast.updatedon DESC NULLS LAST";
         var rows = await QueryAsync<ApplicationStageRow>(sql, new { jobApplyId });
-        return await BuildApplicationStageDtosAsync(rows);
+        return (await BuildApplicationStageDtosAsync(rows)).ToArray();
     }
 
     public async Task<bool> ApplicationStageExistsAsync(Guid jobApplyId, Guid stageId)
@@ -696,62 +755,58 @@ public class JobsRepository : BaseRepository, IJobsRepository
         return count > 0;
     }
 
-    private async Task<IEnumerable<ApplicationStageDto>> BuildApplicationStageDtosAsync(IEnumerable<ApplicationStageRow> rows)
+    private async Task<IReadOnlyList<ApplicationStageDto>> BuildApplicationStageDtosAsync(IEnumerable<ApplicationStageRow> rows)
     {
-        var rowList = rows?.ToList() ?? new List<ApplicationStageRow>();
-        if (!rowList.Any()) return rowList.Select(r => RowToDto(r, new List<InterviewerInfoDto>()));
+        var rowList = rows?.ToArray() ?? Array.Empty<ApplicationStageRow>();
+        if (!rowList.Any()) return Array.Empty<ApplicationStageDto>();
 
-        var allIds = rowList.SelectMany(r => ParseInterviewerIds(r.InterviewersText)).Distinct().ToList();
-        var details = allIds.Any() ? (await GetInterviewerDetailsAsync(allIds)).ToList() : new List<InterviewerInfoDto>();
-        var lookup = details.ToLookup(d => d.EmployeeId);
+        var allIds = rowList.SelectMany(r => ParseInterviewerIds(r.InterviewersText)).Distinct().ToArray();
+        var details = allIds.Any() ? (await GetInterviewerDetailsAsync(allIds)).ToArray() : Array.Empty<InterviewerInfoDto>();
+        var lookup = details.ToDictionary(d => d.EmployeeId, d => d);
 
-        return rowList.Select(r =>
+        var result = new List<ApplicationStageDto>();
+        foreach (var r in rowList)
         {
             var ids = ParseInterviewerIds(r.InterviewersText);
-            var interviewers = ids.SelectMany(id => lookup[id]).ToList();
-            return RowToDto(r, interviewers);
-        });
+            var interviewers = ids.SelectMany(id => lookup.TryGetValue(id, out var info) ? new[] { info } : Array.Empty<InterviewerInfoDto>()).ToList();
+            
+            result.Add(new ApplicationStageDto
+            {
+                ApplicationStageId = r.ApplicationStageId,
+                JobApplyId = r.JobApplyId,
+                JobId = r.JobId,
+                JobCode = r.JobCode,
+                JobRoleName = r.JobRoleName,
+                CandidateName = r.CandidateName,
+                StageId = r.StageId,
+                StageName = r.StageName,
+                IsInterviewStage = r.IsInterviewStage,
+                Notes = r.Notes,
+                InterviewerIds = ids,
+                Interviewers = interviewers,
+                Type = r.Type,
+                UpdatedOn = r.UpdatedOn,
+                UpdatedBy = r.UpdatedBy,
+                UpdatedByName = r.UpdatedByName,
+                InterviewDate = r.InterviewDate,
+                InterviewPlace = r.InterviewPlace
+            });
+        }
+        return result;
     }
 
-    private static ApplicationStageDto RowToDto(ApplicationStageRow r, List<InterviewerInfoDto> interviewers)
+    public async Task<IReadOnlyList<InterviewerInfoDto>> GetInterviewerDetailsAsync(IEnumerable<Guid> employeeIds)
     {
-        return new ApplicationStageDto
-        {
-            ApplicationStageId = r.ApplicationStageId,
-            JobApplyId = r.JobApplyId,
-            JobId = r.JobId,
-            JobCode = r.JobCode,
-            JobRoleName = r.JobRoleName,
-            CandidateName = r.CandidateName,
-            StageId = r.StageId,
-            StageName = r.StageName,
-            IsInterviewStage = r.IsInterviewStage,
-            Notes = r.Notes,
-            InterviewerIds = ParseInterviewerIds(r.InterviewersText),
-            Interviewers = interviewers,
-            Type = r.Type,
-            UpdatedOn = r.UpdatedOn,
-            UpdatedBy = r.UpdatedBy,
-            UpdatedByName = r.UpdatedByName,
-            InterviewDate = r.InterviewDate,
-            InterviewPlace = r.InterviewPlace
-        };
-    }
-
-    public async Task<IEnumerable<InterviewerInfoDto>> GetInterviewerDetailsAsync(IEnumerable<Guid> employeeIds)
-    {
-        var ids = employeeIds?.Where(g => g != Guid.Empty).Distinct().ToList() ?? new List<Guid>();
-        if (!ids.Any()) return new List<InterviewerInfoDto>();
+        var ids = employeeIds?.Where(g => g != Guid.Empty).Distinct().ToArray() ?? Array.Empty<Guid>();
+        if (!ids.Any()) return Array.Empty<InterviewerInfoDto>();
 
         var sql = @"
-            SELECT e.employeeid AS EmployeeId,
-                   CONCAT(e.firstname, ' ', e.lastname) AS EmployeeName,
-                   p.positiontitle AS PositionTitle
-            FROM employee.employees e
-            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-            LEFT JOIN employee.positions p ON ed.positionid = p.positionid
-            WHERE e.employeeid = ANY(@ids)";
-        return await QueryAsync<InterviewerInfoDto>(sql, new { ids = ids.ToArray() });
+            SELECT employeeid AS EmployeeId, 
+                   CONCAT(firstname, ' ', lastname) AS EmployeeName,
+                   email AS Email
+            FROM employee.employees
+            WHERE employeeid = ANY(@ids)";
+        return (await QueryAsync<InterviewerInfoDto>(sql, new { ids })).ToArray();
     }
 
     public async Task<Guid> CreateApplicationStageAsync(ApplicationStage entity)

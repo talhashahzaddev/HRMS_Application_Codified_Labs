@@ -5,8 +5,8 @@ namespace HRMS.API.Repositories.Interfaces;
 public interface IPaymentRepository
 {
     Task<SubscriptionPlanDto?> GetSubscriptionPlanByIdAsync(Guid planId);
-    Task<IEnumerable<SubscriptionPlanDto>> GetAllSubscriptionPlansAsync();
-    Task<IEnumerable<SubscriptionPlanDto>> GetActiveSubscriptionPlansAsync();
+    Task<IReadOnlyList<SubscriptionPlanDto>> GetAllSubscriptionPlansAsync();
+    Task<IReadOnlyList<SubscriptionPlanDto>> GetActiveSubscriptionPlansAsync();
     Task<Guid> CreateSubscriptionPlanAsync(CreateSubscriptionPlanRequest request);
     Task<bool> UpdateSubscriptionPlanAsync(Guid planId, UpdateSubscriptionPlanRequest request);
     Task<bool> InactivateSubscriptionPlanAsync(Guid planId);
@@ -14,8 +14,8 @@ public interface IPaymentRepository
 
     // Company Subscriptions
     Task<CompanySubscriptionDto?> GetCompanySubscriptionByIdAsync(Guid subscriptionId);
-    Task<IEnumerable<CompanySubscriptionDto>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId);
-    Task<IEnumerable<CompanySubscriptionDto>> GetAllCompanySubscriptionsAsync();
+    Task<IReadOnlyList<CompanySubscriptionDto>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId);
+    Task<IReadOnlyList<CompanySubscriptionDto>> GetAllCompanySubscriptionsAsync();
     Task<CompanySubscriptionDetailsDto?> GetCompanySubscriptionDetailsByCompanyIdAsync(Guid companyId);
     Task<Guid> CreateCompanySubscriptionAsync(CreateCompanySubscriptionRequest request);
     Task<bool> UpdateCompanySubscriptionAsync(Guid subscriptionId, UpdateCompanySubscriptionRequest request);

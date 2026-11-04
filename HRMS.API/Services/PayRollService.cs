@@ -1,6 +1,7 @@
 using HRMS.API.Models.DTOs;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.Hosting;
 
 namespace HRMS.API.Services;
 
@@ -8,16 +9,28 @@ public class PayRollService : IPayRollService
 {
     private readonly IPayRollRepository _payRollRepository;
     private readonly IAttendanceRepository _attendanceRepository;
+    private readonly ISettingsRepository _settingsRepository;
+    private readonly IPayslipTemplateService _payslipTemplateService;
+    private readonly IPayslipPdfBuilder _payslipPdfBuilder;
     private readonly ILogger<PayRollService> _logger;
+    private readonly IWebHostEnvironment _hostEnvironment;
 
     public PayRollService(
         IPayRollRepository payRollRepository,
         IAttendanceRepository attendanceRepository,
-        ILogger<PayRollService> logger)
+        ISettingsRepository settingsRepository,
+        IPayslipTemplateService payslipTemplateService,
+        IPayslipPdfBuilder payslipPdfBuilder,
+        ILogger<PayRollService> logger,
+        IWebHostEnvironment hostEnvironment)
     {
         _payRollRepository = payRollRepository;
         _attendanceRepository = attendanceRepository;
+        _settingsRepository = settingsRepository;
+        _payslipTemplateService = payslipTemplateService;
+        _payslipPdfBuilder = payslipPdfBuilder;
         _logger = logger;
+        _hostEnvironment = hostEnvironment;
     }
 
     public async Task<ServiceResponse<PayRollRulesGroupedDto>> GetAllRulesAsync(Guid organizationId)
@@ -54,31 +67,31 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<OvertimeRuleDto>>> GetAllOvertimeRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<OvertimeRuleDto>>> GetAllOvertimeRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllOvertimeRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<OvertimeRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting overtime rules");
-            return new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<OvertimeRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<OvertimeRuleDto>>> GetActiveOvertimeRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<OvertimeRuleDto>>> GetActiveOvertimeRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveOvertimeRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<OvertimeRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active overtime rules");
-            return new ServiceResponse<IEnumerable<OvertimeRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<OvertimeRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -318,31 +331,31 @@ public class PayRollService : IPayRollService
     }
 
     // Attendance Deduction Rules
-    public async Task<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>> GetAllAttendanceDeductionRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>>> GetAllAttendanceDeductionRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllAttendanceDeductionRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting attendance deduction rules");
-            return new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>>> GetActiveAttendanceDeductionRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>>> GetActiveAttendanceDeductionRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveAttendanceDeductionRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active attendance deduction rules");
-            return new ServiceResponse<IEnumerable<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<AttendanceDeductionRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -411,31 +424,31 @@ public class PayRollService : IPayRollService
     }
 
     // Late Arrival Rules
-    public async Task<ServiceResponse<IEnumerable<LateArrivalRuleDto>>> GetAllLateArrivalRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<LateArrivalRuleDto>>> GetAllLateArrivalRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllLateArrivalRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<LateArrivalRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting late arrival rules");
-            return new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<LateArrivalRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<LateArrivalRuleDto>>> GetActiveLateArrivalRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<LateArrivalRuleDto>>> GetActiveLateArrivalRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveLateArrivalRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<LateArrivalRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active late arrival rules");
-            return new ServiceResponse<IEnumerable<LateArrivalRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<LateArrivalRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -504,31 +517,31 @@ public class PayRollService : IPayRollService
     }
 
     // Leave Rules
-    public async Task<ServiceResponse<IEnumerable<LeaveRuleDto>>> GetAllLeaveRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<LeaveRuleDto>>> GetAllLeaveRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllLeaveRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<LeaveRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting leave rules");
-            return new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<LeaveRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<LeaveRuleDto>>> GetActiveLeaveRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<LeaveRuleDto>>> GetActiveLeaveRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveLeaveRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<LeaveRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active leave rules");
-            return new ServiceResponse<IEnumerable<LeaveRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<LeaveRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -893,31 +906,31 @@ public class PayRollService : IPayRollService
 
 
     // Performance Rules
-    public async Task<ServiceResponse<IEnumerable<PerformanceRuleDto>>> GetAllPerformanceRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<PerformanceRuleDto>>> GetAllPerformanceRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllPerformanceRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<PerformanceRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting performance rules");
-            return new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<PerformanceRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<PerformanceRuleDto>>> GetActivePerformanceRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<PerformanceRuleDto>>> GetActivePerformanceRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActivePerformanceRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<PerformanceRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active performance rules");
-            return new ServiceResponse<IEnumerable<PerformanceRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<PerformanceRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -986,31 +999,31 @@ public class PayRollService : IPayRollService
     }
 
     // Bonus Rules
-    public async Task<ServiceResponse<IEnumerable<BonusRuleDto>>> GetAllBonusRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<BonusRuleDto>>> GetAllBonusRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllBonusRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<BonusRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting bonus rules");
-            return new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<BonusRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<BonusRuleDto>>> GetActiveBonusRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<BonusRuleDto>>> GetActiveBonusRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveBonusRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<BonusRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active bonus rules");
-            return new ServiceResponse<IEnumerable<BonusRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<BonusRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1229,31 +1242,31 @@ public class PayRollService : IPayRollService
     }
 
     // Loan Rules
-    public async Task<ServiceResponse<IEnumerable<LoanRuleDto>>> GetAllLoanRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<LoanRuleDto>>> GetAllLoanRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllLoanRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<LoanRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all loan rules");
-            return new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<LoanRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<LoanRuleDto>>> GetActiveLoanRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<LoanRuleDto>>> GetActiveLoanRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveLoanRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<LoanRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active loan rules");
-            return new ServiceResponse<IEnumerable<LoanRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<LoanRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1318,31 +1331,31 @@ public class PayRollService : IPayRollService
     }
 
     // Salary Advance Rules
-    public async Task<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>> GetAllSalaryAdvanceRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>>> GetAllSalaryAdvanceRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllSalaryAdvanceRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all salary advance rules");
-            return new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>>> GetActiveSalaryAdvanceRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveSalaryAdvanceRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active salary advance rules");
-            return new ServiceResponse<IEnumerable<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<SalaryAdvanceRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1407,31 +1420,31 @@ public class PayRollService : IPayRollService
     }
 
     // Provident Fund Rules
-    public async Task<ServiceResponse<IEnumerable<ProvidentFundRuleDto>>> GetAllProvidentFundRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>>> GetAllProvidentFundRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllProvidentFundRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<ProvidentFundRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all provident fund rules");
-            return new ServiceResponse<IEnumerable<ProvidentFundRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<ProvidentFundRuleDto>>> GetActiveProvidentFundRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>>> GetActiveProvidentFundRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveProvidentFundRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<ProvidentFundRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active provident fund rules");
-            return new ServiceResponse<IEnumerable<ProvidentFundRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<ProvidentFundRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1496,31 +1509,31 @@ public class PayRollService : IPayRollService
     }
 
     // Tax Regimes
-    public async Task<ServiceResponse<IEnumerable<TaxRegimeDto>>> GetAllTaxRegimesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxRegimeDto>>> GetAllTaxRegimesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllTaxRegimesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxRegimeDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all tax regimes");
-            return new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxRegimeDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<TaxRegimeDto>>> GetActiveTaxRegimesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxRegimeDto>>> GetActiveTaxRegimesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveTaxRegimesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxRegimeDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active tax regimes");
-            return new ServiceResponse<IEnumerable<TaxRegimeDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxRegimeDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1585,45 +1598,45 @@ public class PayRollService : IPayRollService
     }
 
     // Tax Categories
-    public async Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetAllTaxCategoriesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxCategoryDto>>> GetAllTaxCategoriesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllTaxCategoriesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all tax categories");
-            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetActiveTaxCategoriesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxCategoryDto>>> GetActiveTaxCategoriesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveTaxCategoriesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active tax categories");
-            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<TaxCategoryDto>>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxCategoryDto>>> GetTaxCategoriesByRegimeIdAsync(Guid regimeId, Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetTaxCategoriesByRegimeIdAsync(regimeId, organizationId);
-            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting tax categories by regime ID");
-            return new ServiceResponse<IEnumerable<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxCategoryDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1696,31 +1709,31 @@ public class PayRollService : IPayRollService
     }
 
     // Tax Slabs
-    public async Task<ServiceResponse<IEnumerable<TaxSlabDto>>> GetAllTaxSlabsAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxSlabDto>>> GetAllTaxSlabsAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllTaxSlabsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxSlabDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all tax slabs");
-            return new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxSlabDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<TaxSlabDto>>> GetActiveTaxSlabsAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxSlabDto>>> GetActiveTaxSlabsAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveTaxSlabsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxSlabDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active tax slabs");
-            return new ServiceResponse<IEnumerable<TaxSlabDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxSlabDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1793,31 +1806,31 @@ public class PayRollService : IPayRollService
     }
 
     // Tax Component Rules
-    public async Task<ServiceResponse<IEnumerable<TaxComponentRuleDto>>> GetAllTaxComponentRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxComponentRuleDto>>> GetAllTaxComponentRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllTaxComponentRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxComponentRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all tax component rules");
-            return new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxComponentRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<TaxComponentRuleDto>>> GetActiveTaxComponentRulesAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxComponentRuleDto>>> GetActiveTaxComponentRulesAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveTaxComponentRulesAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxComponentRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active tax component rules");
-            return new ServiceResponse<IEnumerable<TaxComponentRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxComponentRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -1890,31 +1903,31 @@ public class PayRollService : IPayRollService
     }
 
     // Tax Transactions
-    public async Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxTransactionDto>>> GetAllTaxTransactionsAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllTaxTransactionsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxTransactionDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting all tax transactions");
-            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<TaxTransactionDto>>> GetActiveTaxTransactionsAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<TaxTransactionDto>>> GetActiveTaxTransactionsAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveTaxTransactionsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<TaxTransactionDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active tax transactions");
-            return new ServiceResponse<IEnumerable<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<TaxTransactionDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -2263,6 +2276,10 @@ public class PayRollService : IPayRollService
             var result = await _payRollRepository.CreateSalaryAdvanceAsync(organizationId, employeeId, dto);
             return new ServiceResponse<SalaryAdvanceDto> { Success = true, Data = result };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating salary advance request");
@@ -2278,6 +2295,10 @@ public class PayRollService : IPayRollService
             if (result == null)
                 return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "Salary advance request not found or cannot be updated." };
             return new ServiceResponse<SalaryAdvanceDto> { Success = true, Data = result };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = ex.Message };
         }
         catch (Exception ex)
         {
@@ -2332,6 +2353,20 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error getting salary advance request by ID for employee");
             return new ServiceResponse<MySalaryAdvanceDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<SalaryAdvanceSummaryDto>> GetMySalaryAdvanceSummaryAsync(Guid organizationId, Guid employeeId)
+    {
+        try
+        {
+            var result = await _payRollRepository.GetMySalaryAdvanceSummaryAsync(organizationId, employeeId);
+            return new ServiceResponse<SalaryAdvanceSummaryDto> { Success = true, Data = result };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting salary advance summary for employee");
+            return new ServiceResponse<SalaryAdvanceSummaryDto> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -2506,31 +2541,31 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<MyActiveLoanDto>>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId)
+    public async Task<ServiceResponse<IReadOnlyList<MyActiveLoanDto>>> GetMyActiveLoansAsync(Guid organizationId, Guid employeeId)
     {
         try
         {
             var result = await _payRollRepository.GetMyActiveLoansAsync(organizationId, employeeId);
-            return new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<MyActiveLoanDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting my active loans");
-            return new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<MyActiveLoanDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<MyActiveLoanDto>>> GetMyPendingLoansAsync(Guid organizationId, Guid employeeId)
+    public async Task<ServiceResponse<IReadOnlyList<MyActiveLoanDto>>> GetMyPendingLoansAsync(Guid organizationId, Guid employeeId)
     {
         try
         {
             var result = await _payRollRepository.GetMyPendingLoansAsync(organizationId, employeeId);
-            return new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<MyActiveLoanDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting my pending loans");
-            return new ServiceResponse<IEnumerable<MyActiveLoanDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<MyActiveLoanDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -2694,17 +2729,17 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<LoanReferenceDto>>> GetMyLoanReferencesAsync(Guid organizationId, Guid employeeId)
+    public async Task<ServiceResponse<IReadOnlyList<LoanReferenceDto>>> GetMyLoanReferencesAsync(Guid organizationId, Guid employeeId)
     {
         try
         {
             var result = await _payRollRepository.GetMyLoanReferencesAsync(organizationId, employeeId);
-            return new ServiceResponse<IEnumerable<LoanReferenceDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<LoanReferenceDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting loan references");
-            return new ServiceResponse<IEnumerable<LoanReferenceDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<LoanReferenceDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -2764,59 +2799,59 @@ public class PayRollService : IPayRollService
 
     // ─── Social Security Config ──────────────────────────────────────────────
 
-    public async Task<ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>>> GetSocialSecurityJurisdictionsAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<SocialSecurityJurisdictionDto>>> GetSocialSecurityJurisdictionsAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetSocialSecurityJurisdictionsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityJurisdictionDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting social security jurisdictions");
-            return new ServiceResponse<IEnumerable<SocialSecurityJurisdictionDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityJurisdictionDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId)
+    public async Task<ServiceResponse<IReadOnlyList<SocialSecurityAuthorityDto>>> GetSocialSecurityAuthoritiesAsync(Guid organizationId, Guid? jurisdictionId)
     {
         try
         {
             var result = await _payRollRepository.GetSocialSecurityAuthoritiesAsync(organizationId, jurisdictionId);
-            return new ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityAuthorityDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting social security authorities");
-            return new ServiceResponse<IEnumerable<SocialSecurityAuthorityDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityAuthorityDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<SocialSecuritySchemeDto>>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId)
+    public async Task<ServiceResponse<IReadOnlyList<SocialSecuritySchemeDto>>> GetSocialSecuritySchemesAsync(Guid organizationId, Guid? jurisdictionId, Guid? authorityId)
     {
         try
         {
             var result = await _payRollRepository.GetSocialSecuritySchemesAsync(organizationId, jurisdictionId, authorityId);
-            return new ServiceResponse<IEnumerable<SocialSecuritySchemeDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<SocialSecuritySchemeDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting social security schemes");
-            return new ServiceResponse<IEnumerable<SocialSecuritySchemeDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<SocialSecuritySchemeDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<SocialSecurityRuleDto>>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId)
+    public async Task<ServiceResponse<IReadOnlyList<SocialSecurityRuleDto>>> GetSocialSecurityRulesAsync(Guid organizationId, Guid? schemeId)
     {
         try
         {
             var result = await _payRollRepository.GetSocialSecurityRulesAsync(organizationId, schemeId);
-            return new ServiceResponse<IEnumerable<SocialSecurityRuleDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityRuleDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting social security rules");
-            return new ServiceResponse<IEnumerable<SocialSecurityRuleDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityRuleDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -3182,17 +3217,17 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<SocialSecurityConfigDto>>> GetActiveSocialSecurityConfigsAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<SocialSecurityConfigDto>>> GetActiveSocialSecurityConfigsAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveSocialSecurityConfigsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<SocialSecurityConfigDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityConfigDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active social security configs");
-            return new ServiceResponse<IEnumerable<SocialSecurityConfigDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityConfigDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -3543,31 +3578,31 @@ public class PayRollService : IPayRollService
 
     // ─── Gratuity Config ─────────────────────────────────────────────────────
 
-    public async Task<ServiceResponse<IEnumerable<GratuityConfigDto>>> GetAllGratuityConfigsAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<GratuityConfigDto>>> GetAllGratuityConfigsAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetAllGratuityConfigsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<GratuityConfigDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting gratuity configs");
-            return new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<GratuityConfigDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<GratuityConfigDto>>> GetActiveGratuityConfigsAsync(Guid organizationId)
+    public async Task<ServiceResponse<IReadOnlyList<GratuityConfigDto>>> GetActiveGratuityConfigsAsync(Guid organizationId)
     {
         try
         {
             var result = await _payRollRepository.GetActiveGratuityConfigsAsync(organizationId);
-            return new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = true, Data = result };
+            return new ServiceResponse<IReadOnlyList<GratuityConfigDto>> { Success = true, Data = result };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting active gratuity configs");
-            return new ServiceResponse<IEnumerable<GratuityConfigDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<GratuityConfigDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -3800,6 +3835,20 @@ public class PayRollService : IPayRollService
         }
     }
 
+    public async Task<ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>>> GetSocialSecurityEnrollmentsAsync(Guid organizationId, SocialSecurityEnrollmentFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetSocialSecurityEnrollmentsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching social security enrollments for organization {OrganizationId}", organizationId);
+            return new ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
     public async Task<ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>>> GetMySocialSecurityRequestsAsync(Guid organizationId, Guid employeeId, MySocialSecurityRequestFilterDto filter)
     {
         try
@@ -3994,17 +4043,17 @@ public class PayRollService : IPayRollService
         }
     }
 
-    public async Task<ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId)
+    public async Task<ServiceResponse<IReadOnlyList<SocialSecurityRequestDocumentDto>>> GetSocialSecurityRequestDocumentsAsync(Guid organizationId, Guid requestId)
     {
         try
         {
             var data = await _payRollRepository.GetSocialSecurityRequestDocumentsAsync(organizationId, requestId);
-            return new ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>> { Success = true, Data = data };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityRequestDocumentDto>> { Success = true, Data = data };
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error fetching social security request documents for request {RequestId}", requestId);
-            return new ServiceResponse<IEnumerable<SocialSecurityRequestDocumentDto>> { Success = false, Message = "An error occurred." };
+            return new ServiceResponse<IReadOnlyList<SocialSecurityRequestDocumentDto>> { Success = false, Message = "An error occurred." };
         }
     }
 
@@ -4059,6 +4108,158 @@ public class PayRollService : IPayRollService
         {
             _logger.LogError(ex, "Error getting payroll results");
             return new ServiceResponse<PagedResult<PayrollResultItemDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<CompliancePayslipRowDto>>> GetCompliancePayslipsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetCompliancePayslipsAsync(organizationId, filter);
+            return new ServiceResponse<PagedResult<CompliancePayslipRowDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading compliance payslips");
+            return new ServiceResponse<PagedResult<CompliancePayslipRowDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PagedResult<MyPayslipDto>>> GetMyPayslipsAsync(Guid organizationId, Guid employeeId, MyPayslipFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetMyPayslipsAsync(organizationId, employeeId, filter);
+            return new ServiceResponse<PagedResult<MyPayslipDto>> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting my payslips for employee: {EmployeeId}", employeeId);
+            return new ServiceResponse<PagedResult<MyPayslipDto>> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<CompliancePayslipStatsDto>> GetCompliancePayslipStatsAsync(Guid organizationId, CompliancePayslipFilterDto filter)
+    {
+        try
+        {
+            var data = await _payRollRepository.GetCompliancePayslipStatsAsync(organizationId, filter);
+            return new ServiceResponse<CompliancePayslipStatsDto> { Success = true, Data = data };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading compliance payslip stats");
+            return new ServiceResponse<CompliancePayslipStatsDto> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<PayrollResultItemDto?>> GetPayrollPayslipSourceAsync(Guid organizationId, Guid resultId)
+    {
+        try
+        {
+            var row = await _payRollRepository.GetPayrollResultByResultIdAsync(organizationId, resultId);
+            return new ServiceResponse<PayrollResultItemDto?> { Success = true, Data = row };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error loading payslip payroll row {ResultId}", resultId);
+            return new ServiceResponse<PayrollResultItemDto?> { Success = false, Message = "An error occurred." };
+        }
+    }
+
+    public async Task<ServiceResponse<BulkPayslipPdfResponseDto>> BulkGeneratePayslipPdfsAsync(Guid organizationId, BulkPayslipPdfRequestDto dto)
+    {
+        var resp = new BulkPayslipPdfResponseDto();
+        if (dto.PayrollPeriodId == Guid.Empty || dto.EmployeeIds == null || dto.EmployeeIds.Count == 0)
+        {
+            return new ServiceResponse<BulkPayslipPdfResponseDto>
+            {
+                Success = false,
+                Message = "Payroll period and at least one employee are required.",
+                Data = resp
+            };
+        }
+
+        try
+        {
+            var webRoot = _hostEnvironment.WebRootPath ?? Path.Combine(_hostEnvironment.ContentRootPath, "wwwroot");
+            var orgFolder = Path.Combine(webRoot, "payslips", organizationId.ToString("D"));
+            Directory.CreateDirectory(orgFolder);
+
+            var currencyLabel = await ResolvePayslipCurrencyDisplayPrefixAsync(organizationId);
+            var templateResponse = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
+            var template = templateResponse.Data;
+
+            foreach (var employeeId in dto.EmployeeIds.Distinct())
+            {
+                var row = await _payRollRepository.GetPayrollResultForEmployeePeriodAsync(organizationId, dto.PayrollPeriodId, employeeId);
+                if (row == null)
+                {
+                    resp.SkippedCount++;
+                    resp.Messages.Add($"No payroll result for employee {employeeId}.");
+                    continue;
+                }
+
+                var existingUrl = await _payRollRepository.GetPayslipUrlByResultIdAsync(organizationId, row.ResultId);
+                if (!string.IsNullOrWhiteSpace(existingUrl) && !dto.OverwriteExisting)
+                {
+                    resp.SkippedCount++;
+                    continue;
+                }
+
+                var periodLabel = string.IsNullOrWhiteSpace(row.PeriodName) ? dto.PayrollPeriodId.ToString() : row.PeriodName;
+                var pdf = await _payslipPdfBuilder.BuildAsync(row, periodLabel, currencyLabel, template);
+                var relativeUrl = $"/payslips/{organizationId:D}/{row.ResultId:D}.pdf";
+                var physical = Path.Combine(orgFolder, $"{row.ResultId:D}.pdf");
+                await File.WriteAllBytesAsync(physical, pdf);
+
+                try
+                {
+                    await _payRollRepository.UpsertPayslipUrlAsync(organizationId, row.ResultId, employeeId, relativeUrl);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Payslip metadata upsert failed for result {ResultId}; PDF file was still written.", row.ResultId);
+                }
+
+                resp.GeneratedCount++;
+            }
+
+            return new ServiceResponse<BulkPayslipPdfResponseDto> { Success = true, Data = resp };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during bulk payslip PDF generation");
+            return new ServiceResponse<BulkPayslipPdfResponseDto> { Success = false, Message = "An error occurred while generating payslips.", Data = resp };
+        }
+    }
+
+    public async Task<byte[]?> GetCompliancePayslipPdfBytesAsync(Guid organizationId, Guid resultId)
+    {
+        var row = await _payRollRepository.GetPayrollResultByResultIdAsync(organizationId, resultId);
+        if (row == null)
+        {
+            return null;
+        }
+
+        var currencyLabel = await ResolvePayslipCurrencyDisplayPrefixAsync(organizationId);
+        var templateResponse = await _payslipTemplateService.GetActiveTemplateAsync(organizationId);
+        var template = templateResponse.Data;
+        var periodLabel = string.IsNullOrWhiteSpace(row.PeriodName) ? row.PeriodId.ToString("D") : row.PeriodName;
+        return await _payslipPdfBuilder.BuildAsync(row, periodLabel, currencyLabel, template);
+    }
+
+    private async Task<string> ResolvePayslipCurrencyDisplayPrefixAsync(Guid organizationId)
+    {
+        try
+        {
+            var code = await _settingsRepository.GetCurrencyAsync(organizationId);
+            return PayslipCurrencyDisplay.GetPdfHelveticaSafePrefix(code);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not read organization currency for payslip PDF; using default symbol.");
+            return PayslipCurrencyDisplay.GetPdfHelveticaSafePrefix(null);
         }
     }
 }

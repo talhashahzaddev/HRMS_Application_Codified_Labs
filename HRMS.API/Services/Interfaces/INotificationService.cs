@@ -7,7 +7,7 @@ namespace HRMS.API.Services.Interfaces
     public interface INotificationService
     {
         Task<ServiceResponse<bool>> CreateNotificationAsync(Guid organizationid, NotificationCreateDto request);
-        Task<ServiceResponse<List<Notification>>> GetNotificationsForUserAsync(Guid userId, Guid organizationId);
+        Task<ServiceResponse<IReadOnlyList<Notification>>> GetNotificationsForUserAsync(Guid userId, Guid organizationId);
         Task<ServiceResponse<bool>> MarkNotificationAsReadAsync(Guid notificationId);
     }
 }

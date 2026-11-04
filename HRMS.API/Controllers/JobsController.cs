@@ -1,8 +1,9 @@
+using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
+using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
-using HRMS.API.Models.DTOs;
-using HRMS.API.Services.Interfaces;
 
 namespace HRMS.API.Controllers;
 
@@ -27,23 +28,23 @@ public class JobsController : ControllerBase
 
     // ==================== Stage Master ====================
     [HttpGet("stages")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
-    public async Task<ActionResult<ServiceResponse<List<StageMasterDto>>>> GetAllStages()
+    [PermissionAuthorize("stage_view_all")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<StageMasterDto>>>> GetAllStages()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stages = await _jobsService.GetAllStageMastersAsync(organizationId);
-            return Ok(new ServiceResponse<List<StageMasterDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<StageMasterDto>>
             {
                 Success = true,
-                Data = stages?.ToList() ?? new List<StageMasterDto>()
+                Data = stages
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting stages");
-            return Unauthorized(new ServiceResponse<List<StageMasterDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<StageMasterDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -52,7 +53,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving stages");
-            return StatusCode(500, new ServiceResponse<List<StageMasterDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<StageMasterDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving stages"
@@ -61,7 +62,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("stages/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("stage_view_details")]
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> GetStageById(Guid id)
     {
         try
@@ -93,7 +94,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("stages")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("add_stage")]
+
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> CreateStage([FromBody] CreateStageMasterRequest request)
     {
         try
@@ -143,7 +145,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("stages/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("stage_edit")]
+
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> UpdateStage(Guid id, [FromBody] UpdateStageMasterRequest request)
     {
         try
@@ -195,7 +198,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("stages/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("stage_delete")]
+
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteStage(Guid id)
     {
         try
@@ -229,7 +233,7 @@ public class JobsController : ControllerBase
 
     // ==================== Job Openings ====================
     [HttpGet("openings")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("opnings_view_all")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobOpeningDto>>>> GetAllJobOpenings(
         [FromQuery] string? search,
         [FromQuery] string? status,
@@ -274,7 +278,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("OpeningOverallDetails")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("opnings_view_overall_details")]
     public async Task<ActionResult<ServiceResponse<JobOpeningStatsDto>>> GetOpeningOverallDetails()
     {
         try
@@ -308,7 +312,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("openings/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("opnings_view_details")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> GetJobOpeningById(Guid id)
     {
         try
@@ -340,7 +344,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("openings")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("opnings_create_job")]
+
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> CreateJobOpening([FromBody] CreateJobOpeningRequest request)
     {
         try
@@ -391,7 +396,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("openings/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("opnongs_edit")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> UpdateJobOpening(Guid id, [FromBody] UpdateJobOpeningRequest request)
     {
         try
@@ -438,7 +443,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("openings/{id}")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("opnings_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobOpening(Guid id)
     {
         try
@@ -472,23 +477,23 @@ public class JobsController : ControllerBase
 
     // ==================== Job Applications ====================
     [HttpGet("applications")]
-    [Authorize(Roles = "Super Admin")]
-    public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetAllJobApplications()
+    [PermissionAuthorize("all_job_application")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<JobApplicationDto>>>> GetAllJobApplications()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var applications = await _jobsService.GetAllJobApplicationsAsync(organizationId);
-            return Ok(new ServiceResponse<List<JobApplicationDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = true,
-                Data = applications?.ToList() ?? new List<JobApplicationDto>()
+                Data = applications
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting job applications");
-            return Unauthorized(new ServiceResponse<List<JobApplicationDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -497,7 +502,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving job applications");
-            return StatusCode(500, new ServiceResponse<List<JobApplicationDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving job applications"
@@ -506,7 +511,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/posted-by-me")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("received_application_by_my_job_post")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetJobApplicationsPostedByMe(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -547,7 +552,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/received")]
-    [Authorize(Roles = "Super Admin")]
+    [PermissionAuthorize("all_job_application")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetReceivedJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -587,23 +592,98 @@ public class JobsController : ControllerBase
         }
     }
 
+    [HttpGet("applications/ats-inbox")]
+    [PermissionAuthorize("ats_inbox_view")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetAtsApplications(
+        [FromQuery] int pageNumber = 1,
+        [FromQuery] int pageSize = 10,
+        [FromQuery] string? search = null,
+        [FromQuery] DateTime? applyDateFrom = null,
+        [FromQuery] DateTime? applyDateTo = null,
+        [FromQuery] List<Guid>? jobIds = null,
+        [FromQuery] bool? passedKnockout = null)
+    {
+        try
+        {
+            var organizationId = GetCurrentOrganizationId();
+            var result = await _jobsService.GetAtsApplicationsPagedAsync(organizationId, search, applyDateFrom, applyDateTo, jobIds, passedKnockout, pageNumber, pageSize);
+            return Ok(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = true,
+                Data = result
+            });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning(ex, "Unauthorized access getting ATS applications");
+            return Unauthorized(new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving ATS applications");
+            return StatusCode(500, new ServiceResponse<PagedResult<JobApplicationDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving ATS applications"
+            });
+        }
+    }
+
+    [HttpPut("applications/{id}/enter-stage")]
+    [PermissionAuthorize("job_application_enter_stage")]
+    public async Task<ActionResult<ServiceResponse<bool>>> EnterApplicationToStage(Guid id)
+    {
+        try
+        {
+            var result = await _jobsService.EnterToStageAsync(id);
+            if (!result)
+            {
+                return NotFound(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Data = false,
+                    Message = "Application not found"
+                });
+            }
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Data = true,
+                Message = "Application entered into hiring stage"
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error entering application {ApplicationId} to stage", id);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred"
+            });
+        }
+    }
+
     [HttpGet("applications/by-job/{jobId}")]
-    [Authorize(Roles = "Super Admin")]
-    public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
+    [PermissionAuthorize("job_application_view_by_job")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
     {
         try
         {
             var applications = await _jobsService.GetJobApplicationsByJobIdAsync(jobId);
-            return Ok(new ServiceResponse<List<JobApplicationDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = true,
-                Data = applications?.ToList() ?? new List<JobApplicationDto>()
+                Data = applications
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting job applications by job");
-            return Unauthorized(new ServiceResponse<List<JobApplicationDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -612,7 +692,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving job applications for job {JobId}", jobId);
-            return StatusCode(500, new ServiceResponse<List<JobApplicationDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<JobApplicationDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving job applications"
@@ -621,7 +701,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/me")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("my_referenced_application")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMyJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -660,7 +740,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/me/self")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("my_self_application")]
     public async Task<ActionResult<ServiceResponse<PagedResult<JobApplicationDto>>>> GetMySelfJobApplications(
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
@@ -699,7 +779,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("applications/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("job_application_view_details")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> GetJobApplicationById(Guid id)
     {
         try
@@ -731,7 +811,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("applications")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("job_application_create")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> CreateJobApplication([FromBody] CreateJobApplicationRequest request)
     {
         try
@@ -783,7 +863,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("applications/apply-for-myself")]
-    [Authorize(Roles = "Manager,Employee")]
+    [PermissionAuthorize("apply_for_myself")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> ApplyForMySelf([FromBody] ApplyForMySelfRequest request)
     {
         try
@@ -834,7 +914,8 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("applications/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("job_application_edit")]
+
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> UpdateJobApplication(Guid id, [FromBody] UpdateJobApplicationRequest request)
     {
         try
@@ -881,7 +962,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("applications/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
+    [PermissionAuthorize("job_application_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobApplication(Guid id)
     {
         try
@@ -915,23 +996,23 @@ public class JobsController : ControllerBase
 
     // ==================== Application Stages ====================
     [HttpGet("application-stages")]
-   [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetAllApplicationStages()
+    [PermissionAuthorize("app_stage_view_all")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ApplicationStageDto>>>> GetAllApplicationStages()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var stages = await _jobsService.GetAllApplicationStagesAsync(organizationId);
-            return Ok(new ServiceResponse<List<ApplicationStageDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = true,
-                Data = stages?.ToList() ?? new List<ApplicationStageDto>()
+                Data = stages
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting application stages");
-            return Unauthorized(new ServiceResponse<List<ApplicationStageDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -940,7 +1021,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving application stages");
-            return StatusCode(500, new ServiceResponse<List<ApplicationStageDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving application stages"
@@ -949,22 +1030,22 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("application-stages/by-application/{jobApplyId}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
-    public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
+    [PermissionAuthorize("app_stage_view_by_application")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
     {
         try
         {
             var stages = await _jobsService.GetApplicationStagesByJobApplyIdAsync(jobApplyId);
-            return Ok(new ServiceResponse<List<ApplicationStageDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = true,
-                Data = stages?.ToList() ?? new List<ApplicationStageDto>()
+                Data = stages
             });
         }
         catch (UnauthorizedAccessException ex)
         {
             _logger.LogWarning(ex, "Unauthorized access getting application stages by job apply");
-            return Unauthorized(new ServiceResponse<List<ApplicationStageDto>>
+            return Unauthorized(new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -973,7 +1054,7 @@ public class JobsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving application stages for job apply {JobApplyId}", jobApplyId);
-            return StatusCode(500, new ServiceResponse<List<ApplicationStageDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<ApplicationStageDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving application stages"
@@ -982,7 +1063,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpGet("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("app_stage_view_details")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> GetApplicationStageById(Guid id)
     {
         try
@@ -1014,7 +1095,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPost("application-stages")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("app_stage_create")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> CreateApplicationStage([FromBody] CreateApplicationStageRequest request)
     {
         try
@@ -1069,7 +1150,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpPut("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("app_stage_edit")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> UpdateApplicationStage(Guid id, [FromBody] UpdateApplicationStageRequest request)
     {
         try
@@ -1117,7 +1198,7 @@ public class JobsController : ControllerBase
     }
 
     [HttpDelete("application-stages/{id}")]
-    [Authorize(Roles = "Super Admin,HR Manager")]
+    [PermissionAuthorize("app_stage_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteApplicationStage(Guid id)
     {
         try

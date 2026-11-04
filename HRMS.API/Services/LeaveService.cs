@@ -61,7 +61,7 @@ public class LeaveService : ILeaveService
         try
         {
             var empId = await _leaveRepository.GetEmpId(employeeId);
-            var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
+            var employee = await _employeeRepository.GetEmployeeByEmployeeIdAsync(empId);
             if (employee == null)
                 throw new InvalidOperationException("Employee profile not found");
 
@@ -139,7 +139,12 @@ public class LeaveService : ILeaveService
 
             
 
-            if (leaveRequest != null)
+            if (leaveRequest != null && reportingmangerdetails == null)
+            {
+                // The leave is already saved, so don't fail the request just because nobody can be notified.
+                _logger.LogWarning("No reporting manager or admin found to notify for leave request {RequestId}", leaveRequest.RequestId);
+            }
+            else if (leaveRequest != null)
             {
                 var notification = new NotificationCreateDto
                 {
@@ -304,7 +309,7 @@ public class LeaveService : ILeaveService
         return string.IsNullOrWhiteSpace(normalizedBase) ? normalizedPath : normalizedBase + normalizedPath;
     }
 
-    public async Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
+    public async Task<IReadOnlyList<LeaveRequest>> GetLeaveRequestByEmployeeId( Guid employeeId)
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
@@ -351,7 +356,7 @@ public class LeaveService : ILeaveService
 
             var employeedetails = await _leaveRepository.GetEmployeeDetails(requestId);
 
-            bool isApproval = request.Status == "approved" ? true : false;
+            bool isApproval = normalizedStatus == "approved";
 
 
             await _emailService.SendLeaveApprovalRejectionEmailAsync(employeedetails.email,employeedetails.EmployeeName,employeedetails.typename,employeedetails.startdate,employeedetails.enddate, isApproval, organizationid);
@@ -458,13 +463,13 @@ public class LeaveService : ILeaveService
             searchModel.PageSize);
     }
 
-    public async Task<List<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LeaveTypeDto>> GetLeaveTypesAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
         return await _leaveRepository.GetLeaveTypesAsync(organizationId);
     }
-    public async Task<List<LeaveTypeDto>> GetLeaveTypesforrequestAsync(Guid organizationId)
+    public async Task<IReadOnlyList<LeaveTypeDto>> GetLeaveTypesforrequestAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
@@ -602,7 +607,7 @@ public class LeaveService : ILeaveService
     }
 
 
-    public async Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year)
+    public async Task<IReadOnlyList<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year)
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
@@ -611,7 +616,7 @@ public class LeaveService : ILeaveService
         return await _leaveRepository.GetLeaveEntitlementsAsync(employeeId, year);
     }
 
-    public async Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year)
+    public async Task<IReadOnlyList<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year)
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
@@ -738,6 +743,11 @@ public class LeaveService : ILeaveService
 
         // Cancel the request
         var result = await _leaveRepository.CancelLeaveRequestAsync(requestId);
+        if (!result)
+        {
+            _logger.LogWarning("Failed to cancel leave request {RequestId}", requestId);
+            return false;
+        }
         //Handling Balance while canceling the request
         var Editing_Elementals = await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, existingRequest.LeaveTypeId, existingRequest.DaysRequested);
 
@@ -747,7 +757,7 @@ public class LeaveService : ILeaveService
 
         //return await _leaveRepository.
     }
-    public async Task<List<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate)
+    public async Task<IReadOnlyList<LeaveCalendarDto>> GetLeaveRequestsForCalendarAsync(Guid employeeId, DateTime startDate, DateTime endDate)
     {
         if (employeeId == Guid.Empty)
             throw new ArgumentException("Employee ID cannot be empty", nameof(employeeId));
@@ -769,7 +779,7 @@ public class LeaveService : ILeaveService
             Color = GetStatusColor(r.Status),
             Reason = r.Reason,
             SubmittedAt = r.SubmittedAt
-        }).ToList();
+        }).ToArray();
     }
 
     private string GetStatusColor(string status)
@@ -805,7 +815,8 @@ public class LeaveService : ILeaveService
         PagedResult<EmployeeLeaveBalanceDto> rawData;
 
         // Check if user is HR Manager
-        if (roleName != null && roleName.Equals("HR Manager", StringComparison.OrdinalIgnoreCase) || roleName.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(roleName, "HR Manager", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(roleName, "Super Admin", StringComparison.OrdinalIgnoreCase))
         {
             // HR Manager: Get all employees in the organization
             rawData = await _leaveRepository.GetTeamRemainingLeavesByOrganizationAsync(
@@ -855,7 +866,7 @@ public class LeaveService : ILeaveService
                     RemainingDays = x.RemainingDays
                 }).ToList()
             })
-            .ToList();
+            .ToArray();
 
         return new PagedResult<TeamRemainingLeavesDto>
         {

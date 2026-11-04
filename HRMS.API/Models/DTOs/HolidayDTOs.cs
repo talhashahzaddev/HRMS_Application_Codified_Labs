@@ -95,7 +95,7 @@ public class CompanyHolidayDto
     public DateTime? UpdatedAt { get; set; }
 
     [JsonPropertyName("employeeIds")]
-    public List<Guid>? EmployeeIds { get; set; }
+    public IReadOnlyList<Guid>? EmployeeIds { get; set; }
 }
 
 public class CreateCompanyHolidayDto
@@ -127,7 +127,7 @@ public class CreateCompanyHolidayDto
     public Guid? CatalogHolidayId { get; set; }
 
     [JsonPropertyName("employeeIds")]
-    public List<Guid>? EmployeeIds { get; set; }
+    public IReadOnlyList<Guid>? EmployeeIds { get; set; }
 }
 
 public class UpdateCompanyHolidayDto
@@ -159,14 +159,14 @@ public class UpdateCompanyHolidayDto
     public bool IsActive { get; set; } = true;
 
     [JsonPropertyName("employeeIds")]
-    public List<Guid>? EmployeeIds { get; set; }
+    public IReadOnlyList<Guid>? EmployeeIds { get; set; }
 }
 
 public class ImportFromCatalogDto
 {
     [Required]
     [JsonPropertyName("catalogHolidayIds")]
-    public List<Guid> CatalogHolidayIds { get; set; } = new();
+    public IReadOnlyList<Guid> CatalogHolidayIds { get; set; } = Array.Empty<Guid>();
 
     [JsonPropertyName("holidayType")]
     public string HolidayType { get; set; } = "mandatory";

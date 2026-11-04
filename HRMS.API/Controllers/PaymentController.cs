@@ -30,7 +30,7 @@ public class PaymentController : ControllerBase
     /// Get all subscription plans
     /// </summary>
     [HttpGet("subscription-plans")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SubscriptionPlanDto>>>> GetAllSubscriptionPlans()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SubscriptionPlanDto>>>> GetAllSubscriptionPlans()
     {
         try
         {
@@ -40,7 +40,7 @@ public class PaymentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all subscription plans");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SubscriptionPlanDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SubscriptionPlanDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving subscription plans"
@@ -52,7 +52,7 @@ public class PaymentController : ControllerBase
     /// Get active subscription plans only
     /// </summary>
     [HttpGet("subscription-plans/active")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<SubscriptionPlanDto>>>> GetActiveSubscriptionPlans()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SubscriptionPlanDto>>>> GetActiveSubscriptionPlans()
     {
         try
         {
@@ -62,7 +62,7 @@ public class PaymentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving active subscription plans");
-            return StatusCode(500, new ServiceResponse<IEnumerable<SubscriptionPlanDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SubscriptionPlanDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving active subscription plans"
@@ -343,7 +343,7 @@ public class PaymentController : ControllerBase
     /// </summary>
     [HttpGet("company-subscriptions")]
     [Authorize(Roles = "Super Admin")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<CompanySubscriptionDto>>>> GetAllCompanySubscriptions()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>>> GetAllCompanySubscriptions()
     {
         try
         {
@@ -353,7 +353,7 @@ public class PaymentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving all company subscriptions");
-            return StatusCode(500, new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving company subscriptions"
@@ -404,7 +404,7 @@ public class PaymentController : ControllerBase
     /// </summary>
     [HttpGet("company-subscriptions/company/{companyId:guid}")]
     [Authorize(Roles = "Super Admin")]
-    public async Task<ActionResult<ServiceResponse<IEnumerable<CompanySubscriptionDto>>>> GetCompanySubscriptionsByCompanyId(Guid companyId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>>> GetCompanySubscriptionsByCompanyId(Guid companyId)
     {
         try
         {
@@ -416,7 +416,7 @@ public class PaymentController : ControllerBase
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for getting subscriptions for company: {CompanyId}", companyId);
-            return BadRequest(new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+            return BadRequest(new ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>
             {
                 Success = false,
                 Message = ex.Message
@@ -425,7 +425,7 @@ public class PaymentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving subscriptions for company {CompanyId}", companyId);
-            return StatusCode(500, new ServiceResponse<IEnumerable<CompanySubscriptionDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<CompanySubscriptionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving company subscriptions"

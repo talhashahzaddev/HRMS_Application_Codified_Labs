@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
@@ -19,7 +19,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
 
     // ── Geo-Fence CRUD ──────────────────────────────────────────────────
 
-    public async Task<IEnumerable<GeoFenceDto>> GetAllGeoFencesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<GeoFenceDto>> GetAllGeoFencesAsync(Guid organizationId)
     {
         const string sql = @"
             SELECT
@@ -40,7 +40,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
               AND deleted_at IS NULL
             ORDER BY createdat DESC";
 
-        return await QueryAsync<GeoFenceDto>(sql, new { organizationId });
+        return (await QueryAsync<GeoFenceDto>(sql, new { organizationId })).ToArray();
     }
 
     public async Task<GeoFenceDto?> GetGeoFenceByIdAsync(Guid geoFenceId)
@@ -151,7 +151,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
 
     // ── Shift ↔ Geo-Fence ────────────────────────────────────────────────
 
-    public async Task<IEnumerable<ShiftGeoFenceDto>> GetGeoFencesByShiftAsync(Guid shiftId)
+    public async Task<IReadOnlyList<ShiftGeoFenceDto>> GetGeoFencesByShiftAsync(Guid shiftId)
     {
         const string sql = @"
             SELECT
@@ -165,7 +165,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
             JOIN attendance.geo_fences gf ON gf.geofenceid = sgf.geofenceid
             WHERE sgf.shiftid = @shiftId AND sgf.isactive = TRUE AND gf.deleted_at IS NULL";
 
-        return await QueryAsync<ShiftGeoFenceDto>(sql, new { shiftId });
+        return (await QueryAsync<ShiftGeoFenceDto>(sql, new { shiftId })).ToArray();
     }
 
     public async Task<bool> LinkGeoFenceToShiftAsync(Guid shiftId, Guid geoFenceId)
@@ -270,7 +270,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
         });
     }
 
-    public async Task<IEnumerable<FaceRecognitionLogDto>> GetFaceLogsByEmployeeAsync(Guid employeeId, int limit = 10)
+    public async Task<IReadOnlyList<FaceRecognitionLogDto>> GetFaceLogsByEmployeeAsync(Guid employeeId, int limit = 10)
     {
         const string sql = @"
             SELECT
@@ -292,7 +292,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
             ORDER BY fl.attempttime DESC
             LIMIT @limit";
 
-        return await QueryAsync<FaceRecognitionLogDto>(sql, new { employeeId, limit });
+        return (await QueryAsync<FaceRecognitionLogDto>(sql, new { employeeId, limit })).ToArray();
     }
 
     // ── Geo-Aware Clock In/Out ───────────────────────────────────────────
@@ -338,7 +338,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
 
     // ── Views ────────────────────────────────────────────────────────────
 
-    public async Task<IEnumerable<TeamLiveStreamDto>> GetTeamLiveStreamAsync(Guid organizationId)
+    public async Task<IReadOnlyList<TeamLiveStreamDto>> GetTeamLiveStreamAsync(Guid organizationId)
     {
         const string sql = @"
             SELECT
@@ -361,7 +361,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
             FROM attendance.vw_team_live_stream
             WHERE organizationid = @organizationId";
 
-        return await QueryAsync<TeamLiveStreamDto>(sql, new { organizationId });
+        return (await QueryAsync<TeamLiveStreamDto>(sql, new { organizationId })).ToArray();
     }
 
     // ── BUG FIX #1: Violations query ────────────────────────────────────
@@ -373,7 +373,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
     //      cannot match to uuid column with "IS NULL OR shift_id = @shiftId".
     //      We explicitly cast to uuid using DynamicParameters so Postgres
     //      receives a proper typed NULL.
-    public async Task<IEnumerable<GeoFenceViolationReportDto>> GetViolationsReportAsync(
+    public async Task<IReadOnlyList<GeoFenceViolationReportDto>> GetViolationsReportAsync(
         Guid organizationId, DateTime startDate, DateTime endDate, Guid? shiftId = null)
     {
         // Include the full end day (up to 23:59:59.999)
@@ -416,7 +416,7 @@ public class GeoFenceRepository : BaseRepository, IGeoFenceRepository
         p.Add("endDate", endDateInclusive);              // 23:59:59.999 of end day
         p.Add("shiftId", shiftId, System.Data.DbType.Guid);
 
-        return await QueryAsync<GeoFenceViolationReportDto>(sql, p);
+        return (await QueryAsync<GeoFenceViolationReportDto>(sql, p)).ToArray();
     }
 
     public async Task<SystemHealthDto> GetSystemHealthAsync(Guid organizationId)

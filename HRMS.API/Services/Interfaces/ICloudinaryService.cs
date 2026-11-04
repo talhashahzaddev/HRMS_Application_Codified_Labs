@@ -4,6 +4,7 @@ namespace HRMS.API.Services.Interfaces
     {
         Task<string> UploadProfilePictureAsync(IFormFile file);
         Task<string> UploadReceiptAsync(IFormFile file);
+        Task<string> UploadPayslipPdfFromPathAsync(string filePath, CancellationToken cancellationToken = default);
         Task<bool> DeleteFileAsync(string fileUrl);
     }
 }

@@ -15,6 +15,10 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.SignalR;
+using HRMS.API.Hubs;
+using static HRMS.API.Models.DTOs.NotificationDto;
+// No-op placeholder: keep HRMS.API.Hubs using for potential future hub registrations
 
 namespace HRMS.API.Services;
 
@@ -29,6 +33,9 @@ public class AuthService : IAuthService
     private readonly IEmailService _emailService;
     private readonly ICloudinaryService _cloudinaryService;
     private readonly IJobsRepository _jobsRepository;
+    private readonly IHubContext<PermissionHub> _hubContext;
+    private readonly INotificationRepository _notificationRepository;
+    private readonly IConfiguration _configuration;
 
     public AuthService(
         IAuthRepository authRepository,
@@ -39,7 +46,10 @@ public class AuthService : IAuthService
         ICloudinaryService cloudinaryService,
         IEmployeeRepository employeeRepository,
         IEmailService emailService,
-        IJobsRepository jobsRepository)
+        IJobsRepository jobsRepository,
+        INotificationRepository notificationRepository,
+        IHubContext<PermissionHub> hubContext,
+        IConfiguration configuration)
     {
         _authRepository = authRepository;
         _organizationService = organizationService;
@@ -50,6 +60,9 @@ public class AuthService : IAuthService
         _emailService = emailService;
         _cloudinaryService = cloudinaryService;
         _jobsRepository = jobsRepository;
+        _notificationRepository = notificationRepository;
+        _hubContext = hubContext;
+        _configuration = configuration;
     }
 
     public async Task<AuthResponse> AuthenticateAsync(HRMS.API.Models.DTOs.LoginRequest request)
@@ -79,6 +92,12 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("Please verify your email before logging in.");
         }
         User? user = await _authRepository.AuthenticateAsync(request.Email, hashedPassword);
+
+        if (user?.UserId == Guid.Empty)
+        {
+            _logger.LogError("Email verification failed - for email: {Email}", request.Email);
+            throw new InvalidOperationException("Verify Your Account Email!");
+        }
 
         if (user == null)
         {
@@ -119,22 +138,14 @@ public class AuthService : IAuthService
     {
         if (request == null) throw new ArgumentNullException(nameof(request));
         if (string.IsNullOrWhiteSpace(request.RefreshToken)) throw new ArgumentException("Refresh token is required", nameof(request.RefreshToken));
-        ClaimsPrincipal? principal;
-        try
-        {
-            principal = GetPrincipalFromExpiredToken(request.RefreshToken);
-        }
-        catch (SecurityTokenException)
-        {
-            throw new UnauthorizedAccessException("Invalid refresh token");
-        }
-        if (principal?.Identity?.Name == null)
-            throw new UnauthorizedAccessException("Invalid refresh token");
+        // The refresh token is an opaque random string (see GenerateRefreshToken), not a JWT,
+        // so it is looked up directly instead of being decoded.
+        var user = await _authRepository.GetUserByRefreshTokenAsync(request.RefreshToken);
 
-        var userEmail = principal.Identity.Name;
-        var user = await _authRepository.GetUserByEmailAsync(userEmail);
-
-        if (user?.RefreshToken != request.RefreshToken || user.RefreshTokenExpiresAt <= DateTime.UtcNow)
+        if (user == null
+            || user.RefreshToken != request.RefreshToken
+            || user.RefreshTokenExpiresAt == null
+            || user.RefreshTokenExpiresAt <= DateTime.UtcNow)
         {
             throw new UnauthorizedAccessException("Invalid or expired refresh token");
         }
@@ -151,6 +162,7 @@ public class AuthService : IAuthService
             LastName = user.LastName,
             RoleName = user.Role?.RoleName ?? "Employee",
             OrganizationName = user.Organization?.Name ?? "Unknown",
+            Domain = user.Organization?.Domain,
             Token = newAccessToken,
             RefreshToken = newRefreshToken,
             TokenExpiration = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes)
@@ -347,6 +359,7 @@ public class AuthService : IAuthService
         {
             _logger.LogError("Registration completed but verification email could not be sent.");
         }
+        await _authRepository.OnboardingConfigurationAsync(organizationId);
 
         return new AuthResponse
         {
@@ -448,8 +461,8 @@ public class AuthService : IAuthService
         await _authRepository.SavePasswordResetTokenAsync(user.UserId.Value, resetToken, expiresAt);
 
         // 4️⃣ Generate link for frontend reset page
-        //var resetLink = $"http://localhost:4200/reset-password?token={resetToken}";
-        var resetLink = $"https://login.briskpeople.com/reset-password?token={resetToken}";
+        var portalUrl = _configuration["EmployeePortal:PortalUrl"];
+        var resetLink = $"{portalUrl}reset-password?token={resetToken}";
 
         // 5️⃣ Send email
         var emailSent = await _emailService.SendPasswordResetEmailAsync(user.Email, user.FirstName, resetLink);
@@ -653,7 +666,7 @@ public class AuthService : IAuthService
         var role_id = await _authRepository.GetRoleByNameforTokenAsync(user.Role?.RoleName ?? "Employee", organizationId);
 
         // Keep JWT compact: store roleId only and evaluate permissions server-side from cache/database.
-        if (role_id.RoleId.HasValue)
+        if (role_id?.RoleId is not null)
         {
             claims.Add(new Claim(CustomClaimTypes.RoleId, role_id.RoleId.Value.ToString()));
         }
@@ -692,29 +705,6 @@ public class AuthService : IAuthService
         using var rng = RandomNumberGenerator.Create();
         rng.GetBytes(randomBytes);
         return Convert.ToBase64String(randomBytes);
-    }
-
-    private ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
-    {
-        var tokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateAudience = false,
-            ValidateIssuer = false,
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(_jwtSettings.SecretKey)),
-            ValidateLifetime = false
-        };
-
-        var tokenHandler = new JwtSecurityTokenHandler();
-        var principal = tokenHandler.ValidateToken(token, tokenValidationParameters, out SecurityToken validatedToken);
-
-        if (validatedToken is not JwtSecurityToken jwtSecurityToken ||
-            !jwtSecurityToken.Header.Alg.Equals(SecurityAlgorithms.HmacSha256, StringComparison.InvariantCultureIgnoreCase))
-        {
-            throw new SecurityTokenException("Invalid token");
-        }
-
-        return principal;
     }
 
     // Debug methods for testing
@@ -773,20 +763,20 @@ public class AuthService : IAuthService
         return MapToRoleDto(createdRole);
     }
 
-    public async Task<List<RoleDto>> GetOrganizationRolesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<RoleDto>> GetOrganizationRolesAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty) throw new ArgumentException("Organization ID is required", nameof(organizationId));
         var roles = await _authRepository.GetOrganizationRolesAsync(organizationId);
-        return roles.Select(MapToRoleDto).ToList();
+        return roles.Select(MapToRoleDto).ToArray();
     }
-    public async Task<List<MenuDto>> GetMenusAsync()
+    public async Task<IReadOnlyList<MenuDto>> GetMenusAsync()
     {
         var result = await _authRepository.GetMenusAsync();
 
         if (result == null || !result.Any())
             throw new InvalidOperationException("No menus found");
 
-        var menus = result
+        return result
          .Where(x => x.menuid != null)
          .GroupBy(x => new { x.menuid, x.menuname, x.menuicon })
          .Select(g => new MenuDto
@@ -810,13 +800,11 @@ public class AuthService : IAuthService
                              ActionName = x.actionname,
                              ActionKey = x.actionkey
                          })
-                         .DistinctBy(a => a.ActionId) // Remove duplicate actions if any
+                         .DistinctBy(a => a.ActionId)
                          .ToList()
                  }).ToList()
          })
-         .ToList();
-
-        return menus;
+         .ToArray();
     }
     public async Task<CreateRoleResponse> Create_RoleAsync(Create_RoleRequest request, Guid? organizationId)
     {
@@ -833,6 +821,32 @@ public class AuthService : IAuthService
         {
             _logger.LogWarning("Role already exists: {RoleName}", request.RoleName);
             throw new InvalidOperationException("Role name already exists in this organization");
+        }
+
+        // Deduplicate Menus, SubMenus, and Actions to prevent uq_permissions violations
+        if (request.Menus != null)
+        {
+            var seenActionIds = new HashSet<Guid>();
+            request.Menus = request.Menus
+                .GroupBy(m => m.MenuId)
+                .Select(mg => new MenuPermissionDto
+                {
+                    MenuId = mg.Key,
+                    SubMenus = mg.SelectMany(m => m.SubMenus ?? new List<SubMenuPermissionDto>())
+                        .GroupBy(sm => sm.SubMenuId)
+                        .Select(smg => new SubMenuPermissionDto
+                        {
+                            SubMenuId = smg.Key,
+                            Actions = smg.SelectMany(sm => sm.Actions ?? new List<ActionPermissionDto>())
+                                .GroupBy(a => a.ActionId)
+                                .Where(ag => seenActionIds.Add(ag.Key))
+                                .Select(ag => new ActionPermissionDto
+                                {
+                                    ActionId = ag.Key,
+                                    HasPermission = ag.Any(a => a.HasPermission)
+                                }).ToList()
+                        }).ToList()
+                }).ToList();
         }
 
         // Validate all menu, submenu, and action IDs
@@ -916,6 +930,32 @@ public class AuthService : IAuthService
             throw new InvalidOperationException("System role cannot be converted to non-system role");
         }
 
+        // Deduplicate Menus, SubMenus, and Actions to prevent uq_permissions violations
+        if (request.Menus != null)
+        {
+            var seenActionIds = new HashSet<Guid>();
+            request.Menus = request.Menus
+                .GroupBy(m => m.MenuId)
+                .Select(mg => new MenuPermissionDto
+                {
+                    MenuId = mg.Key,
+                    SubMenus = mg.SelectMany(m => m.SubMenus ?? new List<SubMenuPermissionDto>())
+                        .GroupBy(sm => sm.SubMenuId)
+                        .Select(smg => new SubMenuPermissionDto
+                        {
+                            SubMenuId = smg.Key,
+                            Actions = smg.SelectMany(sm => sm.Actions ?? new List<ActionPermissionDto>())
+                                .GroupBy(a => a.ActionId)
+                                .Where(ag => seenActionIds.Add(ag.Key))
+                                .Select(ag => new ActionPermissionDto
+                                {
+                                    ActionId = ag.Key,
+                                    HasPermission = ag.Any(a => a.HasPermission)
+                                }).ToList()
+                        }).ToList()
+                }).ToList();
+        }
+
         // Validate all menu, submenu, and action IDs
         foreach (var menu in request.Menus)
         {
@@ -953,6 +993,63 @@ public class AuthService : IAuthService
         await _authRepository.UpdateRoleAsync(request, organizationId);
 
         _logger.LogInformation("Role updated successfully with ID: {RoleId}", request.RoleId);
+
+        // Notify only affected users: get user IDs for this role in the organization and send per-user notification
+        try
+        {
+            var userIds = await _authRepository.GetUserIdsByRoleIdAsync(request.RoleId, organizationId);
+
+            if (userIds != null && userIds.Any())
+            {
+                var roleGroup = PermissionHub.GetRoleGroupName(
+                    organizationId.ToString(),
+                    request.RoleId.ToString()
+                );
+
+                await _hubContext.Clients.Group(roleGroup).SendAsync(
+                    PermissionHub.RoleUpdatedEvent,
+                    new
+                    {
+                        RoleId = request.RoleId,
+                        RoleName = request.RoleName,
+                        OrganizationId = organizationId,
+                        Message = $"Role '{request.RoleName}' permissions have been updated successfully."
+                    }
+                );
+
+                // Additionally create an in-app notification for affected users
+                try
+                {
+                    var receivers = userIds.ToList();
+                    var notification = new NotificationCreateDto
+                    {
+                        Receiveruserid = receivers,
+                        Senderuserid = Guid.Empty, // system
+                        Title = "Role Permissions Updated",
+                        Message = $"Permissions for role '{request.RoleName}' have been updated.",
+                        Notificationtype = "Message",
+                        Createdby = Guid.Empty,
+                        moduletype = "Permission",
+                        Redirecturl = "/settings/roles",
+                        organizationId = organizationId
+                    };
+
+                    await _notificationRepository.CreateNotificationAsync(organizationId.Value, notification);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to create in-app notifications for RoleId: {RoleId}", request.RoleId);
+                }
+            }
+            else
+            {
+                _logger.LogInformation("No users found for RoleId {RoleId} in Organization {OrganizationId}", request.RoleId, organizationId);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send RoleUpdated notification for RoleId: {RoleId}", request.RoleId);
+        }
 
         return new UpdateRoleResponse
         {
@@ -1011,30 +1108,27 @@ public class AuthService : IAuthService
             Deleted = true
         };
     }
-    public async Task<List<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId)
+    public async Task<IReadOnlyList<RoleDetailResponse>> GetRolesByOrganizationAsync(Guid? organizationId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID is required", nameof(organizationId));
 
         _logger.LogInformation("Retrieving all roles for organization: {OrganizationId}", organizationId);
 
-        // Get all roles for the organization
         var roles = await _authRepository.GetRolesByOrganizationIdAsync(organizationId);
 
         if (roles == null || !roles.Any())
         {
             _logger.LogInformation("No roles found for organization: {OrganizationId}", organizationId);
-            return new List<RoleDetailResponse>();
+            return Array.Empty<RoleDetailResponse>();
         }
 
-        var roleResponses = new List<RoleDetailResponse>();
+        var roleResponses = new List<RoleDetailResponse>(roles.Count);
 
         foreach (var role in roles)
         {
-            // Get permissions for each role (now returns actions)
             var permissions = await _authRepository.GetRolePermissionsWithMenuDetailsAsync(role.RoleId);
 
-            // Group permissions by menu and submenu
             var menus = permissions
                 .GroupBy(p => new { p.MenuId, p.MenuName })
                 .Select(g => new RoleMenuPermission
@@ -1047,13 +1141,14 @@ public class AuthService : IAuthService
                         {
                             SubMenuId = sg.Key.SubMenuId,
                             SubMenuName = sg.Key.SubMenuName,
-                            Actions = sg.Select(p => new RoleActionPermission
-                            {
-                                ActionId = p.MenuId,
-                                ActionName = p.ActionName,
-                                ActionKey = p.ActionKey,
-                                HasPermission = p.HasPermission
-                            }).ToList()
+                            Actions = sg.GroupBy(p => new { p.ActionId, p.ActionName, p.ActionKey })
+                                        .Select(ag => new RoleActionPermission
+                                        {
+                                            ActionId = ag.Key.ActionId,
+                                            ActionName = ag.Key.ActionName,
+                                            ActionKey = ag.Key.ActionKey,
+                                            HasPermission = ag.Any(x => x.HasPermission)
+                                        }).ToList()
                         }).ToList()
                 }).ToList();
 
@@ -1121,13 +1216,14 @@ public class AuthService : IAuthService
                     {
                         SubMenuId = sg.Key.SubMenuId,
                         SubMenuName = sg.Key.SubMenuName,
-                        Actions = sg.Select(p => new UserActionPermission
-                        {
-                            ActionId = p.ActionId,
-                            ActionName = p.ActionName,
-                            ActionKey = p.ActionKey,
-                            HasPermission = p.HasPermission
-                        }).ToList()
+                        Actions = sg.GroupBy(p => new { p.ActionId, p.ActionName, p.ActionKey })
+                                    .Select(ag => new UserActionPermission
+                                    {
+                                        ActionId = ag.Key.ActionId,
+                                        ActionName = ag.Key.ActionName,
+                                        ActionKey = ag.Key.ActionKey,
+                                        HasPermission = ag.Any(x => x.HasPermission)
+                                    }).ToList()
                     }).ToList()
             }).ToList();
 

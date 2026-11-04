@@ -6,14 +6,14 @@ namespace HRMS.API.Repositories.Interfaces;
 public interface IExpenseRepository
 {
     // ExpenseCategories
-    Task<IEnumerable<ExpenseCategoryDto>> GetExpenseCategoriesAsync(Guid organizationId);
+    Task<IReadOnlyList<ExpenseCategoryDto>> GetExpenseCategoriesAsync(Guid organizationId);
     Task<ExpenseCategoryDto?> GetExpenseCategoryByIdAsync(Guid categoryId);
     Task<Guid> CreateExpenseCategoryAsync(Guid organizationId, string name);
     Task<bool> UpdateExpenseCategoryAsync(Guid categoryId, string name);
     Task<bool> DeleteExpenseCategoryAsync(Guid categoryId);
 
     // Expenses
-    Task<IEnumerable<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
+    Task<IReadOnlyList<ExpenseDto>> GetExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
     Task<PagedResult<ExpenseDto>> GetExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize);
     Task<ExpenseDto?> GetExpenseByIdAsync(Guid expenseId);
     Task<Guid> CreateExpenseAsync(Expense entity);
@@ -21,7 +21,7 @@ public interface IExpenseRepository
     Task<bool> DeleteExpenseAsync(Guid expenseId);
 
     // RecurringExpenses
-    Task<IEnumerable<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
+    Task<IReadOnlyList<RecurringExpenseDto>> GetRecurringExpensesAsync(Guid organizationId, Guid? employeeId = null, string? status = null);
     Task<PagedResult<RecurringExpenseDto>> GetRecurringExpensesPagedAsync(Guid organizationId, Guid? employeeId, string? status, int pageNumber, int pageSize);
     Task<RecurringExpenseDto?> GetRecurringExpenseByIdAsync(Guid recurringExpenseId);
     Task<Guid> CreateRecurringExpenseAsync(RecurringExpense entity);
@@ -31,7 +31,7 @@ public interface IExpenseRepository
     /// <summary>
     /// Gets category-wise cost for pie report: Approved expenses/recurring in date range, by organization.
     /// </summary>
-    Task<IEnumerable<ExpensePieReportItemDto>> GetExpensePieReportAsync(
+    Task<IReadOnlyList<ExpensePieReportItemDto>> GetExpensePieReportAsync(
         Guid organizationId,
         DateTime fromDate,
         DateTime toDate,
@@ -41,7 +41,7 @@ public interface IExpenseRepository
     /// <summary>
     /// Gets cost per month for a given year (line chart): Approved only, by organization.
     /// </summary>
-    Task<IEnumerable<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
+    Task<IReadOnlyList<ExpenseLineChartItemDto>> GetExpenseLineChartAsync(
         Guid organizationId,
         int year,
         bool includeExpense,
@@ -50,7 +50,7 @@ public interface IExpenseRepository
     /// <summary>
     /// Gets cost per year for a year range (bar chart): Approved only, by organization.
     /// </summary>
-    Task<IEnumerable<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
+    Task<IReadOnlyList<ExpenseBarChartItemDto>> GetExpenseBarChartAsync(
         Guid organizationId,
         int fromYear,
         int toYear,

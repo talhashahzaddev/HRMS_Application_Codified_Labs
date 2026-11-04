@@ -35,7 +35,7 @@ namespace HRMS.API.Authorization
                 .GetAwaiter()
                 .GetResult();
 
-            return role.RoleId;
+            return role?.RoleId;
         }
 
         private static HashSet<string> GetPermissionsFromStore(this ClaimsPrincipal user, IAuthRepository authRepository, IMemoryCache memoryCache)

@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using DocumentFormat.OpenXml.InkML;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
@@ -19,7 +19,6 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
     public async Task<Employee> CreateEmployeeAsync(Employee employee)
     {
         using var connection = (NpgsqlConnection)_connectionFactory.CreateConnection();
-        await connection.OpenAsync();
 
         using var transaction = await connection.BeginTransactionAsync();
 
@@ -92,25 +91,49 @@ public class EmployeeRepository : BaseRepository, IEmployeeRepository
             return false;
         }
     }
-
-
-    //Add this function so that i return data in my response of creating employee and return data 
     public async Task<EmployeeDto> GetEmployeedetailsAsync(Guid employeeId)
     {
-
         var sql = @"
-        SELECT e.employeeid, e.organizationid, e.userid, e.employeecode, e.firstname, e.lastname,
-               e.email, e.phone, e.address, e.dateofbirth, e.gender, e.nationality,
-               e.maritalstatus, e.hiredate, e.status,
-               d.departmentname, p.positiontitle, ed.basicsalary
-        FROM employee.employees e
-        LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
-        LEFT JOIN employee.departments d ON ed.departmentid = d.departmentid
-        LEFT JOIN employee.positions p ON ed.positionid = p.positionid
-        WHERE e.employeeid = @employeeId";
+    SELECT 
+        e.employeeid            AS EmployeeId,
+        e.organizationid        AS OrganizationId,
+        e.userid                AS UserId,
+        e.employeecode          AS EmployeeCode,
+        e.firstname             AS FirstName,
+        e.lastname              AS LastName,
+        e.email                 AS Email,
+        e.phone                 AS Phone,
+        e.address               AS Address,
+        e.dateofbirth           AS DateOfBirth,
+        e.gender                AS Gender,
+        e.nationality           AS Nationality,
+        e.maritalstatus         AS MaritalStatus,
+        e.hiredate              AS HireDate,
+        e.status                AS Status,
+
+        d.departmentname        AS DepartmentName,
+        p.positiontitle         AS PositionTitle,
+
+        ed.basicsalary          AS BasicSalary,
+        ed.currency             AS Currency,
+        ed.effectivedate        AS SalaryEffectiveDate,
+        ed.reportingmanagerid   AS ReportingManagerId
+
+    FROM employee.employees e
+    LEFT JOIN employee.employmentdetails ed
+        ON e.employeeid = ed.employeeid
+        AND ed.iscurrent = TRUE
+    LEFT JOIN employee.departments d
+        ON ed.departmentid = d.departmentid
+    LEFT JOIN employee.positions p
+        ON ed.positionid = p.positionid
+    WHERE e.employeeid = @employeeId";
 
         return await QuerySingleOrDefaultAsync<EmployeeDto>(sql, new { employeeId });
     }
+
+
+
     //Getting employees under reporting manager
     //    public async Task<IEnumerable<EmployeeDto>> GetEmployeesReportingToManagerAsync(Guid managerId)
     //    {
@@ -183,8 +206,8 @@ ORDER BY e.firstname, e.lastname;
 
 
 
-    //Get Empolyee ID
-    public async Task<Guid?> getemployeeid(Guid userId)
+    //Get Employee ID
+    public async Task<Guid?> GetEmployeeIdAsync(Guid userId)
     {
         var sql = @"select employeeid from  employee.employees where
              userid=@userId";
@@ -313,7 +336,7 @@ ORDER BY e.firstname, e.lastname;
                  lastname=@LastName, 
                  email=@Email, 
                  emailverified=@EmailVerified, 
-                 roleid=@RoleId,
+                 roleid=COALESCE(@RoleId, roleid),
                  updatedat=CURRENT_TIMESTAMP 
              WHERE userid=@UserId";
 
@@ -357,7 +380,7 @@ ORDER BY e.firstname, e.lastname;
             e.updatedat,
 
             e.categoryid AS TaxCategoryId,
-
+            
             ed.worklocation, 
             ed.basicsalary AS BasicSalary, 
             ed.departmentid, 
@@ -366,9 +389,12 @@ ORDER BY e.firstname, e.lastname;
 
             CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
             p.positiontitle, 
+            p.roleid AS RoleId,
             d.departmentname,
 
-            tc.categoryname AS TaxCategoryName
+            tc.categoryname AS TaxCategoryName,
+
+            ar.rolename AS RoleName
 
         FROM employee.employees AS e
 
@@ -386,8 +412,14 @@ ORDER BY e.firstname, e.lastname;
 
         LEFT JOIN payroll.taxcategories AS tc
             ON e.categoryid = tc.categoryid
+            
+        LEFT JOIN auth.users AS u
+            ON e.userid = u.userid
+            
+        LEFT JOIN auth.roles AS ar
+            ON u.roleid = ar.roleid
 
-        WHERE e.employeeid = @userId;
+        WHERE e.userid = @userId;
         ";
 
             return await QuerySingleOrDefaultAsync<Employee>(
@@ -400,6 +432,63 @@ ORDER BY e.firstname, e.lastname;
             return null;
         }
     }
+
+    public async Task<Employee?> GetEmployeeByEmployeeIdAsync(Guid? employeeId)
+    {
+        try
+        {
+            var sql = @"
+        SELECT
+            e.employeeid,
+            e.organizationid,
+            e.userid,
+            e.employeecode AS EmployeeNumber,
+            e.firstname,
+            e.lastname,
+            e.email,
+            e.phone,
+            e.address,
+            e.profilepictureurl AS ProfilePictureUrl,
+            e.dateofbirth,
+            e.gender,
+            e.nationality,
+            e.maritalstatus,
+            e.emergencycontact AS EmergencyContact,
+            e.hiredate,
+            e.terminationdate,
+            e.status,
+            e.createdat,
+            e.updatedat,
+            e.categoryid AS TaxCategoryId,
+            ed.worklocation,
+            ed.basicsalary AS BasicSalary,
+            ed.departmentid,
+            ed.positionid,
+            ed.reportingmanagerid AS reporting_manager_id,
+            CONCAT(mgr.firstname, ' ', mgr.lastname) AS ReportingManagerName,
+            p.positiontitle,
+            p.roleid AS RoleId,
+            d.departmentname,
+            tc.categoryname AS TaxCategoryName,
+            ar.rolename AS RoleName
+        FROM employee.employees AS e
+        LEFT JOIN employee.employmentdetails AS ed ON e.employeeid = ed.employeeid
+        LEFT JOIN employee.positions AS p ON ed.positionid = p.positionid
+        LEFT JOIN employee.departments AS d ON ed.departmentid = d.departmentid
+        LEFT JOIN employee.employees AS mgr ON ed.reportingmanagerid = mgr.employeeid
+        LEFT JOIN payroll.taxcategories AS tc ON e.categoryid = tc.categoryid
+        LEFT JOIN auth.users AS u ON e.userid = u.userid
+        LEFT JOIN auth.roles AS ar ON u.roleid = ar.roleid
+        WHERE e.employeeid = @employeeId;";
+
+            return await QuerySingleOrDefaultAsync<Employee>(sql, new { employeeId });
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
     public async Task<string> GetUserRoleAsync(Guid userid)
     {
         try
@@ -416,7 +505,7 @@ ORDER BY e.firstname, e.lastname;
             return null;
         }
     }
-    public async Task<List<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid)
+    public async Task<IReadOnlyList<EmployeeNameList>> GetEmployeeByOrganizationAsync(Guid? organizationid, Guid? reportingmanagerid)
     {
         try
         {
@@ -437,18 +526,17 @@ ORDER BY e.firstname, e.lastname;
             );
         ";
 
-            var result =  await QueryAsync<EmployeeNameList>(
+            return await QueryAsync<EmployeeNameList>(
                 sql,
                 new { organizationid, reportingmanagerid }
             );
-            return result.ToList();
         }
         catch (Exception)
         {
             return null;
         }
     }
-    public async Task<List<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds)
+    public async Task<IReadOnlyList<Employee>> GeSelectedtEmployeesByIdsAsync(List<Guid> employeeIds)
     {
         try
         {
@@ -478,14 +566,14 @@ ORDER BY e.firstname, e.lastname;
         WHERE e.employeeid = ANY(@employeeIds);
         ";
 
-            return (await QueryAsync<Employee>(
+            return await QueryAsync<Employee>(
                 sql,
                 new { employeeIds }
-            )).ToList();
+            );
         }
         catch (Exception)
         {
-            return new List<Employee>();
+            return System.Array.Empty<Employee>();
         }
     }
     public async Task<Employee?> GetEmployeeByCodeAsync(Guid organizationId, string employeeCode)
@@ -614,7 +702,7 @@ ORDER BY e.firstname, e.lastname;
     }
 
 
-    public async Task<List<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
+    public async Task<IReadOnlyList<EmployeeListItemDto>> GetEmployeesByManagerAsync(Guid managerEmployeeId, Guid organizationId)
     {
         try
         {
@@ -646,7 +734,7 @@ ORDER BY e.firstname, e.lastname;
 
             var results = await QueryAsync<dynamic>(sql, new { ManagerEmployeeId = managerEmployeeId, OrganizationId = organizationId });
 
-            var employees = results.Select(r => new EmployeeListItemDto
+            return results.Select(r => new EmployeeListItemDto
             {
                 EmployeeId = r.employeeid != null ? (Guid)r.employeeid : Guid.Empty,
                 EmployeeCode = r.employeecode,
@@ -659,9 +747,7 @@ ORDER BY e.firstname, e.lastname;
                 DepartmentName = r.departmentname,
                 PositionTitle = r.positiontitle,
                 IsActive = r.status?.ToString().ToLower() == "active"
-            }).ToList();
-
-            return employees;
+            }).ToArray();
         }
         catch (Exception ex)
         {
@@ -727,7 +813,7 @@ ORDER BY e.firstname, e.lastname;
     }
 
 
-    public async Task<List<Department>> GetDepartmentsAsync(
+    public async Task<IReadOnlyList<Department>> GetDepartmentsAsync(
         Guid organizationId,
         string? searchQuery = null,
         bool? status = null)
@@ -770,7 +856,7 @@ ORDER BY e.firstname, e.lastname;
 
             var results = await QueryAsync<Department>(sql, parameters);
 
-            var departments = results.Select(d => new Department
+            return results.Select(d => new Department
             {
                 DepartmentId = d.DepartmentId,
                 OrganizationId = d.OrganizationId,
@@ -789,13 +875,10 @@ ORDER BY e.firstname, e.lastname;
                     FirstName = d.ManagerFirstName,
                     LastName = d.ManagerLastName
                 } : null
-            }).ToList();
-
-            return departments;
+            }).ToArray();
         }
         catch (Exception ex)
         {
-            // Optional: log the exception
             throw;
         }
     }
@@ -831,115 +914,133 @@ ORDER BY e.firstname, e.lastname;
   
 
 
-    public async Task<List<Position>> GetPositionsAsync(
+    public async Task<IReadOnlyList<Position>> GetPositionsAsync(
     Guid organizationId,
     Guid? departmentId = null,
     string? search = null,
-    string? status = null) // status can be "active"/"inactive" or your column value
+    string? status = null)
     {
-        try
+        // ── Step 1: Fetch positions (fast — only 3 lightweight JOINs) ──────
+        var posSql = @"
+            SELECT
+                ep.positionid   AS PositionId,
+                ep.organizationid AS OrganizationId,
+                ep.positiontitle AS PositionTitle,
+                ep.departmentid  AS DepartmentId,
+                ed.departmentname AS DepartmentName,
+                ep.description,
+                ep.requirements,
+                ep.salaryrange,
+                ep.roleid        AS RoleId,
+                ar.rolename     AS RoleName,
+                ep.isactive      AS IsActive,
+                ep.createdat     AS CreatedAt,
+                ep.updatedat     AS UpdatedAt
+            FROM employee.positions ep
+            LEFT JOIN employee.departments ed ON ep.departmentid = ed.departmentid
+            LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
+            WHERE ep.organizationid = @organizationId
+              AND (@departmentId IS NULL OR ep.departmentid = @departmentId)
+              AND (@search IS NULL OR ep.positiontitle ILIKE '%' || @search || '%')
+            ORDER BY ep.positiontitle";
+
+        var posResults = (await QueryAsync<PositionWithEmployees>(posSql,
+            new { organizationId, departmentId, search }, commandTimeout: 60))
+            .DistinctBy(p => p.PositionId)
+            .ToArray();
+
+        if (posResults.Length == 0)
+            return System.Array.Empty<Position>();
+
+        // Collect position IDs for the IN clause
+        var posIds = posResults.Select(p => p.PositionId).ToArray();
+
+        // ── Step 2: Fetch current employment details + employees ───────────
+        //    Only for positions that actually exist. Uses a single efficient
+        //    query instead of a 6-way cartesian JOIN.
+        var empSql = @"
+            SELECT
+                edet.positionid            AS PositionId,
+                edet.employeeid            AS EmployeeId,
+                ee.employeecode            AS EmployeeCode,
+                ee.firstname               AS EmployeeFirstName,
+                ee.lastname                AS EmployeeLastName,
+                ee.email                   AS EmployeeEmail,
+                ee.phone                   AS EmployeePhone,
+                ee.status                  AS EmployeeStatus,
+                ee.hiredate                AS HireDate,
+                edet.employmenttype        AS EmploymentType,
+                edet.paytype               AS PayType,
+                edet.basicsalary           AS BasicSalary,
+                edet.worklocation          AS WorkLocation,
+                edet.effectivedate         AS EffectiveDate,
+                edet.iscurrent             AS IsCurrentEmployment
+            FROM employee.employmentdetails edet
+            INNER JOIN employee.employees ee ON edet.employeeid = ee.employeeid
+            WHERE edet.positionid = ANY(@PositionIds)
+              AND edet.iscurrent = true";
+
+        // If status filter is requested, apply it
+        if (!string.IsNullOrEmpty(status))
         {
-            var sql = @"
-        SELECT 
-            ep.positionid, 
-            ep.organizationid, 
-            ep.positiontitle, 
-            ep.departmentid, 
-            ed.departmentname AS DepartmentName, 
-            ep.description, 
-            ep.requirements, 
-            ep.salaryrange, 
-            ep.roleid, 
-            ar.rolename AS RoleName,
-            ep.isactive, 
-            ep.createdat, 
-            ep.updatedat,
-            -- Employee Details
-            ee.employeeid AS EmployeeId,
-            ee.employeecode AS EmployeeCode,
-            ee.firstname AS EmployeeFirstName,
-            ee.lastname AS EmployeeLastName,
-            ee.email AS EmployeeEmail,
-            ee.phone AS EmployeePhone,
-            ee.status AS EmployeeStatus,
-            ee.hiredate AS HireDate,
-            -- User Details
-            au.firstname AS UserFirstName,
-            au.lastname AS UserLastName,
-            au.email AS UserEmail,
-            -- Employment Details
-            edet.employmenttype AS EmploymentType,
-            edet.paytype AS PayType,
-            edet.basicsalary AS BasicSalary,
-            edet.worklocation AS WorkLocation,
-            edet.effectivedate AS EffectiveDate,
-            edet.iscurrent AS IsCurrentEmployment
-        FROM employee.positions ep
-        LEFT JOIN employee.departments ed ON ep.departmentid = ed.departmentid
-        LEFT JOIN auth.roles ar ON ep.roleid = ar.roleid
-        LEFT JOIN employee.employmentdetails edet ON ep.positionid = edet.positionid AND edet.iscurrent = true
-        LEFT JOIN employee.employees ee ON edet.employeeid = ee.employeeid
-        LEFT JOIN auth.users au ON ee.userid = au.userid AND au.roleid = ep.roleid
-        WHERE ep.organizationid = @organizationId
-          AND (@departmentId IS NULL OR ep.departmentid = @departmentId)
-          AND (@search IS NULL OR ep.positiontitle ILIKE '%' || @search || '%')
-          AND (@status IS NULL OR ee.status = @status)
-        ORDER BY ep.positiontitle, ee.firstname, ee.lastname";
+            empSql += " AND ee.status = @status";
+        }
 
-            var results = await QueryAsync<PositionWithEmployees>(sql, new { organizationId, departmentId, search, status });
+        var empResults = await QueryAsync<PositionWithEmployees>(empSql,
+            new { PositionIds = posIds, status });
 
-            var positions = results
-                .GroupBy(r => r.PositionId)
-                .Select(g => new Position
+        // Build lookup: PositionId → List<EmploymentDetail>
+        var empLookup = empResults
+            .GroupBy(e => e.PositionId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Select(e => new EmploymentDetail
                 {
+                    EmployeeId = e.EmployeeId!.Value,
                     PositionId = g.Key,
-                    OrganizationId = g.First().OrganizationId,
-                    PositionTitle = g.First().PositionTitle,
-                    DepartmentId = g.First().DepartmentId,
-                    DepartmentName = g.First().DepartmentName,
-                    Description = g.First().Description,
-                    Requirements = g.First().Requirements,
-                    SalaryRange = g.First().SalaryRange,
-                    RoleId = g.First().RoleId,
-                    RoleName = g.First().RoleName,
-                    IsActive = g.First().IsActive,
-                    CreatedAt = g.First().CreatedAt,
-                    UpdatedAt = g.First().UpdatedAt,
-                    EmploymentDetails = g.Where(x => x.EmployeeId != null)
-                        .Select(e => new EmploymentDetail
-                        {
-                            EmployeeId = e.EmployeeId.Value,
-                            PositionId = g.Key,
-                            EmploymentType = e.EmploymentType,
-                            PayType = e.PayType,
-                            BasicSalary = e.BasicSalary,
-                            WorkLocation = e.WorkLocation,
-                            EffectiveDate = e.EffectiveDate,
-                            IsCurrent = e.IsCurrentEmployment,
-                            Employee = new Employee
-                            {
-                                EmployeeId = e.EmployeeId.Value,
-                                FirstName = e.EmployeeFirstName,
-                                LastName = e.EmployeeLastName,
-                                Email = e.EmployeeEmail,
-                                Phone = e.EmployeePhone,
-                                HireDate = e.HireDate,
-                                Status = e.EmployeeStatus
-                            }
-                        }).ToList()
-                }).ToList();
+                    EmploymentType = e.EmploymentType,
+                    PayType = e.PayType,
+                    BasicSalary = e.BasicSalary,
+                    WorkLocation = e.WorkLocation,
+                    EffectiveDate = e.EffectiveDate ?? DateTime.UtcNow,
+                    IsCurrent = e.IsCurrentEmployment ?? true,
+                    Employee = new Employee
+                    {
+                        EmployeeId = e.EmployeeId!.Value,
+                        FirstName = e.EmployeeFirstName,
+                        LastName = e.EmployeeLastName,
+                        Email = e.EmployeeEmail,
+                        Phone = e.EmployeePhone,
+                        HireDate = e.HireDate ?? DateTime.UtcNow,
+                        Status = e.EmployeeStatus
+                    }
+                }).ToList()
+            );
 
-            return positions;
-        }
-        catch (Exception)
+        // ── Step 3: Assemble final list (in-memory, no SQL) ───────────────
+        return posResults.Select(p => new Position
         {
-            throw;
-        }
+            PositionId = p.PositionId,
+            OrganizationId = p.OrganizationId,
+            PositionTitle = p.PositionTitle ?? string.Empty,
+            DepartmentId = p.DepartmentId,
+            DepartmentName = p.DepartmentName,
+            Description = p.Description,
+            Requirements = p.Requirements ?? new Dictionary<string, object>(),
+            SalaryRange = p.SalaryRange ?? new Dictionary<string, object>(),
+            RoleId = p.RoleId,
+            RoleName = p.RoleName,
+            IsActive = p.IsActive,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
+            EmploymentDetails = empLookup.TryGetValue(p.PositionId, out var emps)
+                ? emps
+                : new List<EmploymentDetail>()
+        }).ToArray();
     }
 
 
-    //Emloyee gettig of postion
-    public async Task<List<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId)
+    public async Task<IReadOnlyList<PositionEmployeeDto>> GetEmployeesForPositionAsync(Guid organizationId, Guid positionId)
     {
         var sql = @"
         SELECT 
@@ -963,14 +1064,11 @@ ORDER BY e.firstname, e.lastname;
         ORDER BY ee.firstname, ee.lastname;
     ";
 
-        // Use helper QueryAsync method to keep consistent with ExecuteScalarAsync pattern
-        var employees = await QueryAsync<PositionEmployeeDto>(sql, new
+        return await QueryAsync<PositionEmployeeDto>(sql, new
         {
             OrganizationId = organizationId,
             PositionId = positionId
         });
-
-        return employees.ToList();
     }
 
 
@@ -1102,6 +1200,23 @@ ORDER BY e.firstname, e.lastname;
         return affected > 0;
     }
 
+    /// <summary>
+    /// Efficiently checks if a department name already exists within an organization using a
+    /// targeted EXISTS query — avoids fetching the full department list just for validation.
+    /// </summary>
+    public async Task<bool> DepartmentNameExistsAsync(Guid organizationId, string departmentName, Guid? excludeDepartmentId = null)
+    {
+        var sql = @"
+            SELECT EXISTS (
+                SELECT 1 FROM employee.departments
+                WHERE organizationid = @organizationId
+                  AND LOWER(TRIM(departmentname)) = LOWER(TRIM(@departmentName))
+                  AND (@excludeDepartmentId IS NULL OR departmentid != @excludeDepartmentId)
+            )";
+
+        return await ExecuteScalarAsync<bool>(sql, new { organizationId, departmentName, excludeDepartmentId });
+    }
+
     public async Task<int> GetEmployeeCountByDepartmentAsync(Guid departmentId)
     {
         var sql = @"
@@ -1167,7 +1282,7 @@ ORDER BY e.firstname, e.lastname;
         }
     }
 
-    public async Task<List<Employee>> GetEmployeesByPositionAsync(Guid positionId)
+    public async Task<IReadOnlyList<Employee>> GetEmployeesByPositionAsync(Guid positionId)
     {
         var sql = @"
             SELECT e.employeeid, e.organizationid, e.userid, e.employeecode, e.firstname, e.lastname,
@@ -1178,11 +1293,10 @@ ORDER BY e.firstname, e.lastname;
             INNER JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid
             WHERE ed.positionid = @positionId AND ed.iscurrent = true AND e.status != 'deleted'";
 
-        var results = await QueryAsync<Employee>(sql, new { positionId });
-        return results.ToList();
+        return await QueryAsync<Employee>(sql, new { positionId });
     }
 
-    public async Task<List<Employee>> GetManagersAsync(Guid organizationId)
+    public async Task<IReadOnlyList<Employee>> GetManagersAsync(Guid organizationId, Guid? departmentId = null)
     {
         var sql = @"
             SELECT DISTINCT 
@@ -1195,7 +1309,19 @@ ORDER BY e.firstname, e.lastname;
             LEFT JOIN auth.users u ON e.userid = u.userid
             LEFT JOIN auth.roles r ON u.roleid = r.roleid
             WHERE e.organizationid = @organizationId 
-              AND e.status = 'active'
+              AND e.status = 'active'";
+
+        if (departmentId.HasValue && departmentId.Value != Guid.Empty)
+        {
+            sql += @"
+              AND (
+                  ed.departmentid = @departmentId
+                  OR r.rolename ILIKE '%super admin%'
+              )";
+        }
+        else
+        {
+            sql += @"
               AND (
                   -- Department managers
                   e.employeeid IN (SELECT managerid FROM employee.departments WHERE managerid IS NOT NULL AND isactive = true)
@@ -1213,11 +1339,49 @@ ORDER BY e.firstname, e.lastname;
                       FROM employee.employmentdetails 
                       WHERE reportingmanagerid IS NOT NULL AND iscurrent = true
                   )
+              )";
+        }
+
+        sql += " ORDER BY e.firstname, e.lastname";
+
+        var results = await QueryAsync<Employee>(sql, new { organizationId, departmentId });
+        return results.ToArray();
+    }
+
+    public async Task<Guid?> GetRoleIdByPositionIdAsync(Guid positionId)
+    {
+        const string query = @"
+            SELECT roleid
+            FROM employee.positions
+            WHERE positionid = @PositionId;
+        ";
+
+        return await QuerySingleOrDefaultAsync<Guid?>(query, new { PositionId = positionId });
+    }
+
+
+    public async Task<IReadOnlyList<Employee>> GetDepartmentEmployeesAndAdminsAsync(Guid organizationId, Guid departmentId)
+    {
+        var sql = @"
+            SELECT DISTINCT
+                e.employeeid, e.organizationid, e.userid, e.employeecode,
+                e.firstname, e.lastname, e.email, e.phone, e.address,
+                e.dateofbirth, e.hiredate, e.status, e.createdat
+            FROM employee.employees e
+            LEFT JOIN employee.employmentdetails ed ON e.employeeid = ed.employeeid AND ed.iscurrent = true
+            LEFT JOIN auth.users u ON e.userid = u.userid
+            LEFT JOIN auth.roles r ON u.roleid = r.roleid
+            WHERE e.organizationid = @organizationId
+              AND e.status = 'active'
+              AND (
+                  -- All employees in the selected department
+                  ed.departmentid = @departmentId
+                  -- OR anyone with the Super Admin role (case-insensitive)
+                  OR LOWER(r.rolename) = 'super admin'
               )
             ORDER BY e.firstname, e.lastname";
 
-        var results = await QueryAsync<Employee>(sql, new { organizationId });
-        return results.ToList();
+        return await QueryAsync<Employee>(sql, new { organizationId, departmentId });
     }
 
 

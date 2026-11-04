@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Bibliography;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -31,7 +31,7 @@ namespace HRMS.API.Repositories
             _logger = logger;
         }
 
-        public async Task<List<IpAddress>> GetAllAsync()
+        public async Task<IReadOnlyList<IpAddress>> GetAllAsync()
         {
             try
             {
@@ -41,8 +41,7 @@ namespace HRMS.API.Repositories
                     ORDER BY createdat DESC;
                 ";
 
-                var result = await QueryAsync<IpAddress>(sql);
-                return result.ToList();
+                return (await QueryAsync<IpAddress>(sql)).ToArray();
             }
             catch (Exception ex)
             {

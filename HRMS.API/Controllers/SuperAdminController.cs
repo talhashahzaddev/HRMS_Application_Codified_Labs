@@ -15,186 +15,24 @@ public class SuperAdminController : ControllerBase
 {
     private readonly ISuperAdminService _superAdminService;
     private readonly ITransactionService _transactionService;
-    private readonly IAuthRepository _authRepository;
-    private readonly IAuthService _authService;
+    private readonly IConfiguration _configuration;
     private readonly ILogger<SuperAdminController> _logger;
 
     public SuperAdminController(
         ISuperAdminService superAdminService,
         ITransactionService transactionService,
-        IAuthRepository authRepository,
-        IAuthService authService,
+        IConfiguration configuration,
         ILogger<SuperAdminController> logger)
     {
         _superAdminService = superAdminService;
         _transactionService = transactionService;
-        _authRepository = authRepository;
-        _authService = authService;
+        _configuration = configuration;
         _logger = logger;
     }
 
-    [HttpGet("menus")]
-    public async Task<ActionResult<ServiceResponse<List<MenuDto>>>> GetMenus()
+    private string GetPortalUrl()
     {
-        var menus = await _authService.GetMenusAsync();
-        return Ok(new ServiceResponse<List<MenuDto>>
-        {
-            Success = true,
-            Data = menus,
-            Message = "Menus retrieved successfully."
-        });
-    }
-
-    [HttpGet("global-roles")]
-    public async Task<ActionResult<ServiceResponse<List<RoleDto>>>> GetGlobalRoles()
-    {
-        var roles = await _authRepository.GetGlobalRolesAsync();
-        var result = roles.Select(role => new RoleDto
-        {
-            RoleId = role.RoleId ?? Guid.Empty,
-            RoleName = role.RoleName,
-            Description = role.Description,
-            OrganizationId = role.OrganizationId ?? Guid.Empty,
-            OrganizationName = role.OrganizationName,
-            IsSystemRole = role.IsSystemRole ?? false,
-            CreatedAt = role.CreatedAt ?? DateTime.MinValue,
-            PermissionsCount = role.PermissionsCount
-        }).ToList();
-
-        return Ok(new ServiceResponse<List<RoleDto>>
-        {
-            Success = true,
-            Data = result,
-            Message = "Global roles retrieved successfully."
-        });
-    }
-
-    [HttpPost("create-global-role")]
-    public async Task<ActionResult<ServiceResponse<CreateRoleResponse>>> CreateGlobalRole(
-        [FromBody] Create_RoleRequest request)
-    {
-        try
-        {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(new ServiceResponse<CreateRoleResponse>
-                {
-                    Success = false,
-                    Message = "Invalid request data",
-                    Errors = ModelState.Values.SelectMany(v => v.Errors)
-                        .Select(e => e.ErrorMessage)
-                        .ToList()
-                });
-            }
-
-            var result = await _authService.Create_RoleAsync(request, null);
-            return Ok(new ServiceResponse<CreateRoleResponse>
-            {
-                Success = true,
-                Data = result,
-                Message = "Global role created successfully."
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ServiceResponse<CreateRoleResponse>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new ServiceResponse<CreateRoleResponse>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (PostgresException ex) when (ex.SqlState == PostgresErrorCodes.NotNullViolation)
-        {
-            _logger.LogError(ex,
-                "Global role creation failed because the database schema does not allow NULL organization IDs.");
-
-            return Conflict(new ServiceResponse<CreateRoleResponse>
-            {
-                Success = false,
-                Message = "The database schema does not support global roles yet. Run HRMS.Script/06_global_roles_migration.sql and try again."
-            });
-        }
-    }
-
-    [HttpDelete("delete-global-role/{roleId:guid}")]
-    public async Task<ActionResult<ServiceResponse<DeleteRoleResponse>>> DeleteGlobalRole(Guid roleId)
-    {
-        try
-        {
-            var role = await _authRepository.GetRoleByIdAsync(roleId);
-            if (role == null)
-            {
-                return NotFound(new ServiceResponse<DeleteRoleResponse>
-                {
-                    Success = false,
-                    Message = $"Role with ID {roleId} not found"
-                });
-            }
-
-            var result = await _authService.DeleteRoleAsync(roleId, role.OrganizationId);
-            return Ok(new ServiceResponse<DeleteRoleResponse>
-            {
-                Success = true,
-                Data = result,
-                Message = "Global role deleted successfully."
-            });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new ServiceResponse<DeleteRoleResponse>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (ArgumentException ex)
-        {
-            return BadRequest(new ServiceResponse<DeleteRoleResponse>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Conflict(new ServiceResponse<DeleteRoleResponse>
-            {
-                Success = false,
-                Message = ex.Message
-            });
-        }
-    }
-
-    [HttpGet("invitations")]
-    public ActionResult<ServiceResponse<PagedResult<UserInvitationDto>>> GetInvitations(
-        [FromQuery] string? search,
-        [FromQuery] string? status,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 15)
-    {
-        page = Math.Max(page, 1);
-        pageSize = Math.Clamp(pageSize, 1, 100);
-
-        return Ok(new ServiceResponse<PagedResult<UserInvitationDto>>
-        {
-            Success = true,
-            Data = new PagedResult<UserInvitationDto>
-            {
-                Data = new List<UserInvitationDto>(),
-                TotalCount = 0,
-                Page = page,
-                PageSize = pageSize
-            },
-            Message = "Invitations retrieved successfully."
-        });
+        return _configuration["EmployeePortal:PortalUrl"] ?? "https://login.briskpeople.com/";
     }
 
     /// <summary>
@@ -289,7 +127,7 @@ public class SuperAdminController : ControllerBase
     /// Get subscription history for an organization
     /// </summary>
     [HttpGet("organizations/{organizationId:guid}/subscription-history")]
-    public async Task<ActionResult<ServiceResponse<List<SubscriptionHistoryDto>>>> GetSubscriptionHistory(Guid organizationId)
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<SubscriptionHistoryDto>>>> GetSubscriptionHistory(Guid organizationId)
     {
         try
         {
@@ -299,7 +137,7 @@ public class SuperAdminController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting subscription history for {OrganizationId}", organizationId);
-            return StatusCode(500, new ServiceResponse<List<SubscriptionHistoryDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<SubscriptionHistoryDto>>
             {
                 Success = false,
                 Message = "An error occurred while loading subscription history"
@@ -484,6 +322,290 @@ public class SuperAdminController : ControllerBase
         {
             _logger.LogError(ex, "Error getting revenue analytics");
             return StatusCode(500, new ServiceResponse<RevenueAnalyticsDto> { Success = false, Message = "An error occurred" });
+        }
+    }
+
+    //GLOBAL ROLES API
+
+    [HttpGet("global-roles")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<GlobalRoleDetailResponse>>>> GetGlobalRoles()
+    {
+        try
+        {
+            var result = await _superAdminService.GetGlobalRolesAsync();
+
+            return Ok(new ServiceResponse<IReadOnlyList<GlobalRoleDetailResponse>>
+            {
+                Success = true,
+                Message = "Global roles retrieved successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving global roles");
+
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<GlobalRoleDetailResponse>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving global roles"
+            });
+        }
+    }
+
+    [HttpPost("create-global-role")]
+    public async Task<ActionResult<ServiceResponse<GlobalRoleActionResponse>>> CreateGlobalRole([FromBody] CreateGlobalRoleRequest request)
+    {
+        try
+        {
+            var result = await _superAdminService.CreateGlobalRoleAsync(request);
+
+            return Ok(new ServiceResponse<GlobalRoleActionResponse>
+            {
+                Success = true,
+                Message = "Global role created successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating global role");
+
+            return StatusCode(500, new ServiceResponse<GlobalRoleActionResponse>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    [HttpPut("update-global-role")]
+    public async Task<ActionResult<ServiceResponse<GlobalRoleActionResponse>>> UpdateGlobalRole(
+    [FromBody] UpdateGlobalRoleRequest request)
+    {
+        try
+        {
+            var result = await _superAdminService.UpdateGlobalRoleAsync(request);
+
+            return Ok(new ServiceResponse<GlobalRoleActionResponse>
+            {
+                Success = true,
+                Message = "Global role updated successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating global role");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+
+    [HttpDelete("delete-global-role/{roleId}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteGlobalRole(Guid roleId)
+    {
+        try
+        {
+            var result = await _superAdminService.DeleteGlobalRoleAsync(roleId);
+
+            return Ok(new ServiceResponse<bool>
+            {
+                Success = true,
+                Message = "Global role deleted successfully",
+                Data = result
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting global role");
+
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+    }
+    [HttpGet("menus")]
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<MenuDto>>>> GetMenus()
+    {
+        try
+        {
+            var menus = await _superAdminService.GetMenusAsync();
+
+            return Ok(new ServiceResponse<IReadOnlyList<MenuDto>>
+            {
+                Success = true,
+                Data = menus,
+                Message = "Menus retrieved successfully"
+            });
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid argument while retrieving menus");
+
+            return BadRequest(new ServiceResponse<IReadOnlyList<MenuDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logger.LogWarning(ex, "Business logic error while retrieving menus");
+
+            return BadRequest(new ServiceResponse<IReadOnlyList<MenuDto>>
+            {
+                Success = false,
+                Message = ex.Message
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error retrieving menus");
+
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<MenuDto>>
+            {
+                Success = false,
+                Message = "An error occurred while retrieving menus"
+            });
+        }
+    }
+
+    // ========== USER INVITATIONS ==========
+
+    /// <summary>
+    /// Invite a new user to an organization
+    /// </summary>
+    [HttpPost("invite-user")]
+    public async Task<ActionResult<ServiceResponse<bool>>> InviteUser([FromBody] InviteUserRequest request)
+    {
+        try
+        {
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new ServiceResponse<bool>
+                {
+                    Success = false,
+                    Message = "Invalid request data",
+                    Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
+                });
+            }
+
+            var portalUrl = GetPortalUrl();
+            var response = await _superAdminService.InviteUserAsync(request, portalUrl);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error inviting user");
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while inviting the user"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Get paginated list of user invitations
+    /// </summary>
+    [HttpGet("invitations")]
+    public async Task<ActionResult<ServiceResponse<PagedResult<UserInvitationDto>>>> GetInvitations(
+        [FromQuery] string? search,
+        [FromQuery] string? status,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        try
+        {
+            var filter = new UserInvitationFilterRequest
+            {
+                Search = search,
+                Status = status,
+                Page = page,
+                PageSize = Math.Min(pageSize, 50)
+            };
+
+            var response = await _superAdminService.GetInvitationsAsync(filter);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting invitations list");
+            return StatusCode(500, new ServiceResponse<PagedResult<UserInvitationDto>>
+            {
+                Success = false,
+                Message = "An error occurred while loading invitations"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Re-send an invitation email
+    /// </summary>
+    [HttpPost("invitations/{invitationId:guid}/resend")]
+    public async Task<ActionResult<ServiceResponse<bool>>> ResendInvitation(Guid invitationId)
+    {
+        try
+        {
+            var portalUrl = GetPortalUrl();
+            var response = await _superAdminService.ResendInvitationAsync(invitationId, portalUrl);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error resending invitation {InvitationId}", invitationId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while resending the invitation"
+            });
+        }
+    }
+
+    /// <summary>
+    /// Delete a pending invitation
+    /// </summary>
+    [HttpDelete("invitations/{invitationId:guid}")]
+    public async Task<ActionResult<ServiceResponse<bool>>> DeleteInvitation(Guid invitationId)
+    {
+        try
+        {
+            var response = await _superAdminService.DeleteInvitationAsync(invitationId);
+
+            if (!response.Success)
+            {
+                return BadRequest(response);
+            }
+
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting invitation {InvitationId}", invitationId);
+            return StatusCode(500, new ServiceResponse<bool>
+            {
+                Success = false,
+                Message = "An error occurred while deleting the invitation"
+            });
         }
     }
 

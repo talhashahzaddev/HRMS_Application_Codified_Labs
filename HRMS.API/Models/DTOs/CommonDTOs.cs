@@ -5,7 +5,7 @@ namespace HRMS.API.Models.DTOs;
 public class PagedResult<T>
 {
     [JsonPropertyName("data")]
-    public List<T> Data { get; set; } = new();
+    public IReadOnlyList<T> Data { get; set; } = Array.Empty<T>();
     
     [JsonPropertyName("totalCount")]
     public int TotalCount { get; set; }
@@ -31,6 +31,7 @@ public class ServiceResponse<T>
     public T? Data { get; set; }
     public bool Success { get; set; } = true;
     public string Message { get; set; } = "";
+    public string? ErrorCode { get; set; }
     public List<string>? Errors { get; set; }
 }
 

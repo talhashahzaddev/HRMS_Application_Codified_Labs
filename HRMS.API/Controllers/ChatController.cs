@@ -1,4 +1,4 @@
-﻿using HRMS.AI.Models;
+using HRMS.AI.Models;
 using HRMS.AI.Models.Enums;
 using HRMS.AI.Services.Interface;
 using HRMS.API.Models.DTOs;
@@ -191,7 +191,11 @@ namespace HRMS.API.Controllers
 
             var text = message.Trim().ToLowerInvariant();
 
-            if (text.Contains("payslip") || text.Contains("salary slip"))
+            if (text.Contains("payslip") || text.Contains("salary slip")
+                || text.Contains("basic salary") || text.Contains("my salary")
+                || text.Contains("net salary") || text.Contains("last payroll")
+                || text.Contains("payroll history") || text.Contains("salary deduction")
+                || (text.Contains("payroll") && (text.Contains("history") || text.Contains("deduction") || text.Contains("breakdown"))))
                 return (ChatIntent.GetPayslip, "Payroll");
 
             if (text.Contains("expense") && (text.Contains("status") || text.Contains("claim") || text.Contains("reimb")))
@@ -214,6 +218,46 @@ namespace HRMS.API.Controllers
 
             if (text.Contains("restricted") && text.Contains("holiday") && (text.Contains("how") || text.Contains("select")))
                 return (ChatIntent.Guidance, "HolidayManagement");
+
+            // ---- Expense intents (recurring FIRST to avoid false claims match) ----
+
+            // Recurring expenses — must check before claims
+            if (text.Contains("recurring expense") || text.Contains("recurring claim")
+                || (text.Contains("recurring") && (text.Contains("my") || text.Contains("show") || text.Contains("list") || text.Contains("expense"))))
+                return (ChatIntent.GetMyRecurringExpenses, "ExpensesManagement");
+
+            // My expense claims list — must NOT contain 'recurring'
+            if (!text.Contains("recurring")
+                && ((text.Contains("my expense") && (text.Contains("claim") || text.Contains("show") || text.Contains("list") || text.Contains("recent")))
+                    || text.Contains("show my claim") || text.Contains("my claims") || text.Contains("list my expense")))
+                return (ChatIntent.GetMyExpenseClaims, "ExpensesManagement");
+
+            // General expense status fallback
+            if (!text.Contains("recurring")
+                && text.Contains("expense") && (text.Contains("status") || text.Contains("reimb")))
+                return (ChatIntent.GetExpenseStatus, "ExpensesManagement");
+
+            // ATS score / knockout / stage detail
+            if (text.Contains("ats score") || text.Contains("match score")
+                || text.Contains("knockout")
+                || (text.Contains("application") && text.Contains("stage") && (text.Contains("my") || text.Contains("what") || text.Contains("current")))
+                || (text.Contains("application") && text.Contains("detail") && text.Contains("my")))
+                return (ChatIntent.GetJobApplicationDetail, "JobsManagement");
+
+            // Referred applications
+            if (text.Contains("my refer") || text.Contains("i referred") || text.Contains("my referral")
+                || (text.Contains("refer") && (text.Contains("application") || text.Contains("candidate") || text.Contains("status"))))
+                return (ChatIntent.GetMyReferredApplications, "JobsManagement");
+
+            // Self-applied applications
+            if ((text.Contains("my job application") || text.Contains("my self application") || text.Contains("jobs i applied"))
+                || (text.Contains("my recent job") && (text.Contains("application") || text.Contains("applied")))
+                || (text.Contains("show me my") && text.Contains("application") && !text.Contains("refer")))
+                return (ChatIntent.GetMyJobApplications, "JobsManagement");
+
+            // General jobs summary fallback
+            if ((text.Contains("job application") || text.Contains("job")) && text.Contains("status"))
+                return (ChatIntent.GetJobsStatus, "JobsManagement");
 
             return null;
         }
