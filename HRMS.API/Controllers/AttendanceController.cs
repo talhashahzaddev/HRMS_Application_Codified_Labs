@@ -193,7 +193,6 @@ public class AttendanceController : ControllerBase
     }
 
     [HttpGet]
-    [HttpGet("team-attendance")]
     public async Task<ActionResult<ServiceResponse<PagedResult<AttendanceDto>>>> GetAttendance([FromQuery] AttendanceSearchViewModel searchModel)
     {
         try
