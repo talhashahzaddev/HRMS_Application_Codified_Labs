@@ -2074,6 +2074,16 @@ public class AttendanceController : ControllerBase
     [PermissionAuthorize("reports_genrate_report")]
     public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
+        // Without dates the range defaults to 0001-01-01 and the report walks every day since then.
+        if (startDate == default || endDate == default || endDate < startDate || (endDate - startDate).TotalDays > 366)
+        {
+            return BadRequest(new ServiceResponse<AttendanceReportDto>
+            {
+                Success = false,
+                Message = "Provide startDate and endDate (endDate on or after startDate, at most one year apart)."
+            });
+        }
+
         try
         {
             var organizationId = GetCurrentOrganizationId();
