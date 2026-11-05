@@ -225,11 +225,9 @@ builder.Services.AddScoped<IFileUploadService>(sp => sp.GetRequiredService<Cloud
 // -------------------- SIGNALR & HANGFIRE --------------------
 builder.Services.AddSignalR();
 
-var rawHangfireString = builder.Configuration.GetConnectionString("DefaultConnection")
-    ?? Environment.GetEnvironmentVariable("CONNECTION_STRING")
-    ?? Environment.GetEnvironmentVariable("DATABASE_URL");
-
-var hangfireConnectionString = ParseRailwayUrl(rawHangfireString);
+// Same database as the app (CONNECTION_STRING first). Reading appsettings first made Hangfire
+// connect to the "localhost" placeholder inside the container and crash the API at startup.
+var hangfireConnectionString = finalConnectionString;
 if (string.IsNullOrEmpty(hangfireConnectionString))
     throw new Exception("Database connection string not found for Hangfire");
 
