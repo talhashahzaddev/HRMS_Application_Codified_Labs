@@ -1,3 +1,4 @@
+using HRMS.API.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -50,6 +51,7 @@ public class PositionController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ServiceResponse<PositionDto>>> GetPosition(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.Position, id)) return this.NotFoundInTenant("Position");
         try
         {
             var position = await _employeeService.GetPositionByIdAsync(id);

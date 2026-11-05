@@ -1,3 +1,4 @@
+using HRMS.API.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -48,6 +49,7 @@ public class DepartmentController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ServiceResponse<DepartmentDto>>> GetDepartment(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.Department, id)) return this.NotFoundInTenant("Department");
         try
         {
             var department = await _employeeService.GetDepartmentByIdAsync(id);

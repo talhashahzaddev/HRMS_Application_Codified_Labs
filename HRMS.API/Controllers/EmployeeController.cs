@@ -58,6 +58,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!await _employeeService.UserEmployeeBelongsToOrganizationAsync(id, GetCurrentOrganizationId())) return NotFound(NotInOrganization("Employee"));
             var employee = await _employeeService.GetEmployeeByIdAsync(id);
             if (employee == null)
             {
@@ -234,6 +235,7 @@ public class EmployeeController : ControllerBase
                     Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
                 });
             }
+            if (!await _employeeService.EmployeeBelongsToOrganizationAsync(id, GetCurrentOrganizationId())) return NotFound(NotInOrganization("Employee"));
             var result = await _employeeService.UpdateEmployeeAsync(id, request);
             
             return Ok(new ServiceResponse<bool>
@@ -295,6 +297,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!await _employeeService.EmployeeBelongsToOrganizationAsync(id, GetCurrentOrganizationId())) return NotFound(NotInOrganization("Employee"));
             var result = await _employeeService.DeleteEmployeeAsync(id, status);
             
             return Ok(new ServiceResponse<bool>
@@ -436,6 +439,7 @@ public class EmployeeController : ControllerBase
                     Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
                 });
             }
+            if (!await DepartmentInOrganizationAsync(id)) return NotFound(NotInOrganization("Department"));
             var department = await _employeeService.UpdateDepartmentAsync(id, request);
             
             return Ok(new ServiceResponse<DepartmentDto>
@@ -497,6 +501,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!await DepartmentInOrganizationAsync(id)) return NotFound(NotInOrganization("Department"));
             var result = await _employeeService.DeleteDepartmentAsync(id);
             
             return Ok(new ServiceResponse<bool>
@@ -771,6 +776,7 @@ public class EmployeeController : ControllerBase
                     Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
                 });
             }
+            if (!await PositionInOrganizationAsync(id)) return NotFound(NotInOrganization("Position"));
             var position = await _employeeService.UpdatePositionAsync(id, request);
 
             return Ok(new ServiceResponse<PositionDto>
@@ -834,6 +840,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!await PositionInOrganizationAsync(id)) return NotFound(NotInOrganization("Position"));
             var result = await _employeeService.DeletePositionAsync(id);
 
             return Ok(new ServiceResponse<bool>
@@ -899,6 +906,7 @@ public class EmployeeController : ControllerBase
                 request.EmergencyContact = JsonSerializer.Deserialize<Dictionary<string, object>>(Request.Form["EmergencyContact"]);
 
             // Call service to update employee
+            if (!await _employeeService.EmployeeBelongsToOrganizationAsync(request.EmployeeId, GetCurrentOrganizationId())) return NotFound(NotInOrganization("Employee"));
             await _employeeService.UpdateEmployeeAsync(request.EmployeeId, request, profileurl);
 
             return Ok(new ServiceResponse<bool>
@@ -953,6 +961,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!await _employeeService.EmployeeBelongsToOrganizationAsync(id, GetCurrentOrganizationId())) return NotFound(NotInOrganization("Employee"));
             var employee = await _employeeService.ActivateEmployeeAsync(id);
             return Ok(new ServiceResponse<EmployeeDto>
             {
@@ -995,6 +1004,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!await _employeeService.EmployeeBelongsToOrganizationAsync(id, GetCurrentOrganizationId())) return NotFound(NotInOrganization("Employee"));
             var employee = await _employeeService.DeactivateEmployeeAsync(id);
             return Ok(new ServiceResponse<EmployeeDto>
             {
@@ -1036,6 +1046,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!await DepartmentInOrganizationAsync(id)) return NotFound(NotInOrganization("Department"));
             var department = await _employeeService.GetDepartmentByIdAsync(id);
             if (department == null)
             {
@@ -1077,6 +1088,7 @@ public class EmployeeController : ControllerBase
     {
         try
         {
+            if (!await PositionInOrganizationAsync(id)) return NotFound(NotInOrganization("Position"));
             var position = await _employeeService.GetPositionByIdAsync(id);
             if (position == null)
             {
@@ -1290,6 +1302,21 @@ public class EmployeeController : ControllerBase
         }
 
         return userId;
+    }
+
+    // Ids in the URL are global; never act on a record owned by another organisation.
+    private static ServiceResponse<bool> NotInOrganization(string what) => new() { Success = false, Data = false, Message = $"{what} not found" };
+
+    private async Task<bool> DepartmentInOrganizationAsync(Guid departmentId)
+    {
+        var department = await _employeeService.GetDepartmentByIdAsync(departmentId);
+        return department != null && department.OrganizationId == GetCurrentOrganizationId();
+    }
+
+    private async Task<bool> PositionInOrganizationAsync(Guid positionId)
+    {
+        var position = await _employeeService.GetPositionByIdAsync(positionId);
+        return position != null && position.OrganizationId == GetCurrentOrganizationId();
     }
 
     private Guid GetCurrentOrganizationId()

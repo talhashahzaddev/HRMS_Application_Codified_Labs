@@ -1,11 +1,14 @@
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HRMS.API.Controllers
 {
+    // Cross-tenant organisation CRUD: platform operators only.
     [ApiController]
     [Route("api/[controller]")]
+    [Authorize(Roles = "Platform Admin")]
     public class OrganizationController : ControllerBase
     {
         private readonly IOrganizationService _organizationService;

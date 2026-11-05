@@ -2060,6 +2060,11 @@ public class PayRollService : IPayRollService
 
     public async Task<ServiceResponse<ProvidentFundRequestDto>> CreateProvidentFundWithdrawRequestAsync(Guid organizationId, Guid employeeId, CreateProvidentFundWithdrawRequestDto dto)
     {
+        if (dto == null || dto.Amount <= 0)
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "Amount must be greater than zero." };
+        var withdrawalType = dto.WithdrawalType?.Trim().ToLowerInvariant();
+        if (withdrawalType != "temporary" && withdrawalType != "permanent")
+            return new ServiceResponse<ProvidentFundRequestDto> { Success = false, Message = "WithdrawalType must be 'temporary' or 'permanent'." };
         try
         {
             var result = await _payRollRepository.CreateProvidentFundWithdrawRequestAsync(organizationId, employeeId, dto);
@@ -2258,6 +2263,8 @@ public class PayRollService : IPayRollService
     // Salary Advance
     public async Task<ServiceResponse<SalaryAdvanceDto>> CreateSalaryAdvanceAsync(Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
     {
+        if (dto == null || dto.Amount <= 0)
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "Amount must be greater than zero." };
         try
         {
             var result = await _payRollRepository.CreateSalaryAdvanceAsync(organizationId, employeeId, dto);
@@ -2272,6 +2279,8 @@ public class PayRollService : IPayRollService
 
     public async Task<ServiceResponse<SalaryAdvanceDto>> UpdateMySalaryAdvanceAsync(Guid advanceId, Guid organizationId, Guid employeeId, CreateSalaryAdvanceDto dto)
     {
+        if (dto == null || dto.Amount <= 0)
+            return new ServiceResponse<SalaryAdvanceDto> { Success = false, Message = "Amount must be greater than zero." };
         try
         {
             var result = await _payRollRepository.UpdateMySalaryAdvanceAsync(advanceId, organizationId, employeeId, dto);

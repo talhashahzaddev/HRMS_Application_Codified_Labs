@@ -1,6 +1,7 @@
 ﻿using HRMS.API.Models.DTOs;
 using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
+using HRMS.API.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,6 +12,7 @@ namespace HRMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class NewsController : ControllerBase
     {
         private readonly ILogger<NewsController> _logger;
@@ -177,6 +179,7 @@ namespace HRMS.API.Controllers
             }
         }
 
+        [PermissionAuthorize("Edit_News_Button")]
         [HttpPut("edit/{newsId}")]
         public async Task<ActionResult<ServiceResponse<bool>>> EditNews(Guid newsId, [FromBody] NewsRequest request)
         {
@@ -279,6 +282,8 @@ namespace HRMS.API.Controllers
                 var currentEmployeeId = await GetCurrentEmployeeId();
                 var organizationId = GetCurrentOrganizationId();
                 var results = await _newsService.GetNewsByNewsIdAsync(newsId);
+                if (results == null || results.OrganizationId != organizationId)
+                    return NotFound(new ServiceResponse<NewsDto> { Success = false, Message = "News not found" });
                 return Ok(new ServiceResponse<NewsDto>
                 {
                     Success = true,
@@ -334,11 +339,14 @@ namespace HRMS.API.Controllers
             }
         }
 
+        [PermissionAuthorize("Delete_News_Button")]
         [HttpDelete("{newsId}")]
         public async Task<ActionResult<ServiceResponse<bool>>> DeleteNews(Guid newsId)
         {
             try
             {
+                if (!await NewsBelongsToCurrentOrganizationAsync(newsId))
+                    return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "News not found" });
                 var isDeleted = await _newsService.DeleteNewsAsync(newsId);
 
                 return Ok(new ServiceResponse<bool>
@@ -386,6 +394,8 @@ namespace HRMS.API.Controllers
         {
             try
             {
+                if (!await NewsBelongsToCurrentOrganizationAsync(newsId))
+                    return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "News not found" });
                 var isUpdated = await _newsService.AddNewsViewAsync(newsId);
 
                 return Ok(new ServiceResponse<bool>
@@ -436,6 +446,8 @@ namespace HRMS.API.Controllers
                 var employeeId = await GetCurrentEmployeeId(); // logged-in user
 
                 // Call service: add read record + increment views if first read
+                if (!await NewsBelongsToCurrentOrganizationAsync(newsId))
+                    return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "News not found" });
                 var isFirstRead = await _newsService.MarkNewsAsReadAsync(newsId, employeeId);
 
                 return Ok(new ServiceResponse<bool>
@@ -478,6 +490,7 @@ namespace HRMS.API.Controllers
             }
         }
 
+        [PermissionAuthorize("Status_News_Toggle")]
         [HttpPatch("{newsId}/status")]
         public async Task<ActionResult<ServiceResponse<bool>>> UpdateNewsStatus(Guid newsId,string? status)   // directly from query string
         {
@@ -491,6 +504,8 @@ namespace HRMS.API.Controllers
                         Data = false
                     });
 
+                if (!await NewsBelongsToCurrentOrganizationAsync(newsId))
+                    return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "News not found" });
                 var isUpdated = await _newsService.UpdateNewsStatusAsync(newsId, status);
 
                 return Ok(new ServiceResponse<bool>
@@ -549,6 +564,13 @@ namespace HRMS.API.Controllers
             var employeeId = await _newsService.GetEmployeeFromTable(userId);
             return employeeId;
         }
+        // News ids are global; never act on a news item owned by another organisation.
+        private async Task<bool> NewsBelongsToCurrentOrganizationAsync(Guid newsId)
+        {
+            var news = await _newsService.GetNewsByNewsIdAsync(newsId);
+            return news != null && news.OrganizationId == GetCurrentOrganizationId();
+        }
+
         private Guid GetCurrentOrganizationId()
         {
             var orgIdClaim = User.FindFirstValue("organizationId");

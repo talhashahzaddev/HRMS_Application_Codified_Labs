@@ -1,4 +1,5 @@
-﻿using HRMS.API.Models.DTOs;
+﻿using HRMS.API.Authorization;
+using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -45,6 +46,7 @@ public class GeoFenceController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ServiceResponse<GeoFenceDto>>> GetById(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.GeoFence, id)) return this.NotFoundInTenant("GeoFence");
         try
         {
             var fence = await _service.GetGeoFenceByIdAsync(id);
@@ -124,6 +126,7 @@ public class GeoFenceController : ControllerBase
     [HttpGet("shift/{shiftId}")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<ShiftGeoFenceDto>>>> GetByShift(Guid shiftId)
     {
+        if (!await this.OwnsAsync(TenantResource.Shift, shiftId)) return this.NotFoundInTenant("Shift");
         var fences = await _service.GetGeoFencesByShiftAsync(shiftId);
         return Ok(new ServiceResponse<IEnumerable<ShiftGeoFenceDto>> { Success = true, Data = fences });
     }
@@ -131,6 +134,8 @@ public class GeoFenceController : ControllerBase
     [HttpPost("shift/{shiftId}/link/{geoFenceId}")]
     public async Task<ActionResult<ServiceResponse<bool>>> LinkToShift(Guid shiftId, Guid geoFenceId)
     {
+        if (!await this.OwnsAsync(TenantResource.Shift, shiftId)) return this.NotFoundInTenant("Shift");
+        if (!await this.OwnsAsync(TenantResource.GeoFence, geoFenceId)) return this.NotFoundInTenant("GeoFence");
         var result = await _service.LinkGeoFenceToShiftAsync(shiftId, geoFenceId);
         return Ok(result);
     }
@@ -138,6 +143,8 @@ public class GeoFenceController : ControllerBase
     [HttpDelete("shift/{shiftId}/unlink/{geoFenceId}")]
     public async Task<ActionResult<ServiceResponse<bool>>> UnlinkFromShift(Guid shiftId, Guid geoFenceId)
     {
+        if (!await this.OwnsAsync(TenantResource.Shift, shiftId)) return this.NotFoundInTenant("Shift");
+        if (!await this.OwnsAsync(TenantResource.GeoFence, geoFenceId)) return this.NotFoundInTenant("GeoFence");
         var result = await _service.UnlinkGeoFenceFromShiftAsync(shiftId, geoFenceId);
         return Ok(result);
     }

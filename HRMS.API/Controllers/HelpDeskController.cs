@@ -11,6 +11,7 @@ namespace HRMS.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize]
     public class HelpDeskController : ControllerBase
     {
 
@@ -750,7 +751,9 @@ namespace HRMS.API.Controllers
 
                 var organizationId = GetCurrentOrganizationId();
 
-                await _helpDeskService.DeleteCategoryAsync(organizationId, categoryId);
+                var deleted = await _helpDeskService.DeleteCategoryAsync(organizationId, categoryId);
+                if (!deleted)
+                    return NotFound(new ServiceResponse<bool> { Success = false, Message = "Category not found", Data = false });
 
                 return Ok(new ServiceResponse<bool>
                 {

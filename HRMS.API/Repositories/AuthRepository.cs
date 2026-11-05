@@ -1,4 +1,4 @@
-using Dapper;
+﻿using Dapper;
 using DocumentFormat.OpenXml.Wordprocessing;
 using HRMS.API.Configuration;
 using HRMS.API.Models.DTOs;
@@ -544,6 +544,47 @@ WHERE token = @token;
     }
 
 
+    public async Task<User?> GetUserByRefreshTokenAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken)) return null;
+
+        var sql = @"
+    SELECT u.userid,
+           u.organizationid,
+           u.email AS Email,
+           u.FirstName,
+           u.LastName,
+           u.IsActive,
+           u.LastLoginAt,
+           u.CreatedAt,
+           u.refreshtoken,
+           u.refreshtokenexpiresat,
+           r.RoleName,
+           r.permissions AS Permissions,
+           o.name AS OrganizationName,
+           o.domain AS OrganizationDomain
+    FROM auth.users u
+    INNER JOIN auth.roles r ON u.roleid = r.roleid
+    INNER JOIN auth.organizations o ON u.organizationid = o.organizationid
+    WHERE u.refreshtoken = @refreshToken
+      AND EXISTS (
+          SELECT 1
+          FROM employee.employees e
+          WHERE e.userid = u.userid
+            AND e.status = 'active'
+      )
+    LIMIT 1";
+
+        var result = await QuerySingleOrDefaultAsync<dynamic>(sql, new { refreshToken });
+        if (result == null) return null;
+
+        User user = MapToUser(result);
+        user.RefreshToken = result.refreshtoken;
+        user.RefreshTokenExpiresAt = result.refreshtokenexpiresat;
+        user.Organization!.Domain = result.organizationdomain;
+        return user;
+    }
+
     public async Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt)
     {
         var sql = @"
@@ -1070,7 +1111,7 @@ WHERE token = @token;
                 },
                 Organization = new Organization
                 {
-                    Name = result.rganizationame
+                    Name = result.organizationname
                 }
             };
         }

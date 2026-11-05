@@ -284,14 +284,26 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.UpdateSkillSetAsync(skillSetId, request);
     }
 
-    public async Task<bool> DeleteSkillSetAsync(Guid skillId)
+    public Task<Guid?> GetEmployeeSkillOwnerAsync(Guid employeeSkillId) =>
+        _performanceRepository.GetEmployeeSkillOwnerAsync(employeeSkillId);
+
+    public Task<bool> EmployeeSkillBelongsToOrganizationAsync(Guid employeeSkillId, Guid organizationId) =>
+        _performanceRepository.EmployeeSkillBelongsToOrganizationAsync(employeeSkillId, organizationId);
+
+    public Task<bool> SkillSetBelongsToOrganizationAsync(Guid skillId, Guid organizationId) =>
+        _performanceRepository.SkillSetBelongsToOrganizationAsync(skillId, organizationId);
+
+    public Task<bool> EmployeeBelongsToOrganizationAsync(Guid employeeId, Guid organizationId) =>
+        _performanceRepository.EmployeeBelongsToOrganizationAsync(employeeId, organizationId);
+
+    public async Task<bool> DeleteSkillSetAsync(Guid skillId, Guid organizationId)
     {
         if (skillId == Guid.Empty)
             throw new ArgumentException("Skill ID cannot be empty.", nameof(skillId));
 
         _logger.LogInformation("Deleting skill set: {SkillId}", skillId);
 
-        return await _performanceRepository.DeleteSkillSetAsync(skillId);
+        return await _performanceRepository.DeleteSkillSetAsync(skillId, organizationId);
     }
 
     public async Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit)
@@ -697,7 +709,7 @@ public class PerformanceService : IPerformanceService
         return await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
     }
 
-    public async Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request)
+    public async Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request, Guid organizationId)
     {
         _logger.LogInformation("Updating appraisal cycle: {CycleId}", cycleId);
         if (cycleId == Guid.Empty)
@@ -705,6 +717,9 @@ public class PerformanceService : IPerformanceService
         if (request == null)
             throw new ArgumentNullException(nameof(request), "Request cannot be null");
         var appraisalCycle = await _performanceRepository.GetAppraisalCycleByIdAsync(cycleId);
+        // Unknown id, or a cycle that belongs to another organisation: treat both as not found.
+        if (appraisalCycle == null || appraisalCycle.OrganizationId != organizationId)
+            throw new KeyNotFoundException("Appraisal cycle not found");
         if (appraisalCycle.StartDate <= DateTime.UtcNow)
         {
             throw new InvalidOperationException("Cannot Update appraisal cycle because it has already started.");

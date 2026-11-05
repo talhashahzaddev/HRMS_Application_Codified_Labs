@@ -1386,9 +1386,8 @@ SELECT
     createdat AS CreatedAt
 FROM helpdesk.categories
 WHERE categoryid = @CategoryId
-  AND organizationid = @OrganizationId
-  AND isactive = true;
-";
+  AND organizationid = @OrganizationId;
+"; // helpdesk.categories has no isactive column (it uses status); same filter as the category list query
 
                 var parameters = new
                 {

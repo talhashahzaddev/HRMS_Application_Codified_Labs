@@ -82,7 +82,7 @@ public class LeaveController : ControllerBase
     {
         try
         {
-            var request = await _leaveService.GetLeaveRequestByIdAsync(id);
+            var request = await _leaveService.GetLeaveRequestByIdAsync(id, GetCurrentOrganizationId());
             if (request == null)
             {
                 return NotFound(new ServiceResponse<LeaveRequestDto>

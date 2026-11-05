@@ -56,12 +56,17 @@ public class LeaveRepository : BaseRepository, ILeaveRepository
     }
 
 
+    public Task<bool> SubstractLeaveDayAsync(Guid leaveTypeId, Guid employeeId, int totalLeaveDays) =>
+        SubstractLeaveDayAsync(leaveTypeId, employeeId, totalLeaveDays, DateTime.UtcNow.Year);
+
+    // year = the leave's start year, matching fn_create_leave_request and the reject path in
+    // fn_update_leave_request_status (deducting from the current year lost days for next-year leave).
     public async Task<bool> SubstractLeaveDayAsync(
     Guid leaveTypeId,
     Guid employeeId,
-    int totalLeaveDays)
+    int totalLeaveDays,
+    int year)
     {
-        var year = DateTime.UtcNow.Year;
 
         const string sql = @"
         UPDATE attendance.leaveentitlements
@@ -517,13 +522,27 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
             return null;
         }
     }
+
+    public async Task<bool> LeaveRequestBelongsToOrganizationAsync(Guid requestId, Guid organizationId)
+    {
+        const string sql = @"
+            SELECT EXISTS (
+                SELECT 1
+                FROM attendance.leaverequests lr
+                JOIN employee.employees e ON e.employeeid = lr.employeeid
+                WHERE lr.requestid = @requestId AND e.organizationid = @organizationId)";
+        return await ExecuteScalarAsync<bool>(sql, new { requestId, organizationId });
+    }
     //EdiT Elementals for edit leave request
 
-    public async Task<LeaveEntitlementDto> EditingLeaveElementals(Guid empId, Guid leaveTypeid, decimal Days)
+    public Task<LeaveEntitlementDto> EditingLeaveElementals(Guid empId, Guid leaveTypeid, decimal Days) =>
+        EditingLeaveElementals(empId, leaveTypeid, Days, DateTime.UtcNow.Year);
+
+    // year = the leave's start year (entitlements are per year; the current year was wrong for next-year leave).
+    public async Task<LeaveEntitlementDto> EditingLeaveElementals(Guid empId, Guid leaveTypeid, decimal Days, int Year)
     {
         try
         {
-            int Year = DateTime.UtcNow.Year;
 
 
             var selectSql = @"
@@ -568,11 +587,13 @@ SELECT attendance.fn_sync_leave_entitlements_for_leavetype(@LeaveTypeId, @Organi
 
 
 
-    public async Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days)
+    public Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days) =>
+        EditingLeaveElementalsFordaysLess(empId, leaveTypeid, Days, DateTime.UtcNow.Year);
+
+    public async Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days, int Year)
     {
         try
         {
-            int Year = DateTime.UtcNow.Year;
 
 
             var selectSql = @"

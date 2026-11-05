@@ -265,6 +265,7 @@ public class AttendanceController : ControllerBase
     [PermissionAuthorize("team_attendance_view_details")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceDto>>>> GetDepartmentAttendance(Guid departmentId, [FromQuery] DateTime? date = null)
     {
+        if (!await this.OwnsAsync(TenantResource.Department, departmentId)) return this.NotFoundInTenant("Department");
         try
         {
             var attendanceDate = date ?? DateTime.Today;
@@ -370,6 +371,7 @@ public class AttendanceController : ControllerBase
     [HttpGet("employeeSession/{id}")]
     public async Task<ActionResult<ServiceResponse<List<AttendanceSessionDto>>>> EmployeeSessionsByid(Guid id, [FromQuery] DateTime? date = null)
      {
+        if (!await this.OwnsAsync(TenantResource.Employee, id)) return this.NotFoundInTenant("Employee");
         try
         {
             //var employeeId = await GetCurrentEmployeeId();
@@ -442,6 +444,7 @@ public class AttendanceController : ControllerBase
     [HttpGet("{id}")]
     public async Task<ActionResult<ServiceResponse<AttendanceDto>>> GetAttendance(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.Attendance, id)) return this.NotFoundInTenant("Attendance");
         try
         {
             var attendance = await _attendanceService.GetAttendanceByIdAsync(id);
@@ -546,6 +549,7 @@ public class AttendanceController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<AttendanceDto>>> UpdateAttendance(Guid id, [FromBody] ManualAttendanceRequest request)
     {
+        if (!await this.OwnsAsync(TenantResource.Attendance, id)) return this.NotFoundInTenant("Attendance");
         try
         {
             if (!ModelState.IsValid)
@@ -616,6 +620,7 @@ public class AttendanceController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteAttendance(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.Attendance, id)) return this.NotFoundInTenant("Attendance");
         try
         {
             var result = await _attendanceService.DeleteAttendanceAsync(id);
@@ -1537,7 +1542,7 @@ public class AttendanceController : ControllerBase
                     Errors = ModelState.Values.SelectMany(v => v.Errors).Select(e => e.ErrorMessage).ToList()
                 });
             }
-            var status = dto.IsApproved ? "approved" : " rejected";
+            var status = dto.IsApproved ? "approved" : "rejected";
             var organizationId= GetCurrentOrganizationId();
             var success = await _attendanceService.ApproveShiftSwapRequestAsync(dto,organizationId);
 
@@ -1977,6 +1982,9 @@ public class AttendanceController : ControllerBase
     [PermissionAuthorize("reports_genrate_report")]
     public async Task<ActionResult<ServiceResponse<AttendanceReportDto>>> GetAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
     {
+        var rangeError = ValidateReportRange(startDate, endDate);
+        if (rangeError != null)
+            return BadRequest(new ServiceResponse<AttendanceReportDto> { Success = false, Message = rangeError });
         try
         {
             var organizationId = GetCurrentOrganizationId();
@@ -2038,10 +2046,23 @@ public class AttendanceController : ControllerBase
         }
     }
 
+    // Missing query dates bind to DateTime.MinValue, which made the report scan ~2000 years and time out.
+    private static string? ValidateReportRange(DateTime startDate, DateTime endDate)
+    {
+        if (startDate == default || endDate == default)
+            return "startDate and endDate are required.";
+        if (endDate < startDate)
+            return "endDate must be on or after startDate.";
+        return null;
+    }
+
     [HttpGet("export")]
     [PermissionAuthorize("reports_export")]
     public async Task<IActionResult> ExportAttendanceReport([FromQuery] DateTime startDate, [FromQuery] DateTime endDate, [FromQuery] Guid? employeeId, [FromQuery] Guid? departmentId, [FromQuery] string? status, [FromQuery] string format = "xlsx")
     {
+        var rangeError = ValidateReportRange(startDate, endDate);
+        if (rangeError != null)
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = rangeError });
         try
         {
             if (!new[] { "csv", "xlsx" }.Contains(format.ToLower()))
@@ -2458,9 +2479,9 @@ public class AttendanceController : ControllerBase
     [FromQuery] int year)
     {
         if (month < 1 || month > 12)
-            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Month must be between 1 and 12." });
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = "Month must be between 1 and 12." });
         if (year < 2000 || year > 2100)
-            return StatusCode(500, new ServiceResponse<bool> { Success = false, Message = "Year is out of a valid range." });
+            return BadRequest(new ServiceResponse<bool> { Success = false, Message = "Year is out of a valid range." });
 
         var organizationId = GetCurrentOrganizationId(); // your existing helper to pull org from JWT
 

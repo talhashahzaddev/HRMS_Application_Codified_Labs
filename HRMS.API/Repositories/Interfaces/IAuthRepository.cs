@@ -1,4 +1,4 @@
-using DocumentFormat.OpenXml.Spreadsheet;
+﻿using DocumentFormat.OpenXml.Spreadsheet;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 
@@ -29,6 +29,7 @@ public interface IAuthRepository
     Task<string> GetOrganizationDomainAsync(Guid? organizationId);
     Task<User?> GetUserByIdAsync(Guid? userId);
     Task<User?> GetUserByEmailAsync(string email);
+    Task<User?> GetUserByRefreshTokenAsync(string refreshToken);
     Task<User> CreateUserAsync(User user);
     Task<Guid> CreatePositionAsync(Guid organizationId, Guid roleId,Guid? departmentId, string? title);
     Task<bool> UpdateRefreshTokenAsync(Guid? userId, string refreshToken, DateTime expiresAt);

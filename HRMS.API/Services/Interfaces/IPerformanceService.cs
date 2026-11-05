@@ -45,7 +45,11 @@ public interface IPerformanceService
     Task<PagedResult<SkillSetDto>> GetSkillSetsPagedAsync(Guid organizationId, SkillSetFilterRequest filter, int page, int limit);
     Task<SkillSetDto?> GetSkillSetByIdAsync(Guid skillSetId);
     Task<SkillSetDto> UpdateSkillSetAsync(Guid skillSetId, UpdateSkillSetRequest request);
-    Task<bool> DeleteSkillSetAsync(Guid skillSetId);
+    Task<bool> DeleteSkillSetAsync(Guid skillSetId, Guid organizationId);
+    Task<Guid?> GetEmployeeSkillOwnerAsync(Guid employeeSkillId);
+    Task<bool> EmployeeSkillBelongsToOrganizationAsync(Guid employeeSkillId, Guid organizationId);
+    Task<bool> SkillSetBelongsToOrganizationAsync(Guid skillId, Guid organizationId);
+    Task<bool> EmployeeBelongsToOrganizationAsync(Guid employeeId, Guid organizationId);
     Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsPagedAsync(Guid organizationId, EmployeeSkillFilterRequest filter, int page, int limit);
     Task<PagedResult<EmployeeSkillDto>> GetEmployeeSkillsByManagerPagedAsync(Guid managerEmployeeId, EmployeeSkillFilterRequest filter, int page, int limit);
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsByEmployeeAsync(Guid employeeId);
@@ -63,7 +67,7 @@ public interface IPerformanceService
     Task<bool> UpdateKRAStatusAsync(Guid kraId, bool isActive);
     Task<PagedResult<AppraisalCycleDto>> GetAppraisalCyclesPagedAsync(Guid organizationId, int page, int limit, string? search);
     Task<AppraisalCycleDto?> GetAppraisalCycleByIdAsync(Guid cycleId);
-    Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request);
+    Task<AppraisalCycleDto> UpdateAppraisalCycleAsync(Guid cycleId, UpdateAppraisalCycleRequest request, Guid organizationId);
     Task<bool> DeleteAppraisalCycleAsync(Guid cycleId);
     Task<PagedResult<EmployeeAppraisalDto>> GetEmployeeAppraisalsPagedAsync(Guid organizationId, AppraisalFilterRequest filter, int page, int limit);
     Task<List<EmployeeAppraisalDto>> GetEmployeeAppraisalsByEmployeeAsync(Guid employeeId);

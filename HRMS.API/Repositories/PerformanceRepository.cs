@@ -368,7 +368,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
     FROM performance.employeeappraisals ea
     INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
     LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
-    INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+    INNER JOIN performance.appraisal_cycle ac ON ea.cycleid = ac.cycleid
 
     WHERE ea.cycleid = @cycleId
       AND (@employeeId IS NULL OR ea.employeeid = @employeeId)
@@ -502,7 +502,7 @@ public class PerformanceRepository : BaseRepository, IPerformanceRepository
     {
         var sql = @"
             UPDATE performance.skillsets
-            SET isactive = NOT isactive, updatedat = CURRENT_TIMESTAMP
+            SET isactive = NOT isactive -- skillsets has no updatedat column
             WHERE skillid = @skillId
             RETURNING skillid, skillname, category, description, isactive, createdat,
                 (SELECT COUNT(*) FROM performance.employeeskills WHERE skillid = @skillId) AS employeecount";
@@ -716,7 +716,31 @@ WHERE skillid = @skillSetId";
         return result!;
     }
 
-    public async Task<bool> DeleteSkillSetAsync(Guid skillSetId)
+    // ---- tenant/ownership guards (ids from the URL are global) ----
+    public Task<Guid?> GetEmployeeSkillOwnerAsync(Guid employeeSkillId) =>
+        ExecuteScalarAsync<Guid?>(
+            "SELECT employeeid FROM performance.employeeskills WHERE employeeskillid = @employeeSkillId",
+            new { employeeSkillId });
+
+    public Task<bool> EmployeeSkillBelongsToOrganizationAsync(Guid employeeSkillId, Guid organizationId) =>
+        ExecuteScalarAsync<bool>(@"
+            SELECT EXISTS (
+                SELECT 1 FROM performance.employeeskills es
+                JOIN employee.employees e ON e.employeeid = es.employeeid
+                WHERE es.employeeskillid = @employeeSkillId AND e.organizationid = @organizationId)",
+            new { employeeSkillId, organizationId });
+
+    public Task<bool> SkillSetBelongsToOrganizationAsync(Guid skillId, Guid organizationId) =>
+        ExecuteScalarAsync<bool>(
+            "SELECT EXISTS (SELECT 1 FROM performance.skillsets WHERE skillid = @skillId AND organizationid = @organizationId)",
+            new { skillId, organizationId });
+
+    public Task<bool> EmployeeBelongsToOrganizationAsync(Guid employeeId, Guid organizationId) =>
+        ExecuteScalarAsync<bool>(
+            "SELECT EXISTS (SELECT 1 FROM employee.employees WHERE employeeid = @employeeId AND organizationid = @organizationId)",
+            new { employeeId, organizationId });
+
+    public async Task<bool> DeleteSkillSetAsync(Guid skillSetId, Guid organizationId)
     {
         // Check if skill is used in employee skills
         var hasEmployeeSkills = await ExecuteScalarAsync<int>(
@@ -725,19 +749,19 @@ WHERE skillid = @skillSetId";
 
         if (hasEmployeeSkills > 0)
         {
-            // Soft delete - set isactive to false
+            // Soft delete - set isactive to false (skillsets has no updatedat column)
             var sql = @"
                 UPDATE performance.skillsets
-                SET isactive = false, updatedat = CURRENT_TIMESTAMP
-                WHERE skillid = @SkillSetId";
-            var affected = await ExecuteAsync(sql, new { SkillSetId = skillSetId });
+                SET isactive = false
+                WHERE skillid = @SkillSetId AND organizationid = @OrganizationId";
+            var affected = await ExecuteAsync(sql, new { SkillSetId = skillSetId, OrganizationId = organizationId });
             return affected > 0;
         }
         else
         {
             // Hard delete if not used
-            var sql = @"DELETE FROM performance.skillsets WHERE skillid = @SkillSetId";
-            var affected = await ExecuteAsync(sql, new { SkillSetId = skillSetId });
+            var sql = @"DELETE FROM performance.skillsets WHERE skillid = @SkillSetId AND organizationid = @OrganizationId";
+            var affected = await ExecuteAsync(sql, new { SkillSetId = skillSetId, OrganizationId = organizationId });
             return affected > 0;
         }
     }
@@ -2723,7 +2747,7 @@ ORDER BY sa.createdat DESC;
                 ea.submittedat as SubmittedAt,
                 ea.reviewedat as ReviewedAt
             FROM performance.employeeappraisals ea
-            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+            INNER JOIN performance.appraisal_cycle ac ON ea.cycleid = ac.cycleid
             LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
             WHERE {whereClause}
             ORDER BY ea.submittedat DESC";
@@ -2848,19 +2872,22 @@ WHERE cycleid = @cycleId";
     public async Task<AppraisalCycleDto?> GetActiveAppraisalCycleAsync(Guid organizationId)
     {
         var sql = @"
-            SELECT ac.cycleid, ac.cyclename, ac.description, ac.startdate, ac.enddate,
-                   ac.status, ac.ratingscale, ac.selfreviewenabled, ac.peerreviewenabled,
-                   ac.managerreviewenabled,
-                   COUNT(ea.appraisalid) as total_appraisals,
-                   COUNT(CASE WHEN ea.status = 'completed' THEN 1 END) as completed_appraisals
-            FROM performance.appraisalcycles ac
+            SELECT ac.cycleid AS CycleId, ac.cyclename AS CycleName, ac.cycletype AS CycleType,
+                   ac.startdate AS StartDate, ac.enddate AS EndDate,
+                   ac.reviewstartdate AS ReviewStartDate, ac.reviewenddate AS ReviewEndDate,
+                   ac.status AS Status,
+                   ac.isselfassessmentenable AS SelfReviewEnabled,
+                   ac.managerreview AS ManagerReviewEnabled,
+                   ac.isappraisalenable AS AppraisalEnabled,
+                   ac.organizationid AS OrganizationId,
+                   COUNT(ea.appraisalid) AS TotalAppraisals,
+                   COUNT(CASE WHEN ea.status = 'completed' THEN 1 END) AS CompletedAppraisals
+            FROM performance.appraisal_cycle ac
             LEFT JOIN performance.employeeappraisals ea ON ac.cycleid = ea.cycleid
             WHERE ac.organizationid = @organizationId
-              AND ac.status = 'active'
+              AND ac.status IN ('active', 'start')
               AND CURRENT_DATE BETWEEN ac.startdate AND ac.enddate
-            GROUP BY ac.cycleid, ac.cyclename, ac.description, ac.startdate, ac.enddate,
-                     ac.status, ac.ratingscale, ac.selfreviewenabled, ac.peerreviewenabled,
-                     ac.managerreviewenabled
+            GROUP BY ac.cycleid
             ORDER BY ac.startdate DESC
             LIMIT 1";
 
@@ -3054,7 +3081,7 @@ WHERE cycleid = @cycleId";
             FROM performance.employeeappraisals ea
             INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
             LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
-            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+            INNER JOIN performance.appraisal_cycle ac ON ea.cycleid = ac.cycleid
             WHERE ea.employeeid = @employeeId
             ORDER BY ea.createdat DESC";
 
@@ -3074,7 +3101,7 @@ WHERE cycleid = @cycleId";
             FROM performance.employeeappraisals ea
             INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
             LEFT JOIN employee.employees r ON ea.reviewerid = r.employeeid
-            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+            INNER JOIN performance.appraisal_cycle ac ON ea.cycleid = ac.cycleid
             WHERE ea.appraisalid = @appraisalId";
 
         var result = await QuerySingleOrDefaultAsync<EmployeeAppraisalDto>(sql, new { appraisalId });
@@ -3146,7 +3173,7 @@ INNER JOIN employee.employees e
 LEFT JOIN employee.employees r 
     ON ea.reviewerid = r.employeeid
 
-INNER JOIN performance.appraisalcycles ac 
+INNER JOIN performance.appraisal_cycle ac 
     ON ea.cycleid = ac.cycleid
 
 WHERE e.organizationid = @organizationId
@@ -3191,7 +3218,7 @@ LIMIT @limit OFFSET @offset;
             SELECT COUNT(*)
             FROM performance.employeeappraisals ea
             INNER JOIN employee.employees e ON ea.employeeid = e.employeeid
-            INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+            INNER JOIN performance.appraisal_cycle ac ON ea.cycleid = ac.cycleid
             WHERE e.organizationid = @organizationId
               AND (@appraisalCycleId IS NULL OR ea.cycleid = @appraisalCycleId)
               AND (@status IS NULL OR ea.status = @status)
@@ -3380,7 +3407,7 @@ LIMIT @limit OFFSET @offset;
                             )
                         END AS rating
                     FROM performance.employeeappraisals ea
-                    INNER JOIN performance.appraisalcycles ac ON ea.cycleid = ac.cycleid
+                    INNER JOIN performance.appraisal_cycle ac ON ea.cycleid = ac.cycleid
                     WHERE ea.employeeid = @EmployeeId
                     ORDER BY ac.startdate DESC";
 

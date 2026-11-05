@@ -20,6 +20,7 @@ public interface ILeaveService
     Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year);
     Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year);
     Task<LeaveRequestDto?> GetLeaveRequestByIdAsync(Guid requestId);
+    Task<LeaveRequestDto?> GetLeaveRequestByIdAsync(Guid requestId, Guid organizationId);
     Task<LeaveRequestDto?> UpdateLeaveRequestAsync(Guid requestId, UpdateLeaveRequest request, Guid employeeId);
     Task<bool> CancelLeaveRequestAsync(Guid requestId, Guid employeeId);
     Task<List<LeaveRequest>> GetLeaveRequestByEmployeeId(Guid employeeId);

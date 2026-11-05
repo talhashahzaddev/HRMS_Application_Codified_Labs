@@ -600,6 +600,21 @@ public class EmployeeService : IEmployeeService
         return result;
     }
 
+    // Tenant guards used by EmployeeController before acting on an id taken from the URL.
+    public async Task<bool> EmployeeBelongsToOrganizationAsync(Guid employeeId, Guid organizationId)
+    {
+        if (employeeId == Guid.Empty) return false;
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(employeeId);
+        return employee != null && employee.OrganizationId == organizationId;
+    }
+
+    public async Task<bool> UserEmployeeBelongsToOrganizationAsync(Guid userId, Guid organizationId)
+    {
+        if (userId == Guid.Empty) return false;
+        var employeeId = await _employeeRepository.getemployeeid(userId);
+        return await EmployeeBelongsToOrganizationAsync(employeeId ?? Guid.Empty, organizationId);
+    }
+
     // New missing methods implementation
     public async Task<EmployeeDto> ActivateEmployeeAsync(Guid employeeId)
     {

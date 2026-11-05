@@ -1,3 +1,4 @@
+using HRMS.API.Authorization;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -64,6 +65,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> GetStageById(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.JobStage, id)) return this.NotFoundInTenant("JobStage");
         try
         {
             var stage = await _jobsService.GetStageMasterByIdAsync(id);
@@ -146,6 +148,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<StageMasterDto>>> UpdateStage(Guid id, [FromBody] UpdateStageMasterRequest request)
     {
+        if (!await this.OwnsAsync(TenantResource.JobStage, id)) return this.NotFoundInTenant("JobStage");
         try
         {
             if (!ModelState.IsValid)
@@ -198,6 +201,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteStage(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.JobStage, id)) return this.NotFoundInTenant("JobStage");
         try
         {
             var deleted = await _jobsService.DeleteStageMasterAsync(id);
@@ -311,6 +315,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> GetJobOpeningById(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.JobOpening, id)) return this.NotFoundInTenant("JobOpening");
         try
         {
             var opening = await _jobsService.GetJobOpeningByIdAsync(id);
@@ -394,6 +399,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<JobOpeningDto>>> UpdateJobOpening(Guid id, [FromBody] UpdateJobOpeningRequest request)
     {
+        if (!await this.OwnsAsync(TenantResource.JobOpening, id)) return this.NotFoundInTenant("JobOpening");
         try
         {
             if (!ModelState.IsValid)
@@ -441,6 +447,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobOpening(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.JobOpening, id)) return this.NotFoundInTenant("JobOpening");
         try
         {
             var deleted = await _jobsService.DeleteJobOpeningAsync(id);
@@ -591,6 +598,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin")]
     public async Task<ActionResult<ServiceResponse<List<JobApplicationDto>>>> GetJobApplicationsByJobId(Guid jobId)
     {
+        if (!await this.OwnsAsync(TenantResource.JobOpening, jobId)) return this.NotFoundInTenant("JobOpening");
         try
         {
             var applications = await _jobsService.GetJobApplicationsByJobIdAsync(jobId);
@@ -702,6 +710,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> GetJobApplicationById(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.JobApplication, id)) return this.NotFoundInTenant("JobApplication");
         try
         {
             var application = await _jobsService.GetJobApplicationByIdAsync(id);
@@ -837,6 +846,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<JobApplicationDto>>> UpdateJobApplication(Guid id, [FromBody] UpdateJobApplicationRequest request)
     {
+        if (!await this.OwnsAsync(TenantResource.JobApplication, id)) return this.NotFoundInTenant("JobApplication");
         try
         {
             if (!ModelState.IsValid)
@@ -884,6 +894,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager,Manager,Employee")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteJobApplication(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.JobApplication, id)) return this.NotFoundInTenant("JobApplication");
         try
         {
             var deleted = await _jobsService.DeleteJobApplicationAsync(id);
@@ -952,6 +963,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<List<ApplicationStageDto>>>> GetApplicationStagesByJobApplyId(Guid jobApplyId)
     {
+        if (!await this.OwnsAsync(TenantResource.JobApplication, jobApplyId)) return this.NotFoundInTenant("JobApplication");
         try
         {
             var stages = await _jobsService.GetApplicationStagesByJobApplyIdAsync(jobApplyId);
@@ -985,6 +997,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<ApplicationStageDto>>> GetApplicationStageById(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.ApplicationStage, id)) return this.NotFoundInTenant("ApplicationStage");
         try
         {
             var stage = await _jobsService.GetApplicationStageByIdAsync(id);
@@ -1120,6 +1133,7 @@ public class JobsController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteApplicationStage(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.ApplicationStage, id)) return this.NotFoundInTenant("ApplicationStage");
         try
         {
             var deleted = await _jobsService.DeleteApplicationStageAsync(id);

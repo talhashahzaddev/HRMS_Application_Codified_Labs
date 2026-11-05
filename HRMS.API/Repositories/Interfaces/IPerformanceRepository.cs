@@ -37,7 +37,11 @@ public interface IPerformanceRepository
     Task<List<SkillSetDto>> GetSkillSetsAsync(Guid organizationId);
     Task<SkillSetDto?> GetSkillSetByIdAsync(Guid skillSetId);
     Task<SkillSetDto> UpdateSkillSetAsync(Guid skillSetId, UpdateSkillSetRequest request);
-    Task<bool> DeleteSkillSetAsync(Guid skillSetId);
+    Task<bool> DeleteSkillSetAsync(Guid skillSetId, Guid organizationId);
+    Task<Guid?> GetEmployeeSkillOwnerAsync(Guid employeeSkillId);
+    Task<bool> EmployeeSkillBelongsToOrganizationAsync(Guid employeeSkillId, Guid organizationId);
+    Task<bool> SkillSetBelongsToOrganizationAsync(Guid skillId, Guid organizationId);
+    Task<bool> EmployeeBelongsToOrganizationAsync(Guid employeeId, Guid organizationId);
     Task<EmployeeSkillDto?> CreateEmployeeSkillAsync(CreateEmployeeSkillRequest request);
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsAsync(Guid? employeeId);
     Task<List<EmployeeSkillDto>> GetEmployeeSkillsByOrganizationAsync(Guid organizationId, EmployeeSkillFilterRequest filter);

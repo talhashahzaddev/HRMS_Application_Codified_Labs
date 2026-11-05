@@ -111,7 +111,7 @@ public class PaymentController : ControllerBase
     /// Create a new subscription plan
     /// </summary>
     [HttpPost("subscription-plans")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Platform Admin")] // platform-wide data, not tenant data
     public async Task<ActionResult<ServiceResponse<SubscriptionPlanDto>>> CreateSubscriptionPlan([FromBody] CreateSubscriptionPlanRequest request)
     {
         try
@@ -180,7 +180,7 @@ public class PaymentController : ControllerBase
     /// Update an existing subscription plan
     /// </summary>
     [HttpPut("subscription-plans/{planId:guid}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Platform Admin")] // platform-wide data, not tenant data
     public async Task<ActionResult<ServiceResponse<SubscriptionPlanDto>>> UpdateSubscriptionPlan(
         Guid planId,
         [FromBody] UpdateSubscriptionPlanRequest request)
@@ -248,7 +248,7 @@ public class PaymentController : ControllerBase
     /// Inactivate a subscription plan (soft delete)
     /// </summary>
     [HttpPatch("subscription-plans/{planId:guid}/inactivate")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Platform Admin")] // platform-wide data, not tenant data
     public async Task<ActionResult<ServiceResponse<bool>>> InactivateSubscriptionPlan(Guid planId)
     {
         try
@@ -295,7 +295,7 @@ public class PaymentController : ControllerBase
     /// Delete a subscription plan (hard delete)
     /// </summary>
     [HttpDelete("subscription-plans/{planId:guid}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Platform Admin")] // platform-wide data, not tenant data
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSubscriptionPlan(Guid planId)
     {
         try
@@ -342,7 +342,7 @@ public class PaymentController : ControllerBase
     /// Get all company subscriptions
     /// </summary>
     [HttpGet("company-subscriptions")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Platform Admin")] // platform-wide data, not tenant data
     public async Task<ActionResult<ServiceResponse<IEnumerable<CompanySubscriptionDto>>>> GetAllCompanySubscriptions()
     {
         try
@@ -365,7 +365,7 @@ public class PaymentController : ControllerBase
     /// Get company subscription by ID
     /// </summary>
     [HttpGet("company-subscriptions/{subscriptionId:guid}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Platform Admin")] // platform-wide data, not tenant data
     public async Task<ActionResult<ServiceResponse<CompanySubscriptionDto>>> GetCompanySubscriptionById(Guid subscriptionId)
     {
         try
@@ -542,7 +542,7 @@ public class PaymentController : ControllerBase
     /// Update an existing company subscription
     /// </summary>
     [HttpPut("company-subscriptions/{subscriptionId:guid}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Platform Admin")] // platform-wide data, not tenant data
     public async Task<ActionResult<ServiceResponse<CompanySubscriptionDto>>> UpdateCompanySubscription(
         Guid subscriptionId,
         [FromBody] UpdateCompanySubscriptionRequest request)
@@ -610,7 +610,7 @@ public class PaymentController : ControllerBase
     /// Delete a company subscription
     /// </summary>
     [HttpDelete("company-subscriptions/{subscriptionId:guid}")]
-    [Authorize(Roles = "Super Admin")]
+    [Authorize(Roles = "Platform Admin")] // platform-wide data, not tenant data
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteCompanySubscription(Guid subscriptionId)
     {
         try

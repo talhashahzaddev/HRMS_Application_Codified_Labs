@@ -7,6 +7,7 @@ public interface ILeaveRepository
 {
     //adding gthe method  here
     Task<bool> SubstractLeaveDayAsync(Guid leaveTypeId, Guid employeeId, int totalLeaveDays);
+    Task<bool> SubstractLeaveDayAsync(Guid leaveTypeId, Guid employeeId, int totalLeaveDays, int year);
     Task<Guid> GetEmpId(Guid? employeeId);
     Task<LeaveRequest> CreateLeaveRequestAsync(Guid employeeId, Guid leaveTypeId, DateTime startDate, DateTime endDate, string? reason = null);
     Task<bool> UpdateLeaveRequestStatusAsync(Guid requestId, string status, Guid approvedBy, string? rejectionReason = null);
@@ -22,8 +23,11 @@ public interface ILeaveRepository
     Task<List<LeaveEntitlementDto>> GetLeaveEntitlementsAsync(Guid employeeId, int year);
     Task<List<LeaveBalanceDto>> GetLeaveBalanceAsync(Guid employeeId, int year);
     Task<LeaveRequest?> GetLeaveRequestByIdAsync(Guid requestId);
+    Task<bool> LeaveRequestBelongsToOrganizationAsync(Guid requestId, Guid organizationId);
     Task<LeaveEntitlementDto> EditingLeaveElementals(Guid empId, Guid leaveTypeid, decimal Days);
+    Task<LeaveEntitlementDto> EditingLeaveElementals(Guid empId, Guid leaveTypeid, decimal Days, int year);
     Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days);
+    Task<LeaveEntitlementDto> EditingLeaveElementalsFordaysLess(Guid empId, Guid leaveTypeid, decimal Days, int year);
     Task<bool> UpdateLeaveRequestAsync(Guid requestId, Guid leaveTypeId, DateTime startDate, DateTime endDate, decimal daysRequested, string? reason = null);
     Task<bool> CancelLeaveRequestAsync(Guid requestId);
     Task<bool> HasOverlappingLeaveAsync(Guid employeeId, DateTime startDate, DateTime endDate, Guid? excludeRequestId = null);

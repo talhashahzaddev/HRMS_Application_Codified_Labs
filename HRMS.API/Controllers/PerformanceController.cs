@@ -1,3 +1,4 @@
+using HRMS.API.Authorization;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -478,6 +479,7 @@ public class PerformanceController : ControllerBase
     [HttpGet("skills/{skillId}")]
     public async Task<ActionResult<ServiceResponse<SkillWithEmployeesDto>>> GetSkillWithEmployees(Guid skillId)
     {
+        if (!await this.OwnsAsync(TenantResource.SkillSet, skillId)) return this.NotFoundInTenant("SkillSet");
         try
         {
             var result = await _performanceService.GetSkillWithEmployeesAsync(skillId);
@@ -497,6 +499,7 @@ public class PerformanceController : ControllerBase
     {
         try
         {
+            if (!await _performanceService.SkillSetBelongsToOrganizationAsync(skillId, GetCurrentOrganizationId())) return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "Skill not found" });
             var result = await _performanceService.ToggleSkillStatusAsync(skillId);
             return Ok(new ServiceResponse<SkillSetDto> { Success = true, Data = result, Message = "Skill status updated" });
         }
@@ -516,7 +519,9 @@ public class PerformanceController : ControllerBase
     {
         try
         {
-            var result = await _performanceService.DeleteSkillSetAsync(skillId);
+            var result = await _performanceService.DeleteSkillSetAsync(skillId, GetCurrentOrganizationId());
+            if (!result)
+                return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "Skill not found" });
             return Ok(new ServiceResponse<bool> { Success = true, Data = result, Message = "Skill deleted successfully" });
         }
         catch (Exception ex)
@@ -578,6 +583,7 @@ public class PerformanceController : ControllerBase
             request.AssessedBy = currentUserId;
             if (!request.LastAssessed.HasValue) request.LastAssessed = DateTime.UtcNow;
 
+            if (await _performanceService.GetEmployeeSkillOwnerAsync(employeeSkillId) != currentUserId) return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "Skill not found" }); // "my" skills: own rows only
             var result = await _performanceService.UpdateEmployeeSkillAsync(employeeSkillId, request);
             return Ok(new { success = true, message = "Skill updated successfully.", data = result });
         }
@@ -597,6 +603,7 @@ public class PerformanceController : ControllerBase
     {
         try
         {
+            if (await _performanceService.GetEmployeeSkillOwnerAsync(employeeSkillId) != await GetCurrentEmployeeId()) return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "Skill not found" }); // "my" skills: own rows only
             var result = await _performanceService.DeleteEmployeeSkillAsync(employeeSkillId);
             return Ok(new { success = result, message = result ? "Skill removed successfully." : "Skill not found." });
         }
@@ -635,6 +642,7 @@ public class PerformanceController : ControllerBase
     {
         try
         {
+            if (!await _performanceService.EmployeeBelongsToOrganizationAsync(employeeId, GetCurrentOrganizationId())) return NotFound(new ServiceResponse<EmployeeSkillFullDetailDto> { Success = false, Message = "Employee not found" });
             var result = await _performanceService.GetEmployeeSkillFullDetailAsync(employeeId);
             return Ok(new ServiceResponse<EmployeeSkillFullDetailDto> { Success = true, Data = result });
         }
@@ -655,6 +663,7 @@ public class PerformanceController : ControllerBase
             request.AssessedBy = currentUserId;
             if (!request.LastAssessed.HasValue) request.LastAssessed = DateTime.UtcNow;
 
+            if (!await _performanceService.EmployeeSkillBelongsToOrganizationAsync(employeeSkillId, GetCurrentOrganizationId())) return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "Skill not found" });
             var result = await _performanceService.UpdateEmployeeSkillAsync(employeeSkillId, request);
             return Ok(new { success = true, message = "Skill assessed successfully.", data = result });
         }
@@ -692,6 +701,7 @@ public class PerformanceController : ControllerBase
                 request.LastAssessed = DateTime.UtcNow;
             }
 
+            if (!await _performanceService.EmployeeSkillBelongsToOrganizationAsync(employeeSkillId, GetCurrentOrganizationId())) return NotFound(new ServiceResponse<bool> { Success = false, Data = false, Message = "Skill not found" });
             var result = await _performanceService.UpdateEmployeeSkillAsync(employeeSkillId, request);
 
             if (result == null)
@@ -1093,6 +1103,7 @@ public class PerformanceController : ControllerBase
     [HttpGet("KraById/{kraId}")]
     public async Task<ActionResult<ServiceResponse<KRADto>>> GetKraById(Guid kraId)
     {
+        if (!await this.OwnsAsync(TenantResource.Kra, kraId)) return this.NotFoundInTenant("Kra");
         try
         {
             //var organizationId = GetCurrentOrganizationId();
@@ -1181,6 +1192,7 @@ public class PerformanceController : ControllerBase
     [HttpPatch("KRAStatus/{kraId}")]
     public async Task<ActionResult<ServiceResponse<string>>> UpdateKRAStatus(Guid kraId, [FromQuery] bool isActive)
     {
+        if (!await this.OwnsAsync(TenantResource.Kra, kraId)) return this.NotFoundInTenant("Kra");
         try
         {
             var result = await _performanceService.UpdateKRAStatusAsync(kraId, isActive);
@@ -1349,6 +1361,7 @@ public class PerformanceController : ControllerBase
     Guid goalId,
     [FromQuery] string status)
     {
+        if (!await this.OwnsAsync(TenantResource.Goal, goalId)) return this.NotFoundInTenant("Goal");
         try
         {
             if (string.IsNullOrWhiteSpace(status))
@@ -1724,6 +1737,7 @@ public class PerformanceController : ControllerBase
     [Authorize(Roles = "Manager,HR Manager")]
     public async Task<ActionResult<ServiceResponse<IEnumerable<SelfAssessmentDto>>>> GetTeamSelfAssessments(Guid managerId, Guid cycleId)
     {
+        if (!await this.OwnsAsync(TenantResource.Employee, managerId)) return this.NotFoundInTenant("Employee");
         try
         {
             var data = await _performanceService.GetTeamSelfAssessmentsAsync(managerId, cycleId);
@@ -1853,7 +1867,7 @@ public class PerformanceController : ControllerBase
         try
         {
             var cycle = await _performanceService.GetAppraisalCycleByIdAsync(cycleId);
-            if (cycle == null)
+            if (cycle == null || cycle.OrganizationId != GetCurrentOrganizationId())
             {
                 return NotFound(new ServiceResponse<AppraisalCycleDto>
                 {
@@ -1880,11 +1894,12 @@ public class PerformanceController : ControllerBase
     }
 
     [HttpPut("cycles/{cycleId}")]
+    [PermissionAuthorize("APPRAISAL_CYCLE_EDIT_BUTTON")]
     public async Task<ActionResult<ServiceResponse<AppraisalCycleDto>>> UpdateAppraisalCycle(Guid cycleId, [FromBody] UpdateAppraisalCycleRequest request)
     {
         try
         {
-            var cycle = await _performanceService.UpdateAppraisalCycleAsync(cycleId, request);
+            var cycle = await _performanceService.UpdateAppraisalCycleAsync(cycleId, request, GetCurrentOrganizationId());
             return Ok(new ServiceResponse<AppraisalCycleDto>
             {
                 Success = true,
@@ -1960,6 +1975,7 @@ public class PerformanceController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager,Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteKRA(Guid kraId)
     {
+        if (!await this.OwnsAsync(TenantResource.Kra, kraId)) return this.NotFoundInTenant("Kra");
         try
         {
             var result = await _performanceService.DeleteKRAAsync(kraId);
@@ -2407,6 +2423,7 @@ public class PerformanceController : ControllerBase
     [Authorize(Roles = "Super Admin,HR Manager")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteEmployeeAppraisal(Guid appraisalId)
     {
+        if (!await this.OwnsAsync(TenantResource.Appraisal, appraisalId)) return this.NotFoundInTenant("Appraisal");
         try
         {
             var result = await _performanceService.DeleteEmployeeAppraisalAsync(appraisalId);

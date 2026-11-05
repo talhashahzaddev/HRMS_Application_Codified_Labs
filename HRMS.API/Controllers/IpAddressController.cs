@@ -6,10 +6,11 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using HRMS.API.Services.Interfaces;
-using Microsoft.AspNetCore.Mvc;
+using HRMS.API.Authorization;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class IpAddressController : ControllerBase
 {
     private readonly IIpAddressService _ipAddressService;
@@ -82,6 +83,7 @@ public class IpAddressController : ControllerBase
         }
     }
 
+    [PermissionAuthorize("manage_ip_add")]
     [HttpPost("create-ip")]
     public async Task<ActionResult<ServiceResponse<bool>>> Create([FromBody] IpAddress dto)
     {
@@ -131,6 +133,7 @@ public class IpAddressController : ControllerBase
         }
     }
 
+    [PermissionAuthorize("manage_ip_edit")]
     [HttpPut("update/{id}")]
     public async Task<ActionResult<ServiceResponse<bool>>> Update(Guid id, [FromBody] IpAddress dto)
     {
@@ -167,6 +170,7 @@ public class IpAddressController : ControllerBase
         }
     }
 
+    [PermissionAuthorize("manage_ip_delete")]
     [HttpDelete("delete/{id}")]
     public async Task<ActionResult<ServiceResponse<bool>>> Delete(Guid id)
     {

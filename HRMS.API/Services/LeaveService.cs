@@ -105,16 +105,30 @@ public class LeaveService : ILeaveService
                 throw new InvalidOperationException("No Shift assigned");
 
             }
+
+            // Validate everything BEFORE inserting. The DB function lets a request through when no entitlement
+            // row exists (NULL < n is not true), and the balance was only checked again after the insert, which
+            // left orphan pending requests behind whenever that second check failed.
+            var typename = await _leaveRepository.GetLeaveTypeNameByIdAsync(request.LeaveTypeId, organizationid);
+            if (string.IsNullOrWhiteSpace(typename))
+                throw new InvalidOperationException("Leave type not found or inactive for your organization.");
+            if (totalleaveDays == 0)
+                throw new InvalidOperationException("The selected dates contain no working days for your shift.");
+            // Entitlements are per year; the DB function and the reject path both use the leave's start year.
+            var leaveYear = request.StartDate.Year;
+            var entitlement = (await _leaveRepository.GetLeaveEntitlementsAsync(empId, leaveYear) ?? new List<LeaveEntitlementDto>())
+                .FirstOrDefault(e => e.LeaveTypeId == request.LeaveTypeId);
+            if (entitlement == null || entitlement.RemainingDays < totalleaveDays)
+                throw new InvalidOperationException("Insufficient leave balance for the selected leave type.");
+
             var leaveRequest = await _leaveRepository.CreateLeaveRequestAsync(
           empId, request.LeaveTypeId, request.StartDate, request.EndDate, request.Reason);
-
-            var typename = await _leaveRepository.GetLeaveTypeNameByIdAsync(request.LeaveTypeId,organizationid);
 
             ////Method for Subctracting the days
 
             if (leaveRequest != null && leaveRequest.RequestId != Guid.Empty)
             {
-                var SubctractingDays = await _leaveRepository.SubstractLeaveDayAsync(request.LeaveTypeId, empId, totalleaveDays);
+                var SubctractingDays = await _leaveRepository.SubstractLeaveDayAsync(request.LeaveTypeId, empId, totalleaveDays, leaveYear);
 
             }
 
@@ -139,7 +153,12 @@ public class LeaveService : ILeaveService
 
             
 
-            if (leaveRequest != null)
+            if (leaveRequest != null && reportingmangerdetails == null)
+            {
+                // The leave is already saved, so don't fail the request just because nobody can be notified.
+                _logger.LogWarning("No reporting manager or admin found to notify for leave request {RequestId}", leaveRequest.RequestId);
+            }
+            else if (leaveRequest != null)
             {
                 var notification = new NotificationCreateDto
                 {
@@ -328,6 +347,18 @@ public class LeaveService : ILeaveService
         if (normalizedStatus != "approved" && normalizedStatus != "rejected")
             throw new ArgumentException("Invalid status. Allowed: approved or rejected", nameof(request));
 
+        // Tenant guard: an approver may only act on requests of their own organisation.
+        if (!await _leaveRepository.LeaveRequestBelongsToOrganizationAsync(requestId, organizationid))
+            throw new KeyNotFoundException("Leave request not found");
+
+        // State guard: only pending requests can be decided. Without this, rejecting twice credited the
+        // days back twice, and approving a rejected request approved it without deducting any days.
+        var existing = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
+        if (existing == null)
+            throw new KeyNotFoundException("Leave request not found");
+        if (!string.Equals(existing.Status?.Trim(), "pending", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException($"Leave request is already {existing.Status}; only pending requests can be approved or rejected.");
+
         try
         {
             var empId = await _leaveRepository.GetEmpId(approvedBy);
@@ -351,7 +382,7 @@ public class LeaveService : ILeaveService
 
             var employeedetails = await _leaveRepository.GetEmployeeDetails(requestId);
 
-            bool isApproval = request.Status == "approved" ? true : false;
+            bool isApproval = normalizedStatus == "approved";
 
 
             await _emailService.SendLeaveApprovalRejectionEmailAsync(employeedetails.email,employeedetails.EmployeeName,employeedetails.typename,employeedetails.startdate,employeedetails.enddate, isApproval, organizationid);
@@ -629,6 +660,16 @@ public class LeaveService : ILeaveService
         return leaveRequest != null ? _mapper.Map<LeaveRequestDto>(leaveRequest) : null;
     }
 
+    /// <summary>Tenant-safe lookup: a request owned by another organisation is reported as not found.</summary>
+    public async Task<LeaveRequestDto?> GetLeaveRequestByIdAsync(Guid requestId, Guid organizationId)
+    {
+        if (requestId == Guid.Empty)
+            throw new ArgumentException("Request ID cannot be empty", nameof(requestId));
+        if (!await _leaveRepository.LeaveRequestBelongsToOrganizationAsync(requestId, organizationId))
+            return null;
+        return await GetLeaveRequestByIdAsync(requestId);
+    }
+
     public async Task<LeaveRequestDto?> UpdateLeaveRequestAsync(Guid requestId, UpdateLeaveRequest request, Guid employeeId)
     {
         if (requestId == Guid.Empty)
@@ -669,26 +710,52 @@ public class LeaveService : ILeaveService
 
         var OldRequestedDays = await _leaveRepository.GetLeaveRequestByIdAsync(requestId);
 
-        // Calculate days requested after edit 
+        // Count working days the same way as creating a leave (and fn_create_leave_request): by the employee's
+        // shift. This used to be hard-coded Mon-Fri, so edits disagreed with creation for other shifts.
+        var shift = await _attendanceRepository.GetShiftByEmployeeIdAsync(empId);
+        if (shift == null)
+            throw new InvalidOperationException("No Shift assigned");
+        var workingDays = new HashSet<int>(shift.DaysOfWeek);
         var daysRequested = 0;
-        for (DateTime date = request.StartDate; date <= request.EndDate; date = date.AddDays(1))
+        for (var date = request.StartDate.Date; date <= request.EndDate.Date; date = date.AddDays(1))
         {
-            if (date.DayOfWeek != DayOfWeek.Saturday && date.DayOfWeek != DayOfWeek.Sunday)
-            {
+            if (workingDays.Contains((int)date.DayOfWeek))
                 daysRequested++;
-            }
+        }
+        if (daysRequested == 0)
+            throw new InvalidOperationException("The selected dates contain no working days for your shift.");
+
+        var employee = await _employeeRepository.GetEmployeeByIdAsync(empId);
+        var typeName = employee == null ? null : await _leaveRepository.GetLeaveTypeNameByIdAsync(request.LeaveTypeId, employee.OrganizationId);
+        if (string.IsNullOrWhiteSpace(typeName))
+            throw new InvalidOperationException("Leave type not found or inactive for your organization.");
+
+        // Entitlements are per leave type and per year. If either changed, give the old bucket its days back
+        // and charge the new one in full; previously only the difference was charged to the new type and the
+        // old type never got its days back. Every bucket uses the leave's own year, not the current year.
+        var oldYear = OldRequestedDays.StartDate.Year;
+        var newYear = request.StartDate.Year;
+        var sameBucket = OldRequestedDays.LeaveTypeId == request.LeaveTypeId && oldYear == newYear;
+        var extraDaysNeeded = sameBucket ? daysRequested - OldRequestedDays.DaysRequested : daysRequested;
+        if (extraDaysNeeded > 0)
+        {
+            var entitlement = (await _leaveRepository.GetLeaveEntitlementsAsync(empId, newYear) ?? new List<LeaveEntitlementDto>())
+                .FirstOrDefault(e => e.LeaveTypeId == request.LeaveTypeId);
+            if (entitlement == null || entitlement.RemainingDays < extraDaysNeeded)
+                throw new InvalidOperationException("Insufficient leave balance for the selected leave type.");
         }
 
-        if (daysRequested > OldRequestedDays.DaysRequested)
+        if (sameBucket)
         {
-            var DaysAfterEdit = daysRequested - OldRequestedDays.DaysRequested;
-            var Editing_Elementals = await _leaveRepository.EditingLeaveElementals(empId, request.LeaveTypeId, DaysAfterEdit);
+            if (daysRequested > OldRequestedDays.DaysRequested)
+                await _leaveRepository.EditingLeaveElementals(empId, request.LeaveTypeId, daysRequested - OldRequestedDays.DaysRequested, newYear);
+            else if (daysRequested < OldRequestedDays.DaysRequested)
+                await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, request.LeaveTypeId, OldRequestedDays.DaysRequested - daysRequested, newYear);
         }
-
-        if (daysRequested < OldRequestedDays.DaysRequested)
+        else
         {
-            var DaysAfterEdit = OldRequestedDays.DaysRequested - daysRequested;
-            var Editing_Elementals = await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, request.LeaveTypeId, DaysAfterEdit);
+            await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, OldRequestedDays.LeaveTypeId, OldRequestedDays.DaysRequested, oldYear);
+            await _leaveRepository.EditingLeaveElementals(empId, request.LeaveTypeId, daysRequested, newYear);
         }
 
         // Update the request
@@ -738,8 +805,13 @@ public class LeaveService : ILeaveService
 
         // Cancel the request
         var result = await _leaveRepository.CancelLeaveRequestAsync(requestId);
+        if (!result)
+        {
+            _logger.LogWarning("Failed to cancel leave request {RequestId}", requestId);
+            return false;
+        }
         //Handling Balance while canceling the request
-        var Editing_Elementals = await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, existingRequest.LeaveTypeId, existingRequest.DaysRequested);
+        var Editing_Elementals = await _leaveRepository.EditingLeaveElementalsFordaysLess(empId, existingRequest.LeaveTypeId, existingRequest.DaysRequested, existingRequest.StartDate.Year); // credit the leave's own year
 
         //Cancel notification too
         return await _notificationRepository.DeleteNotificationAsync(requestId);
@@ -805,7 +877,8 @@ public class LeaveService : ILeaveService
         PagedResult<EmployeeLeaveBalanceDto> rawData;
 
         // Check if user is HR Manager
-        if (roleName != null && roleName.Equals("HR Manager", StringComparison.OrdinalIgnoreCase) || roleName.Equals("Super Admin", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(roleName, "HR Manager", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(roleName, "Super Admin", StringComparison.OrdinalIgnoreCase))
         {
             // HR Manager: Get all employees in the organization
             rawData = await _leaveRepository.GetTeamRemainingLeavesByOrganizationAsync(

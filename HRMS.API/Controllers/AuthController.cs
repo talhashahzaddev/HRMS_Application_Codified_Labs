@@ -708,105 +708,6 @@ public class AuthController : ControllerBase
         });
     }
 
-    [HttpPost("test-auth")]
-    public async Task<IActionResult> TestAuth([FromBody] LoginRequest request)
-    {
-        try
-        {
-            _logger.LogInformation("=== TESTING AUTHENTICATION FLOW ===");
-
-            // Step 1: Check if user exists
-            var hashedPassword = await _authService.GetHashedPasswordAsync(request.Email);
-            _logger.LogInformation("Step 1 - Found hashed password: {Found}", !string.IsNullOrEmpty(hashedPassword));
-
-            // Step 2: Test password verification
-            var passwordValid = BCrypt.Net.BCrypt.Verify(request.Password, hashedPassword);
-            _logger.LogInformation("Step 2 - Password valid: {Valid}", passwordValid);
-
-            if (!passwordValid)
-            {
-                return BadRequest("Invalid password");
-            }
-
-            // Step 3: Get user from database
-            var user = await _authService.GetUserForTestingAsync(request.Email, hashedPassword);
-            if (user == null)
-            {
-                return BadRequest("User not found");
-            }
-
-            _logger.LogInformation("Step 3 - User found: UserId={UserId}, OrganizationId={OrganizationId}, Email={Email}",
-                user.UserId, user.OrganizationId, user.Email);
-
-            return Ok(new
-            {
-                Message = "Authentication test completed",
-                User = new
-                {
-                    UserId = user.UserId,
-                    OrganizationId = user.OrganizationId,
-                    Email = user.Email,
-                    FirstName = user.FirstName,
-                    LastName = user.LastName,
-                    RoleName = user.Role?.RoleName,
-                    OrganizationName = user.Organization?.Name
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Test authentication failed");
-            return StatusCode(500, ex.Message);
-        }
-    }
-
-    [HttpPost("test-hardcoded-token")]
-    public async Task<IActionResult> TestHardcodedToken()
-    {
-        try
-        {
-            // Create a hardcoded user object to test token generation
-            var testUser = new User
-            {
-                UserId = Guid.Parse("40000000-0000-0000-0000-000000000001"),
-                OrganizationId = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Email = "admin@demo.company.com",
-                FirstName = "System",
-                LastName = "Administrator",
-                IsActive = true,
-                Role = new Role { RoleName = "Super Admin" },
-                Organization = new Organization { Name = "Demo Company Ltd." }
-            };
-
-            _logger.LogInformation("=== TESTING HARDCODED TOKEN GENERATION ===");
-            _logger.LogInformation("Test User: UserId={UserId}, OrganizationId={OrganizationId}",
-                testUser.UserId, testUser.OrganizationId);
-
-            // Generate token directly
-            var response = await _authService.CreateTestTokenAsync(testUser);
-
-            return Ok(new
-            {
-                Message = "Hardcoded token test completed",
-                Token = response.Token,
-                User = new
-                {
-                    testUser.UserId,
-                    testUser.OrganizationId,
-                    testUser.Email,
-                    testUser.FirstName,
-                    testUser.LastName
-                },
-                AuthResponse = response
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Hardcoded token test failed");
-            return StatusCode(500, ex.Message);
-        }
-    }
-
     [HttpPost("roles")]
     [Authorize]
     public async Task<IActionResult> CreateRole([FromBody] CreateRoleRequest request)
@@ -933,6 +834,7 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [PermissionAuthorize("add_new_role")]
     [HttpPost("create-role")]
     public async Task<ActionResult<ServiceResponse<CreateRoleResponse>>> CreateRoleAsync([FromBody] Create_RoleRequest request)
     {
@@ -986,6 +888,7 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [PermissionAuthorize("role_edit")]
     [HttpPut("update-role")]
     public async Task<ActionResult<ServiceResponse<UpdateRoleResponse>>> UpdateRoleAsync([FromBody] UpdateRoleRequest request)
     {
@@ -1049,6 +952,7 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [PermissionAuthorize("role_delete")]
     [HttpDelete("delete-role/{roleId}")]
     public async Task<ActionResult<ServiceResponse<DeleteRoleResponse>>> DeleteRoleAsync(Guid roleId)
     {
@@ -1102,6 +1006,7 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [Authorize]
     [HttpGet("get-roles-by-organization")]
     public async Task<ActionResult<ServiceResponse<List<RoleDetailResponse>>>> GetRolesByOrganization()
     {
@@ -1142,14 +1047,14 @@ public class AuthController : ControllerBase
             });
         }
     }
+    [Authorize]
     [HttpGet("get-user-permissions/{UserId}")]
     public async Task<ActionResult<ServiceResponse<UserPermissionResponse>>> GetUserPermissions(Guid UserId)
     {
         try
         {
-            //var userid = GetCurrentUserId();
             var requestingUserOrganizationId = GetOrganizationIdFromClaims();
-            if (requestingUserOrganizationId == Guid.Empty)
+            if (requestingUserOrganizationId is null || requestingUserOrganizationId == Guid.Empty)
             {
                 return BadRequest(new ServiceResponse<UserPermissionResponse>
                 {
@@ -1157,6 +1062,16 @@ public class AuthController : ControllerBase
                     Message = "Invalid organization ID",
                     Data = null,
                     Errors = new List<string> { "Organization ID is required" }
+                });
+            }
+
+            // Users may only read their own permission set (the frontend only ever asks for the logged-in user).
+            if (UserId != GetCurrentUserId())
+            {
+                return StatusCode(StatusCodes.Status403Forbidden, new ServiceResponse<UserPermissionResponse>
+                {
+                    Success = false,
+                    Message = "You can only view your own permissions"
                 });
             }
 

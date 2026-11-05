@@ -229,8 +229,9 @@ namespace HRMS.API.Repositories
             on e.employeeid = n.createdby
         where n.newsid = @newsId";
 
-                var result = await QuerySingleAsync<NewsDto>(sql, new { newsId });
-                return result;
+                // Unknown id -> null so callers can answer 404 instead of throwing "Sequence contains no elements".
+                var result = await QuerySingleOrDefaultAsync<NewsDto>(sql, new { newsId });
+                return result!;
             }
             catch (Exception ex)
             {

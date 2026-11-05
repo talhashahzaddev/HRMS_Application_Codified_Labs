@@ -11,7 +11,7 @@ namespace HRMS.API.Controllers;
 
 [ApiController]
 [Route("api/uploads")]
-[AllowAnonymous]
+[Authorize]
 public class UploadsController : ControllerBase
 {
     private readonly IFileUploadService _fileUploadService;
@@ -23,6 +23,8 @@ public class UploadsController : ControllerBase
         _logger = logger;
     }
 
+    // Public on purpose: candidates upload resumes from the career page before they have an account.
+    [AllowAnonymous]
     [HttpPost("files")]
     [RequestSizeLimit(5 * 1024 * 1024)]
     public async Task<IActionResult> UploadFile([FromForm(Name = "file")] IFormFile file, CancellationToken cancellationToken)

@@ -68,6 +68,7 @@ public class ExpenseController : ControllerBase
     [PermissionAuthorize("expense_category_view_details")]
     public async Task<ActionResult<ServiceResponse<ExpenseCategoryDto>>> GetExpenseCategoryById(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.ExpenseCategory, id)) return this.NotFoundInTenant("ExpenseCategory");
         try
         {
             var category = await _expenseService.GetExpenseCategoryByIdAsync(id);
@@ -150,6 +151,7 @@ public class ExpenseController : ControllerBase
     [PermissionAuthorize("expense_category_edit")]
     public async Task<ActionResult<ServiceResponse<ExpenseCategoryDto>>> UpdateExpenseCategory(Guid id, [FromBody] UpdateExpenseCategoryRequest request)
     {
+        if (!await this.OwnsAsync(TenantResource.ExpenseCategory, id)) return this.NotFoundInTenant("ExpenseCategory");
         try
         {
             if (!ModelState.IsValid)
@@ -202,6 +204,7 @@ public class ExpenseController : ControllerBase
     [PermissionAuthorize("expense_category_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteExpenseCategory(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.ExpenseCategory, id)) return this.NotFoundInTenant("ExpenseCategory");
         try
         {
             var deleted = await _expenseService.DeleteExpenseCategoryAsync(id);
@@ -307,6 +310,7 @@ public class ExpenseController : ControllerBase
     [PermissionAuthorize("claims_view_details")]
     public async Task<ActionResult<ServiceResponse<ExpenseDto>>> GetExpenseById(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.Expense, id)) return this.NotFoundInTenant("Expense");
         try
         {
             var expense = await _expenseService.GetExpenseByIdAsync(id);
@@ -538,6 +542,7 @@ public class ExpenseController : ControllerBase
     [PermissionAuthorize("claims_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteExpense(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.Expense, id)) return this.NotFoundInTenant("Expense");
         try
         {
             var deleted = await _expenseService.DeleteExpenseAsync(id);
@@ -643,6 +648,7 @@ public class ExpenseController : ControllerBase
     [PermissionAuthorize("recurring_view_details")]
     public async Task<ActionResult<ServiceResponse<RecurringExpenseDto>>> GetRecurringExpenseById(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.RecurringExpense, id)) return this.NotFoundInTenant("RecurringExpense");
         try
         {
             var item = await _expenseService.GetRecurringExpenseByIdAsync(id);
@@ -959,6 +965,7 @@ public class ExpenseController : ControllerBase
     [PermissionAuthorize("recurring_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteRecurringExpense(Guid id)
     {
+        if (!await this.OwnsAsync(TenantResource.RecurringExpense, id)) return this.NotFoundInTenant("RecurringExpense");
         try
         {
             var deleted = await _expenseService.DeleteRecurringExpenseAsync(id);

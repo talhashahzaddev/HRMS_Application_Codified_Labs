@@ -32,6 +32,8 @@ public interface IEmployeeService
     // New missing methods
     Task<EmployeeDto> ActivateEmployeeAsync(Guid employeeId);
     Task<EmployeeDto> DeactivateEmployeeAsync(Guid employeeId);
+    Task<bool> EmployeeBelongsToOrganizationAsync(Guid employeeId, Guid organizationId);
+    Task<bool> UserEmployeeBelongsToOrganizationAsync(Guid userId, Guid organizationId);
     Task<DepartmentDto?> GetDepartmentByIdAsync(Guid departmentId);
     Task<PositionDto?> GetPositionByIdAsync(Guid positionId);
     Task<EmployeeStatisticsDto> GetEmployeeStatisticsAsync(Guid organizationId);
