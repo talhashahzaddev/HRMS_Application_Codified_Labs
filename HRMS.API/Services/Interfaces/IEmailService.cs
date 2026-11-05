@@ -16,4 +16,13 @@ public interface IEmailService
     Task<bool> SendDemoEmailAsync(string toEmail, string fullName, string companyName, string fromEmail);
     Task<bool> SendAssignShiftEmailAsync(List<string> receiverEmails, string message, Guid organizationId);
     Task<bool> SendHelpDeskChatAsync(List<string> receiverEmails, TicketMessageRequest request, Guid organizationId, string ticketTitle);
+    Task<bool> SendPayslipEmailAsync(
+        string toEmail,
+        string employeeName,
+        string periodName,
+        string payslipDownloadUrl,
+        Guid organizationId,
+        string? emailSubject = null,
+        string? emailMessage = null);
+    Task<bool> SendUserInvitationAsync(string email, string firstName, string organizationName, string setPasswordLink);
 }

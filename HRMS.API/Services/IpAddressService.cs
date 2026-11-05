@@ -1,4 +1,4 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
+using DocumentFormat.OpenXml.Bibliography;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Models.ViewModels;
@@ -19,7 +19,7 @@ public class IpAddressService : IIpAddressService
         _ipAddressRepository = ipAddressRepository;
     }
 
-    public async Task<List<IpAddress>> GetAllIpAddressesAsync()
+    public async Task<IReadOnlyList<IpAddress>> GetAllIpAddressesAsync()
     {
         return await _ipAddressRepository.GetAllAsync();
     }

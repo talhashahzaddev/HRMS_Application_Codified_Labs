@@ -12,7 +12,7 @@ public enum TenantResource
     Attendance, Shift, GeoFence,
     ExpenseCategory, Expense, RecurringExpense,
     JobStage, JobOpening, JobApplication, ApplicationStage,
-    SkillSet, Kra, Goal, Appraisal,
+    SkillSet, Kra, Goal, Appraisal, AppraisalCycle,
 }
 
 public interface ITenantGuard
@@ -45,6 +45,7 @@ public sealed class TenantGuard : BaseRepository, ITenantGuard
         [TenantResource.ApplicationStage] = @"SELECT 1 FROM jobs.applicationstages s JOIN jobs.jobapplications a ON a.jobapplyid = s.jobapplyid
                                                WHERE s.applicationstageid = @id AND a.organizationid = @org",
         [TenantResource.SkillSet] = "SELECT 1 FROM performance.skillsets WHERE skillid = @id AND organizationid = @org",
+        [TenantResource.AppraisalCycle] = "SELECT 1 FROM performance.appraisal_cycle WHERE cycleid = @id AND organizationid = @org",
         [TenantResource.Kra] = "SELECT 1 FROM performance.kra WHERE kraid = @id AND organizationid = @org",
         [TenantResource.Goal] = "SELECT 1 FROM performance.goals WHERE goalid = @id AND organizationid = @org",
         [TenantResource.Appraisal] = @"SELECT 1 FROM performance.employeeappraisals ap JOIN employee.employees e ON e.employeeid = ap.employeeid

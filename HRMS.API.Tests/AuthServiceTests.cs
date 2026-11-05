@@ -2,11 +2,14 @@ using System.IdentityModel.Tokens.Jwt;
 using AutoMapper;
 using HRMS.API.Authorization;
 using HRMS.API.Configuration;
+using HRMS.API.Hubs;
 using HRMS.API.Models.DTOs;
 using HRMS.API.Models.Entities;
 using HRMS.API.Repositories.Interfaces;
 using HRMS.API.Services;
 using HRMS.API.Services.Interfaces;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
@@ -44,7 +47,10 @@ public sealed class AuthServiceTests
         Mock.Of<ICloudinaryService>(),
         Mock.Of<IEmployeeRepository>(),
         Mock.Of<IEmailService>(),
-        Mock.Of<IJobsRepository>());
+        Mock.Of<IJobsRepository>(),
+        Mock.Of<INotificationRepository>(),
+        Mock.Of<IHubContext<PermissionHub>>(),
+        new ConfigurationBuilder().Build());
 
     private static User ValidUser() => new()
     {

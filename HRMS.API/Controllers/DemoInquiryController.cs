@@ -20,22 +20,22 @@ public class DemoInquiryController : ControllerBase
 
     [HttpPost("book-demo")]
     [AllowAnonymous]
-    public async Task<IActionResult> SubmitInquiry([FromBody] CreateDemoInquiryRequest request)
+    public async Task<ActionResult<ServiceResponse<Guid>>> SubmitInquiry([FromBody] CreateDemoInquiryRequest request)
     {
         try
         {
             var response = await _inquiryService.CreateAsync(request);
-            return Ok(new ServiceResponse<dynamic>
+            return Ok(new ServiceResponse<Guid>
             {
                 Success = true,
-                Data = response,
+                Data = response.Data,
                 Message = "Demo booked successfully"
             });
         }
         catch (ArgumentException ex)
         {
             _logger.LogWarning(ex, "Invalid argument for creating role");
-            return BadRequest(new ServiceResponse<dynamic>
+            return BadRequest(new ServiceResponse<Guid>
             {
                 Success = false,
                 Message = ex.Message
@@ -43,7 +43,7 @@ public class DemoInquiryController : ControllerBase
         }
         catch (InvalidOperationException ex)
         {
-            return BadRequest(new ServiceResponse<dynamic>
+            return BadRequest(new ServiceResponse<Guid>
             {
                 Success = false,
                 Message = ex.Message
@@ -51,7 +51,7 @@ public class DemoInquiryController : ControllerBase
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new ServiceResponse<dynamic>
+            return StatusCode(500, new ServiceResponse<Guid>
             {
                 Success = false,
                 Message = "An error occurred while creating the role"

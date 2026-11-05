@@ -35,7 +35,7 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
         return MapToSubscriptionPlanDto(result);
     }
 
-    public async Task<IEnumerable<SubscriptionPlanDto>> GetAllSubscriptionPlansAsync()
+    public async Task<IReadOnlyList<SubscriptionPlanDto>> GetAllSubscriptionPlansAsync()
     {
         var sql = @"
             SELECT 
@@ -52,9 +52,9 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
             ORDER BY name";
 
         var results = await QueryAsync<dynamic>(sql);
-        return results.Select(MapToSubscriptionPlanDto);
+        return results.Select(MapToSubscriptionPlanDto).ToArray();
     }
-    public async Task<IEnumerable<SubscriptionPlanDto>> GetActiveSubscriptionPlansAsync()
+    public async Task<IReadOnlyList<SubscriptionPlanDto>> GetActiveSubscriptionPlansAsync()
     {
         var sql = @"
         SELECT planid, name, monthlyprice, annualprice, maxusers, currency,
@@ -69,7 +69,7 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
         WHERE p.isactive = true AND p.status = 'active' AND p.is_public = true
         ORDER BY p.monthlyprice ASC";
         var results = await QueryAsync<dynamic>(sql);
-        return results.Select(MapToSubscriptionPlanDto);
+        return results.Select(MapToSubscriptionPlanDto).ToArray();
     }
     public async Task<Guid> CreateSubscriptionPlanAsync(CreateSubscriptionPlanRequest request)
     {
@@ -170,7 +170,7 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
         return MapToCompanySubscriptionDto(result);
     }
 
-    public async Task<IEnumerable<CompanySubscriptionDto>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId)
+    public async Task<IReadOnlyList<CompanySubscriptionDto>> GetCompanySubscriptionsByCompanyIdAsync(Guid companyId)
     {
         var sql = @"
             SELECT 
@@ -185,10 +185,10 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
             WHERE companyid = @companyId";
 
         var results = await QueryAsync<dynamic>(sql, new { companyId });
-        return results.Select(MapToCompanySubscriptionDto);
+        return results.Select(MapToCompanySubscriptionDto).ToArray();
     }
 
-    public async Task<IEnumerable<CompanySubscriptionDto>> GetAllCompanySubscriptionsAsync()
+    public async Task<IReadOnlyList<CompanySubscriptionDto>> GetAllCompanySubscriptionsAsync()
     {
         var sql = @"
             SELECT 
@@ -202,7 +202,7 @@ public class PaymentRepository : BaseRepository, IPaymentRepository
             FROM payment.companysubscriptions";
 
         var results = await QueryAsync<dynamic>(sql);
-        return results.Select(MapToCompanySubscriptionDto);
+        return results.Select(MapToCompanySubscriptionDto).ToArray();
     }
 
     public async Task<CompanySubscriptionDetailsDto?> GetCompanySubscriptionDetailsByCompanyIdAsync(Guid companyId)

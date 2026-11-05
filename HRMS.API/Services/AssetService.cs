@@ -41,7 +41,7 @@ public class AssetService : IAssetService
         return await _assetRepository.GetAssetTypeByIdAsync(organizationId, assetTypeId);
     }
 
-    public async Task<List<AssetTypeDto>> GetAssetTypesAsync(Guid organizationId)
+    public async Task<IReadOnlyList<AssetTypeDto>> GetAssetTypesAsync(Guid organizationId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
@@ -98,7 +98,7 @@ public class AssetService : IAssetService
         return await _assetRepository.GetAssetByIdAsync(organizationId, assetId);
     }
 
-    public async Task<List<AssetDto>> GetAssetsAsync(Guid organizationId, AssetSearchViewModel searchModel)
+    public async Task<IReadOnlyList<AssetDto>> GetAssetsAsync(Guid organizationId, AssetSearchViewModel searchModel)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));
@@ -162,7 +162,7 @@ public class AssetService : IAssetService
         return await _assetRepository.ReturnAssetAsync(organizationId, request, updatedBy);
     }
 
-    public async Task<List<AssetAssignmentDto>> GetAssetAssignmentHistoryAsync(Guid organizationId, Guid? assetId, Guid? employeeId)
+    public async Task<IReadOnlyList<AssetAssignmentDto>> GetAssetAssignmentHistoryAsync(Guid organizationId, Guid? assetId, Guid? employeeId)
     {
         if (organizationId == Guid.Empty)
             throw new ArgumentException("Organization ID cannot be empty", nameof(organizationId));

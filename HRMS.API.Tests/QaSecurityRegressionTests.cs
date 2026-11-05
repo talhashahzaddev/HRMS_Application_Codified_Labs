@@ -28,6 +28,8 @@ public sealed class QaSecurityRegressionTests
         "Domain.ValidateDomain", "Domain.Health",
         "Entitlements.GetPlanComparison",
         "DemoInquiry.SubmitInquiry",
+        "QuestionBank.GetJobQuestions", // public career application page
+        "SetPassword.ValidateToken", "SetPassword.SetPassword", // invite link flow, protected by the invitation token
         "Uploads.UploadFile",
         "Payment.GetAllSubscriptionPlans", "Payment.GetActiveSubscriptionPlans", "Payment.GetSubscriptionPlanById",
     };
@@ -212,7 +214,8 @@ public sealed class QaSecurityRegressionTests
     // ---------- payroll input validation ----------
 
     private static PayRollService Payroll(Mock<IPayRollRepository> repo) =>
-        new(repo.Object, Mock.Of<IAttendanceRepository>(), NullLogger<PayRollService>.Instance);
+        new(repo.Object, Mock.Of<IAttendanceRepository>(), Mock.Of<ISettingsRepository>(), Mock.Of<IPayslipTemplateService>(),
+            Mock.Of<IPayslipPdfBuilder>(), NullLogger<PayRollService>.Instance, Mock.Of<Microsoft.AspNetCore.Hosting.IWebHostEnvironment>());
 
     [Theory]
     [InlineData(0)]

@@ -87,6 +87,25 @@ public sealed class AuthorizationTests
     }
 
     [Fact]
+    public async Task Handler_EitherAlternative_IsEnough()
+    {
+        // Employee role has the calendar clock-in permission but not the time-tracker one.
+        RolePermissions(RoleId, ("calendar_clock_in", true));
+        var user = User(new Claim(CustomClaimTypes.RoleId, RoleId.ToString()));
+
+        Assert.True(await Authorize(user, "CLOCK_IN_BUTTON|calendar_clock_in"));
+    }
+
+    [Fact]
+    public async Task Handler_NoAlternativeGranted_IsDenied()
+    {
+        RolePermissions(RoleId, ("calendar_clock_in", false), ("view_payroll", true));
+        var user = User(new Claim(CustomClaimTypes.RoleId, RoleId.ToString()));
+
+        Assert.False(await Authorize(user, "CLOCK_IN_BUTTON|calendar_clock_in"));
+    }
+
+    [Fact]
     public async Task Handler_MissingOnePermission_IsDenied()
     {
         RolePermissions(RoleId, ("view_payroll", true));

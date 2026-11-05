@@ -83,7 +83,7 @@ namespace HRMS.AI.Services
         "\n- Process Payroll: /payroll/process" +
         "\n- Salary Components: /payroll/salary-component" +
         "\n- Payroll Report: /payroll/reports" +
-        "\n- Salary Slips: /payroll/slips",
+        "\n- Salary Slips: /payroll/my-payslips",
 
             ["Performance"] =
         "Performance Management Rules: Performance cycles can be created for six months or one year.Only Super Admin or HR Manager can create the Appraisal Cycles." +

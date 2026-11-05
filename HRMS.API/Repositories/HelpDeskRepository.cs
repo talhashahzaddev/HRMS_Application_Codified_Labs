@@ -1,4 +1,4 @@
-﻿using HRMS.API.Configuration;
+using HRMS.API.Configuration;
 using static HRMS.API.Models.DTOs.HelpDeskDto;
 using HRMS.API.Repositories.Interfaces;
 
@@ -52,7 +52,7 @@ namespace HRMS.API.Repositories
             }
         }
 
-        public async Task<List<TicketDto>> GetAllTicketsAsync(Guid organizationId, TicketSearchModel search)
+        public async Task<IReadOnlyList<TicketDto>> GetAllTicketsAsync(Guid organizationId, TicketSearchModel search)
         {
             try
             {
@@ -161,8 +161,7 @@ namespace HRMS.API.Repositories
                     Status = search.Status
                 };
 
-                var result = await QueryAsync<TicketDto>(sql, parameters);
-                return result.ToList();
+                return await QueryAsync<TicketDto>(sql, parameters);
             }
             catch (Exception ex)
             {
@@ -170,7 +169,7 @@ namespace HRMS.API.Repositories
                 throw;
             }
         }
-    public async Task<List<TicketDto>> GetAllTicketsCreatedByEmployeeAsync(Guid organizationId, Guid employeeId, TicketSearchModel search)
+    public async Task<IReadOnlyList<TicketDto>> GetAllTicketsCreatedByEmployeeAsync(Guid organizationId, Guid employeeId, TicketSearchModel search)
         {
             try
             {
@@ -277,9 +276,7 @@ namespace HRMS.API.Repositories
                     Status = search.Status
                 };
 
-                var tickets = await QueryAsync<TicketDto>(sql, parameters);
-
-                return tickets.ToList();
+                return await QueryAsync<TicketDto>(sql, parameters);
             }
             catch (Exception ex)
             {
@@ -362,7 +359,7 @@ WHERE t.organizationid = @OrganizationId
                 OrganizationId = organizationId,
                 TicketId = ticketId
             };
-            return (await QueryAsync<TicketDto>(sql, parameters)).FirstOrDefault();
+            return await QuerySingleOrDefaultAsync<TicketDto>(sql, parameters);
         }
 
     public async Task<bool> UpdateTicketDataAsync(Guid organizationId, UpdateTicketRequest request)
@@ -492,8 +489,8 @@ WHERE t.organizationid = @OrganizationId
                     employeesToInsert.AddRange(request.AssignedEmployees);
                 }
 
-                // ✅ Remove duplicates
-                var finalEmployees = employeesToInsert.Distinct().ToList();
+                // ✅ Remove duplicates using HashSet (O(1) per lookup, no extra List allocation)
+                var finalEmployees = new HashSet<Guid>(employeesToInsert);
 
                 // 🔹 STEP 5: INSERT into normalized table
                 if (finalEmployees.Any())
@@ -597,12 +594,12 @@ WHERE t.organizationid = @OrganizationId
                 oldGroupEmpIds = oldGroupEmpIds ?? new List<Guid>();
 
                 // 🔹 STEP 1: Get all assignments linked to this group
-                var assignmentIds = (await QueryAsync<Guid>(
+                var assignmentIds = await QueryAsync<Guid>(
                     @"SELECT assignmentid
               FROM helpdesk.ticket_assignments
               WHERE groupid = @GroupId;",
                     new { GroupId = groupId }
-                )).ToList();
+                );
 
                 // 🔹 STEP 2: Update normalized employees for each assignment
                 foreach (var assignmentId in assignmentIds)
@@ -656,7 +653,7 @@ WHERE t.organizationid = @OrganizationId
         }
 
 
-    public async Task<List<TicketDto>> GetAllEmployeeAssignedTickets(Guid organizationId,Guid employeeId,TicketSearchModel search)
+    public async Task<IReadOnlyList<TicketDto>> GetAllEmployeeAssignedTickets(Guid organizationId,Guid employeeId,TicketSearchModel search)
         {
             try
             {
@@ -764,8 +761,7 @@ OFFSET (@Page - 1) * @PageSize;
                     SortOrder = search.SortOrder?.ToLower()
                 };
 
-                var tickets = await QueryAsync<TicketDto>(sql, parameters);
-                return tickets.ToList();
+                return await QueryAsync<TicketDto>(sql, parameters);
             }
             catch (Exception ex)
             {
@@ -836,7 +832,7 @@ OFFSET (@Page - 1) * @PageSize;
             }
         }
 
-        public async Task<List<TicketGroupDto>> GetAllTicketGroupsAsync(Guid organizationId, string? search, Guid? departmentId, Guid? categoryId)
+        public async Task<IReadOnlyList<TicketGroupDto>> GetAllTicketGroupsAsync(Guid organizationId, string? search, Guid? departmentId, Guid? categoryId)
         {
             var sql = @"
 SELECT 
@@ -879,8 +875,7 @@ ORDER BY tg.createdat DESC;
                 Search = search
             };
 
-            var groups = await QueryAsync<TicketGroupDto>(sql, parameters);
-            return groups.ToList();
+            return await QueryAsync<TicketGroupDto>(sql, parameters);
         }
 
         //Get Group by id
@@ -904,7 +899,7 @@ WHERE organizationid = @OrganizationId
             };
 
             // Use your QueryAsync helper (e.g., Dapper)
-            return (await QueryAsync<TicketGroupDto>(sql, parameters)).FirstOrDefault();
+            return await QuerySingleOrDefaultAsync<TicketGroupDto>(sql, parameters);
         }
         public async Task<bool> DeleteTicketGroupAsync(Guid organizationId, Guid groupId)
         {
@@ -1029,7 +1024,7 @@ WHERE ticketid = @TicketId;
                 throw;
             }
         }
-        public async Task<List<Guid>> GetAssignmentsByGroupIdAsync(Guid groupId)
+        public async Task<IReadOnlyList<Guid>> GetAssignmentsByGroupIdAsync(Guid groupId)
         {
             if (groupId == Guid.Empty)
                 throw new ArgumentException("GroupId is required");
@@ -1040,8 +1035,7 @@ WHERE ticketid = @TicketId;
         WHERE groupid = @GroupId;
     ";
 
-            var assignmentIds = (await QueryAsync<Guid>(sql, new { GroupId = groupId })).ToList();
-            return assignmentIds;
+            return await QueryAsync<Guid>(sql, new { GroupId = groupId });
         }
 
         public async Task<bool> DeleteOldGroupEmployeesFromAssignmentsAsync(List<Guid> oldGroupEmployeeIds, List<Guid> assignmentIds)
@@ -1149,7 +1143,7 @@ WHERE assignmentid = ANY(@AssignmentIds)
 
             return affectedRows > 0;
         }
-        public async Task<List<TicketMessageDto>> GetMessagesByTicketIdAsync(
+        public async Task<IReadOnlyList<TicketMessageDto>> GetMessagesByTicketIdAsync(
     Guid organizationId,
     Guid ticketId)
         {
@@ -1193,13 +1187,11 @@ WHERE m.organizationid = @OrganizationId
 ORDER BY m.created_at ASC;
 ";
 
-                var result = await QueryAsync<TicketMessageDto>(sql, new
+                return await QueryAsync<TicketMessageDto>(sql, new
                 {
                     OrganizationId = organizationId,
                     TicketId = ticketId
                 });
-
-                return result?.ToList() ?? new List<TicketMessageDto>();
             }
             catch (Exception ex)
             {
@@ -1255,7 +1247,7 @@ VALUES
             }
         }
 
-        public async Task<List<CategoryDto>> GetCategoriesAsync(Guid organizationId, searchCateogry? search)
+        public async Task<IReadOnlyList<CategoryDto>> GetCategoriesAsync(Guid organizationId, searchCateogry? search)
         {
             try
             {
@@ -1296,9 +1288,7 @@ FETCH NEXT @PageSize ROWS ONLY;
                     PageSize = search.PageSize
                 };
 
-                var result = await QueryAsync<CategoryDto>(sql, parameters);
-
-                return result.ToList();
+                return await QueryAsync<CategoryDto>(sql, parameters);
             }
             catch (Exception ex)
             {

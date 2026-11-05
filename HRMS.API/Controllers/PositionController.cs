@@ -24,14 +24,14 @@ public class PositionController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ServiceResponse<List<PositionDto>>>> GetPositions()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<PositionDto>>>> GetPositions()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var positions = await _employeeService.GetPositionsAsync(organizationId);
             
-            return Ok(new ServiceResponse<List<PositionDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<PositionDto>>
             {
                 Success = true,
                 Data = positions
@@ -40,7 +40,7 @@ public class PositionController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving positions");
-            return StatusCode(500, new ServiceResponse<List<PositionDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<PositionDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving positions"
@@ -98,7 +98,7 @@ public class PositionController : ControllerBase
             var organizationId = GetCurrentOrganizationId();
             var roles = await _authService.GetOrganizationRolesAsync(organizationId);
             
-            return Ok(new ServiceResponse<List<RoleDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<RoleDto>>
             {
                 Success = true,
                 Data = roles
@@ -107,7 +107,7 @@ public class PositionController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving roles");
-            return StatusCode(500, new ServiceResponse<List<RoleDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<RoleDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving roles"

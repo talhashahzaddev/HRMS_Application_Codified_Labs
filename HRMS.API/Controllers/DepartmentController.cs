@@ -22,14 +22,14 @@ public class DepartmentController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<ServiceResponse<List<DepartmentDto>>>> GetDepartments()
+    public async Task<ActionResult<ServiceResponse<IReadOnlyList<DepartmentDto>>>> GetDepartments()
     {
         try
         {
             var organizationId = GetCurrentOrganizationId();
             var departments = await _employeeService.GetDepartmentsAsync(organizationId);
             
-            return Ok(new ServiceResponse<List<DepartmentDto>>
+            return Ok(new ServiceResponse<IReadOnlyList<DepartmentDto>>
             {
                 Success = true,
                 Data = departments
@@ -38,7 +38,7 @@ public class DepartmentController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error retrieving departments");
-            return StatusCode(500, new ServiceResponse<List<DepartmentDto>>
+            return StatusCode(500, new ServiceResponse<IReadOnlyList<DepartmentDto>>
             {
                 Success = false,
                 Message = "An error occurred while retrieving departments"

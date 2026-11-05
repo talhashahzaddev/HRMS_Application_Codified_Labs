@@ -42,7 +42,7 @@ public sealed class LeaveServiceTests
     private void SetupHappyCreatePath(int[]? shiftDays = null)
     {
         _leaveRepo.Setup(r => r.GetEmpId(UserId)).ReturnsAsync(EmpId);
-        _employeeRepo.Setup(r => r.GetEmployeeByIdAsync(EmpId)).ReturnsAsync(new Employee
+        _employeeRepo.Setup(r => r.GetEmployeeByEmployeeIdAsync(EmpId)).ReturnsAsync(new Employee
         {
             EmployeeId = EmpId,
             OrganizationId = OrgId,
@@ -121,7 +121,7 @@ public sealed class LeaveServiceTests
     public async Task Create_EmployeeNotFound_Throws()
     {
         _leaveRepo.Setup(r => r.GetEmpId(UserId)).ReturnsAsync(EmpId);
-        _employeeRepo.Setup(r => r.GetEmployeeByIdAsync(EmpId)).ReturnsAsync((Employee?)null);
+        _employeeRepo.Setup(r => r.GetEmployeeByEmployeeIdAsync(EmpId)).ReturnsAsync((Employee?)null);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
             CreateService().CreateLeaveRequestAsync(Request(DateTime.Today, DateTime.Today), UserId, OrgId));
@@ -408,7 +408,7 @@ public sealed class LeaveServiceTests
         _leaveRepo.Setup(r => r.GetEmpId(UserId)).ReturnsAsync(EmpId);
         _leaveRepo.Setup(r => r.HasOverlappingLeaveAsync(EmpId, It.IsAny<DateTime>(), It.IsAny<DateTime>(), requestId)).ReturnsAsync(false);
         _attendanceRepo.Setup(r => r.GetShiftByEmployeeIdAsync(EmpId)).ReturnsAsync(new ShiftDto { DaysOfWeek = new[] { 1, 2, 3, 4, 5 } });
-        _employeeRepo.Setup(r => r.GetEmployeeByIdAsync(EmpId)).ReturnsAsync(new Employee { EmployeeId = EmpId, OrganizationId = OrgId });
+        _employeeRepo.Setup(r => r.GetEmployeeByEmployeeIdAsync(EmpId)).ReturnsAsync(new Employee { EmployeeId = EmpId, OrganizationId = OrgId });
         _leaveRepo.Setup(r => r.GetLeaveTypeNameByIdAsync(It.IsAny<Guid>(), OrgId)).ReturnsAsync("Annual");
         _leaveRepo.Setup(r => r.GetLeaveEntitlementsAsync(EmpId, It.IsAny<int>())).ReturnsAsync(new List<LeaveEntitlementDto>
         {
