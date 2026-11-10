@@ -41,3 +41,5 @@ values.dev.yaml
 README.md
 LICENSE
 *.md
+# Local database backups
+**/backups/

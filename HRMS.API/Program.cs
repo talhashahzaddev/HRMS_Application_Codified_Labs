@@ -367,6 +367,18 @@ builder.Services.AddScoped<ISuperAdminService, SuperAdminService>();
 builder.Services.AddScoped<IEntitlementRepository, EntitlementRepository>();
 builder.Services.AddScoped<IEntitlementService, EntitlementService>();
 
+// --- Platform database backups ---
+builder.Services.AddSingleton(new DatabaseBackupOptions
+{
+    ConnectionString = finalConnectionString,
+    StoragePath = builder.Configuration["Backup:StoragePath"] is { Length: > 0 } backupPath
+        ? backupPath
+        : Path.Combine(builder.Environment.ContentRootPath, "backups"),
+    PgDumpPath = builder.Configuration["Backup:PgDumpPath"],
+    TimeoutMinutes = builder.Configuration.GetValue("Backup:TimeoutMinutes", 60)
+});
+builder.Services.AddScoped<IDatabaseBackupService, DatabaseBackupService>();
+
 // -------------------- REPOSITORIES --------------------
 builder.Services.AddScoped<IAuthRepository, AuthRepository>();
 builder.Services.AddScoped<IOrganizationRepository, OrganizationRepository>();
@@ -409,6 +421,7 @@ builder.Services.AddScoped<IPolicyRepository, PolicyRepository>();
 builder.Services.AddScoped<IPlatformAdminRepository, PlatformAdminRepository>();
 builder.Services.AddScoped<IDemoInquiryRepository, DemoInquiryRepository>();
 builder.Services.AddScoped<ISuperAdminRepository, SuperAdminRepository>();
+builder.Services.AddScoped<IDatabaseBackupRepository, DatabaseBackupRepository>();
 
 // --- Audit Log Repository ---
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
@@ -461,6 +474,19 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
     Authorization = new[] { new HangfireDashboardAuthorizationFilter() }
 });
+
+// Checks every 15 minutes whether a scheduled database backup is due (schedule lives in admin.backup_settings).
+try
+{
+    app.Services.GetRequiredService<IRecurringJobManager>().AddOrUpdate<IDatabaseBackupService>(
+        DatabaseBackupService.SchedulerJobId,
+        service => service.RunScheduledIfDueAsync(),
+        "*/15 * * * *");
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "Could not register the scheduled database backup job.");
+}
 
 app.MapHub<PayslipBulkHub>("/hubs/payslip-bulk");
 app.MapHub<PermissionHub>("/hubs/permissionHub");
