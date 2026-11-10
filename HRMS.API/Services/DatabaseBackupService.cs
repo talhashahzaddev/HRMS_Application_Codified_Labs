@@ -298,7 +298,7 @@ public class DatabaseBackupService : IDatabaseBackupService
         catch (Win32Exception)
         {
             throw new InvalidOperationException(
-                "pg_dump was not found on the server. Install PostgreSQL client tools (version 17 or newer) " +
+                "pg_dump was not found on the server. Install PostgreSQL client tools (same major version as the database or newer) " +
                 "or set Backup:PgDumpPath to the pg_dump executable.");
         }
 
@@ -350,9 +350,20 @@ public class DatabaseBackupService : IDatabaseBackupService
             return "pg_dump.exe";
         }
 
-        // Debian PGDG layout installed by the Dockerfile.
-        const string pgdg17 = "/usr/lib/postgresql/17/bin/pg_dump";
-        return File.Exists(pgdg17) ? pgdg17 : "pg_dump";
+        // Debian PGDG layout (/usr/lib/postgresql/<major>/bin): use the newest installed
+        // client, since pg_dump refuses servers newer than itself.
+        const string pgdgRoot = "/usr/lib/postgresql";
+        if (Directory.Exists(pgdgRoot))
+        {
+            var newest = Directory.GetDirectories(pgdgRoot)
+                .Select(dir => (dir, version: int.TryParse(Path.GetFileName(dir), out var v) ? v : 0))
+                .OrderByDescending(x => x.version)
+                .Select(x => Path.Combine(x.dir, "bin", "pg_dump"))
+                .FirstOrDefault(File.Exists);
+            if (newest != null)
+                return newest;
+        }
+        return "pg_dump";
     }
 
     // ======================= HELPERS =======================
