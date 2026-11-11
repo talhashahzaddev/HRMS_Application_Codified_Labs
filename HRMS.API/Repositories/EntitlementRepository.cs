@@ -234,7 +234,6 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
             """;
 
         using var connection = CreateConnection();
-        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {
@@ -286,7 +285,6 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
             """;
 
         using var connection = CreateConnection();
-        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {
@@ -361,7 +359,6 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
             WHERE planid = @planId AND status = 'active';
             """;
         using var connection = CreateConnection();
-        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {
@@ -412,7 +409,6 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
             """;
 
         using var connection = CreateConnection();
-        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {
@@ -448,7 +444,6 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
     {
         var before = await GetTenantOverridesAsync(tenantId);
         using var connection = CreateConnection();
-        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {
@@ -513,7 +508,6 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
             """;
 
         using var connection = CreateConnection();
-        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {
@@ -660,7 +654,6 @@ public sealed class EntitlementRepository : BaseRepository, IEntitlementReposito
             """;
 
         using var connection = CreateConnection();
-        connection.Open();
         using var transaction = connection.BeginTransaction();
         try
         {
