@@ -3201,6 +3201,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/jurisdictions")]
+    [PermissionAuthorize("social_security_rule_add")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityJurisdictionDto>>> CreateSocialSecurityJurisdiction([FromBody] CreateSocialSecurityJurisdictionDto dto)
     {
         try
@@ -3218,6 +3219,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("social-security/jurisdictions/{id}")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityJurisdictionDto>>> UpdateSocialSecurityJurisdiction(Guid id, [FromBody] UpdateSocialSecurityJurisdictionDto dto)
     {
         try
@@ -3235,6 +3237,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("social-security/jurisdictions/{id}")]
+    [PermissionAuthorize("social_security_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityJurisdiction(Guid id)
     {
         try
@@ -3269,6 +3272,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/authorities")]
+    [PermissionAuthorize("social_security_rule_add")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityAuthorityDto>>> CreateSocialSecurityAuthority([FromBody] CreateSocialSecurityAuthorityDto dto)
     {
         try
@@ -3286,6 +3290,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("social-security/authorities/{id}")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityAuthorityDto>>> UpdateSocialSecurityAuthority(Guid id, [FromBody] UpdateSocialSecurityAuthorityDto dto)
     {
         try
@@ -3303,6 +3308,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("social-security/authorities/{id}")]
+    [PermissionAuthorize("social_security_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityAuthority(Guid id)
     {
         try
@@ -3337,6 +3343,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/schemes")]
+    [PermissionAuthorize("social_security_rule_add")]
     public async Task<ActionResult<ServiceResponse<SocialSecuritySchemeDto>>> CreateSocialSecurityScheme([FromBody] CreateSocialSecuritySchemeDto dto)
     {
         try
@@ -3354,6 +3361,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("social-security/schemes/{id}")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<SocialSecuritySchemeDto>>> UpdateSocialSecurityScheme(Guid id, [FromBody] UpdateSocialSecuritySchemeDto dto)
     {
         try
@@ -3371,6 +3379,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("social-security/schemes/{id}")]
+    [PermissionAuthorize("social_security_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityScheme(Guid id)
     {
         try
@@ -3405,6 +3414,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/rules")]
+    [PermissionAuthorize("social_security_rule_add")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityRuleDto>>> CreateSocialSecurityRule([FromBody] CreateSocialSecurityRuleDto dto)
     {
         try
@@ -3422,6 +3432,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("social-security/rules/{id}")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityRuleDto>>> UpdateSocialSecurityRule(Guid id, [FromBody] UpdateSocialSecurityRuleDto dto)
     {
         try
@@ -3439,6 +3450,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("social-security/rules/{id}")]
+    [PermissionAuthorize("social_security_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityRule(Guid id)
     {
         try
@@ -3507,6 +3519,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security-configs")]
+    [PermissionAuthorize("social_security_rule_add")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityConfigDto>>> CreateSocialSecurityConfig([FromBody] CreateSocialSecurityConfigDto dto)
     {
         try
@@ -3524,6 +3537,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("social-security-configs/{id}")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityConfigDto>>> UpdateSocialSecurityConfig(Guid id, [FromBody] UpdateSocialSecurityConfigDto dto)
     {
         try
@@ -3541,6 +3555,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("social-security-configs/{id}")]
+    [PermissionAuthorize("social_security_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityConfig(Guid id)
     {
         try
@@ -3560,6 +3575,7 @@ public class PayRollController : ControllerBase
     // ─── Social Security Transactions ────────────────────────────────────────
 
     [HttpGet("social-security-transactions")]
+    [PermissionAuthorize("social_security_rule_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<SocialSecurityTransactionDto>>>> GetAllSocialSecurityTransactions([FromQuery] SocialSecurityTransactionFilterDto filter)
     {
         try
@@ -3577,6 +3593,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("social-security-transactions/{id}")]
+    [PermissionAuthorize("social_security_rule_view")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityTransactionDto>>> GetSocialSecurityTransactionById(Guid id)
     {
         try
@@ -3594,6 +3611,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security-transactions")]
+    [PermissionAuthorize("social_security_rule_add")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityTransactionDto>>> CreateSocialSecurityTransaction([FromBody] CreateSocialSecurityTransactionDto dto)
     {
         try
@@ -3611,6 +3629,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPut("social-security-transactions/{id}")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<SocialSecurityTransactionDto>>> UpdateSocialSecurityTransaction(Guid id, [FromBody] UpdateSocialSecurityTransactionDto dto)
     {
         try
@@ -3628,6 +3647,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("social-security-transactions/{id}")]
+    [PermissionAuthorize("social_security_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityTransaction(Guid id)
     {
         try
@@ -4258,6 +4278,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("social-security/enrollment-requests")]
+    [PermissionAuthorize("social_security_rule_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<SocialSecurityEnrollmentRequestDto>>>> GetSocialSecurityEnrollmentRequests([FromQuery] SocialSecurityEnrollmentRequestFilterDto filter)
     {
         try
@@ -4275,6 +4296,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("social-security/enrollments")]
+    [PermissionAuthorize("social_security_rule_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<SocialSecurityEnrollmentRosterDto>>>> GetSocialSecurityEnrollments([FromQuery] SocialSecurityEnrollmentFilterDto filter)
     {
         try
@@ -4292,6 +4314,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/enrollment-requests/{requestId:guid}/approve")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveSocialSecurityEnrollmentRequest(Guid requestId, [FromBody] ApproveSocialSecurityEnrollmentRequestDto dto)
     {
         try
@@ -4310,6 +4333,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/enrollment-requests/{requestId:guid}/reject")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> RejectSocialSecurityEnrollmentRequest(Guid requestId, [FromBody] RejectSocialSecurityEnrollmentRequestDto dto)
     {
         try
@@ -4366,6 +4390,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpGet("social-security/claims")]
+    [PermissionAuthorize("social_security_rule_view")]
     public async Task<ActionResult<ServiceResponse<PagedResult<SocialSecurityClaimDto>>>> GetSocialSecurityClaims([FromQuery] SocialSecurityClaimFilterDto filter)
     {
         try
@@ -4383,6 +4408,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/claims/{claimId:guid}/approve")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> ApproveSocialSecurityClaim(Guid claimId, [FromBody] ApproveSocialSecurityClaimDto dto)
     {
         try
@@ -4401,6 +4427,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/claims/{claimId:guid}/reject")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> RejectSocialSecurityClaim(Guid claimId, [FromBody] RejectSocialSecurityClaimDto dto)
     {
         try
@@ -4419,6 +4446,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/claims/{claimId:guid}/mark-paid")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> MarkSocialSecurityClaimPaid(Guid claimId, [FromBody] MarkSocialSecurityClaimPaidDto dto)
     {
         try
@@ -4438,6 +4466,7 @@ public class PayRollController : ControllerBase
     // ── Documents ───────────────────────────────────────────────────────────────
 
     [HttpGet("social-security/requests/{requestId:guid}/documents")]
+    [PermissionAuthorize("social_security_rule_view")]
     public async Task<ActionResult<ServiceResponse<IReadOnlyList<SocialSecurityRequestDocumentDto>>>> GetSocialSecurityRequestDocuments(Guid requestId)
     {
         try
@@ -4455,6 +4484,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpPost("social-security/documents/{documentId:guid}/verify")]
+    [PermissionAuthorize("social_security_rule_edit")]
     public async Task<ActionResult<ServiceResponse<bool>>> VerifySocialSecurityRequestDocument(Guid documentId, [FromBody] VerifySocialSecurityRequestDocumentDto dto)
     {
         try
@@ -4473,6 +4503,7 @@ public class PayRollController : ControllerBase
     }
 
     [HttpDelete("social-security/documents/{documentId:guid}")]
+    [PermissionAuthorize("social_security_rule_delete")]
     public async Task<ActionResult<ServiceResponse<bool>>> DeleteSocialSecurityRequestDocument(Guid documentId)
     {
         try

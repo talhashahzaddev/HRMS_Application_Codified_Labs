@@ -4,6 +4,7 @@ using HRMS.API.Services.Interfaces;
 using HRMS.API.Services.PayslipLayouts;
 using iTextSharp.text;
 using iTextSharp.text.pdf;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace HRMS.API.Services;
 
@@ -11,13 +12,19 @@ public class PayslipPdfBuilder : IPayslipPdfBuilder
 {
     private readonly IPayslipLayoutRendererRegistry _rendererRegistry;
     private readonly IPayslipLayoutCatalogRepository _layoutCatalogRepository;
+    private readonly IMemoryCache? _cache;
+    private readonly ILogger<PayslipPdfBuilder>? _logger;
 
     public PayslipPdfBuilder(
         IPayslipLayoutRendererRegistry rendererRegistry,
-        IPayslipLayoutCatalogRepository layoutCatalogRepository)
+        IPayslipLayoutCatalogRepository layoutCatalogRepository,
+        IMemoryCache? cache = null,
+        ILogger<PayslipPdfBuilder>? logger = null)
     {
         _rendererRegistry = rendererRegistry;
         _layoutCatalogRepository = layoutCatalogRepository;
+        _cache = cache;
+        _logger = logger;
     }
 
     public async Task<byte[]> BuildAsync(
@@ -27,7 +34,7 @@ public class PayslipPdfBuilder : IPayslipPdfBuilder
         PayslipTemplateDto? template = null)
     {
         template ??= PayslipTemplateDefaults.CreateDefaultTemplate(row.OrganizationId);
-        var fieldConfig = template.FieldConfig ?? PayslipTemplateDefaults.CreateDefaultFieldConfig();
+        var fieldConfig = PayslipTemplateService.NormalizeFieldConfig(template.FieldConfig);
         var options = fieldConfig.Options ?? new PayslipTemplateOptionsDto();
 
         var headerBg = PayslipLayoutShared.ParseColor(template.PrimaryColor, PayslipLayoutShared.DefaultHeaderBg);
@@ -37,6 +44,7 @@ public class PayslipPdfBuilder : IPayslipPdfBuilder
         var periodDisplay = string.IsNullOrWhiteSpace(row.PeriodName) ? periodLabel : row.PeriodName;
         var slip = PayslipLayoutShared.BuildSlipRows(row, currencyCode, fieldConfig, options);
         var fonts = PayslipLayoutFonts.Create(headerBg);
+        var logoBytes = await PayslipLogoLoader.LoadAsync(template.LogoUrl, _cache, _logger);
 
         var context = new PayslipLayoutContext
         {
@@ -50,7 +58,8 @@ public class PayslipPdfBuilder : IPayslipPdfBuilder
             HeaderBg = headerBg,
             SectionBg = sectionBg,
             NetBg = netBg,
-            Fonts = fonts
+            Fonts = fonts,
+            LogoBytes = logoBytes
         };
 
         var layoutKey = string.IsNullOrWhiteSpace(template.LayoutKey)

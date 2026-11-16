@@ -160,6 +160,15 @@ public class PayslipTemplateService : IPayslipTemplateService
             };
         }
 
+        if (!string.IsNullOrWhiteSpace(request.LogoUrl) && !PayslipLayouts.PayslipLogoLoader.IsAllowedLogoUrl(request.LogoUrl))
+        {
+            return new ServiceResponse<PayslipTemplateDto>
+            {
+                Success = false,
+                Message = "Logo URL must be an absolute http(s) URL."
+            };
+        }
+
         foreach (var color in new[] { request.PrimaryColor, request.AccentColor, request.SectionTitleColor })
         {
             if (!string.IsNullOrWhiteSpace(color) && !HexColorRegex.IsMatch(color))
@@ -172,9 +181,11 @@ public class PayslipTemplateService : IPayslipTemplateService
             }
         }
 
-        var fieldConfig = request.FieldConfig ?? PayslipTemplateDefaults.CreateDefaultFieldConfig();
-        var earningsVisible = fieldConfig.Sections.TryGetValue("earnings", out var earnings) && earnings.Visible;
-        var netVisible = fieldConfig.Sections.TryGetValue("netPay", out var netPay) && netPay.Visible;
+        var fieldConfig = NormalizeFieldConfig(request.FieldConfig);
+        request.FieldConfig = fieldConfig;
+        // Same rule as the renderer: a section missing from the config is visible.
+        var earningsVisible = !fieldConfig.Sections.TryGetValue("earnings", out var earnings) || earnings.Visible;
+        var netVisible = !fieldConfig.Sections.TryGetValue("netPay", out var netPay) || netPay.Visible;
         if (!earningsVisible && !netVisible)
         {
             return new ServiceResponse<PayslipTemplateDto>
@@ -216,9 +227,46 @@ public class PayslipTemplateService : IPayslipTemplateService
         ShowPayrollCalculatedAt = request.ShowPayrollCalculatedAt,
         LayoutKey = string.IsNullOrWhiteSpace(request.LayoutKey) ? PayslipLayoutKeys.ClassicStacked : request.LayoutKey.Trim(),
         LayoutConfig = request.LayoutConfig,
-        FieldConfig = request.FieldConfig ?? PayslipTemplateDefaults.CreateDefaultFieldConfig(),
+        FieldConfig = NormalizeFieldConfig(request.FieldConfig),
         IsCustom = true
     };
+
+    /// <summary>
+    /// JSON deserialization replaces the dictionaries (dropping the case-insensitive comparer) and may set them
+    /// to null. Rebuild them so lookups like "netPay" vs "netpay" and null sections can't break rendering.
+    /// </summary>
+    public static PayslipTemplateFieldConfigDto NormalizeFieldConfig(PayslipTemplateFieldConfigDto? config)
+    {
+        if (config == null)
+        {
+            return PayslipTemplateDefaults.CreateDefaultFieldConfig();
+        }
+
+        static Dictionary<string, T> Ci<T>(Dictionary<string, T>? source) where T : class
+        {
+            var result = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
+            if (source == null) return result;
+            foreach (var (key, value) in source)
+            {
+                if (!string.IsNullOrWhiteSpace(key) && value != null)
+                {
+                    result[key.Trim()] = value;
+                }
+            }
+
+            return result;
+        }
+
+        return new PayslipTemplateFieldConfigDto
+        {
+            Sections = Ci(config.Sections),
+            EmployeeFields = Ci(config.EmployeeFields),
+            EarningFields = Ci(config.EarningFields),
+            DeductionFields = Ci(config.DeductionFields),
+            NetPayFields = Ci(config.NetPayFields),
+            Options = config.Options ?? new PayslipTemplateOptionsDto()
+        };
+    }
 
     private static string? ResolveLogoUrl(string? templateLogo, string? organizationLogo)
     {

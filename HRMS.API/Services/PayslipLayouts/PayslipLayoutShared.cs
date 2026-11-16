@@ -39,22 +39,22 @@ public static class PayslipLayoutShared
 
         if (IsFieldVisible(fieldConfig.EarningFields, "performanceBonuses"))
         {
-            AppendJsonArray(earnings, GetFieldLabel(fieldConfig.EarningFields, "performanceBonuses", "Performance bonus"), row.PerformanceBonuses, currencyCode, options);
+            AppendDetailAmounts(earnings, GetFieldLabel(fieldConfig.EarningFields, "performanceBonuses", "Performance bonus"), row.PerformanceBonuses, "BonusAmount", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.EarningFields, "generalBonuses"))
         {
-            AppendJsonArray(earnings, GetFieldLabel(fieldConfig.EarningFields, "generalBonuses", "General bonus"), row.GeneralBonuses, currencyCode, options);
+            AppendDetailAmounts(earnings, GetFieldLabel(fieldConfig.EarningFields, "generalBonuses", "General bonus"), row.GeneralBonuses, "BonusAmount", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.EarningFields, "gratuity"))
         {
-            AppendJsonArray(earnings, GetFieldLabel(fieldConfig.EarningFields, "gratuity", "Gratuity"), row.Gratuity, currencyCode, options);
+            AppendDetailAmounts(earnings, GetFieldLabel(fieldConfig.EarningFields, "gratuity", "Gratuity"), row.Gratuity, "GratuityAmount", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.EarningFields, "overtime"))
         {
-            AppendJsonArray(earnings, GetFieldLabel(fieldConfig.EarningFields, "overtime", "Overtime"), row.OvertimeDetails, currencyCode, options);
+            AppendDetailAmounts(earnings, GetFieldLabel(fieldConfig.EarningFields, "overtime", "Overtime"), row.OvertimeDetails, "TotalOvertimeAmount", currencyCode, options);
         }
 
         var grossPay = row.BasicSalary + row.TotalBonuses;
@@ -68,42 +68,42 @@ public static class PayslipLayoutShared
 
         if (IsFieldVisible(fieldConfig.DeductionFields, "loanDeductions"))
         {
-            AppendJsonArray(deductions, GetFieldLabel(fieldConfig.DeductionFields, "loanDeductions", "Loan deductions"), row.LoanDeductions, currencyCode, options);
+            AppendDetailAmounts(deductions, GetFieldLabel(fieldConfig.DeductionFields, "loanDeductions", "Loan deductions"), row.LoanDeductions, "InstallmentAmount", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.DeductionFields, "salaryAdvance"))
         {
-            AppendJsonArray(deductions, GetFieldLabel(fieldConfig.DeductionFields, "salaryAdvance", "Salary advance"), row.SalaryAdvanceDeductions, currencyCode, options);
+            AppendDetailAmounts(deductions, GetFieldLabel(fieldConfig.DeductionFields, "salaryAdvance", "Salary advance"), row.SalaryAdvanceDeductions, "DeductedAmount", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.DeductionFields, "providentFund"))
         {
-            AppendJsonArray(deductions, GetFieldLabel(fieldConfig.DeductionFields, "providentFund", "Provident fund"), row.PfDeductions, currencyCode, options);
+            AppendDetailAmounts(deductions, GetFieldLabel(fieldConfig.DeductionFields, "providentFund", "Provident fund"), row.PfDeductions, "EmployeeAmount", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.DeductionFields, "socialSecurity"))
         {
-            AppendJsonArray(deductions, GetFieldLabel(fieldConfig.DeductionFields, "socialSecurity", "Social security"), row.SocialSecurityDeductions, currencyCode, options);
+            AppendDetailAmounts(deductions, GetFieldLabel(fieldConfig.DeductionFields, "socialSecurity", "Social security"), row.SocialSecurityDeductions, "EmployeeAmount", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.DeductionFields, "tax"))
         {
-            AppendJsonArray(deductions, GetFieldLabel(fieldConfig.DeductionFields, "tax", "Tax"), row.TaxDeductions, currencyCode, options);
+            AppendDetailAmounts(deductions, GetFieldLabel(fieldConfig.DeductionFields, "tax", "Tax"), row.TaxDeductions, "MonthlyTax", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.DeductionFields, "attendance"))
         {
-            AppendJsonArray(deductions, GetFieldLabel(fieldConfig.DeductionFields, "attendance", "Attendance"), row.AttendanceDeductions, currencyCode, options);
+            AppendDetailAmounts(deductions, GetFieldLabel(fieldConfig.DeductionFields, "attendance", "Attendance"), row.AttendanceDeductions, "TotalDeduction", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.DeductionFields, "lateAttendance"))
         {
-            AppendJsonArray(deductions, GetFieldLabel(fieldConfig.DeductionFields, "lateAttendance", "Late attendance"), row.LateAttendanceDeductions, currencyCode, options);
+            AppendDetailAmounts(deductions, GetFieldLabel(fieldConfig.DeductionFields, "lateAttendance", "Late attendance"), row.LateAttendanceDeductions, "TotalDeduction", currencyCode, options);
         }
 
         if (IsFieldVisible(fieldConfig.DeductionFields, "leave"))
         {
-            AppendJsonArray(deductions, GetFieldLabel(fieldConfig.DeductionFields, "leave", "Leave"), row.LeaveDeductions, currencyCode, options);
+            AppendDetailAmounts(deductions, GetFieldLabel(fieldConfig.DeductionFields, "leave", "Leave"), row.LeaveDeductions, "TotalDeduction", currencyCode, options);
         }
 
         var netFormatted = FormatMoney(row.NetSalary, currencyCode);
@@ -116,6 +116,7 @@ public static class PayslipLayoutShared
     {
         document.Add(BuildHeaderTable(
             context.Template,
+            context.LogoBytes,
             context.PeriodDisplay,
             context.HeaderBg,
             context.Fonts.HeaderTitle,
@@ -360,35 +361,43 @@ public static class PayslipLayoutShared
 
     public static PdfPTable BuildHeaderTable(
         PayslipTemplateDto template,
+        byte[]? logoBytes,
         string periodDisplay,
         BaseColor headerBg,
         Font fontHeaderTitle,
         Font fontHeaderSub,
         Font fontAddress)
     {
-        var columns = string.IsNullOrWhiteSpace(template.LogoUrl) ? 1 : 2;
-        var headerTable = new PdfPTable(columns) { WidthPercentage = 100f, SpacingAfter = 14f };
-
-        if (columns == 2)
+        // The logo is downloaded (with SSRF/size/timeout guards) by PayslipLogoLoader before rendering;
+        // the renderer never fetches remote URLs itself.
+        Image? logo = null;
+        if (logoBytes is { Length: > 0 })
         {
-            headerTable.SetWidths(new float[] { 22f, 78f });
-            var logoCell = new PdfPCell { Border = Rectangle.NO_BORDER, BackgroundColor = headerBg, Padding = 12f, VerticalAlignment = Element.ALIGN_MIDDLE };
             try
             {
-                var image = Image.GetInstance(new Uri(template.LogoUrl!));
-                image.ScaleToFit(72f, 72f);
-                logoCell.AddElement(image);
+                logo = Image.GetInstance(logoBytes);
+                logo.ScaleToFit(72f, 72f);
             }
             catch
             {
-                logoCell.AddElement(new Phrase(" ", fontHeaderSub));
+                logo = null;
             }
+        }
 
+        var columns = logo == null ? 1 : 2;
+        var headerTable = new PdfPTable(columns) { WidthPercentage = 100f, SpacingAfter = 14f };
+
+        if (logo != null)
+        {
+            headerTable.SetWidths(new float[] { 22f, 78f });
+            var logoCell = new PdfPCell { Border = Rectangle.NO_BORDER, BackgroundColor = headerBg, Padding = 12f, VerticalAlignment = Element.ALIGN_MIDDLE };
+            logoCell.AddElement(logo);
             headerTable.AddCell(logoCell);
         }
 
         var textTable = new PdfPTable(1) { WidthPercentage = 100f };
-        textTable.AddCell(HeaderTextCell(template.HeaderTitle ?? "SALARY SLIP", fontHeaderTitle, headerBg, paddingBottom: 4f));
+        var headerTitle = string.IsNullOrWhiteSpace(template.HeaderTitle) ? "SALARY SLIP" : template.HeaderTitle.Trim();
+        textTable.AddCell(HeaderTextCell(headerTitle, fontHeaderTitle, headerBg, paddingBottom: 4f));
         if (!string.IsNullOrWhiteSpace(template.HeaderSubtitle))
         {
             textTable.AddCell(HeaderTextCell(template.HeaderSubtitle.Trim(), fontHeaderSub, headerBg, paddingBottom: 2f));
@@ -734,106 +743,60 @@ public static class PayslipLayoutShared
         lines.Add((label, FormatMoney(amount, currencyCode)));
     }
 
-    private static void AppendJsonArray(
+    /// <summary>
+    /// Adds one payslip line per detail entry, using only the amount that was actually earned / deducted
+    /// (<paramref name="amountKey"/>). The stored detail JSON also holds working values (annual tax, employer
+    /// contribution, rates, "net salary after X", remaining loan balance…) which must not appear as payslip lines.
+    /// </summary>
+    private static void AppendDetailAmounts(
         List<(string Label, string Value)> lines,
         string sectionTitle,
         string? json,
+        string amountKey,
         string currencyCode,
         PayslipTemplateOptionsDto options)
     {
-        if (options.HideEmptyJsonSections && string.IsNullOrWhiteSpace(json)) return;
         var trimmed = json?.Trim();
-        if (options.HideEmptyJsonSections && trimmed is "[]" or "{}" or "null") return;
+        if (string.IsNullOrEmpty(trimmed) || trimmed is "[]" or "{}" or "null") return;
 
         try
         {
-            using var doc = JsonDocument.Parse(trimmed ?? "[]");
-            if (doc.RootElement.ValueKind != JsonValueKind.Array || doc.RootElement.GetArrayLength() == 0)
-                return;
+            using var doc = JsonDocument.Parse(trimmed);
+            if (doc.RootElement.ValueKind != JsonValueKind.Array) return;
 
-            var any = false;
-            var idx = 0;
+            var amounts = new List<decimal>();
             foreach (var el in doc.RootElement.EnumerateArray())
             {
                 if (el.ValueKind != JsonValueKind.Object) continue;
-                idx++;
-                foreach (var prop in el.EnumerateObject())
-                {
-                    var formatted = FormatJsonProperty(prop, currencyCode, options.HideZeroAmountLines);
-                    if (formatted == null) continue;
-                    any = true;
-                    var label = idx > 1 ? $"{sectionTitle} ({idx}) - {Humanize(prop.Name)}" : $"{sectionTitle} - {Humanize(prop.Name)}";
-                    lines.Add((label, formatted));
-                }
+                if (!TryGetDecimalProperty(el, amountKey, out var amount)) continue;
+                if (options.HideZeroAmountLines && amount == 0m) continue;
+                amounts.Add(amount);
             }
 
-            if (!any) return;
+            for (var i = 0; i < amounts.Count; i++)
+            {
+                var label = amounts.Count > 1 ? $"{sectionTitle} ({i + 1})" : sectionTitle;
+                lines.Add((label, FormatMoney(amounts[i], currencyCode)));
+            }
         }
-        catch
+        catch (JsonException)
         {
             // ignore malformed JSON on slip
         }
     }
 
-    private static string? FormatJsonProperty(JsonProperty prop, string currencyCode, bool hideZero)
+    private static bool TryGetDecimalProperty(JsonElement element, string key, out decimal value)
     {
-        if (ShouldSkipJsonKey(prop.Name)) return null;
-
-        switch (prop.Value.ValueKind)
+        value = 0m;
+        foreach (var prop in element.EnumerateObject())
         {
-            case JsonValueKind.Null:
-            case JsonValueKind.Undefined:
-                return null;
-            case JsonValueKind.String:
-            {
-                var s = prop.Value.GetString();
-                return string.IsNullOrWhiteSpace(s) ? null : s;
-            }
-            case JsonValueKind.Number:
-            {
-                if (!prop.Value.TryGetDecimal(out var d)) return null;
-                if (hideZero && d == 0m) return null;
-                var n = prop.Name;
-                if (n.Contains("Hour", StringComparison.OrdinalIgnoreCase) || n.Contains("Minutes", StringComparison.OrdinalIgnoreCase) || n.Contains("Days", StringComparison.OrdinalIgnoreCase) || n.Contains("Score", StringComparison.OrdinalIgnoreCase))
-                    return d.ToString(CultureInfo.InvariantCulture);
-                if (n.Contains("Amount", StringComparison.OrdinalIgnoreCase) || n.Contains("Deduction", StringComparison.OrdinalIgnoreCase)
-                    || n.Contains("Salary", StringComparison.OrdinalIgnoreCase) || n.Contains("Tax", StringComparison.OrdinalIgnoreCase)
-                    || n.Contains("Bonus", StringComparison.OrdinalIgnoreCase) || n.Contains("Installment", StringComparison.OrdinalIgnoreCase)
-                    || n.Contains("Net", StringComparison.OrdinalIgnoreCase) || n.Contains("Per", StringComparison.OrdinalIgnoreCase))
-                    return FormatMoney(d, currencyCode);
-                if (d == Math.Truncate(d))
-                    return d.ToString("0", CultureInfo.InvariantCulture);
-                return FormatMoney(d, currencyCode);
-            }
-            case JsonValueKind.True:
-                return "Yes";
-            case JsonValueKind.False:
-                return null;
-            default:
-                return null;
+            if (!prop.Name.Equals(key, StringComparison.OrdinalIgnoreCase)) continue;
+            if (prop.Value.ValueKind == JsonValueKind.Number && prop.Value.TryGetDecimal(out value)) return true;
+            if (prop.Value.ValueKind == JsonValueKind.String &&
+                decimal.TryParse(prop.Value.GetString(), NumberStyles.Number, CultureInfo.InvariantCulture, out value)) return true;
+            return false;
         }
-    }
 
-    private static bool ShouldSkipJsonKey(string name) =>
-        name.Equals("EmployeeId", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("RuleId", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("PfId", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("LoanId", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("AdvanceId", StringComparison.OrdinalIgnoreCase)
-        || name.Equals("TransactionId", StringComparison.OrdinalIgnoreCase);
-
-    private static string Humanize(string name)
-    {
-        if (string.IsNullOrEmpty(name)) return name;
-        var sb = new StringBuilder();
-        for (var i = 0; i < name.Length; i++)
-        {
-            var c = name[i];
-            if (i > 0 && char.IsUpper(c) && char.IsLower(name[i - 1]))
-                sb.Append(' ');
-            if (c == '_') sb.Append(' ');
-            else sb.Append(c);
-        }
-        return sb.ToString();
+        return false;
     }
 }
