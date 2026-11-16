@@ -2025,6 +2025,8 @@ public class PayrollCalculationResultDto
     public decimal TotalHolidayOvertimeAmount { get; set; }
     public List<PayrollOvertimeDetailDto> OvertimeDetails { get; set; } = new();
 
+    /// <summary>Non-fatal issues found while calculating (e.g. deduction skipped to avoid negative net salary).</summary>
+    public List<string> Warnings { get; set; } = new();
     public decimal TotalDeductions => TotalLoanDeductionAmount + TotalSalaryAdvanceDeductionAmount + TotalProvidentFundDeductionAmount + TotalSocialSecurityEmployeeAmount + TotalTaxDeductionAmount + TotalAttendanceDeductionAmount + TotalLateAttendanceDeductionAmount + TotalLeaveDeductionAmount;
 }
 
@@ -2379,4 +2381,10 @@ public class MyPayrollResultsFilterDto
 {
     public int Page { get; set; } = 1;
     public int PageSize { get; set; } = 10;
+}
+
+/// <summary>Thrown when payroll is calculated for a period whose status is Locked or Closed.</summary>
+public class PayrollPeriodLockedException : InvalidOperationException
+{
+    public PayrollPeriodLockedException(string message) : base(message) { }
 }

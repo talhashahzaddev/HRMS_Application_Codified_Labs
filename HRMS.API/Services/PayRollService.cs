@@ -1557,6 +1557,10 @@ public class PayRollService : IPayRollService
     {
         try
         {
+            var invalid = ValidateTaxRegime(dto);
+            if (invalid != null)
+                return new ServiceResponse<TaxRegimeDto> { Success = false, Message = invalid };
+
             var result = await _payRollRepository.CreateTaxRegimeAsync(organizationId, dto);
             return new ServiceResponse<TaxRegimeDto> { Success = true, Data = result };
         }
@@ -1571,6 +1575,10 @@ public class PayRollService : IPayRollService
     {
         try
         {
+            var invalid = ValidateTaxRegime(dto);
+            if (invalid != null)
+                return new ServiceResponse<TaxRegimeDto> { Success = false, Message = invalid };
+
             var result = await _payRollRepository.UpdateTaxRegimeAsync(regimeId, organizationId, dto);
             if (result == null)
                 return new ServiceResponse<TaxRegimeDto> { Success = false, Message = "Tax regime not found." };
@@ -1595,6 +1603,108 @@ public class PayRollService : IPayRollService
             _logger.LogError(ex, "Error deleting tax regime");
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
+    }
+
+    // ── Tax rule validation ────────────────────────────────────────────────────
+    private static readonly string[] AllowedTaxability = { "FullyTaxable", "Exempt", "PartiallyExempt" };
+    private static readonly string[] AllowedTaxApplyStages = { "ProvidentFunds", "SocialSecurity" };
+
+    private static string? ValidateTaxRegime(CreateTaxRegimeDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.RegimeName))
+            return "Regime name is required.";
+        if (dto.StartDate == default || dto.EndDate == default)
+            return "Start date and end date are required.";
+        if (dto.EndDate.Date < dto.StartDate.Date)
+            return "End date must be on or after the start date.";
+        dto.RegimeName = dto.RegimeName.Trim();
+        dto.Country = dto.Country?.Trim();
+        return null;
+    }
+
+    /// <summary>
+    /// Payroll picks the first slab whose [min, max] range contains the annual taxable income, so
+    /// overlapping or inverted slabs in a category give wrong (order-dependent) tax.
+    /// </summary>
+    private async Task<string?> ValidateTaxSlabAsync(Guid organizationId, CreateTaxSlabDto dto, Guid? currentSlabId)
+    {
+        if (dto.SlabOrder < 1)
+            return "Slab order must be 1 or greater.";
+        if (dto.MinIncome < 0)
+            return "Min income cannot be negative.";
+        if (dto.MaxIncome.HasValue && dto.MaxIncome.Value <= dto.MinIncome)
+            return "Max income must be greater than min income (leave it empty for no upper limit).";
+        dto.FixedAmount ??= 0m;
+        dto.Percentage ??= 0m;
+        if (dto.FixedAmount < 0)
+            return "Fixed amount cannot be negative.";
+        if (dto.Percentage < 0 || dto.Percentage > 100)
+            return "Percentage must be between 0 and 100.";
+
+        var siblings = (await _payRollRepository.GetAllTaxSlabsAsync(organizationId))
+            .Where(s => s.CategoryId == dto.CategoryId && (!currentSlabId.HasValue || s.SlabId != currentSlabId.Value))
+            .ToList();
+
+        if (siblings.Any(s => s.SlabOrder == dto.SlabOrder))
+            return $"Slab order {dto.SlabOrder} is already used in this tax category.";
+
+        var newMax = dto.MaxIncome ?? decimal.MaxValue;
+        foreach (var s in siblings)
+        {
+            var otherMax = s.MaxIncome ?? decimal.MaxValue;
+            // Touching boundaries (e.g. 0-600000 and 600000-1200000) are allowed; real overlaps are not.
+            if (dto.MinIncome < otherMax && s.MinIncome < newMax)
+            {
+                var range = s.MaxIncome.HasValue ? $"{s.MinIncome:N0} - {s.MaxIncome.Value:N0}" : $"{s.MinIncome:N0} and above";
+                return $"Income range overlaps with slab {s.SlabOrder} ({range}).";
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<string?> ValidateTaxComponentRuleAsync(Guid organizationId, CreateTaxComponentRuleDto dto, Guid? currentRuleId)
+    {
+        if (string.IsNullOrWhiteSpace(dto.ComponentName))
+            return "Component name is required.";
+        dto.ComponentName = dto.ComponentName.Trim();
+
+        var taxability = AllowedTaxability.FirstOrDefault(t => t.Equals(dto.Taxability?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (taxability == null)
+            return "Taxability must be FullyTaxable, Exempt or PartiallyExempt.";
+        dto.Taxability = taxability;
+
+        // Payroll matches the stage case-insensitively ('providentfunds'); store the canonical value.
+        var stage = AllowedTaxApplyStages.FirstOrDefault(t => t.Equals(dto.ApplyStage?.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (stage == null)
+            return "Apply stage must be ProvidentFunds or SocialSecurity.";
+        dto.ApplyStage = stage;
+
+        if (dto.LimitAmount < 0)
+            return "Limit amount cannot be negative.";
+        if (dto.LimitPercentage < 0 || dto.LimitPercentage > 100)
+            return "Limit percentage must be between 0 and 100.";
+
+        if (taxability == "PartiallyExempt")
+        {
+            if ((dto.LimitAmount ?? 0) <= 0 && (dto.LimitPercentage ?? 0) <= 0)
+                return "A partially exempt rule needs a limit amount or a limit percentage.";
+        }
+        else
+        {
+            dto.LimitAmount = 0;
+            dto.LimitPercentage = 0;
+        }
+
+        // Payroll applies one rule per stage; a second one would be picked at random.
+        var duplicate = (await _payRollRepository.GetAllTaxComponentRulesAsync(organizationId))
+            .Any(r => r.RegimeId == dto.RegimeId
+                      && (!currentRuleId.HasValue || r.ComponentRuleId != currentRuleId.Value)
+                      && string.Equals(r.ApplyStage, stage, StringComparison.OrdinalIgnoreCase));
+        if (duplicate)
+            return $"This tax regime already has a rule for {stage}. Edit that rule instead.";
+
+        return null;
     }
 
     // Tax Categories
@@ -1660,6 +1770,10 @@ public class PayRollService : IPayRollService
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(dto.CategoryName))
+                return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "Category name is required." };
+            dto.CategoryName = dto.CategoryName.Trim();
+
             var regime = await _payRollRepository.GetTaxRegimeByIdAsync(dto.RegimeId, organizationId);
             if (regime == null)
                 return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "Tax regime not found." };
@@ -1678,6 +1792,10 @@ public class PayRollService : IPayRollService
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(dto.CategoryName))
+                return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "Category name is required." };
+            dto.CategoryName = dto.CategoryName.Trim();
+
             var regime = await _payRollRepository.GetTaxRegimeByIdAsync(dto.RegimeId, organizationId);
             if (regime == null)
                 return new ServiceResponse<TaxCategoryDto> { Success = false, Message = "Tax regime not found." };
@@ -1761,6 +1879,10 @@ public class PayRollService : IPayRollService
             if (category == null)
                 return new ServiceResponse<TaxSlabDto> { Success = false, Message = "Tax category not found." };
 
+            var invalid = await ValidateTaxSlabAsync(organizationId, dto, null);
+            if (invalid != null)
+                return new ServiceResponse<TaxSlabDto> { Success = false, Message = invalid };
+
             var result = await _payRollRepository.CreateTaxSlabAsync(organizationId, dto);
             return new ServiceResponse<TaxSlabDto> { Success = true, Data = result };
         }
@@ -1778,6 +1900,10 @@ public class PayRollService : IPayRollService
             var category = await _payRollRepository.GetTaxCategoryByIdAsync(dto.CategoryId, organizationId);
             if (category == null)
                 return new ServiceResponse<TaxSlabDto> { Success = false, Message = "Tax category not found." };
+
+            var invalid = await ValidateTaxSlabAsync(organizationId, dto, slabId);
+            if (invalid != null)
+                return new ServiceResponse<TaxSlabDto> { Success = false, Message = invalid };
 
             var result = await _payRollRepository.UpdateTaxSlabAsync(slabId, organizationId, dto);
             if (result == null)
@@ -1858,6 +1984,10 @@ public class PayRollService : IPayRollService
             if (regime == null)
                 return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "Tax regime not found." };
 
+            var invalid = await ValidateTaxComponentRuleAsync(organizationId, dto, null);
+            if (invalid != null)
+                return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = invalid };
+
             var result = await _payRollRepository.CreateTaxComponentRuleAsync(organizationId, dto);
             return new ServiceResponse<TaxComponentRuleDto> { Success = true, Data = result };
         }
@@ -1875,6 +2005,10 @@ public class PayRollService : IPayRollService
             var regime = await _payRollRepository.GetTaxRegimeByIdAsync(dto.RegimeId, organizationId);
             if (regime == null)
                 return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = "Tax regime not found." };
+
+            var invalid = await ValidateTaxComponentRuleAsync(organizationId, dto, componentRuleId);
+            if (invalid != null)
+                return new ServiceResponse<TaxComponentRuleDto> { Success = false, Message = invalid };
 
             var result = await _payRollRepository.UpdateTaxComponentRuleAsync(componentRuleId, organizationId, dto);
             if (result == null)
@@ -2491,6 +2625,10 @@ public class PayRollService : IPayRollService
             var result = await _payRollRepository.CreateLoanRequestAsync(organizationId, employeeId, dto);
             return new ServiceResponse<LoanDto> { Success = true, Data = result };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<LoanDto> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error creating loan request");
@@ -2683,6 +2821,14 @@ public class PayRollService : IPayRollService
                 Success = true,
                 Message = "Payroll calculated successfully (loan + salary advance + provident fund modules).",
                 Data = result
+            };
+        }
+        catch (PayrollPeriodLockedException ex)
+        {
+            return new ServiceResponse<PayrollCalculationResultDto>
+            {
+                Success = false,
+                Message = ex.Message
             };
         }
         catch (Exception ex)
@@ -2944,6 +3090,10 @@ public class PayRollService : IPayRollService
                 Data = true
             };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting social security jurisdiction: {Id}", id);
@@ -3030,6 +3180,10 @@ public class PayRollService : IPayRollService
                 Message = "Social security authority deleted successfully.",
                 Data = true
             };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
         }
         catch (Exception ex)
         {
@@ -3118,11 +3272,40 @@ public class PayRollService : IPayRollService
                 Data = true
             };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting social security scheme: {Id}", id);
             return new ServiceResponse<bool> { Success = false, Message = "An error occurred." };
         }
+    }
+
+    private static readonly string[] AllowedContributionBases = { "gross", "basic", "fixed", "component" };
+
+    /// <summary>Rates are percentages (0-100) and limits/caps must describe a valid salary range.</summary>
+    private static string? ValidateSocialSecurityRule(CreateSocialSecurityRuleDto dto)
+    {
+        var basis = string.IsNullOrWhiteSpace(dto.ContributionBasis) ? "gross" : dto.ContributionBasis.Trim().ToLowerInvariant();
+        if (!AllowedContributionBases.Contains(basis))
+            return "Contribution basis must be gross, basic, fixed or component.";
+        dto.ContributionBasis = basis;
+
+        if (dto.EmployeeDefaultPct < 0 || dto.EmployeeDefaultPct > 100 || dto.EmployerDefaultPct < 0 || dto.EmployerDefaultPct > 100)
+            return "Employee and employer contribution percentages must be between 0 and 100.";
+        if (dto.EmployeeFixedAmount < 0 || dto.EmployerFixedAmount < 0)
+            return "Fixed contribution amounts cannot be negative.";
+        if (basis == "fixed" && (dto.EmployeeFixedAmount ?? 0) <= 0 && (dto.EmployerFixedAmount ?? 0) <= 0)
+            return "A fixed contribution rule needs an employee or employer fixed amount.";
+        if (dto.MinSalaryLimit < 0 || dto.MaxSalaryLimit < 0 || dto.AnnualSalaryCap < 0)
+            return "Salary limits and caps cannot be negative.";
+        if (dto.MinSalaryLimit.HasValue && dto.MaxSalaryLimit.HasValue && dto.MaxSalaryLimit > 0 && dto.MaxSalaryLimit < dto.MinSalaryLimit)
+            return "Max salary limit must be greater than or equal to the min salary limit.";
+        if (dto.EffectiveFrom.HasValue && dto.EffectiveTo.HasValue && dto.EffectiveTo.Value.Date < dto.EffectiveFrom.Value.Date)
+            return "Effective to date must be on or after the effective from date.";
+        return null;
     }
 
     public async Task<ServiceResponse<SocialSecurityRuleDto>> CreateSocialSecurityRuleAsync(Guid organizationId, CreateSocialSecurityRuleDto dto)
@@ -3132,6 +3315,12 @@ public class PayRollService : IPayRollService
             if (dto.SchemeId == Guid.Empty || string.IsNullOrWhiteSpace(dto.RuleName))
             {
                 return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "Scheme and rule name are required." };
+            }
+
+            var ruleError = ValidateSocialSecurityRule(dto);
+            if (ruleError != null)
+            {
+                return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = ruleError };
             }
 
             var result = await _payRollRepository.CreateSocialSecurityRuleAsync(organizationId, dto);
@@ -3161,6 +3350,12 @@ public class PayRollService : IPayRollService
             if (dto.SchemeId == Guid.Empty || string.IsNullOrWhiteSpace(dto.RuleName))
             {
                 return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = "Scheme and rule name are required." };
+            }
+
+            var ruleError = ValidateSocialSecurityRule(dto);
+            if (ruleError != null)
+            {
+                return new ServiceResponse<SocialSecurityRuleDto> { Success = false, Message = ruleError };
             }
 
             var result = await _payRollRepository.UpdateSocialSecurityRuleAsync(id, organizationId, dto);
@@ -3204,6 +3399,10 @@ public class PayRollService : IPayRollService
                 Message = "Social security rule deleted successfully.",
                 Data = true
             };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
         }
         catch (Exception ex)
         {
@@ -3941,6 +4140,10 @@ public class PayRollService : IPayRollService
                 Message = ok ? "Request rejected." : "Pending request not found."
             };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error rejecting social security enrollment request {RequestId}", requestId);
@@ -4009,6 +4212,10 @@ public class PayRollService : IPayRollService
                 Message = ok ? "Claim approved successfully." : "Claim not in an approvable state."
             };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error approving social security claim {ClaimId}", claimId);
@@ -4027,6 +4234,10 @@ public class PayRollService : IPayRollService
                 Message = ok ? "Claim rejected." : "Claim not in a rejectable state."
             };
         }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error rejecting social security claim {ClaimId}", claimId);
@@ -4044,6 +4255,10 @@ public class PayRollService : IPayRollService
                 Success = ok, Data = ok,
                 Message = ok ? "Claim marked as paid." : "Claim must be approved before payment."
             };
+        }
+        catch (InvalidOperationException ex)
+        {
+            return new ServiceResponse<bool> { Success = false, Message = ex.Message };
         }
         catch (Exception ex)
         {
@@ -4124,6 +4339,10 @@ public class PayRollService : IPayRollService
     {
         try
         {
+            filter ??= new CompliancePayslipFilterDto();
+            if (filter.Page < 1) filter.Page = 1;
+            if (filter.PageSize < 1) filter.PageSize = 50;
+            if (filter.PageSize > 5000) filter.PageSize = 5000;
             var data = await _payRollRepository.GetCompliancePayslipsAsync(organizationId, filter);
             return new ServiceResponse<PagedResult<CompliancePayslipRowDto>> { Success = true, Data = data };
         }

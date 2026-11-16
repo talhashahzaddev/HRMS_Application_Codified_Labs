@@ -994,17 +994,35 @@ public class EmailService : IEmailService
         string? emailSubject = null,
         string? emailMessage = null)
     {
+        if (string.IsNullOrWhiteSpace(toEmail) || string.IsNullOrWhiteSpace(payslipDownloadUrl))
+        {
+            _logger.LogWarning("Payslip email skipped: missing recipient email or payslip URL.");
+            return false;
+        }
+
+        // Organizations without a domain previously threw a NullReferenceException here, which failed
+        // every payslip email of that organization.
         var domain = await _authRepository.GetDomainByOrganizationIdAsync(organizationId);
-        var cleanDomain = domain.Trim().ToLower()
+        var cleanDomain = (domain ?? string.Empty).Trim().ToLower()
             .Replace("http://", "", StringComparison.OrdinalIgnoreCase)
             .Replace("https://", "", StringComparison.OrdinalIgnoreCase)
-            .Replace(".com", "", StringComparison.OrdinalIgnoreCase);
-        var portalLink = $"https://{cleanDomain}.briskpeople.com";
+            .Replace(".com", "", StringComparison.OrdinalIgnoreCase)
+            .Trim('/');
+        var portalLink = string.IsNullOrWhiteSpace(cleanDomain)
+            ? "https://www.briskpeople.com"
+            : $"https://{cleanDomain}.briskpeople.com";
+        var safePortalLink = WebUtility.HtmlEncode(portalLink);
+        var safeDownloadUrl = WebUtility.HtmlEncode(payslipDownloadUrl);
         var safeEmployeeName = WebUtility.HtmlEncode(employeeName);
         var safePeriodName = WebUtility.HtmlEncode(periodName);
+        // Subject is admin-entered free text: strip line breaks and cap the length.
         var subject = string.IsNullOrWhiteSpace(emailSubject)
             ? $"Your Payslip — {periodName} | BriskPeople"
-            : emailSubject.Trim();
+            : emailSubject.Replace("\r", " ").Replace("\n", " ").Trim();
+        if (subject.Length > 200)
+        {
+            subject = subject[..200];
+        }
 
         var messageHtml = string.IsNullOrWhiteSpace(emailMessage)
             ? $"<p>Your payslip for <strong>{safePeriodName}</strong> is ready.</p>"
@@ -1036,14 +1054,14 @@ public class EmailService : IEmailService
     <table width='100%' cellpadding='0' cellspacing='0' style='margin:30px 0;'>
     <tr>
         <td align='center'>
-            <a href='{payslipDownloadUrl}'
+            <a href='{safeDownloadUrl}'
                style='background:#1f4fd8;color:#fff;padding:14px 28px;text-decoration:none;border-radius:6px;font-size:14px;font-weight:bold;display:inline-block;'>
                 Download Payslip (PDF)
             </a>
         </td>
     </tr>
     </table>
-    <p>You can also sign in to the employee portal: <a href='{portalLink}'>{portalLink}</a></p>
+    <p>You can also sign in to the employee portal: <a href='{safePortalLink}'>{safePortalLink}</a></p>
     <p style='margin-bottom:0;'>Best regards,<br/><strong>BriskPeople Team</strong></p>
 </td>
 </tr>

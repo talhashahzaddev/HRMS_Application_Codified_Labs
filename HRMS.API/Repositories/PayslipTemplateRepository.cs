@@ -160,8 +160,8 @@ public class PayslipTemplateRepository : BaseRepository, IPayslipTemplateReposit
         {
             fieldConfig = string.IsNullOrWhiteSpace(row.FieldConfigJson)
                 ? PayslipTemplateDefaults.CreateDefaultFieldConfig()
-                : JsonSerializer.Deserialize<PayslipTemplateFieldConfigDto>(row.FieldConfigJson, JsonOptions)
-                  ?? PayslipTemplateDefaults.CreateDefaultFieldConfig();
+                : HRMS.API.Services.PayslipTemplateService.NormalizeFieldConfig(
+                    JsonSerializer.Deserialize<PayslipTemplateFieldConfigDto>(row.FieldConfigJson, JsonOptions));
         }
         catch
         {

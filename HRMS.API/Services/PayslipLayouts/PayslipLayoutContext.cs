@@ -16,4 +16,5 @@ public sealed class PayslipLayoutContext
     public required BaseColor SectionBg { get; init; }
     public required BaseColor NetBg { get; init; }
     public required PayslipLayoutFonts Fonts { get; init; }
+    public byte[]? LogoBytes { get; init; }
 }
